@@ -23,7 +23,7 @@ Open-source medical imaging collaboration platform (brand: LumenCollab) that pai
 | Layer | Tech |
 |:--|:--|
 | Backend | Java 17 · Spring Boot 3.x · Spring Cloud Alibaba (Nacos, Sentinel) · Spring Cloud Gateway · OpenFeign |
-| Data | PostgreSQL (per-service DB) · MyBatis-Plus · Flyway · Redis · RabbitMQ |
+| Data | PostgreSQL (per-service DB) · MyBatis-Plus · Flyway · Redis · RocketMQ |
 | Integration | dcm4che (MWL / MPPS SCP) · HAPI HL7v2 · dcm4chee QIDO-RS |
 | Frontend (web) | React 18 · TypeScript · Vite · Ant Design 5 (pnpm, single SPA) |
 

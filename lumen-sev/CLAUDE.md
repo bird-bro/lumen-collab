@@ -27,7 +27,7 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 - Department services depend on `lumen-exam-core` and extend it - never fork the kernel
 
 ## Architecture Rules
-- Sync query = OpenFeign + Sentinel fallback; state change = RabbitMQ event - no cross-service distributed transactions
+- Sync query = OpenFeign + Sentinel fallback; state change = RocketMQ event (transactional messages for atomic local-DB + event publish) - no cross-service distributed transactions
 - Department services never touch DICOM/HL7 protocols - `lumen-integration` owns MWL / MPPS / HL7v2
 - Study linkage: dcm4chee-arc QIDO-RS by Accession Number
 - Flexible structures (report templates, structured findings, department forms) → PostgreSQL `jsonb` + GIN index
