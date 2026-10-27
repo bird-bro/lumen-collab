@@ -1,0 +1,20 @@
+# openspec/loop-state.yaml - LoopForge workflow state machine.
+# Phases: proposing -> applying -> verifying -> archived | abandoned (terminal).
+#   debugging side-path: applying -> debugging (3-strike) -> applying | proposing (rewind)
+# MOD-3: phase gates read this file; MOD-4: retry_count >= 3 -> enter debugging.
+# Module-A: artifacts_hash/contract_hash for execution-contract freshness.
+# Module-SDD: execution_mode/batches_completed for subagent-driven development.
+phase: proposing
+change: null
+current_task: null
+tasks_total: 0
+tasks_done: 0
+retry_count: 0
+debt_count: 0
+debug_attempts: 0
+workflow_mode: null
+artifacts_hash: null
+contract_hash: null
+execution_mode: null
+batches_completed: 0
+last_updated: null

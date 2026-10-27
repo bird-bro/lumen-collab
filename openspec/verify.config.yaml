@@ -1,0 +1,17 @@
+# OpenSpec verify configuration
+# /opsx:verify reads L1 (build) and L3 (test) commands from here.
+# Place at: <project>/openspec/verify.config.yaml
+#
+# - `build` is required for L1; omit/leave null to SKIP L1 for a stack.
+# - `test`  is optional for L3; omit/leave null to SKIP L3 (report SKIP, not FAIL).
+# - `dir` is the stack directory relative to the project root; builds/tests run there.
+
+stacks:
+  backend:
+    dir: lumen-sev
+    build: mvn compile -q
+    test: mvn test -q
+  lumen-web:
+    dir: lumen-web
+    build: pnpm build
+    test: null                 # no test runner -> L3 SKIP (set to pnpm test if Vitest exists)

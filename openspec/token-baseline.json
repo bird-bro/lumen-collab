@@ -1,0 +1,5 @@
+{
+  "_comment": "Token baseline for auto-loaded files. Re-run: scaffold.sh tokens <project-dir>",
+  "threshold": 3000,
+  "components": []
+}
