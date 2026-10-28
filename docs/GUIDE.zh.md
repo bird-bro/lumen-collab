@@ -11,7 +11,7 @@
 ## 去哪找什么
 | 你想找的 | 位置 | 语言 |
 |:--|:--|:--|
-| 项目业务/架构/模块图 | `openspec/project.md` | 英文 |
+| 项目业务/架构/模块图 | `openspec/README.md`（Project Overview 节） | 英文 |
 | API/数据/错误契约 | `openspec/specs/` | 英文 |
 | 各技术栈编码规范 | `<stack>/CLAUDE.md` | 英文 |
 | 命名等通用规则 | `.claude/rules/*.md` | 英文 |
