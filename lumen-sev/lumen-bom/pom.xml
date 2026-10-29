@@ -257,6 +257,15 @@
 
             <!-- ======== Lumen-only additions (NOT OPS-managed; no OPS verification
                  inherited - design D1/D2. Managed here, consumed by no module yet.) ======== -->
+            <!-- bouncycastle: NOT managed in OPS's parent - OPS declares it as the only
+                 third-party version literal in a child POM (common/pom.xml). Governance
+                 adaptation (e) of design D5 relocates that literal here; the resolved
+                 version is unchanged from OPS's 1.46. -->
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk16</artifactId>
+                <version>1.46</version>
+            </dependency>
             <!-- HL7 v2 (HAPI, not HAPI FHIR) -->
             <dependency>
                 <groupId>ca.uhn.hapi</groupId>
