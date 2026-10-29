@@ -19,7 +19,7 @@
 - **In scope**:
   - `lumen-sev/pom.xml` aggregator + `.mvn` / wrapper as needed
   - `lumen-bom` (OPS managed set 1:1 + lumen-only additions)
-  - `framework` + `common` copied verbatim from OPS (four recorded adaptations only)
+  - `framework` + `common` copied verbatim from OPS (five recorded adaptations only)
   - `lumen-auth` service shell (entry point + config + Nacos wiring, port 8081)
   - Build-time and context-load tests that pass with zero infrastructure
 - **Out of scope**:
@@ -143,7 +143,7 @@ Source of truth: `tasks.md` (17 tracked tasks in 5 groups). Batching for executi
 
 ### Batch 2 - OPS base modules verbatim copy (tasks 2.1-2.3)
 - **Goal**: `framework`/`common` live in this repo, compile on the train, and differ from
-  OPS only by the four recorded adaptations.
+  OPS only by the five recorded adaptations.
 - **Input**: OPS originals at `/Users/birdbro/work/01-JF/00-gitlab/OPS/ops_sev/`; design D5.
 - **Output**: `framework/`, `common/` (packages/artifactIds unchanged), adaptation diffs.
 - **Completion criteria**: `diff -r` shows only parent-block POM changes (2.1) plus the
@@ -238,7 +238,7 @@ Source of truth: `tasks.md` (17 tracked tasks in 5 groups). Batching for executi
      diff against `ops_sev/pom.xml` is clean for every library OPS manages, the dcm4che
      repository declaration exists, and no module links dcm4che/HAPI/RocketMQ.
   2. **After Batch 2** (verbatim copy) - blocking. Review the `diff -r` result: only the
-     four recorded adaptations may differ. This is the byte-faithfulness gate for the whole
+     five recorded adaptations may differ. This is the byte-faithfulness gate for the whole
      reuse strategy.
   3. **After Batch 3** (auth shell, before Batch 4) - confirm the `test` profile actually
      neutralizes Nacos before the context-load test is written, so Batch 4's red-green cycle
@@ -255,7 +255,7 @@ Source of truth: `tasks.md` (17 tracked tasks in 5 groups). Batching for executi
   - Any use of a `spring-boot3`-line starter artifact (`mybatis-plus-spring-boot3-starter`,
     `druid-spring-boot-3-starter`, ...) on this train - those are Boot 3 artifacts and will
     not run on Boot 2.5.15.
-  - Any deviation in `framework`/`common` beyond the four recorded adaptations, or any
+  - Any deviation in `framework`/`common` beyond the five recorded adaptations, or any
     renamed/missing class versus OPS (violates `specs/service-topology` § Verbatim Adoption).
   - Any reintroduction of a Java gateway module, or any reactive/webflux dependency entering
     `framework`/`common` (violates the nginx-entry decision and the gateway discipline).

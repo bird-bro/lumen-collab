@@ -43,13 +43,13 @@
 
 ## 2. OPS base modules verbatim copy (framework + common)
 
-- [ ] 2.1 Copy `framework` and `common` from `ops_sev/` into `lumen-sev/` unchanged:
+- [x] 2.1 Copy `framework` and `common` from `ops_sev/` into `lumen-sev/` unchanged:
   artifactIds stay `framework`/`common`, packages stay `org.birdbro.framework` /
   `org.birdbro.common`; repoint each copied POM's parent from the OPS parent to the
   `lumen-sev` aggregator (versions resolve through `lumen-bom`). Verify:
   `mvn -f lumen-sev/pom.xml -pl framework,common -am compile -q` exits 0, and
   `diff -r` against the OPS originals shows changes only in the parent block of the two POMs.
-- [ ] 2.2 Apply exactly the four recorded adaptations, nothing more (design D5):
+- [x] 2.2 Apply exactly the four recorded adaptations, nothing more (design D5):
   (a) make `RedisConfig` / `FastJson2JsonRedisSerializer` conditional on Redis being
   present (`@ConditionalOnClass`/`@ConditionalOnProperty`), so a context loads without a
   Redis server; (b) leave the security classes as-is and record that token issuance is
@@ -60,11 +60,11 @@
   mappers write that service's own DB; (d) delete
   `common/src/main/java/org/birdbro/common/Constants/DingTalkConstants.java` and
   `common/src/main/java/org/birdbro/common/utils/WxCryptUtil.java` (user instruction -
-  OPS-domain baggage, zero references verified); (e) in the copied `common/pom.xml` drop
+  OPS-domain baggage, zero references within the copied modules verified); (e) in the copied `common/pom.xml` drop
   the `bcprov-jdk16:1.46` version literal (design D5 adaptation 5) after adding
   `org.bouncycastle:bcprov-jdk16:1.46` to `lumen-bom` management. Verify: `diff -r` against
   OPS shows only these files changed, and each change traces to (a)/(b)/(c)/(d)/(e).
-- [ ] 2.3 Confirm the base-module boundaries hold. Verify:
+- [x] 2.3 Confirm the base-module boundaries hold. Verify:
   `grep -rn "@SpringBootApplication" lumen-sev/framework lumen-sev/common` returns nothing;
   `grep -rn "spring-boot-starter-webflux\|spring-cloud-starter-gateway"
   lumen-sev/framework lumen-sev/common` returns nothing (no reactive deps may enter); and

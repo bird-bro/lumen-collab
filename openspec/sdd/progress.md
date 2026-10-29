@@ -13,10 +13,10 @@
 - Notes: toolchain = lumen-sev/mvnw (wrapper 3.3.4 → Maven 3.9.9) + JDK 11 (/Library/Java/JavaVirtualMachines/jdk-11.jdk); settings.xml sanitized (aliyun mirror only, no credentials)
 
 ### Batch 2: OPS framework/common verbatim copy (tasks 2.1-2.3)
-- Status: Pending
-- Commits: -
-- Review: Pending (mandatory: diff -r gate, evidence to user)
-- Notes: OPS source /Users/birdbro/work/01-JF/00-gitlab/OPS/ops_sev/{framework,common}; 4 adaptations (a-d)
+- Status: Complete + Approved (commit ab2baa7; review fixes commit follows)
+- Commits: 6bd2cf6..ab2baa7
+- Review: Approved - byte-faithfulness gate re-verified independently (36=36, 54=54, only recorded adaptations); Important-1 (D5 (a) scope) reconciled; Minor items deferred to B5 (settings URL modernization, dispose.properties mojake noted)
+- Notes: deleted classes unreferenced in copied modules; OPS-wide consumers only in uncopied business modules
 
 ### Batch 3: lumen-auth shell (tasks 3.1-3.2)
 - Status: Pending

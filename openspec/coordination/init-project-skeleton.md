@@ -71,8 +71,9 @@ those services assign them and update this table.
   via the copied filter against shared Redis; (3) operation-log tables are owned per service
   (each service's Flyway carries the same op-log schema; the copied mappers write the
   service's own DB); (4) **`DingTalkConstants` + `WxCryptUtil` are deleted during the copy**
-  (user instruction 2026-10-29 - OPS-domain baggage, zero references in the OPS source,
-  verified by grep); (5) **governance alignment of the copied POM** - the single third-party
+  (user instruction 2026-10-29 - OPS-domain baggage; zero references **within the copied
+  modules**, verified by grep - full-OPS consumers exist only in `birdbro-operation`/
+  `birdbro-manage`, which are not copied and have no lumen equivalent); (5) **governance alignment of the copied POM** - the single third-party
   version literal in OPS's child POMs (`org.bouncycastle:bcprov-jdk16:1.46`, found during
   Batch 1) moves into `lumen-bom` management, resolved version unchanged. Two binding disciplines: **`lumen-gateway`/cloud gateway never depends
   on framework/common (WebFlux vs Servlet); only Servlet services depend on them**. Remaining

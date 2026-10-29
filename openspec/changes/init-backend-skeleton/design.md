@@ -136,13 +136,15 @@ by the verbatim copy. Shared jars are built by `maven-jar-plugin` only - **no**
 Boundary (non-executable). Module coordinates use OPS's `${revision}` +
 `flatten-maven-plugin` mechanism (revision `0.1.0`).
 
-### D5 - OPS base modules verbatim, with exactly four adaptations
+### D5 - OPS base modules verbatim, with exactly five adaptations
 `framework` and `common` are copied unchanged (name, artifactId, package). The three
 recorded adaptations (anything else is a governance violation per
 `specs/service-topology` § Verbatim Adoption):
-1. **Redis conditional** - `RedisConfig` / `FastJson2JsonRedisSerializer` get
-   `@ConditionalOnClass`/`@ConditionalOnProperty` guards so a service context loads with no
-   Redis server (Redis is optional in the hospital form).
+1. **Redis conditional** - `RedisConfig` gets `@ConditionalOnClass`/
+   `@ConditionalOnProperty` guards so a service context loads with no Redis server (Redis
+   is optional in the hospital form). `FastJson2JsonRedisSerializer` needs no guard of its
+   own: its only instantiation is inside `RedisConfig` (Batch 2 review), so guarding the
+   configuration class fully prevents its loading. (D5 correction, B2 review.)
 2. **Security wiring boundary** - the copied `TokenService` /
    `JwtAuthenticationTokenFilter` stay as-is; `lumen-auth` will be the token issuer, other
    services verify against shared Redis. Wiring completes in the auth feature change, not
@@ -152,8 +154,11 @@ recorded adaptations (anything else is a governance violation per
    mappers write that service's own DB. Recorded now, implemented per service.
 4. **Business-baggage removal** (user instruction 2026-10-29) - `common/Constants/DingTalkConstants.java`
    and `common/utils/WxCryptUtil.java` are **deleted** during the copy: they are OPS-domain
-   artifacts with **zero references** in the OPS source (verified by grep), and the eis
-   lineage has no DingTalk/WeChat dependency. Remaining idle classes (`WorkOrderStatusEnum`,
+   artifacts with **zero references inside the copied modules** (verified by grep; the
+   full-OPS grep shows consumers only in `birdbro-operation`/`birdbro-manage` - OPS business
+   modules outside the copy scope, with no lumen equivalent to break), and the eis/RCP
+   lineage has no DingTalk/WeChat dependency (RCP's own common copy lacks
+   `DingTalkConstants` entirely). Remaining idle classes (`WorkOrderStatusEnum`,
    `pojo/user/*`) are copied but untouched - pruned only by the changes that touch them.
 5. **Governance alignment of the copied POM** (Batch 1 finding) - OPS's `common/pom.xml`
    carries the only third-party version literal in its child POMs
