@@ -52,6 +52,23 @@
         </dependencies>
     </dependencyManagement>
 
+    <!-- dcm4che artifacts are NOT on Maven Central (verified 404 on repo1.maven.org).
+         Declared here - NOT only in lumen-bom - because <repositories> inherit through the
+         <parent> chain and lumen-bom is a standalone reactor module (Batch 1 review,
+         Important-1): a BOM's repositories do not propagate to consumers. (design D2) -->
+    <repositories>
+        <repository>
+            <id>dcm4che-repo</id>
+            <url>https://www.dcm4che.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
     <build>
         <pluginManagement>
             <plugins>
