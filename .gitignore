@@ -10,3 +10,6 @@ target/
 *.iml
 .vscode/
 coverage/
+
+# Maven flatten plugin output
+.flattened-pom.xml

@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Standalone BOM module: it must NOT declare the aggregator as <parent>.
+         The aggregator's dependencyManagement imports this pom (task 1.4), and
+         parent + import would form a Maven depMgmt cycle
+         (lumen-sev -> lumen-bom -> lumen-bom). Listed in the aggregator <modules>,
+         it still builds inside the reactor; every other child inherits it
+         transitively through the aggregator. -->
+    <groupId>org.birdbro</groupId>
+    <artifactId>lumen-bom</artifactId>
+    <version>${revision}</version>
+    <packaging>pom</packaging>
+
+    <name>${project.artifactId}</name>
+    <description>Single version source for lumen-sev: OPS verified train copied 1:1
+        (init-backend-skeleton design D1), plus flagged lumen-only additions.</description>
+
+    <properties>
+        <!-- Self-contained CI-friendly version (standalone module: not inherited) -->
+        <revision>0.1.0</revision>
+
+        <!-- OPS version properties, byte-identical to ops_sev/pom.xml -->
+        <spring.boot.version>2.5.15</spring.boot.version>
+        <spring.framework.version>5.3.33</spring.framework.version>
+        <spring-cloud.version>2020.0.3</spring-cloud.version>
+        <alibaba.version>2021.1</alibaba.version>
+        <druid.version>1.2.18</druid.version>
+        <shiro.version>1.10.1</shiro.version>
+        <mybatis.version>3.5.3.1</mybatis.version>
+        <lombok.version>1.18.30</lombok.version>
+        <swagger.version>3.0.0</swagger.version>
+        <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <excel.version>3.3.2</excel.version>
+
+        <flatten-maven-plugin.version>1.5.0</flatten-maven-plugin.version>
+    </properties>
+
+    <!-- dcm4che artifacts are absent from Maven Central (design D2); nothing in this
+         change puts them on a compile path, but the repository must be declared here. -->
+    <repositories>
+        <repository>
+            <id>dcm4che-repo</id>
+            <url>https://www.dcm4che.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- ======== BOM imports (release train, design D1) ======== -->
+            <!-- Import order = OPS's exact order (cloud, alibaba, framework, boot):
+                 Maven gives the first-declared import precedence for overlapping keys,
+                 so this is what reproduces OPS's effective dependencyManagement 1:1
+                 (e.g. okhttp 3.14.4 from the cloud-train BOMs beats Boot's 3.14.9). -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- SpringFramework的依赖配置-->
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-framework-bom</artifactId>
+                <version>${spring.framework.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- SpringBoot的依赖配置-->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring.boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- ======== Explicit entries, copied 1:1 from ops_sev/pom.xml ======== -->
+
+            <!--nacos-->
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+                <version>${alibaba.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+                <version>${alibaba.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-starter-bootstrap</artifactId>
+                <version>3.0.3</version>
+            </dependency>
+
+            <!-- Spring 核心 -->
+            <dependency>
+                <!-- 用于生成自定义的 Spring @ConfigurationProperties 配置类的说明文件 -->
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-configuration-processor</artifactId>
+                <version>${spring.boot.version}</version>
+                <optional>true</optional>
+            </dependency>
+
+            <!-- 阿里数据库连接池 -->
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>druid-spring-boot-starter</artifactId>
+                <version>${druid.version}</version>
+            </dependency>
+
+            <!-- 数据库驱动 -->
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>42.2.18</version>
+            </dependency>
+
+            <!-- Shiro核心框架 -->
+            <dependency>
+                <groupId>org.apache.shiro</groupId>
+                <artifactId>shiro-core</artifactId>
+                <version>${shiro.version}</version>
+            </dependency>
+
+            <!-- Swagger3依赖 -->
+            <dependency>
+                <groupId>io.springfox</groupId>
+                <artifactId>springfox-boot-starter</artifactId>
+                <version>${swagger.version}</version>
+            </dependency>
+
+            <!-- lombok-->
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+            </dependency>
+
+            <!-- Token生成与解析-->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt</artifactId>
+                <version>0.9.1</version>
+            </dependency>
+
+            <!-- io常用工具类 -->
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>2.13.0</version>
+            </dependency>
+
+            <!-- 工具类 -->
+            <dependency>
+                <groupId>com.google.zxing</groupId>
+                <artifactId>core</artifactId>
+                <version>3.3.3</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-all</artifactId>
+                <version>5.8.20</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.biezhi</groupId>
+                <artifactId>TinyPinyin</artifactId>
+                <version>2.0.3.RELEASE</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.fastjson2</groupId>
+                <artifactId>fastjson2</artifactId>
+                <version>2.0.38</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.openfeign</groupId>
+                <artifactId>feign-core</artifactId>
+                <version>12.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>1.21</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-fileupload</groupId>
+                <artifactId>commons-fileupload</artifactId>
+                <version>1.3.1</version>
+            </dependency>
+
+            <!--mybatis-->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-boot-starter</artifactId>
+                <version>${mybatis.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-generator</artifactId>
+                <version>${mybatis.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mybatis</groupId>
+                <artifactId>mybatis-typehandlers-jsr310</artifactId>
+                <version>1.0.2</version>
+            </dependency>
+            <dependency>
+                <groupId>eu.bitwalker</groupId>
+                <artifactId>UserAgentUtils</artifactId>
+                <version>1.21</version>
+            </dependency>
+            <!-- Excel导出 -->
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>easyexcel</artifactId>
+                <version>${excel.version}</version>
+            </dependency>
+
+            <!-- MapStruct (version = OPS's mapstruct-processor version; managed per
+                 task 1.2 so features never state a literal) -->
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+
+            <!-- 项目-->
+            <dependency>
+                <groupId>org.birdbro</groupId>
+                <artifactId>framework</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.birdbro</groupId>
+                <artifactId>common</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
+            <!-- ======== Lumen-only additions (NOT OPS-managed; no OPS verification
+                 inherited - design D1/D2. Managed here, consumed by no module yet.) ======== -->
+            <!-- HL7 v2 (HAPI, not HAPI FHIR) -->
+            <dependency>
+                <groupId>ca.uhn.hapi</groupId>
+                <artifactId>hapi-base</artifactId>
+                <version>2.6.0</version>
+            </dependency>
+            <dependency>
+                <groupId>ca.uhn.hapi</groupId>
+                <artifactId>hapi-structures-v25</artifactId>
+                <version>2.6.0</version>
+            </dependency>
+            <!-- DICOM (resolves only from the dcm4che-repo repository above) -->
+            <dependency>
+                <groupId>org.dcm4che</groupId>
+                <artifactId>dcm4che-core</artifactId>
+                <version>5.35.2</version>
+            </dependency>
+            <dependency>
+                <groupId>org.dcm4che</groupId>
+                <artifactId>dcm4che-net</artifactId>
+                <version>5.35.2</version>
+            </dependency>
+            <!-- RocketMQ (Boot 2.x-compatible line) -->
+            <dependency>
+                <groupId>org.apache.rocketmq</groupId>
+                <artifactId>rocketmq-spring-boot-starter</artifactId>
+                <version>2.2.3</version>
+            </dependency>
+
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <!-- Standalone module: the aggregator's flatten plugin is not inherited, so
+                 ${revision} is unified here with OPS's exact plugin block. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>${flatten-maven-plugin.version}</version>
+                <configuration>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                    <updatePomFile>true</updatePomFile>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                    </execution>
+                    <execution>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

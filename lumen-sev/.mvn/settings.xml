@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Build settings for lumen-sev. Sanitized copy of the OPS build mechanism:
+     wrapper + Aliyun mirror only. No credentials, no private repos, no machine-specific
+     localRepository (behavior 16 - Sensitive Configuration Exclusion). -->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <mirrors>
+    <mirror>
+      <id>aliyun-central</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Aliyun mirror of Maven Central</name>
+      <url>https://maven.aliyun.com/nexus/content/groups/public</url>
+    </mirror>
+  </mirrors>
+</settings>
