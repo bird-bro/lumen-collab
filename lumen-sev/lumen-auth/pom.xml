@@ -9,11 +9,53 @@
         <version>${revision}</version>
     </parent>
 
-    <!-- Transient placeholder: replaced in full by init-backend-skeleton Batch 3
-         (lumen-auth service shell). Contains no source, no dependencies. -->
+    <name>${project.artifactId}</name>
     <artifactId>lumen-auth</artifactId>
     <packaging>jar</packaging>
 
-    <name>${project.artifactId}</name>
+    <dependencies>
+
+        <!-- lumen shared base, copied verbatim from OPS (init-backend-skeleton Batch 2).
+             Redis arrives transitively via framework/common's spring-boot-starter-data-redis;
+             the conditional RedisConfig (adaptation (a)) keeps it harmless without a server. -->
+        <dependency>
+            <groupId>org.birdbro</groupId>
+            <artifactId>framework</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.birdbro</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+
+        <!-- web (Servlet stack - no reactive deps may enter) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- nacos: discovery + config + bootstrap, wired the OPS birdbro-launch way
+             (design D3). Versions managed by lumen-bom's SCA 2021.1 / Spring Cloud
+             2020.0.3 imports. Remote config loads through bootstrap.yml. -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-bootstrap</artifactId>
+        </dependency>
+
+        <!-- test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
 
 </project>

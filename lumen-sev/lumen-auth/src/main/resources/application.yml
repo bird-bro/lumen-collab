@@ -1,0 +1,11 @@
+# lumen-auth local defaults (init-backend-skeleton task 3.1).
+# Service identity per specs/service-topology "Service Identity":
+# spring.application.name = module name, port 8081.
+# Sensitive values (credentials, environment-specific endpoints) come from
+# environment variables or Nacos - never committed here.
+spring:
+  application:
+    name: lumen-auth
+
+server:
+  port: 8081

@@ -1,0 +1,21 @@
+# Nacos wiring in the OPS birdbro-launch bootstrap.yaml style (design D3):
+# config + discovery blocks with file-extension yaml, then the application name.
+# Neutralized for lumen per specs/service-topology "Sensitive Configuration Exclusion":
+# - server address and namespace are environment placeholders (no literal endpoints,
+#   no committed credentials, no secret of any kind in this file).
+# - An empty NACOS_NAMESPACE resolves to the Nacos default (public) namespace,
+#   matching an unset namespace property.
+# The test profile (src/test/resources/application-test.yml) flips both Nacos
+# features off so a context loads with no infrastructure (design D3).
+spring:
+  application:
+    name: lumen-auth
+  cloud:
+    nacos:
+      config:
+        file-extension: yaml
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}

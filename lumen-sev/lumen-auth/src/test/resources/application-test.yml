@@ -1,0 +1,16 @@
+# Test profile (init-backend-skeleton task 3.2, design D3): the context must load
+# with zero infrastructure - no Nacos server contacted, no discovery registration,
+# no remote config import. Activated by the Batch 4 context-load test.
+#
+# NOTE (Batch 4 heads-up): deliberately NO framework property dummies here
+# (token.*, xss.*). If the context-load test reveals missing placeholders,
+# the red test drives adding them to THIS file.
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+    discovery:
+      enabled: false
