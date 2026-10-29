@@ -128,6 +128,20 @@ those services assign them and update this table.
   also independently validates adaptation (d): the DingTalk/WeChat baggage is OPS-only).
   Sharing versioned libraries instead of per-product copies is the measured fix for the
   drift this team has already lived through (NOTES lesson #1). - 2026-10-29
+- **Entry-class contract (B4 review, red-proven)** - every service entry class MUST carry
+  both `@SpringBootApplication(scanBasePackages = "org.birdbro")` AND
+  `@MapperScan("org.birdbro.**.mapper")`, mirroring OPS `LaunchApplication` byte-for-byte.
+  The MapperScan is not optional: framework's operation-log `@Service` impls extend
+  MyBatis-Plus `ServiceImpl` and autowire `LogInfoMapper`/`LogSignMapper`, which no
+  component scan can satisfy (mappers are not Spring components) - the shell cannot boot
+  without it (B4 red rung 3). All six future services replicate this contract.
+  Related B4 proofs recorded: the test-only `UserDetailsService` stub is quarantined
+  (`@TestConfiguration` + explicit `@Import`, never in main sources - it MUST NOT migrate);
+  the druid-exclude fallback was proven insufficient and reverted for a dummy-URL datasource
+  with explicit `initial-size: 0`; task 4.1's literal "fail before task 3.2's profile" is
+  unachievable in batch order - the observed red (profile active, failing on
+  placeholder/wiring/datasource) is the strongest available red and honors TDD intent.
+  - 2026-10-29
 - **D3 amendment (B3 review, proven by control experiment)** - with
   `spring-cloud-starter-bootstrap` on the classpath, the bootstrap context binds
   `NacosConfigProperties` from `bootstrap.yml` ONLY; disable flags in

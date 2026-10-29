@@ -75,8 +75,10 @@
 
 - [x] 3.1 Create `lumen-auth` with the entry point
   `org.birdbro.lumen.auth.AuthApplication` (`@SpringBootApplication` with
-  `scanBasePackages = "org.birdbro"` so `framework`/`common` beans register - OPS
-  `LaunchApplication` habit), `spring-boot-starter-web`, and `bootstrap.yml` +
+  `scanBasePackages = "org.birdbro"` AND `@MapperScan("org.birdbro.**.mapper")` - both
+  mirroring OPS `LaunchApplication` exactly; the MapperScan is REQUIRED: framework's log
+  `@Service` impls autowire mappers, proven by B4 red rung 3; all six future services
+  replicate this entry-class contract), `spring-boot-starter-web`, and `bootstrap.yml` +
   `application.yml` setting `spring.application.name: lumen-auth` and `server.port: 8081`.
   No controllers, no security wiring yet. Verify:
   `mvn -f lumen-sev/pom.xml -pl lumen-auth -am compile -q` exits 0.
@@ -90,17 +92,17 @@
 
 ## 4. Zero-infrastructure verification
 
-- [ ] 4.1 Write a context-load test for `lumen-auth` (`@SpringBootTest` with the `test`
+- [x] 4.1 Write a context-load test for `lumen-auth` (`@SpringBootTest` with the `test`
   profile) asserting the context starts, `spring.application.name` resolves to
   `lumen-auth`, and `server.port` resolves to `8081`. Write the test first, watch it fail
   before task 3.2's profile is in place, then make it pass. Verify:
   `mvn -f lumen-sev/pom.xml -pl lumen-auth test -q` exits 0 with Nacos, PostgreSQL, Redis,
   and RocketMQ all stopped - this also proves adaptation (a): the Redis-conditional
   configuration stays inactive with no Redis present.
-- [ ] 4.2 Run the whole-stack gate from `openspec/verify.config.yaml` on a machine with no
+- [x] 4.2 Run the whole-stack gate from `openspec/verify.config.yaml` on a machine with no
   infrastructure. Verify: `mvn -f lumen-sev/pom.xml compile -q` and
   `mvn -f lumen-sev/pom.xml test -q` both exit 0 (L1 and L3 PASS).
-- [ ] 4.3 Assert the deferred modules were not created. Verify: none of `lumen-exam-core`,
+- [x] 4.3 Assert the deferred modules were not created. Verify: none of `lumen-exam-core`,
   `lumen-api`, `lumen-patient`, `lumen-radiology`, `lumen-integration`, `lumen-us`,
   `lumen-endo` - and no gateway module of any name - exists under `lumen-sev/`, and no
   `lumen-common-*` five-way split exists (superseded by verbatim `framework`/`common`).

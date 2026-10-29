@@ -25,10 +25,10 @@
 - Notes: port 8081, scanBasePackages="org.birdbro"; D3 amendment recorded in coordination doc; Batch 4 red-test intelligence: token.* + xss.* properties will be the red
 
 ### Batch 4: Zero-infrastructure verification (tasks 4.1-4.3)
-- Status: Complete (commit 2eecd07) - review in progress (mandatory gate 4)
+- Status: Complete + Approved (commit 2eecd07; review-fix commit follows)
 - Commits: eb34dd2..2eecd07
-- Review: Pending - 3 concerns to judge: test-only UserDetailsService stub / @MapperScan on AuthApplication (mirrors OPS launch, proven necessary by red rung 3) / druid-exclude fallback reverted for dummy-URL datasource (zero connect attempts proven)
-- Notes: strict 4-rung green ladder, red captured verbatim (xss.excludes), 8848 grep = 0 on green, deferred modules absent
+- Review: Approved - gate 4 passed: context loads, zero Nacos/Redis/DB contact, L1+L3 exit 0; all 3 concerns accepted (stub quarantined / @MapperScan recorded as entry-class contract / dummy-URL datasource with explicit initial-size: 0)
+- Notes: task 4.1 sequencing note recorded (observed red is the strongest available); framework/common byte-untouched
 
 ### Batch 5: Documentation and spec hygiene (tasks 5.1-5.5)
 - Status: Pending
