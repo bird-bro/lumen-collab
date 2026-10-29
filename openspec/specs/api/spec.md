@@ -24,11 +24,11 @@ Each endpoint MUST be documented as a Requirement with WHEN/THEN scenarios. Add 
 - **THEN** returns `code: 0` with `[payload]`
 
 ### Requirement: Gateway Path Convention
-All endpoints MUST be exposed through `lumen-gateway` under `/api/v1/<service>/**` (e.g. `/api/v1/patient/patients`, `/api/v1/ris/exam-orders`). Individual services MUST NOT be called directly by the frontend.
+All endpoints MUST be exposed through the platform's unified API entry (nginx in the hospital form; Spring Cloud Gateway optional in the cloud form) under `/api/v1/<service>/**` (e.g. `/api/v1/patient/patients`, `/api/v1/radiology/exam-orders`). Individual services MUST NOT be called directly by the frontend.
 
 #### Scenario: Service routing
 - **WHEN** the frontend calls `/api/v1/ris/exam-orders`
-- **THEN** the gateway routes the request to `lumen-ris` with auth context forwarded
+- **THEN** the unified entry routes the request to `lumen-radiology` with auth context forwarded
 
 ### Requirement: ID Serialization
 Entity IDs are snowflake `bigint` (application-layer generated). All IDs MUST be serialized as JSON strings to avoid JavaScript precision loss.

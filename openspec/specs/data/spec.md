@@ -16,7 +16,7 @@ Each core entity MUST be documented with its fields, types, and constraints.
 Each service owns exactly one PostgreSQL database (`lumen_auth` / `lumen_patient` / `lumen_ris` / `lumen_us` / `lumen_endo` / `lumen_integration`). Cross-service data access MUST go through API/events, never cross-DB queries.
 
 #### Scenario: Service needs another service's data
-- **WHEN** `lumen-ris` needs patient demographics
+- **WHEN** `lumen-radiology` needs patient demographics
 - **THEN** it calls `lumen-patient` via OpenFeign (contract in `lumen-sev/lumen-api/lumen-patient-api`), never queries `lumen_patient` DB directly
 
 ### Requirement: Migration-Only Schema Changes

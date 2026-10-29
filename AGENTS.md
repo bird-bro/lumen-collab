@@ -11,7 +11,7 @@ lumen-collab/
 ├── AGENTS.md          ← Codex mirror of this file
 ├── openspec/          ← WHAT: specs/, changes/, archive/, coordination/
 ├── .claude/           ← HOW: rules/, skills/, agents/, settings.json
-├── lumen-sev/         ← Backend Agent (Java 17 · Spring Boot 3 · Maven aggregator)
+├── lumen-sev/         ← Backend Agent (Java 11 · Spring Boot 2.5 · Maven aggregator)
 ├── lumen-web/         ← Frontend Web Agent (React 18 + TS + Vite + AntD 5)
 └── docker/            ← docker-compose incl. dcm4chee-arc-light
 ```
@@ -22,7 +22,7 @@ Open-source medical imaging collaboration platform (brand: LumenCollab) that pai
 ## Tech Stack
 | Layer | Tech |
 |:--|:--|
-| Backend | Java 17 · Spring Boot 3.x · Spring Cloud Alibaba (Nacos, Sentinel) · Spring Cloud Gateway · OpenFeign |
+| Backend | Java 11 · Spring Boot 2.5.15 · Spring Cloud 2020.0.3 · Spring Cloud Alibaba 2021.1 · OpenFeign · unified entry nginx, no Java gateway (OPS-verified train - versions copied 1:1 from the OPS reference project; do not "upgrade" without a new proposal) |
 | Data | PostgreSQL (per-service DB) · MyBatis-Plus · Flyway · Redis · RocketMQ |
 | Integration | dcm4che (MWL / MPPS SCP) · HAPI HL7v2 · dcm4chee QIDO-RS |
 | Frontend (web) | React 18 · TypeScript · Vite · Ant Design 5 (pnpm, single SPA) |

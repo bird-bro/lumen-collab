@@ -4,17 +4,17 @@
 # MOD-3: phase gates read this file; MOD-4: retry_count >= 3 -> enter debugging.
 # Module-A: artifacts_hash/contract_hash for execution-contract freshness.
 # Module-SDD: execution_mode/batches_completed for subagent-driven development.
-phase: proposing
-change: null
+phase: applying
+change: init-backend-skeleton
 current_task: null
-tasks_total: 0
+tasks_total: 17
 tasks_done: 0
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
-workflow_mode: null
-artifacts_hash: null
+workflow_mode: full
+artifacts_hash: 0dbd642fa6a15a376bc0a4840c37f064db27f1a7cc819ee9ca38186dfaa4e2dd
 contract_hash: null
-execution_mode: null
+execution_mode: SDD
 batches_completed: 0
-last_updated: null
+last_updated: 2026-10-29

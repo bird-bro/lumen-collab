@@ -23,7 +23,7 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 - `lumen-exam-core` - ★ exam workflow kernel: booking → registration → exam → report state machine
 - `lumen-api/{patient-api,integration-api}` - inter-service contracts (OpenFeign interfaces + DTO)
 - `lumen-gateway` - Spring Cloud Gateway · `lumen-auth` - users / roles / departments / permissions (JWT)
-- `lumen-patient` (EMPI) · `lumen-ris` (v1 ★) · `lumen-us` / `lumen-endo` (v2) · `lumen-integration` (DICOM MWL/MPPS SCP + HL7v2, routes by department)
+- `lumen-patient` (EMPI) · `lumen-radiology` (v1 ★) · `lumen-us` / `lumen-endo` (v2) · `lumen-integration` (DICOM MWL/MPPS SCP + HL7v2, routes by department)
 - Department services depend on `lumen-exam-core` and extend it - never fork the kernel
 
 ## Architecture Rules
@@ -57,5 +57,5 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 ```
 mvn compile -q                  # all modules (run inside lumen-sev/)
 mvn test -q                     # all tests
-mvn -pl lumen-ris -am test -q   # one service + its dependencies
+mvn -pl lumen-radiology -am test -q   # one service + its dependencies
 ```

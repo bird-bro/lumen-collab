@@ -50,7 +50,7 @@ lumen-collab/                         monorepo root (harness + frontend + deploy
 │   ├── lumen-gateway/                Spring Cloud Gateway
 │   ├── lumen-auth/                   users, roles, departments, permissions (JWT)
 │   ├── lumen-patient/                patient master index (EMPI), shared across departments
-│   ├── lumen-ris/                    radiology business (v1 ★) - depends on lumen-exam-core
+│   ├── lumen-radiology/                    radiology business (v1 ★) - depends on lumen-exam-core
 │   ├── lumen-us/                     ultrasound (v2) - depends on lumen-exam-core
 │   ├── lumen-endo/                   endoscopy (v2) - depends on lumen-exam-core
 │   └── lumen-integration/            DICOM MWL/MPPS SCP + HL7v2, routes by department

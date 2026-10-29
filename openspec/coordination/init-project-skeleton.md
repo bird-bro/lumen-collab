@@ -1,0 +1,206 @@
+# Coordination: init-project-skeleton
+
+> Cross-stack parent. Shared design/decisions + per-stack change registry.
+> Per-stack changes are soft-tagged via `openspec new change <name> --goal "init-project-skeleton"`.
+
+## Why
+
+The monorepo currently contains navigation and role files only - `lumen-sev/` and
+`lumen-web/` hold `CLAUDE.md`/`AGENTS.md` and nothing else, and `docker/` does not exist.
+Every downstream feature (patient, ris, integration, the web UI) needs a build topology to
+land in. This feature establishes the compilable foundation for both stacks so later
+changes add behavior instead of arguing about module layout, version governance, or
+build commands.
+
+Depth is deliberately minimal: **compilable empty shell**. Module directories, build
+files, application entry points, and configuration seams exist and the builds go green.
+No business logic, no endpoints, no database schema, no reference gateway-to-service call
+chain. Those arrive with the feature changes that need them.
+
+## Shared Design
+
+These are the contracts both stacks must agree on. They are already normative in
+`openspec/specs/` - restated here only to fix the skeleton's touchpoints.
+
+| Contract | Source of truth | Skeleton obligation |
+|:--|:--|:--|
+| Response envelope `{ timestamp, code: string, msg, data }` (OPS `R` contract), success `"200"`/`"204"`, base URL `/api/v1` | `openspec/specs/api/spec.md` (aligned to OPS by `init-backend-skeleton`) | Frontend dev server proxies `/api/v1`; frontend `src/api/` types this envelope; backend does not yet emit envelopes |
+| Unified API entry: all `/api/v1/<service>/**` through **nginx** (cloud form may introduce Spring Cloud Gateway) | `openspec/specs/api/spec.md` | Frontend never targets a service port directly; nginx is the only inbound route |
+| Snowflake IDs serialized as JSON strings | `openspec/specs/api/spec.md` | Not exercised yet (no entities); BOM must carry the Jackson tooling that will do it |
+| Error code scheme: OPS `ExceptionEnum` letter codes (`A` client / `B` system / `C` third-party) as strings, error field `msg` | `openspec/specs/errors/spec.md` (aligned to OPS) | Not exercised yet (no handlers) |
+| Entity audit contract: OPS `EntityBase` - `deleted` + `create_by`/`create_time`/`update_by`/`update_time` (GMT+8 serialization) | `openspec/specs/data/spec.md` (aligned to OPS) | No datasource wired in this feature; delivery mechanism = the verbatim-copied `framework`/`common` (`EntityBase` + `MetaObjectConfig`) |
+
+**Port allocation** (shared, so the frontend proxy and deployment config agree):
+
+| Entry / Service | Port | Note |
+|:--|:--|:--|
+| **nginx** (unified API entry + SPA static) | 80 / 443 | the only inbound route; there is **no Java gateway** |
+| `lumen-auth` | 8081 | |
+| `lumen-web` dev server | 5173 | proxies `/api/v1` to the nginx entry |
+
+Ports for patient / ris / integration are **not** allocated here - the changes that create
+those services assign them and update this table.
+
+## Decisions
+
+- **Compilable empty shell, not a reference slice** - the user chose minimal depth; a
+  gateway→auth call chain with a live endpoint would pull in the response envelope,
+  exception handling, and Nacos runtime availability, none of which this feature needs to
+  prove. Build-green is the acceptance bar. - 2026-10-29
+- **Backend scope is the v1 foundation subset only (revised)** - `lumen-bom`, the OPS
+  `framework` + `common` modules copied verbatim, and the `lumen-auth` shell.
+  `lumen-exam-core`, `lumen-api/*`, `lumen-patient`, `lumen-radiology`, `lumen-integration`, and
+  the v2 department services are deferred to the changes that give them behavior. Matches
+  the handoff doc's recommended execution order step 1. - 2026-10-29
+- **No Java gateway; nginx is the unified entry (removes `lumen-gateway` from the project)** -
+  user decision 2026-10-29. Every former gateway function has an owner in the hospital form:
+  routing `/api/v1/<service>/**` -> nginx path routing; edge auth -> each service's
+  `JwtAuthenticationTokenFilter` (OPS pattern, token state in shared Redis); rate limiting ->
+  Sentinel in-process; TLS/static/HTTP2 -> nginx. Service discovery is static (fixed
+  containers), so the gateway's dynamic-discovery value is zero. **Spring Cloud Gateway
+  returns as a future change only when the cloud form materializes** (dynamic instances,
+  edge traffic governance - the eis-cloud precedent used Zuul, SCG is its replacement). The
+  api spec's Gateway Path Convention gets a MODIFIED delta: "through the platform entry
+  (nginx; SCG optional in cloud form)". - 2026-10-29
+- **OPS `framework` + `common` adopted verbatim as shared base modules** - user decision
+  2026-10-29: name, artifactId, and package (`org.birdbro.framework` / `org.birdbro.common`)
+  copied unchanged; they are the shared base for all Servlet services. This supersedes the
+  earlier five-way `lumen-common-*` plan. Five recorded adaptations (localized diffs):
+  (1) `RedisConfig`/`FastJson2JsonRedisSerializer` become conditional (Redis is optional in
+  the hospital form); (2) security wiring: `lumen-auth` issues tokens, other services verify
+  via the copied filter against shared Redis; (3) operation-log tables are owned per service
+  (each service's Flyway carries the same op-log schema; the copied mappers write the
+  service's own DB); (4) **`DingTalkConstants` + `WxCryptUtil` are deleted during the copy**
+  (user instruction 2026-10-29 - OPS-domain baggage, zero references in the OPS source,
+  verified by grep); (5) **governance alignment of the copied POM** - the single third-party
+  version literal in OPS's child POMs (`org.bouncycastle:bcprov-jdk16:1.46`, found during
+  Batch 1) moves into `lumen-bom` management, resolved version unchanged. Two binding disciplines: **`lumen-gateway`/cloud gateway never depends
+  on framework/common (WebFlux vs Servlet); only Servlet services depend on them**. Remaining
+  idle classes (`WorkOrderStatusEnum`, `pojo/user/*`) are copied but untouched - pruned only
+  by the changes that touch them. - 2026-10-29
+- **Package naming: dual root by code origin** - user decision 2026-10-29. groupId
+  `org.birdbro` everywhere; copied modules keep `org.birdbro.{framework,common}`; new
+  modules use `org.birdbro.lumen.*` (`org.birdbro.lumen.{auth,patient,radiology,us,endo,
+  integration,examcore}`, `org.birdbro.lumen.api.{patient,integration}`). In-service
+  layering `controller/service/mapper/entity/dto`; application class in the service root
+  package; services scan `org.birdbro` (OPS `LaunchApplication` habit). Author attribution
+  (birdbro) preserved in headers/pom/LICENSE/images. Rules written to
+  `.claude/rules/naming.md`. - 2026-10-29
+- **Department module naming** - `lumen-radiology` (radiology: RIS is the industry system term at
+  the PACS/LIS/HIS level and the product positioning itself), `lumen-us` (DICOM modality US),
+  `lumen-endo` (DICOM modality ENDO); future departments follow `lumen-<standard abbrev>`
+  (e.g. `lumen-ecg`). The trio is "each domain's most recognizable short name", not strict
+  modality-code uniformity. - 2026-10-29
+- **Deployment forms decided (full analysis: `docs/analysis/hospital-deployment-forms.zh.md`)** -
+  user decisions 2026-10-29: (a) **hospital form = multi-service processes** (one module =
+  one jar = one container; this is what makes per-department release isolation real -
+  upgrading radiology never touches ultrasound), static service discovery
+  (`SimpleDiscoveryClient`), **Nacos kept as configuration center only** (three guardrails:
+  local bootstrap fallback, client snapshot fallback, restricted `@RefreshScope`), nginx
+  entry, Docker compose delivery with offline `docker save/load`; (b) modular monolith
+  (single launch assembly) demoted to optional tiny-site form; (c) full microservices
+  (SCG + Nacos discovery + RocketMQ) is the **cloud product's** runtime form. Two binding disciplines hold inside each product: **inter-module calls only
+  through `lumen-api` Feign contracts; events only through the `EventPublisher` abstraction**
+  (local product = Spring Event / HTTP callback with replay, cloud product = RocketMQ).
+  `exam-core` version pinning per service preserves release isolation for the shared kernel.
+  - 2026-10-29
+- **Two products, not two assemblies (supersedes "one codebase, two assemblies")** - user
+  correction 2026-10-29: in the cloud business **only radiology can be diagnosed remotely;
+  ultrasound and endoscopy are on-site only**. So the cloud version is a distinct product
+  (radiology remote diagnosis + referral + cloud film), not the local suite redeployed.
+  Local product = full department suite, on-site diagnosis. Cloud product = radiology-only
+  remote diagnosis - its own frontend and backend assembly; **us/endo never deploy there**.
+  The two products share the foundation as versioned libraries (`lumen-bom`, `framework`,
+  `common`, `lumen-exam-core`, `lumen-api`) - this is NOT the fork anti-pattern from NOTES
+  lesson #1 (that was two copies of the same business code drifting); sharing the kernel is
+  exactly that lesson's prescription, and the products' different business scope removes the
+  drift surface. Repo topology for the cloud product (second product dir in this monorepo vs
+  separate repo) is decided in the cloud product's own proposal - not here.
+  **Lineage evidence (user pointer 2026-10-29, measured)**: the old ecosystem already had
+  exactly this product split - `RCP` (`rcp_sev`, also LoopForge-instrumented) is a pure
+  cloud radiology remote-diagnosis platform: modules framework, common, birdbro-launch,
+  birdbro-manage, **birdbro-radiology**, birdbro-setting, birdbro-bi, birdbro-ai - **no
+  us/endo**, plus `rcp_web` as its own frontend. And RCP carries **its own copy** of
+  framework/common that has measurably drifted from OPS's: framework 20/35 files differ,
+  common **47/64 files differ (~73%)**, with product-specific constants leaking into the
+  shared lib (RCP-only `ExamConstants`; OPS-only `DingTalkConstants`/`OrgConstants` - which
+  also independently validates adaptation (d): the DingTalk/WeChat baggage is OPS-only).
+  Sharing versioned libraries instead of per-product copies is the measured fix for the
+  drift this team has already lived through (NOTES lesson #1). - 2026-10-29
+- **Batch 1 build-mechanics decisions (review-accepted, Batch 1 gate)** - (1) `lumen-bom`
+  is a standalone reactor module (no `<parent>`): aggregator-imports-BOM + BOM-parent =
+  aggregator is a Maven depMgmt import cycle (reproduced on Maven 3.9.9). Consequence:
+  modules resolve the BOM only inside the full reactor (or after `./mvnw -pl lumen-bom
+  install`) - build from the aggregator; documented in `lumen-sev/CLAUDE.md`. (2) BOM
+  import order = OPS's own (cloud, alibaba, framework, boot) so the effective
+  dependencyManagement is **byte-identical to OPS** - verified 1450 shared keys, 0 drift
+  (the "obvious" framework-first order would flip okhttp to 3.14.9 vs OPS's 3.14.4).
+  (3) dcm4che repository is declared in the **aggregator** (inherited by children), not
+  only in lumen-bom - a BOM's `<repositories>` do not propagate to consumers (Batch 1
+  review Important-1). Build harness: OPS's `mvnw` wrapper (Maven 3.9.9) + **sanitized**
+  settings.xml (aliyun mirror only; OPS's original carried plaintext Aliyun RDC credentials
+  in git - lumen must not repeat that; rotation recommended for OPS). - 2026-10-29
+- **`docker/` is out of scope for this feature** - the user deferred it. The skeleton must
+  therefore start without external infrastructure: every test runs with Nacos, PostgreSQL,
+  Redis, and RocketMQ absent. This is a hard constraint on both stacks' test design. - 2026-10-29
+- **Two per-stack changes under one coordination doc** - backend and frontend build
+  toolchains share nothing, so a single change would mix two unrelated verification
+  commands. Split per CLAUDE.md's cross-stack rule; this doc is the registry. - 2026-10-29
+- **Frontend mock tool remains unselected** - `lumen-web/CLAUDE.md` mandates mock-first
+  development, but choosing MSW vs `vite-plugin-mock-dev-server` vs mockjs is a separate
+  decision with its own tradeoffs. This feature creates the `src/api/` seam the mock layer
+  will plug into and logs the gap in `init-web-skeleton/debt.md`. - 2026-10-29
+- **Changes are applied sequentially, not in parallel** - `openspec/loop-state.yaml`
+  tracks one active change and one `artifacts_hash`, so the two changes cannot both be the
+  "fresh" contract at once. Apply backend first, then frontend. - 2026-10-29
+- **Backend version train = the OPS-verified set (supersedes earlier stack decisions)** -
+  the user directed (2026-10-29) that the backend MUST use the versions proven compatible in
+  the reference project OPS (`/Users/birdbro/work/01-JF/00-gitlab/OPS/ops_sev/pom.xml`):
+  Java 11, Spring Boot 2.5.15, Spring Framework BOM 5.3.33, Spring Cloud 2020.0.3, Spring
+  Cloud Alibaba 2021.1, and OPS's shared jars matched exactly (Lombok 1.18.30, Hutool
+  5.8.20, MyBatis-Plus `mybatis-plus-boot-starter` 3.5.3.1, Druid 1.2.18, fastjson2 2.0.38,
+  easyexcel 3.3.2, mapstruct 1.5.5.Final, etc.). This **supersedes** the handoff doc §2's
+  Java 17 + Spring Boot 3.x + HikariCP lines (root `CLAUDE.md` Tech Stack and
+  `lumen-sev/CLAUDE.md` are updated in the same change - task 5.4). Known tradeoffs accepted:
+  Boot 2.5.15 OSS EOL, `javax` namespace; two OPS versions carry CVEs at those exact
+  coordinates (PostgreSQL 42.2.18, commons-fileupload 1.3.1) - patch-level bumps are the
+  candidate first deviation pending user sign-off. Libraries OPS does not manage (dcm4che,
+  HAPI HL7v2, RocketMQ) carry no OPS verification and stay off every compile path until
+  their own changes verify them. - 2026-10-29
+- **Frontend is unaffected by the OPS alignment** - OPS's frontend is Vue (`ops_web`),
+  unrelated to `lumen-web` (React 18 + AntD 5). No `init-web-skeleton` artifact changes. - 2026-10-29
+- **API/data/error contracts aligned to OPS verbatim (supersedes the original envelope and
+  audit-field specs)** - the user directed (2026-10-29) that `R.java` and `EntityBase` be
+  adopted as-is rather than adapted, so `init-backend-skeleton` carries MODIFIED deltas for
+  `api` (envelope `{ timestamp, code: string, msg, data }`, success `"200"`/`"204"`),
+  `errors` (OPS `ExceptionEnum` letter scheme `A`/`B`/`C`, error field `msg`), and `data`
+  (`EntityBase`: `deleted` + `create_by`/`create_time`/`update_by`/`update_time`, GMT+8
+  serialization). Consequences accepted: the envelope loses the old numeric-code ↔ HTTP-status
+  mapping; timestamps serialize in GMT+8 rather than UTC; audit operator columns are OPS's
+  `Integer` (int32) - **flagged**: if lumen user PKs are snowflake `bigint`, `create_by`/
+  `update_by` must widen to bigint in the `lumen-auth` change. `init-web-skeleton`'s
+  `ApiEnvelope` type was updated to match (the earlier "frontend unaffected" note above
+  predates this decision and is superseded on the envelope point only). - 2026-10-29
+
+## Change Registry
+
+| Stack | Change | Status | Verify |
+|:--|:--|:--|:--|
+| backend | `init-backend-skeleton` | proposing | - |
+| frontend | `init-web-skeleton` | proposing | - |
+
+## Gate
+
+Feature done = ALL registered changes verify PASS -> archive each.
+
+Verification commands come from `openspec/verify.config.yaml`:
+
+| Stack | L1 build | L3 test |
+|:--|:--|:--|
+| backend (`lumen-sev`) | `mvn compile -q` | `mvn test -q` |
+| frontend (`lumen-web`) | `pnpm build` | `null` -> SKIP (no runner yet; see debt log) |
+
+L2 (WHEN/THEN scenarios) is checked against each change's `specs/`.
+
+**Archive order**: archive `init-backend-skeleton` and `init-web-skeleton` only after both
+verify PASS, then mark this doc's registry rows `archived`.
