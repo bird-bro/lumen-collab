@@ -128,6 +128,20 @@ those services assign them and update this table.
   also independently validates adaptation (d): the DingTalk/WeChat baggage is OPS-only).
   Sharing versioned libraries instead of per-product copies is the measured fix for the
   drift this team has already lived through (NOTES lesson #1). - 2026-10-29
+- **D3 amendment (B3 review, proven by control experiment)** - with
+  `spring-cloud-starter-bootstrap` on the classpath, the bootstrap context binds
+  `NacosConfigProperties` from `bootstrap.yml` ONLY; disable flags in
+  `application-test.yml` load into the main environment after bootstrap and never reach
+  the config locator (`@ConditionalOnNacosConfigEnabled`). Measured without a running
+  Nacos: 12 live connection attempts to :8848, tolerated as empty by SCA 2021.1 -
+  "tolerated", not "neutralized" (behavior 15's remote-config clause unmet; also breaks
+  the moment any Nacos listens on 8848, e.g. the standard compose workflow). Fix: a
+  `test`-profile document inside `bootstrap.yml` (`spring.config.activate.on-profile:
+  test`) carries the disable flags - the bootstrap context inherits the run's active
+  profiles (verified in spring-cloud-context 3.0.3). Registration-side flags in
+  `application-test.yml` were proven to work and stay. D3's original fallback ladder
+  (`auto-registration`, `autoconfigure.exclude`) does NOT fix this - bootstrap-context
+  beans are unreachable from the main context. - 2026-10-29
 - **Batch 1 build-mechanics decisions (review-accepted, Batch 1 gate)** - (1) `lumen-bom`
   is a standalone reactor module (no `<parent>`): aggregator-imports-BOM + BOM-parent =
   aggregator is a Maven depMgmt import cycle (reproduced on Maven 3.9.9). Consequence:

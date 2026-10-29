@@ -73,14 +73,14 @@
 
 ## 3. Service shells
 
-- [ ] 3.1 Create `lumen-auth` with the entry point
+- [x] 3.1 Create `lumen-auth` with the entry point
   `org.birdbro.lumen.auth.AuthApplication` (`@SpringBootApplication` with
   `scanBasePackages = "org.birdbro"` so `framework`/`common` beans register - OPS
   `LaunchApplication` habit), `spring-boot-starter-web`, and `bootstrap.yml` +
   `application.yml` setting `spring.application.name: lumen-auth` and `server.port: 8081`.
   No controllers, no security wiring yet. Verify:
   `mvn -f lumen-sev/pom.xml -pl lumen-auth -am compile -q` exits 0.
-- [ ] 3.2 Wire Nacos discovery + config + `spring-cloud-starter-bootstrap:3.0.3` into
+- [x] 3.2 Wire Nacos discovery + config + `spring-cloud-starter-bootstrap:3.0.3` into
   `lumen-auth` the way OPS does (design D3): remote config via `bootstrap.yml`, address from
   an env placeholder, no committed credentials; add the test profile
   `src/test/resources/application-test.yml` with

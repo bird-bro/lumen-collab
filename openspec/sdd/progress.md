@@ -19,16 +19,16 @@
 - Notes: deleted classes unreferenced in copied modules; OPS-wide consumers only in uncopied business modules
 
 ### Batch 3: lumen-auth shell (tasks 3.1-3.2)
-- Status: Pending
-- Commits: -
-- Review: Pending
-- Notes: port 8081, scanBasePackages="org.birdbro"
+- Status: Complete + Approved after fix (commits 6634be5 + fix eb34dd2)
+- Commits: 94ca262..eb34dd2
+- Review: Needs fixes -> fixed - Critical: Nacos config neutralization didn't reach bootstrap phase (12 live :8848 attempts); fixed via bootstrap.yml test-profile document, evidence 8848 grep 21->0, red reason unchanged (xss.excludes), surefire 2.95s->0.98s
+- Notes: port 8081, scanBasePackages="org.birdbro"; D3 amendment recorded in coordination doc; Batch 4 red-test intelligence: token.* + xss.* properties will be the red
 
 ### Batch 4: Zero-infrastructure verification (tasks 4.1-4.3)
-- Status: Pending
-- Commits: -
-- Review: Pending (context-load red-green + full gates)
-- Notes: proves Redis-optional + Nacos-neutralized
+- Status: Complete (commit 2eecd07) - review in progress (mandatory gate 4)
+- Commits: eb34dd2..2eecd07
+- Review: Pending - 3 concerns to judge: test-only UserDetailsService stub / @MapperScan on AuthApplication (mirrors OPS launch, proven necessary by red rung 3) / druid-exclude fallback reverted for dummy-URL datasource (zero connect attempts proven)
+- Notes: strict 4-rung green ladder, red captured verbatim (xss.excludes), 8848 grep = 0 on green, deferred modules absent
 
 ### Batch 5: Documentation and spec hygiene (tasks 5.1-5.5)
 - Status: Pending
