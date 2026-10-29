@@ -16,16 +16,17 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
   - Modules copied verbatim from OPS keep name, artifactId, and package:
     `framework` → `org.birdbro.framework`, `common` → `org.birdbro.common`.
   - New lumen modules use `org.birdbro.lumen.<module>`:
-    `org.birdbro.lumen.{auth,patient,ris,us,endo,integration,examcore}`,
+    `org.birdbro.lumen.{auth,patient,radiology,us,endo,integration,examcore}`,
     `org.birdbro.lumen.api.{patient,integration}`.
 - **In-service layering packages** (fixed): `controller / service / mapper / entity / dto`.
   The application class lives in the service root package
-  (e.g. `org.birdbro.lumen.ris.RisApplication`); services scan `org.birdbro`
+  (e.g. `org.birdbro.lumen.auth.AuthApplication`); services scan `org.birdbro`
   (OPS `LaunchApplication` habit) so shared beans from `framework`/`common` register.
 - **Module artifact names**: copied modules keep OPS names (`framework`, `common`);
-  new modules are `lumen-*`. Department services follow one uniform rule -
-  `lumen-<department English name>`: `lumen-radiology` (放射科), `lumen-us` (ultrasound),
-  `lumen-endo` (endoscopy); future departments use the same pattern (e.g. `lumen-ecg`).
+  new modules are `lumen-*`. Department services use each domain's most recognizable
+  short name: `lumen-radiology` (radiology), `lumen-us` (ultrasound, DICOM modality US),
+  `lumen-endo` (endoscopy, DICOM modality ENDO); future departments follow
+  `lumen-<standard abbrev>` (e.g. `lumen-ecg`) - not strict modality-code uniformity.
   The product-category term **RIS stays in prose** (root `CLAUDE.md` Business Context:
   "v1 delivers a RIS"), never in module or package names (user decision 2026-10-29:
   department-name consistency beats system-acronym naming).

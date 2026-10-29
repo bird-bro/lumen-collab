@@ -49,7 +49,7 @@
   `lumen-sev` aggregator (versions resolve through `lumen-bom`). Verify:
   `mvn -f lumen-sev/pom.xml -pl framework,common -am compile -q` exits 0, and
   `diff -r` against the OPS originals shows changes only in the parent block of the two POMs.
-- [x] 2.2 Apply exactly the four recorded adaptations, nothing more (design D5):
+- [x] 2.2 Apply exactly the five recorded adaptations, nothing more (design D5):
   (a) make `RedisConfig` / `FastJson2JsonRedisSerializer` conditional on Redis being
   present (`@ConditionalOnClass`/`@ConditionalOnProperty`), so a context loads without a
   Redis server; (b) leave the security classes as-is and record that token issuance is
@@ -109,24 +109,24 @@
 
 ## 5. Documentation and spec hygiene
 
-- [ ] 5.1 Update `openspec/coordination/init-project-skeleton.md`: record the final pinned
+- [x] 5.1 Update `openspec/coordination/init-project-skeleton.md`: record the final pinned
   versions if they differ from design D1, the three adaptation diffs if they grew beyond
   design D5, and set this change's registry row to the current status. Verify: the doc's
   Decisions and registry rows match what was built.
-- [ ] 5.2 Confirm the port table reflects the built reality (nginx 80/443 entry,
+- [x] 5.2 Confirm the port table reflects the built reality (nginx 80/443 entry,
   `lumen-auth` 8081) so the frontend proxy target is unambiguous. Verify:
   `init-web-skeleton` reads the nginx port from that table without guessing.
-- [ ] 5.3 Confirm `.claude/rules/naming.md` matches the built package layout (dual root
+- [x] 5.3 Confirm `.claude/rules/naming.md` matches the built package layout (dual root
   `org.birdbro.{framework,common}` / `org.birdbro.lumen.*`, layering packages, author
   attribution). Verify: the file's rules match the directories created in groups 2-3.
-- [ ] 5.4 Sync the agent-facing docs: root `CLAUDE.md` + `AGENTS.md` Tech Stack row and
+- [x] 5.4 Sync the agent-facing docs: root `CLAUDE.md` + `AGENTS.md` Tech Stack row and
   Project Map, and `lumen-sev/CLAUDE.md` Module Structure, become "Java 11 · Spring Boot
   2.5.15 · Spring Cloud 2020.0.3 · Spring Cloud Alibaba 2021.1 (OPS-verified train) ·
   unified entry nginx (no Java gateway) · base modules `framework`/`common` copied verbatim
   from OPS". Verify: `grep -rn "Java 17\|Boot 3\|lumen-gateway\|lumen-common-" CLAUDE.md
   AGENTS.md lumen-sev/CLAUDE.md` returns nothing, and `diff CLAUDE.md AGENTS.md` shows no
   difference.
-- [ ] 5.5 Run `openspec validate init-backend-skeleton --strict`. Verify: exit 0 with no
+- [x] 5.5 Run `openspec validate init-backend-skeleton --strict`. Verify: exit 0 with no
   errors and no warnings.
 
 ## Workflow follow-up

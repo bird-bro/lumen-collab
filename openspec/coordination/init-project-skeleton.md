@@ -215,7 +215,7 @@ those services assign them and update this table.
 
 | Stack | Change | Status | Verify |
 |:--|:--|:--|:--|
-| backend | `init-backend-skeleton` | proposing | - |
+| backend | `init-backend-skeleton` | applied (verify pending) | - |
 | frontend | `init-web-skeleton` | proposing | - |
 
 ## Gate
