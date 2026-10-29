@@ -73,7 +73,8 @@ modules, and no other change SHALL touch them.
 
 #### Scenario: Redis is optional
 - **WHEN** a service loads its context with no Redis server available
-- **THEN** the copied Redis configuration stays inactive instead of failing the context
+- **THEN** the context loads with zero Redis connection attempts (the conditional config is
+  harmless by default; connections are lazy)
 - **AND** services that do use Redis get the copied serializer and cache beans
 
 #### Scenario: Business baggage is removed

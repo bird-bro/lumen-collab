@@ -20,6 +20,9 @@ spring:
   datasource:
     url: jdbc:postgresql://test-invalid:5432/test
     driver-class-name: org.postgresql.Driver
+    # explicit: must not rely on druid 1.2.18's DEFAULT_INITIAL_SIZE=0 library default
+    # (B4 review Minor-1) - a future non-zero main-profile value must not leak into tests
+    initial-size: 0
   cloud:
     nacos:
       discovery:
