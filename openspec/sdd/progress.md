@@ -31,15 +31,15 @@
 - Notes: task 4.1 sequencing note recorded (observed red is the strongest available); framework/common byte-untouched
 
 ### Batch 5: Documentation and spec hygiene (tasks 5.1-5.5)
-- Status: Pending
-- Commits: -
-- Review: Pending
-- Notes: coordination doc + naming.md confirm + CLAUDE/AGENTS sync + --strict
+- Status: Complete (commit 8a42961) - final review in progress
+- Commits: 2eecd07..8a42961
+- Review: Pending (final cross-batch review)
+- Notes: 4 drift items found and fixed (registry row, adaptation counts in sev CLAUDE + tasks 2.2, sev AGENTS.md resync, naming.md wording)
 
 ---
 
 ## Summary
 - Total tasks: 17
-- Completed: 0
+- Completed: 17
 - Blocked: 0
-- Final review: Pending
+- Final review: In progress

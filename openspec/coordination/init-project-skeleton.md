@@ -66,8 +66,8 @@ those services assign them and update this table.
   2026-10-29: name, artifactId, and package (`org.birdbro.framework` / `org.birdbro.common`)
   copied unchanged; they are the shared base for all Servlet services. This supersedes the
   earlier five-way `lumen-common-*` plan. Five recorded adaptations (localized diffs):
-  (1) `RedisConfig`/`FastJson2JsonRedisSerializer` become conditional (Redis is optional in
-  the hospital form); (2) security wiring: `lumen-auth` issues tokens, other services verify
+  (1) `RedisConfig` becomes conditional and `FastJson2JsonRedisSerializer` is confined to it
+  (Redis is optional in the hospital form; B2 review corrected the scope); (2) security wiring: `lumen-auth` issues tokens, other services verify
   via the copied filter against shared Redis; (3) operation-log tables are owned per service
   (each service's Flyway carries the same op-log schema; the copied mappers write the
   service's own DB); (4) **`DingTalkConstants` + `WxCryptUtil` are deleted during the copy**
@@ -127,7 +127,11 @@ those services assign them and update this table.
   shared lib (RCP-only `ExamConstants`; OPS-only `DingTalkConstants`/`OrgConstants` - which
   also independently validates adaptation (d): the DingTalk/WeChat baggage is OPS-only).
   Sharing versioned libraries instead of per-product copies is the measured fix for the
-  drift this team has already lived through (NOTES lesson #1). - 2026-10-29
+  drift this team has already lived through (NOTES lesson #1). B1 note recorded here (was
+  only in the implementer report): OPS's parent manages neither `httpclient` nor
+  `commons-lang3` nor `validation-api` (they resolve via `spring-boot-dependencies`), so
+  they are correctly absent from lumen-bom's 1:1 copy; `bcprov-jdk16` enters via recorded
+  adaptation (e). - 2026-10-29
 - **Entry-class contract (B4 review, red-proven)** - every service entry class MUST carry
   both `@SpringBootApplication(scanBasePackages = "org.birdbro")` AND
   `@MapperScan("org.birdbro.**.mapper")`, mirroring OPS `LaunchApplication` byte-for-byte.
@@ -162,7 +166,7 @@ those services assign them and update this table.
   modules resolve the BOM only inside the full reactor (or after `./mvnw -pl lumen-bom
   install`) - build from the aggregator; documented in `lumen-sev/CLAUDE.md`. (2) BOM
   import order = OPS's own (cloud, alibaba, framework, boot) so the effective
-  dependencyManagement is **byte-identical to OPS** - verified 1450 shared keys, 0 drift
+  dependencyManagement is **byte-identical to OPS** - verified by full-key diff: 1484 shared keys, 0 drift (final-review measurement)
   (the "obvious" framework-first order would flip okhttp to 3.14.9 vs OPS's 3.14.4).
   (3) dcm4che repository is declared in the **aggregator** (inherited by children), not
   only in lumen-bom - a BOM's `<repositories>` do not propagate to consumers (Batch 1
@@ -231,5 +235,8 @@ Verification commands come from `openspec/verify.config.yaml`:
 
 L2 (WHEN/THEN scenarios) is checked against each change's `specs/`.
 
+**Deferred naming input (final review Minor-6)**: `lumen-sev/CLAUDE.md`'s Database line
+still names the radiology DB `lumen_ris` while the module is `lumen-radiology` - no DB exists
+yet; the radiology change settles the DB name and updates that line.
 **Archive order**: archive `init-backend-skeleton` and `init-web-skeleton` only after both
 verify PASS, then mark this doc's registry rows `archived`.

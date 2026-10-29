@@ -110,7 +110,7 @@
 ## 5. Documentation and spec hygiene
 
 - [x] 5.1 Update `openspec/coordination/init-project-skeleton.md`: record the final pinned
-  versions if they differ from design D1, the three adaptation diffs if they grew beyond
+  versions if they differ from design D1, the five adaptation diffs if they grew beyond
   design D5, and set this change's registry row to the current status. Verify: the doc's
   Decisions and registry rows match what was built.
 - [x] 5.2 Confirm the port table reflects the built reality (nginx 80/443 entry,

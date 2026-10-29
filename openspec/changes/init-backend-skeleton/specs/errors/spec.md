@@ -18,7 +18,9 @@ errors use `C`-class codes.
 
 #### Scenario: Server error
 - **WHEN** an internal error occurs
-- **THEN** `code` is a `B`-class code such as `"B0001"` with a generic `msg`
+- **THEN** the fallback handler returns the HTTP-status string `"500"` with a generic `msg`
+- **AND** `B`-class codes arrive via `BusinessException` (e.g. `"B0001"` for system
+  execution failure), matching the copied `GlobalExceptionHandler`
 
 #### Scenario: Third-party error
 - **WHEN** a PACS, HIS, or other external service call fails

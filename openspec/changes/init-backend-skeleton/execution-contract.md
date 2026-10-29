@@ -94,7 +94,7 @@ review against the OPS source**, not a test:
   and parent/module coordinates (behaviors 17, 18)
 - `mvn -f lumen-sev/pom.xml dependency:tree -q` -> no `org.dcm4che` node on any compile path
   (behavior 24)
-- `diff -r` copied `framework`/`common` vs OPS originals -> only the four recorded
+- `diff -r` copied `framework`/`common` vs OPS originals -> only the five recorded
   adaptations (behaviors 6, 8)
 - `openspec validate init-backend-skeleton --strict` -> exit 0
 
@@ -224,11 +224,11 @@ Source of truth: `tasks.md` (17 tracked tasks in 5 groups). Batching for executi
 
 | Dimension | Status | Findings |
 |:--|:--|:--|
-| Completeness | Pending | Do all 28 approved behaviors have a task and a check? Is the verbatim diff gate in place? Are the deferred modules confirmed absent (task 4.3)? |
-| Correctness | Pending | Do `compile` and `test` exit 0 with zero infrastructure (including no Redis)? Does `dependency:tree` confirm dcm4che/HAPI/RocketMQ are unlinked? Is the OPS version diff clean? |
-| Coherence | Pending | Is the pinned train internally consistent? Do the coordination-doc port table and the built YAMLs agree (nginx 80/443 entry, auth 8081)? Does the frontend proxy target match? Do package roots follow `naming.md`? |
+| Completeness | **PASS** | 17/17 tasks; all 25 behaviors + 3 alignment rows verified (26/28 exact against OPS sources); verbatim diff gate re-run; deferred modules absent; jar non-executability proven structurally (no repackage/mainClass in any pom) |
+| Correctness | **PASS** | compile + test exit 0 with zero infrastructure (8848/5432/6379/9876 traces all 0); dependency:tree carries no dcm4che/HAPI/RocketMQ; OPS effective-depMgmt full-key diff: 1484 shared keys, 0 mismatches; version-literal grep clean; secrets clean |
+| Coherence | **PASS** | train internally consistent (BOM = design D1 = coordination doc); port table matches application.yml (nginx 80/443, auth 8081); package roots match naming.md; CLAUDE/AGENTS mirrors byte-identical and grep-clean; registry current; frontend proxy n/a (pending change) |
 
-**Overall**: Pending
+**Overall**: **PASS** - final cross-batch review: Ready for /opsx:verify. Six minor doc nits fixed or recorded (adaptation-count stragglers, parity-count numerics, adaptation (1) wording, errors "Server error" scenario aligned to the copied handler's fallback, B1 BOM-omission note moved into the ledger, radiology DB naming deferred to its change).
 
 ## Review Gates
 
