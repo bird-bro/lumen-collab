@@ -38,8 +38,13 @@
 
 ---
 
+### Verify remediation (tweak round, tasks 6.1-6.4)
+- Status: Complete
+- Scope: 13 PARTIAL + 2 deferred-✗ scenarios resolved at the wording level; command portability (MAJOR-1), Redis default-on semantics + opt-out (MAJOR-2 rebuttal + real gap), MetaObjectConfig fill scope (data), SUCCESS("0000") note, coordination ApiEnvelope claim, offline-package risk registered; one more "three adaptations" straggler caught in design Risks.
+- Gates: L1 exit 0, L3 exit 0, strict valid; root-invoked dir-build re-proven exit 0
+
 ## Summary
-- Total tasks: 17
-- Completed: 17
+- Total tasks: 21 (17 impl + 4 remediation)
+- Completed: 21
 - Blocked: 0
-- Final review: In progress
+- Final review: PASS (dimensions filled in contract)

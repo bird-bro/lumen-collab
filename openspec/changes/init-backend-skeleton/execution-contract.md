@@ -44,7 +44,7 @@ These are the acceptance checks for `/opsx:verify` L2.
 
 | # | Requirement | WHEN | THEN (acceptance check) |
 |:--|:--|:--|:--|
-| 1 | Aggregator Module Declaration | `mvn -f lumen-sev/pom.xml compile -q` in a clean checkout | exit 0, every declared module compiled; monorepo root is not a Maven project; no `lumen-services/` layer |
+| 1 | Aggregator Module Declaration | `./mvnw compile -q` in a clean checkout | exit 0, every declared module compiled; monorepo root is not a Maven project; no `lumen-services/` layer |
 | 2 | Aggregator Module Declaration | a dir under `lumen-sev/` has a `pom.xml` the aggregator does not list | it is not part of the build; adding it needs an explicit aggregator change |
 | 3 | Foundation Module Set | the aggregator build completes | `lumen-bom`, `framework`, `common`, `lumen-auth` each produced a build artifact |
 | 4 | Foundation Module Set | the deployed system exposes its API | `/api/v1/<service>/**` served by **nginx** as the single entry; no backend module claims a gateway role |
@@ -57,7 +57,7 @@ These are the acceptance checks for `/opsx:verify` L2.
 | 11 | Shared Library Boundary | a rule applies to one department only | it belongs in that service, not in the shared modules |
 | 12 | Service Identity | a service context loads in a test | `spring.application.name` == module name; `server.port` == reserved port (auth 8081; nginx 80/443 entry, not a module) |
 | 13 | Service Identity | a new service has no distinct port | coordination-doc port table unsatisfied; resolve before accepting |
-| 14 | Context Load Without Infrastructure | `mvn test -q` with Nacos, PostgreSQL, Redis, RocketMQ all absent | exit 0; `lumen-auth` context-load test passed |
+| 14 | Context Load Without Infrastructure | `./mvnw test -q` (from lumen-sev/) with Nacos, PostgreSQL, Redis, RocketMQ all absent | exit 0; `lumen-auth` context-load test passed |
 | 15 | Context Load Without Infrastructure | no Nacos server responds | registration and remote config import inactive; context still loads (absence is not a build failure) |
 | 16 | Sensitive Configuration Exclusion | a service requires a credential | read from env var or Nacos; **no literal secret in any committed file** |
 
@@ -88,11 +88,11 @@ review against the OPS source**, not a test:
 | 28 | data § Entity Schema Documentation | `common/core/base/EntityBase.java` | audit contract matches EntityBase: `deleted` logical delete, `create_by`/`update_by` filled INSERT/INSERT_UPDATE, `create_time`/`update_time` serialized `yyyy-MM-dd HH:mm:ss` GMT+8; snowflake `id` requirement unchanged |
 
 **Key acceptance commands** (tasks 4.2, 5.5):
-- `mvn -f lumen-sev/pom.xml compile -q` -> exit 0 (verify L1)
-- `mvn -f lumen-sev/pom.xml test -q` -> exit 0 with no infrastructure running (verify L3)
+- `./mvnw compile -q` -> exit 0 (verify L1)
+- `./mvnw test -q` -> exit 0 with no infrastructure running (verify L3)
 - `grep -rn "<version>" lumen-sev --include=pom.xml` -> version tags only in `lumen-bom/pom.xml`
   and parent/module coordinates (behaviors 17, 18)
-- `mvn -f lumen-sev/pom.xml dependency:tree -q` -> no `org.dcm4che` node on any compile path
+- `./mvnw dependency:tree -q` -> no `org.dcm4che` node on any compile path
   (behavior 24)
 - `diff -r` copied `framework`/`common` vs OPS originals -> only the five recorded
   adaptations (behaviors 6, 8)
@@ -137,7 +137,7 @@ Source of truth: `tasks.md` (17 tracked tasks in 5 groups). Batching for executi
 - **Goal**: the build topology and the single version source exist and validate.
 - **Input**: design D1 (OPS train + build mechanics), D2 (dcm4che repository).
 - **Output**: `lumen-sev/pom.xml`, `lumen-bom/pom.xml`, child inheritance wired.
-- **Completion criteria**: `mvn validate` exits 0; version-literal grep clean; OPS version
+- **Completion criteria**: `./mvnw validate` exits 0; version-literal grep clean; OPS version
   diff clean; `dependency:tree` has no `org.dcm4che` on any compile path.
 - **Why first**: every later module inherits from these POMs. A wrong train here cascades.
 

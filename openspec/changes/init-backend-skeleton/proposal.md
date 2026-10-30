@@ -93,8 +93,8 @@ doc.
 
 ## Success Criteria
 
-- `mvn -f lumen-sev/pom.xml compile -q` exits 0 with all declared modules built.
-- `mvn -f lumen-sev/pom.xml test -q` exits 0 on a machine running no Nacos, PostgreSQL,
+- `./mvnw compile -q` exits 0 with all declared modules built.
+- `./mvnw test -q` exits 0 on a machine running no Nacos, PostgreSQL,
   Redis, or RocketMQ.
 - No `<version>` literal for a third-party dependency appears in any child POM; versions
   resolve through `lumen-bom`.

@@ -6,7 +6,8 @@
 Error codes MUST follow the OPS `ExceptionEnum` scheme, carried as strings in the
 envelope's `code` field: success uses HTTP-status codes (`"200"`, `"204"`), client-side
 errors use `A`-class codes, system errors use `B`-class codes, and third-party service
-errors use `C`-class codes.
+errors use `C`-class codes. The enum's `SUCCESS("0000")` constant is retained verbatim from
+OPS but unused - lumen code never emits it (the copied `R.ofSuccess` uses `"200"`/`"204"`).
 
 #### Scenario: Success
 - **WHEN** a request succeeds

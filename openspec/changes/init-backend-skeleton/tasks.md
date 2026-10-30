@@ -14,7 +14,7 @@
   `maven-compiler-plugin:3.8.1` with annotationProcessorPaths for
   `spring-boot-configuration-processor:2.5.15`, `lombok:1.18.30`, and
   `mapstruct-processor:1.5.5.Final` - mirroring OPS's build mechanism (design D1). Verify:
-  `mvn -f lumen-sev/pom.xml validate -q` exits 0.
+  `./mvnw validate -q` exits 0.
 - [x] 1.2 Create `lumen-bom/pom.xml` (packaging `pom`) carrying OPS's parent
   `dependencyManagement` 1:1 - import `spring-framework-bom:5.3.33`,
   `spring-boot-dependencies:2.5.15`, `spring-cloud-dependencies:2020.0.3`, and
@@ -29,12 +29,12 @@
   `ca.uhn.hapi:hapi-base:2.6.0`, `ca.uhn.hapi:hapi-structures-v25:2.6.0`,
   `org.dcm4che:dcm4che-core`/`dcm4che-net:5.35.2`, and
   `rocketmq-spring-boot-starter:2.2.3`, and the internal artifacts `framework`/`common`
-  managed at `${revision}` (design D1). Verify: `mvn -f lumen-sev/pom.xml -pl lumen-bom
+  managed at `${revision}` (design D1). Verify: `./mvnw -pl lumen-bom
   validate -q` exits 0, and a line-by-line diff against `ops_sev/pom.xml` shows identical
   versions for every library OPS also manages.
 - [x] 1.3 Declare the dcm4che repository `https://www.dcm4che.org/maven2` in `lumen-bom`
   (design D2), with no module consuming a dcm4che artifact. Verify:
-  `mvn -f lumen-sev/pom.xml dependency:tree -q` shows no `org.dcm4che` node on any module's
+  `./mvnw dependency:tree -q` shows no `org.dcm4che` node on any module's
   compile path.
 - [x] 1.4 Have every child POM inherit from the aggregator and import `lumen-bom`, with no
   third-party `<version>` literal anywhere below `lumen-bom`. Verify:
@@ -47,7 +47,7 @@
   artifactIds stay `framework`/`common`, packages stay `org.birdbro.framework` /
   `org.birdbro.common`; repoint each copied POM's parent from the OPS parent to the
   `lumen-sev` aggregator (versions resolve through `lumen-bom`). Verify:
-  `mvn -f lumen-sev/pom.xml -pl framework,common -am compile -q` exits 0, and
+  `./mvnw -pl framework,common -am compile -q` exits 0, and
   `diff -r` against the OPS originals shows changes only in the parent block of the two POMs.
 - [x] 2.2 Apply exactly the five recorded adaptations, nothing more (design D5):
   (a) make `RedisConfig` / `FastJson2JsonRedisSerializer` conditional on Redis being
@@ -81,7 +81,7 @@
   replicate this entry-class contract), `spring-boot-starter-web`, and `bootstrap.yml` +
   `application.yml` setting `spring.application.name: lumen-auth` and `server.port: 8081`.
   No controllers, no security wiring yet. Verify:
-  `mvn -f lumen-sev/pom.xml -pl lumen-auth -am compile -q` exits 0.
+  `./mvnw -pl lumen-auth -am compile -q` exits 0.
 - [x] 3.2 Wire Nacos discovery + config + `spring-cloud-starter-bootstrap:3.0.3` into
   `lumen-auth` the way OPS does (design D3): remote config via `bootstrap.yml`, address from
   an env placeholder, no committed credentials; add the test profile
@@ -96,12 +96,12 @@
   profile) asserting the context starts, `spring.application.name` resolves to
   `lumen-auth`, and `server.port` resolves to `8081`. Write the test first, watch it fail
   before task 3.2's profile is in place, then make it pass. Verify:
-  `mvn -f lumen-sev/pom.xml -pl lumen-auth test -q` exits 0 with Nacos, PostgreSQL, Redis,
+  `./mvnw -pl lumen-auth test -q` exits 0 with Nacos, PostgreSQL, Redis,
   and RocketMQ all stopped - this also proves adaptation (a): the Redis-conditional
   configuration stays inactive with no Redis present.
 - [x] 4.2 Run the whole-stack gate from `openspec/verify.config.yaml` on a machine with no
-  infrastructure. Verify: `mvn -f lumen-sev/pom.xml compile -q` and
-  `mvn -f lumen-sev/pom.xml test -q` both exit 0 (L1 and L3 PASS).
+  infrastructure. Verify: `./mvnw compile -q` and
+  `./mvnw test -q` both exit 0 (L1 and L3 PASS).
 - [x] 4.3 Assert the deferred modules were not created. Verify: none of `lumen-exam-core`,
   `lumen-api`, `lumen-patient`, `lumen-radiology`, `lumen-integration`, `lumen-us`,
   `lumen-endo` - and no gateway module of any name - exists under `lumen-sev/`, and no
@@ -128,6 +128,13 @@
   difference.
 - [x] 5.5 Run `openspec validate init-backend-skeleton --strict`. Verify: exit 0 with no
   errors and no warnings.
+
+## 6. Verify remediation (L2 audit 2026-10-29, tweak round)
+
+- [x] 6.1 Normalize acceptance-command wording to `cd lumen-sev && ./mvnw ...` (portable; the `mvn -f` form breaks on `.mvn/maven.config` relative settings). Verify: spec/proposal/CLAUDE.md/verify.config all use the portable form; `./mvnw compile -q` + `./mvnw test -q` exit 0.
+- [x] 6.2 Rewrite future-process scenarios to currently-verifiable constraints (api "Service routing"; service-topology "Unified entry is nginx", "Foundation modules resolve", "Module present on disk", "HTTP surface ownership"; dep-gov "Integration service is added later"). Verify: each scenario has grep/read evidence in-tree.
+- [x] 6.3 Fix overstated spec text: data delta (MetaObjectConfig fills ONLY operator fields; timestamps via DB default); Redis default-on semantics + `lumen.redis.enabled=false` opt-out noted in design D5; errors delta notes `SUCCESS("0000")` retained-but-unused. Verify: text matches EntityBase.java/RedisConfig.java/ExceptionEnum.java line evidence.
+- [x] 6.4 Correct coordination doc's ApiEnvelope claim (planning artifacts only - lumen-web/src does not exist yet) and record maven-jar-plugin offline-fragility in design Risks. Verify: doc greps return the corrected text.
 
 ## Workflow follow-up
 

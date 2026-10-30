@@ -62,9 +62,11 @@ deviation MUST be recorded as an explicit decision in the coordination doc.
 - **AND** it stays off every compile path until its own change verifies it
 
 ### Requirement: Integration Libraries Managed Not Linked
-Coordinates for dcm4che, HAPI HL7v2 (`ca.uhn.hapi`, not HAPI FHIR), RocketMQ, and the
-PostgreSQL driver SHALL be version-managed in `lumen-bom`. They MUST NOT be placed on the
-compile path of any module in this change, because no module yet uses them.
+Coordinates for dcm4che, HAPI HL7v2 (`ca.uhn.hapi`, not HAPI FHIR), and RocketMQ SHALL be
+version-managed in `lumen-bom`. They MUST NOT be placed on the compile path of any module in
+this change, because no module yet uses them. The PostgreSQL driver IS on the base modules'
+compile path - the verbatim copy of OPS `framework`/`common` declares it; its version still
+resolves through `lumen-bom`.
 
 #### Scenario: Integration dependency is available but unused
 - **WHEN** the foundation build completes

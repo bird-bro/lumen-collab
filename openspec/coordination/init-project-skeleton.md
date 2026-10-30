@@ -211,9 +211,9 @@ those services assign them and update this table.
   serialization). Consequences accepted: the envelope loses the old numeric-code ↔ HTTP-status
   mapping; timestamps serialize in GMT+8 rather than UTC; audit operator columns are OPS's
   `Integer` (int32) - **flagged**: if lumen user PKs are snowflake `bigint`, `create_by`/
-  `update_by` must widen to bigint in the `lumen-auth` change. `init-web-skeleton`'s
-  `ApiEnvelope` type was updated to match (the earlier "frontend unaffected" note above
-  predates this decision and is superseded on the envelope point only). - 2026-10-29
+  `update_by` must widen to bigint in the `lumen-auth` change. `init-web-skeleton`'s planned
+  `ApiEnvelope` type was updated to match (its delta specs/design - `lumen-web/src/` does not
+  exist yet; the frontend change is still `proposing`). - 2026-10-29
 
 ## Change Registry
 
@@ -230,7 +230,7 @@ Verification commands come from `openspec/verify.config.yaml`:
 
 | Stack | L1 build | L3 test |
 |:--|:--|:--|
-| backend (`lumen-sev`) | `mvn compile -q` | `mvn test -q` |
+| backend (`lumen-sev`) | `./mvnw compile -q` (dir: lumen-sev) | `./mvnw test -q` |
 | frontend (`lumen-web`) | `pnpm build` | `null` -> SKIP (no runner yet; see debt log) |
 
 L2 (WHEN/THEN scenarios) is checked against each change's `specs/`.

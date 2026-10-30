@@ -14,15 +14,14 @@ module compiled as part of the backend build MUST be declared there. The monorep
 NOT be a Maven project, and no `lumen-services/` grouping layer SHALL exist.
 
 #### Scenario: Full backend build from the aggregator
-- **WHEN** `mvn -f lumen-sev/pom.xml compile -q` runs in a clean checkout
+- **WHEN** `./mvnw compile -q` runs from `lumen-sev/` in a clean checkout
 - **THEN** it exits 0
 - **AND** every module declared in the aggregator has been compiled
 
 #### Scenario: Module present on disk but not declared
-- **WHEN** a directory under `lumen-sev/` contains a `pom.xml` that the aggregator does not
-  list as a `<module>`
-- **THEN** that directory is not part of the backend build
-- **AND** adding it requires an explicit aggregator change
+- **WHEN** the aggregator build completes
+- **THEN** the set of `pom.xml` files under `lumen-sev/` equals the declared `<module>` list
+  plus the aggregator itself - no orphan module directory participates in the build
 
 ### Requirement: Foundation Module Set
 The backend SHALL provide the v1 foundation modules: `lumen-bom`, the OPS reference modules
@@ -33,8 +32,9 @@ changes that give them behavior add them.
 
 #### Scenario: Foundation modules resolve
 - **WHEN** the aggregator build completes
-- **THEN** `lumen-bom`, `framework`, `common`, and `lumen-auth` have each produced a build
-  artifact
+- **THEN** `framework`, `common`, and `lumen-auth` have each produced a jar
+- **AND** `lumen-bom` participates as a `pom` module (no jar - it emits only its resolved
+  flattened POM as the version source)
 
 #### Scenario: Deferred module requested
 - **WHEN** a later feature needs `lumen-radiology`
@@ -47,9 +47,11 @@ serving `/api/v1/<service>/**`; Spring Cloud Gateway is reserved for a future cl
 change.
 
 #### Scenario: Unified entry is nginx
-- **WHEN** the deployed system exposes its API
-- **THEN** `/api/v1/<service>/**` is served by nginx as the single entry
-- **AND** no backend module claims a gateway routing role
+- **WHEN** this project's backend build is inspected
+- **THEN** no Java gateway module exists under `lumen-sev/` and no Spring Cloud Gateway
+  dependency appears on any compile path
+- **AND** the nginx entry contract (`/api/v1/<service>/**`, 80/443) is reserved for the
+  deferred `docker/` change to deploy
 
 ### Requirement: Verbatim Adoption of the OPS Base Modules
 `framework` and `common` SHALL be copied from the OPS reference project with their module
@@ -75,7 +77,9 @@ modules, and no other change SHALL touch them.
 - **WHEN** a service loads its context with no Redis server available
 - **THEN** the context loads with zero Redis connection attempts (the conditional config is
   harmless by default; connections are lazy)
-- **AND** services that do use Redis get the copied serializer and cache beans
+- **AND** the config is default-on: services that use Redis get the copied serializer and
+  cache beans with no extra property, and a service opts out explicitly with
+  `lumen.redis.enabled: false`
 
 #### Scenario: Business baggage is removed
 - **WHEN** the copy of `common` completes
@@ -94,13 +98,14 @@ business rules belonging to a single department service. The HTTP surface of a s
 belongs to that service: controllers live in the service module, never in a shared library.
 
 #### Scenario: Library is not runnable
-- **WHEN** the build packages `framework`, `common`, or `lumen-exam-core`
+- **WHEN** the build packages `framework` or `common`
 - **THEN** the artifact is a plain jar with no `Main-Class` boot entry point
 - **AND** no Spring Boot repackage goal has produced an executable jar
 
 #### Scenario: HTTP surface ownership
-- **WHEN** an endpoint is needed for a department workflow
-- **THEN** its controller is added in that department's service module
+- **WHEN** the copied base modules and the service shells are inspected
+- **THEN** neither `framework` nor `common` declares a Spring MVC controller
+  (`@RestControllerAdvice` advice classes are response/error plumbing, not endpoints)
 - **AND** shared libraries expose service beans and extension points, not controllers
 
 #### Scenario: Service-specific rule proposed for a shared library
@@ -129,7 +134,7 @@ running - no Nacos, PostgreSQL, Redis, or RocketMQ. Test execution MUST NOT requ
 `docker/` or any network service.
 
 #### Scenario: Context load test with no services running
-- **WHEN** `mvn -f lumen-sev/pom.xml test -q` runs on a machine where Nacos, PostgreSQL,
+- **WHEN** `./mvnw test -q` runs from `lumen-sev/` on a machine where Nacos, PostgreSQL,
   Redis, and RocketMQ are all absent
 - **THEN** it exits 0
 - **AND** the context-load test for `lumen-auth` has passed

@@ -9,8 +9,8 @@
 stacks:
   backend:
     dir: lumen-sev
-    build: mvn compile -q
-    test: mvn test -q
+    build: ./mvnw compile -q    # JDK 11; wrapper pins Maven 3.9.9 (see lumen-sev/CLAUDE.md Build Commands)
+    test: ./mvnw test -q        # zero infrastructure required (init-backend-skeleton guarantee)
   lumen-web:
     dir: lumen-web
     build: pnpm build

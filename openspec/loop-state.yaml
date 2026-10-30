@@ -7,13 +7,13 @@
 phase: verifying
 change: init-backend-skeleton
 current_task: null
-tasks_total: 17
-tasks_done: 17
+tasks_total: 21
+tasks_done: 21
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
-workflow_mode: full
-artifacts_hash: 3ebf21a93e0c264279f2727113dabc6e4c86eb6bfbdaec33a2a66f27d54b525b
+workflow_mode: tweak
+artifacts_hash: 277e871e4d66153ced17c5a07d22866ba2bf6f6da93878048aaf569ecee5354d
 contract_hash: null
 execution_mode: SDD
 batches_completed: 5

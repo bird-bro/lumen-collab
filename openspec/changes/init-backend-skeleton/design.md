@@ -21,7 +21,7 @@ earlier idea of adopting the newest Boot 3.x train is dropped; OPS's jar set is 
 ## Goals / Non-Goals
 
 **Goals:**
-- A green `mvn -f lumen-sev/pom.xml compile -q` and `test -q` from a clean checkout with no
+- A green `./mvnw compile -q` and `test -q` from a clean checkout with no
   infrastructure.
 - One authoritative version source (`lumen-bom`); zero version literals in child POMs.
 - `lumen-bom`'s managed set identical to OPS's wherever OPS manages the same library.
@@ -145,6 +145,8 @@ recorded adaptations (anything else is a governance violation per
    is optional in the hospital form). `FastJson2JsonRedisSerializer` needs no guard of its
    own: its only instantiation is inside `RedisConfig` (Batch 2 review), so guarding the
    configuration class fully prevents its loading. (D5 correction, B2 review.)
+   Semantics: the guard is **default-on** (`matchIfMissing = true`) - a service using Redis
+   needs no extra property; a service opts OUT with `lumen.redis.enabled: false`.
 2. **Security wiring boundary** - the copied `TokenService` /
    `JwtAuthenticationTokenFilter` stay as-is; `lumen-auth` will be the token issuer, other
    services verify against shared Redis. Wiring completes in the auth feature change, not
@@ -194,9 +196,14 @@ habit) so the copied beans register without any spring.factories machinery.
   the BOM but off every compile path; their verification belongs to the changes that use
   them.
 - **Verbatim-copy creep: "small fixes" accumulate silently in `framework`/`common` during
-  porting.** → `diff -r` against the OPS originals is a task gate (2.1/2.2); only the three
+  porting.** → `diff -r` against the OPS originals is a task gate (2.1/2.2); only the five
   recorded adaptations may differ, anything else is a blocking review category per the
   execution contract.
+- **`package` is offline-fragile** (L2 audit finding): `maven-jar-plugin` resolves transitives
+  (`file-management`, `maven-archiver`, `commons-io`, `commons-lang3`) by origin-checking the
+  shared cache, which fails with `-o` unless they were fetched from the current repos. The
+  declared L1/L3 gates (`compile`/`test`) are unaffected; CI must either allow network or pin
+  `maven-jar-plugin` explicitly. Not fixed in this change (packaging is no task requirement).
 
 ## Migration Plan
 

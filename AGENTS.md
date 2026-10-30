@@ -66,7 +66,7 @@ Open-source medical imaging collaboration platform (brand: LumenCollab) that pai
 
 ## Build & Test
 ```
-mvn -f lumen-sev/pom.xml compile -q | mvn -f lumen-sev/pom.xml test -q   # backend
-pnpm dev | pnpm build                                                    # lumen-web (details: lumen-web/CLAUDE.md)
+cd lumen-sev && ./mvnw compile -q | cd lumen-sev && ./mvnw test -q          # backend (JDK 11; reactor builds - build from lumen-sev/, not -f from root)
+cd lumen-web && pnpm dev | cd lumen-web && pnpm build                        # lumen-web (details: lumen-web/CLAUDE.md)
 docker compose up -d                                                     # docker/ - full stack incl. dcm4chee-arc-light
 ```

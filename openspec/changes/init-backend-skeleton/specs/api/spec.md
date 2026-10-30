@@ -30,6 +30,8 @@ hospital form; Spring Cloud Gateway optional in the cloud form) under
 frontend.
 
 #### Scenario: Service routing
-- **WHEN** the frontend calls `/api/v1/radiology/exam-orders`
-- **THEN** the unified entry routes the request to `lumen-radiology` with auth context
-  forwarded
+- **WHEN** the unified-entry routing contract is inspected (deployment config arrives with
+  the deferred `docker/` change; the frontend arrives with `init-web-skeleton`)
+- **THEN** every documented endpoint path lives under `/api/v1/<service>/**`
+- **AND** no contract, code, or config routes the frontend directly to a backend service
+  port
