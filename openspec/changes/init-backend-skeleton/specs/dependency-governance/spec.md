@@ -74,6 +74,7 @@ resolves through `lumen-bom`.
 - **AND** `lumen-bom` still resolves their versions for the change that needs them
 
 #### Scenario: Integration service is added later
-- **WHEN** `lumen-integration` is created by its own change
-- **THEN** it consumes the already-managed dcm4che and HAPI HL7v2 versions
-- **AND** it does not introduce its own version literals
+- **WHEN** the foundation build is inspected before that change exists
+- **THEN** dcm4che and HAPI HL7v2 versions are already managed in `lumen-bom`, ready for
+  consumption without literals
+- **AND** no placeholder `lumen-integration` module exists yet
