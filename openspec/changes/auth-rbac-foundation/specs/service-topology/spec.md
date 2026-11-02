@@ -10,8 +10,9 @@ read from a gitignored local env file - never committed. Unconfigured connection
 fail the tests explicitly (never silently skipped). Other modules (`framework`, `common`)
 keep their zero-dependency tests unchanged.
 
-#### Scenario: Context load and data tests against the test server
-- **WHEN** `./mvnw test -q` runs from `lumen-sev/` with the test-server env file present
+#### Scenario: Context load test with no services running
+- **WHEN** `./mvnw test -q` runs from `lumen-sev/` with no deployed production services,
+  and the test-server env file present
 - **THEN** it exits 0
 - **AND** Flyway has applied the migrations to the test server's `lumen` database and the
   mappers have been exercised against it
