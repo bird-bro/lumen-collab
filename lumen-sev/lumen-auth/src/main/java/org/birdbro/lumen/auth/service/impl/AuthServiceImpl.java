@@ -37,7 +37,8 @@ import org.springframework.stereotype.Service;
  * <p>The {@link UserLogin} stored in Redis carries identity only: {@link UserSign} is
  * built WITHOUT the password hash, so no secret ever reaches Redis or the responses
  * (Batch-2 review handoff). Profile/menu/perms data is always re-read from the database -
- * the Redis session copy is identity, not truth.</p>
+ * the Redis session copy is identity, not truth. The {@link BCryptPasswordEncoder} is
+ * the SHARED lumen bean (Batch-3 review polish, applied here in task 4.3).</p>
  *
  * @author birdbro
  */
@@ -50,17 +51,19 @@ public class AuthServiceImpl implements AuthService {
     private final RoleMapper roleMapper;
     private final MenuTreeService menuTreeService;
     private final TokenService tokenService;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final BCryptPasswordEncoder passwordEncoder;
 
     public AuthServiceImpl(UserInfoMapper userInfoMapper, RoleMenuMapper roleMenuMapper,
             MenuInfoMapper menuInfoMapper, RoleMapper roleMapper,
-            MenuTreeService menuTreeService, TokenService tokenService) {
+            MenuTreeService menuTreeService, TokenService tokenService,
+            BCryptPasswordEncoder passwordEncoder) {
         this.userInfoMapper = userInfoMapper;
         this.roleMenuMapper = roleMenuMapper;
         this.menuInfoMapper = menuInfoMapper;
         this.roleMapper = roleMapper;
         this.menuTreeService = menuTreeService;
         this.tokenService = tokenService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override

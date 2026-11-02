@@ -1,16 +1,19 @@
 package org.birdbro.lumen.auth.dto;
 
+import java.util.List;
+
 import javax.validation.constraints.NotBlank;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 /**
- * Create-user request body ({@code POST /api/v1/auth/users}, auth-rbac-foundation task
- * 3.3): the minimal write endpoint that proves the audit identity loop - the JWT
- * principal must reach {@code MetaObjectConfig} through the USER-HEADER bridge so the
- * row's {@code create_by} fills. Full user CRUD (list, duplicate rejection, password
- * change, enable flag) lands in task 4.3.
+ * Create-user request body ({@code POST /api/v1/auth/users}, auth-rbac-foundation
+ * tasks 3.3 / 4.3 / 4.4). Tasks 4.3 extended the Batch 3 minimal create with the
+ * service-level duplicate rejection; task 4.4 added the optional {@code roleIds} - the
+ * RECORDED user-role creation path (no separate user-role assignment endpoint exists in
+ * this change): every id must reference a live role or the create is rejected with
+ * {@code A0400}, and the bindings insert in the same transaction as the user row.
  *
  * @author birdbro
  */
@@ -28,4 +31,7 @@ public class CreateUserRequest {
     @NotBlank(message = "name must not be blank")
     @ApiModelProperty("Display name")
     private String name;
+
+    @ApiModelProperty("Optional roles to bind at creation (each must exist; inserted as user_role rows)")
+    private List<Integer> roleIds;
 }
