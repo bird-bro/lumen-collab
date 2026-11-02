@@ -3,7 +3,7 @@ package org.birdbro.common.core.pojo;
 import lombok.Data;
 
 /**
- * @author zhengtw
+ * @author birdbro
  */
 @Data
 public class PublicKeyMap {

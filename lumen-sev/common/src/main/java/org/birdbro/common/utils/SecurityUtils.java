@@ -22,7 +22,7 @@ import java.net.URLDecoder;
 /**
  * 安全服务工具类
  *
- * @author ruoyi
+ * @author birdbro
  */
 public class SecurityUtils {
 
@@ -93,7 +93,7 @@ public class SecurityUtils {
     /**
      * 密码加密
      *
-     * @author: birdbro
+     * @author birdbro
      * @since: 2024-08-02 16:51
      * @param:
      * @return:
@@ -107,7 +107,7 @@ public class SecurityUtils {
     /**
      * 获取用户请求头信息
      *
-     * @author: birdbro
+     * @author birdbro
      * @since: 2024-08-12 11:31
      * @param:
      * @return:

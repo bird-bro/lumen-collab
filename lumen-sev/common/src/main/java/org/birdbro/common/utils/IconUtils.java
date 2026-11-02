@@ -24,7 +24,7 @@ public class IconUtils {
     /**
      * 生成头像
      *
-     * @author: birdbro
+     * @author birdbro
      * @since: 2024-08-06 14:12
      * @param:
      * @return:
@@ -40,7 +40,7 @@ public class IconUtils {
     /**
      * 生成ICON头像
      *
-     * @author: bird
+     * @author birdbro
      * @date: 2022-4-18 13:43
      * @param:
      * @return:
@@ -112,7 +112,7 @@ public class IconUtils {
     /**
      * 图片做圆角处理
      *
-     * @author:bird
+     * @author birdbro
      * @date: 2021-7-21 11:41
      * @param: BufferedImage image
      * @param: int cornerRadius
@@ -137,7 +137,7 @@ public class IconUtils {
     /**
      * 随机背景色
      *
-     * @author:bird
+     * @author birdbro
      * @date: 2021-7-21 11:40
      * @return: Color
      **/

@@ -17,7 +17,7 @@ import java.util.Objects;
  * Assert.notEmpty(list, ExceptionEnum.ERROR_A0500, "查询结果为空");
  * </pre>
  *
- * @author bird
+ * @author birdbro
  * @date 2024-03-13
  */
 public final class Assert {

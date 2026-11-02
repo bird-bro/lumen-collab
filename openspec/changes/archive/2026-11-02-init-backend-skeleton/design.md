@@ -162,7 +162,14 @@ recorded adaptations (anything else is a governance violation per
    lineage has no DingTalk/WeChat dependency (RCP's own common copy lacks
    `DingTalkConstants` entirely). Remaining idle classes (`WorkOrderStatusEnum`,
    `pojo/user/*`) are copied but untouched - pruned only by the changes that touch them.
-5. **Governance alignment of the copied POM** (Batch 1 finding) - OPS's `common/pom.xml`
+5. **Author-header normalization** (post-archive, user instruction 2026-10-30): all `@author`
+   variants in the copied modules (`ruoyi` ×35, `luzw` ×4, `zhengtw` ×2, `bird`/`birdBro`/`@author:` ×18)
+   normalized to exactly `@author birdbro`; original `@date` lines preserved as history. Two
+   code-level RuoYi traces handled separately: the `//RuoYiConfig...` comment in `IpUtils`
+   replaced with a neutral note; the `com.ruoyi` entry in `Constants.JSON_WHITELIST_STR` left
+   as-is (functional string, dead in lumen - no `com.ruoyi` package exists) - cleanup candidate
+   for the first change touching `Constants.java`.
+6. **Governance alignment of the copied POM** (Batch 1 finding) - OPS's `common/pom.xml`
    carries the only third-party version literal in its child POMs
    (`org.bouncycastle:bcprov-jdk16:1.46`). The copy keeps the dependency but drops the
    literal, and `lumen-bom` manages `bcprov-jdk16:1.46` instead - satisfying

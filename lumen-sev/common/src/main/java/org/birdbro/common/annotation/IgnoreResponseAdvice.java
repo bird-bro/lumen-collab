@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 /**
  * 统一返回包装标识注解
  *
- * @author bird
+ * @author birdbro
  * @date 2021-7-21 9:25
  **/
 @Target({ElementType.TYPE, ElementType.METHOD})

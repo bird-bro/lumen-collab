@@ -6,7 +6,7 @@ import org.birdbro.common.utils.GadgetUtils;
 /**
  * 字符串格式化
  *
- * @author ruoyi
+ * @author birdbro
  */
 public class StrFormatter {
     public static final String EMPTY_JSON = "{}";

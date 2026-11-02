@@ -4,7 +4,7 @@ package org.birdbro.common.Constants;
 /**
  * 通用常量信息
  *
- * @author birdBro
+ * @author birdbro
  */
 public class Constants {
 

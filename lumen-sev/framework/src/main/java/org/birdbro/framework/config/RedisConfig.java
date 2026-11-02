@@ -34,7 +34,7 @@ import java.util.Map;
  * conditional so a service context also loads with no Redis server / no Redis jar
  * (Redis is optional in the hospital form).</p>
  *
- * @author ruoyi
+ * @author birdbro
  */
 @ConditionalOnClass(name = "org.springframework.data.redis.core.RedisOperations")
 @ConditionalOnProperty(name = "lumen.redis.enabled", havingValue = "true", matchIfMissing = true)

@@ -17,7 +17,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * 通用http工具封装
  *
- * @author ruoyi
+ * @author birdbro
  */
 public class HttpHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpHelper.class);
@@ -48,7 +48,7 @@ public class HttpHelper {
     /**
      * 获取请求头信息
      *
-     * @author: birdbro
+     * @author birdbro
      * @since: 2024-08-12 11:25
      * @param:
      * @return:

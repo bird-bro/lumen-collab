@@ -5,7 +5,7 @@ import lombok.Getter;
 /**
  * 业务通用异常枚举
  *
- * @author bird
+ * @author birdbro
  * @date 2021-7-21 9:28
  **/
 @Getter

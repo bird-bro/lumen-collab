@@ -11,7 +11,7 @@ import java.nio.charset.Charset;
 /**
  * 类型转换器
  *
- * @author ruoyi
+ * @author birdbro
  */
 public class Convert {
     /**

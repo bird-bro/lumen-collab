@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * @author bird
+ * @author birdbro
  * @date 2021-7-21 8:55
  **/
 @ConfigurationProperties(GlobalProperties.PREFIX)

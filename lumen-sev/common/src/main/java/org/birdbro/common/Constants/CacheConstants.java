@@ -3,7 +3,7 @@ package org.birdbro.common.Constants;
 /**
  * 缓存的key 常量
  *
- * @author ruoyi
+ * @author birdbro
  */
 public class CacheConstants {
 

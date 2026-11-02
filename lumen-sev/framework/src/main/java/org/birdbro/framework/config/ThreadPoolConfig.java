@@ -73,7 +73,7 @@ public class ThreadPoolConfig implements AsyncConfigurer {
     /**
      * 定义线程池
      *
-     * @author: birdbro
+     * @author birdbro
      * @since: 2023-2-7 14:33
      **/
     @Bean("taskExecutor")

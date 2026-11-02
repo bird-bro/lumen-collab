@@ -17,7 +17,7 @@ import java.util.Date;
  *
  * </p>
  *
- * @author luzw
+ * @author birdbro
  * @since 2024-11-01
  */
 @TableName("ice.log_sign")

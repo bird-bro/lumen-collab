@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
  * 3. 优化参数校验错误提示
  * 4. 业务异常统一由 BusinessException 承载（旧版 BusinessExceptionV2 已移除）
  *
- * @author bird
+ * @author birdbro
  * @date 2024-03-13
  */
 @Slf4j

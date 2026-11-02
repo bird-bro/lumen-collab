@@ -18,7 +18,7 @@ public class AccessWarnDisable {
     /**
      * 忽略非法反射警告  适用于jdk11
      *
-     * @author: birdbro
+     * @author birdbro
      * @date: 2022-4-28 9:57
      **/
     @SuppressWarnings("unchecked")

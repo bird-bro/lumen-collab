@@ -12,7 +12,7 @@ import org.birdbro.framework.log.request.LogRequest;
  * Mapper 接口
  * </p>
  *
- * @author luzw
+ * @author birdbro
  * @since 2024-11-01
  */
 @Mapper

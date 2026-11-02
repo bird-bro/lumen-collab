@@ -16,7 +16,7 @@ import java.util.Map;
 /**
  * Filter配置
  *
- * @author ruoyi
+ * @author birdbro
  */
 @Configuration
 public class FilterConfig {

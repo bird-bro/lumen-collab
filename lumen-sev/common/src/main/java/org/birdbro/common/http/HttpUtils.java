@@ -15,7 +15,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * 通用http发送方法
  *
- * @author ruoyi
+ * @author birdbro
  */
 public class HttpUtils {
     private static final Logger log = LoggerFactory.getLogger(HttpUtils.class);

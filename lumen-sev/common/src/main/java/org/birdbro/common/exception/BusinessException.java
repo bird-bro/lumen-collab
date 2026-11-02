@@ -12,7 +12,7 @@ import org.birdbro.common.enums.ExceptionEnum;
  * 3. 业务异常统一返回 200，通过 code 区分错误类型
  * 4. 保留原始异常信息，便于问题定位
  *
- * @author bird
+ * @author birdbro
  * @date 2024-03-13
  **/
 @Getter

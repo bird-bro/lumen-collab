@@ -11,7 +11,7 @@ import org.birdbro.framework.log.request.LogRequest;
  * 服务类
  * </p>
  *
- * @author luzw
+ * @author birdbro
  * @since 2024-11-01
  */
 public interface ILogSignService extends IService<LogSignEntity> {

@@ -30,8 +30,9 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
   The product-category term **RIS stays in prose** (root `CLAUDE.md` Business Context:
   "v1 delivers a RIS"), never in module or package names (user decision 2026-10-29:
   department-name consistency beats system-acronym naming).
-- **Author attribution**: `@author birdbro` in class headers (ported code keeps its original
-  header); pom `<developer><id>birdbro</id>`; MIT LICENSE `Copyright (c) 2026 birdbro`;
+- **Author attribution**: `@author birdbro` in EVERY class header - ported code's headers are
+  normalized to birdbro (adaptation (f), 2026-10-30; original `@date` lines preserved);
+  pom `<developer><id>birdbro</id>`; MIT LICENSE `Copyright (c) 2026 birdbro`;
   Docker images `LABEL org.opencontainers.image.authors="birdbro"`.
 - **Library boundaries**: `framework`/`common`/`exam-core` are non-executable jars - no
   `@SpringBootApplication`, and `exam-core` carries no controllers (the HTTP surface belongs

@@ -3,7 +3,7 @@ package org.birdbro.common.exception;
 /**
  * 工具类异常
  *
- * @author ruoyi
+ * @author birdbro
  */
 public class UtilException extends RuntimeException {
     private static final long serialVersionUID = 8247610319171014183L;

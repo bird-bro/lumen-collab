@@ -11,7 +11,7 @@ import javax.servlet.http.HttpServletRequest;
 /**
  * 获取IP方法
  *
- * @author ruoyi
+ * @author birdbro
  */
 @Slf4j
 public class IpUtils {
@@ -218,7 +218,7 @@ public class IpUtils {
         if (IpUtils.internalIp(ip)) {
             return "内网IP";
         }
-        //RuoYiConfig.isAddressEnabled()
+        // 外网归属地查询在 lumen 中默认停用（原 OPS/RuoYi 经 config 开关控制；lumen 无该配置类，直接停用）
         if (false) {
             try {
                 String rspStr = HttpUtils.sendGet(IP_URL, "ip=" + ip + "&json=true", Constants.GBK);

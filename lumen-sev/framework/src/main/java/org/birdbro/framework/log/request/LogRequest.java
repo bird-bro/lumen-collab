@@ -4,7 +4,7 @@ import lombok.Data;
 import org.birdbro.framework.config.PageSizeConfig;
 
 /**
- * @Author luzw
+ * @author birdbro
  * @Date 2024-11-14 10:24
  */
 @Data

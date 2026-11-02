@@ -16,7 +16,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
  * 统一返回包装器 {@link IgnoreResponseAdvice}
  * 处理解析 {@link ResponseBodyAdvice}
  *
- * @author bird
+ * @author birdbro
  * @date 2021-7-21 9:23
  **/
 @RestControllerAdvice

@@ -239,6 +239,14 @@ Verification commands come from `openspec/verify.config.yaml`:
 
 L2 (WHEN/THEN scenarios) is checked against each change's `specs/`.
 
+- **Post-archive amendment (2026-10-30, user instruction)**: author headers in the copied
+  `framework`/`common` normalized to exactly `@author birdbro` (ruoyi ×35, luzw ×4, zhengtw ×2,
+  bird-variants ×18; `@date` history preserved; regression test green). Consequence for the
+  verbatim gate: future `diff -r` vs OPS now differs by author headers + the five recorded
+  adaptations - OPS originals untouched in their own repo remain the re-diff baseline. Known
+  remaining RuoYi trace: `Constants.JSON_WHITELIST_STR` contains `"com.ruoyi"` (functional
+  string, dead in lumen - no such package) - cleanup candidate for the first change touching
+  `Constants.java`.
 **Deferred naming input (final review Minor-6)**: `lumen-sev/CLAUDE.md`'s Database line
 still names the radiology DB `lumen_ris` while the module is `lumen-radiology` - no DB exists
 yet; the radiology change settles the DB name and updates that line.

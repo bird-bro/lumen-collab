@@ -5,7 +5,7 @@ import org.birdbro.common.filter.HTMLFilter;
 /**
  * 转义和反转义工具类
  *
- * @author ruoyi
+ * @author birdbro
  */
 public class EscapeUtils {
 

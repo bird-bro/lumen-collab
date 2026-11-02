@@ -9,7 +9,7 @@ import java.util.*;
 /**
  * 小工具
  *
- * @author ruoyi
+ * @author birdbro
  */
 public class GadgetUtils extends org.apache.commons.lang3.StringUtils {
     /**
@@ -248,7 +248,7 @@ public class GadgetUtils extends org.apache.commons.lang3.StringUtils {
     /**
      * 处理并记录日志文件
      *
-     * @author: birdbro
+     * @author birdbro
      * @since: 2024-05-31
      **/
     public static String getBlock(Object msg) {
@@ -262,7 +262,7 @@ public class GadgetUtils extends org.apache.commons.lang3.StringUtils {
     /**
      * 获取首字符
      *
-     * @author: bird
+     * @author birdbro
      * @date: 2022-4-7 15:55
      * @param:
      * @return:
@@ -277,7 +277,7 @@ public class GadgetUtils extends org.apache.commons.lang3.StringUtils {
     /**
      * 判断字符串是否含有中文
      *
-     * @author: bird
+     * @author birdbro
      * @date: 2022-4-7 15:55
      * @param:
      * @return:
@@ -298,7 +298,7 @@ public class GadgetUtils extends org.apache.commons.lang3.StringUtils {
     /**
      * 判断字符是否是中文
      *
-     * @author: bird
+     * @author birdbro
      * @date: 2022-4-7 15:55
      * @param:
      * @return:

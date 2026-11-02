@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
 /**
- * @author bird
+ * @author birdbro
  * @date 2021-7-21 8:54
  **/
 @Configuration
