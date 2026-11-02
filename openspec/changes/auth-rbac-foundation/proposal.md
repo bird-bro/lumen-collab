@@ -11,7 +11,7 @@ lumen-auth 成为第一个真服务：机构层级树（多机构能力，参照
 
 ## What Changes
 
-- `lumen-auth` 激活数据层：Testcontainers PostgreSQL + 首批 Flyway 迁移（7 张表：
+- `lumen-auth` 激活数据层：连接团队测试服务器 PG + 首批 Flyway 迁移（7 张表：
   `unit_info` 层级树、`user_info`、`role`、`user_role`、`role_menu`、`menu_info`、
   `department`）+ 种子数据（默认管理员 + 三科室 radiology/us/endo）
 - 登录闭环：`POST /api/v1/auth/login`（首个真实端点）→ 拷贝来的 `TokenService` 签发 JWT
@@ -53,7 +53,7 @@ single-stack: backend (`lumen-sev/`，仅 `lumen-auth` 模块 + 少量 copied-co
 
 - In scope:
   - `lumen-auth` 的 Flyway 迁移、实体/Mapper/Service、auth 控制器与管理 CRUD 端点
-  - Testcontainers 测试基建（PG + Redis，JDK 11 兼容版本）与仓库级依赖登记（lumen-bom）
+  - 测试基类：启动自举（建库/schema 幂等）+ 连接走 gitignored env 文件
   - EntityBase `@MapperScan` 既有契约下的 mappers；种子数据迁移
   - api 增量：login 端点文档；data/service-topology 修订增量
 - Out of scope:
@@ -81,8 +81,7 @@ single-stack: backend (`lumen-sev/`，仅 `lumen-auth` 模块 + 少量 copied-co
 
 ## Risks
 
-- **Testcontainers 需要 Docker daemon**（测试期）——CI 与开发机均需可用；daemon 缺席时
-  测试失败是明确信号而非静默通过
+- **测试直连共享测试服务器**——凭据走 gitignored 文件不入库；测试数据累积/清理属测试库用途
 - **Integer 主键 = 放弃雪花**：多院区数据合并将来需额外策略（云端产品提案时重议）
 - **首次真端点**：envelope/错误处理的运行时行为首次可观察——与照搬实现的偏差（若有）
   在本 change 内暴露并修

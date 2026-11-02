@@ -17,3 +17,4 @@ coverage/
 .flattened-pom.xml
 *.local
 docker/.env
+lumen-sev/.env-test.local

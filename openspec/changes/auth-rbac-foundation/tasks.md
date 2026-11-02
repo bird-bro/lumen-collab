@@ -3,18 +3,17 @@
 > TDD：每个行为先红后绿（Testcontainers 测试即红绿载体）。验收命令一律
 > `cd lumen-sev && ./mvnw ...`；Docker daemon 为 lumen-auth 测试前置（设计 D3）。
 
-## 1. Testcontainers 基建
+## 1. 测试基建（测试服务器直连）
 
-- [ ] 1.1 在 `lumen-bom` 登记 `org.testcontainers:junit-jupiter:1.19.8` 与
-  `org.testcontainers:postgresql:1.19.8`（lumen-only 新增，注明非 OPS 验证）；`lumen-auth`
-  以 test scope 引用 + `spring-boot-starter-test`。Verify: `./mvnw -pl lumen-auth -am compile -q`
-  exit 0。
-- [ ] 1.2 写 `AuthIntegrationTestBase`（抽象基类）：`@Testcontainers` 拉 postgres:16-alpine
-  （动态映射端口）+ redis 通用容器；`@DynamicPropertySource` 注入 datasource/redis 地址；
-  Flyway 启用。Verify: 一个最小 `@Test`（context loads + Flyway 应用了迁移）先红后绿
-  —— 红 = 尚无迁移时 Flyway 空跑或上下文失败的表现，绿 = 基线成立。
-- [ ] 1.3 证明 daemon 前置语义：daemon 停止时该测试**显式失败**（捕获错误类型记录入报告）。
-  Verify: 报告含 daemon-off 失败证据 + daemon-on 绿证据。
+- [ ] 1.1 创建 gitignored `lumen-sev/.env-test.local`（`AUTH_TEST_*` 变量，用户提供）并加
+  .gitignore；测试基类从该文件/环境读取连接。Verify: 文件存在且 `git check-ignore` 命中；
+  变量名与 design D3 一致。
+- [ ] 1.2 写 `AuthIntegrationTestBase`（抽象基类）：启动自举（连 `postgres` 维护库 →
+  `CREATE DATABASE lumen` 存在性守卫 → 建 `auth` schema 幂等）；数据源
+  `currentSchema=auth` 连 `lumen` 库；Redis 连测试服务器；Flyway 启用。Verify: 最小
+  `@Test`（context loads + 连接真库）先红后绿——红 = env 未配置时的占位符解析失败。
+- [ ] 1.3 证明"未配置=显式失败"语义：无 env 文件/变量时测试**显式失败**（占位符解析错误，
+  捕获记录入报告），绝无静默跳过。Verify: 报告含 unconfigured 失败证据 + configured 绿证据。
 
 ## 2. Flyway 迁移与数据层
 
