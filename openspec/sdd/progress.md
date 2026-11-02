@@ -155,3 +155,16 @@
 
 ### Batch 5: Documentation & spec hygiene (tasks 5.1-5.3)
 - Status: In progress
+- Status: Complete (no reviewer dispatched - docs/config only; coordinator verified all five
+  annotations + config comment against the diff; mutation control evidence TS2322 exit 2 ->
+  clean exit 0; strict validate exit 0)
+- Notes: coordination doc carries five new records (bigint flag CLOSED stay-Integer,
+  Flyway/PG14.11 watch-item with design-gated pin path, Endpoint Documentation archive-time
+  alignment, mutation control RE-RUN PASSED, authority-gating deferral); verify.config.yaml
+  backend test comment states the new lumen-auth semantics (command unchanged)
+
+## Summary (auth-rbac-foundation)
+- Total tasks: 16
+- Completed: 16
+- Blocked: 0
+- Final review: IN PROGRESS

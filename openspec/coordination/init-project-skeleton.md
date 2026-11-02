@@ -211,9 +211,21 @@ those services assign them and update this table.
   serialization). Consequences accepted: the envelope loses the old numeric-code ↔ HTTP-status
   mapping; timestamps serialize in GMT+8 rather than UTC; audit operator columns are OPS's
   `Integer` (int32) - **flagged**: if lumen user PKs are snowflake `bigint`, `create_by`/
-  `update_by` must widen to bigint in the `lumen-auth` change. `init-web-skeleton`'s planned
+  `update_by` must widen to bigint in the `lumen-auth` change. **Flag CLOSED (2026-11-02,
+  auth-rbac-foundation)**: ruled **stay Integer** - PKs are Integer auto-increment per this
+  change's data delta (`openspec/changes/auth-rbac-foundation/specs/data/spec.md`: user
+  decision 2026-11-02, the bigint-snowflake clause is withdrawn); no widening ever needed
+  since `user_info.id` is Integer. `init-web-skeleton`'s planned
   `ApiEnvelope` type was updated to match (its delta specs/design - `lumen-web/src/` does not
   exist yet; the frontend change is still `proposing`). - 2026-10-29
+- **Flyway/PG compatibility accepted as-is (auth-rbac-foundation watch-item)** - the team
+  test server runs PostgreSQL 14.11 while Boot 2.5.15 manages `flyway-core` 7.7.3 (NOT
+  7.14.0/7.15, the first versions with PG 14 support). PG 14 triggers only a WARN ("not
+  tested, latest supported version 13"; decompile-verified: warn, no throw), all migrations
+  are plain DDL, and the suite is green (34/34). Accepted as-is with **zero version
+  deviation** from the OPS train; IF a future migration misbehaves on PG 14, the
+  design-gated fix is a lumen-only `flyway-core` pin to 7.15.0 (first 7.x with PG 14
+  support) via proposal - never a silent dependency bump. - 2026-11-02
 
 ## Change Registry
 
@@ -224,7 +236,21 @@ those services assign them and update this table.
 
 **Batch 5 traceability**: `lumen-web/vite.config.ts` gained a `build.rollupOptions.output.chunkFileNames` function in Batch 5 (commit `d00617a`) - an evidence-enabler deriving `assets/pages/<department>/` output paths so the lazy department chunks are greppable in the build log (B5 review accepted as not scope creep).
 
-**Envelope mutation control - QUEUED**: the type-level negative control on `ApiEnvelope` (TS2322 red probe) remains queued for the first endpoint-owning change (B3+B4 review carry-over); it stays vacuous by design while `src/api/` has zero envelope consumers.
+**Endpoint Documentation alignment - pending archive (auth-rbac-foundation)**: the MAIN api
+spec's `Endpoint Documentation` requirement still exemplifies `code: 0` (numeric, superseded
+by the OPS string-code contract); it gets aligned when this change's api delta archives -
+`openspec/changes/auth-rbac-foundation/specs/api/spec.md` (its scenarios carry `"200"`).
+`openspec/specs/` stays untouched until then. - 2026-11-02
+
+**Envelope mutation control - RE-RUN 2026-11-02 (auth-rbac-foundation Batch 5)**: the
+type-level negative control on `ApiEnvelope` (TS2322 red probe), previously QUEUED for the
+first endpoint-owning change (B3+B4 review carry-over), is re-run at that change's close -
+auth-rbac-foundation's backend endpoints now emit the envelope. Probe: temporary
+`lumen-web/src/envelope-mutation-probe.ts` assigned a wrong-shaped value
+(numeric `code: 200`, the pre-OPS envelope shape) to an `ApiEnvelope`-typed variable;
+`tsc --noEmit` (the type-check half of `pnpm build`) REJECTED it -
+`src/envelope-mutation-probe.ts(10,3): error TS2322: Type 'number' is not assignable to type 'string'.` (exit 2) - then the probe was deleted and the clean re-run exited 0.
+**Control PASSES**: the string-code contract is enforced at the type level.
 
 ## Gate
 
@@ -250,6 +276,11 @@ L2 (WHEN/THEN scenarios) is checked against each change's `specs/`.
 **Deferred naming input (final review Minor-6)**: `lumen-sev/CLAUDE.md`'s Database line
 still names the radiology DB `lumen_ris` while the module is `lumen-radiology` - no DB exists
 yet; the radiology change settles the DB name and updates that line.
+**Authority-gating deferral (auth-rbac-foundation, 2026-11-02)**: the User Management
+requirement says "authenticated administrator" - the implementation enforces authentication
+only (any valid token; no task in that change mandates authority checks). Permission gating
+is queued to the DataScope/radiology change; recorded here so archive/verify is not silent
+about it.
 **Archive order**: archive `init-backend-skeleton` and `init-web-skeleton` only after both
 verify PASS, then mark this doc's registry rows `archived`. Post-closure addendum
 (2026-11-02): `init-infra-compose` (hospital infra: PG six-DBs + Nacos config-center +

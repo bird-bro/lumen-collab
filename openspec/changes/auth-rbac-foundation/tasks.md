@@ -53,13 +53,13 @@
 
 ## 5. 文档与规格卫生
 
-- [ ] 5.1 协调文档：关闭"create_by 升宽 bigint"flag（裁定维持 Integer，指向 data delta）；
+- [x] 5.1 协调文档：关闭"create_by 升宽 bigint"flag（裁定维持 Integer，指向 data delta）；
   登记信封变异控制已重跑（首个消费者已存在）；登记 `Endpoint Documentation` 对齐经 api
   delta 归档完成。Verify: 文档 grep。
-- [ ] 5.2 `lumen-auth/CLAUDE.md` 无需建（角色文件在）；确认 `verify.config.yaml` backend
+- [x] 5.2 `lumen-auth/CLAUDE.md` 无需建（角色文件在）；确认 `verify.config.yaml` backend
   L3 语义注释更新（lumen-auth 测试需测试服务器连接，未配置=显式失败；framework/common
   零依赖不变）。Verify: 文件内容核对。
-- [ ] 5.3 `openspec validate auth-rbac-foundation --strict`。Verify: exit 0 无警告。
+- [x] 5.3 `openspec validate auth-rbac-foundation --strict`。Verify: exit 0 无警告。
 
 ## Workflow follow-up
 
