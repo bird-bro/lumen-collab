@@ -120,3 +120,15 @@
 
 ### Batch 2: Flyway migrations + data layer (tasks 2.1-2.3)
 - Status: In progress
+- Status: Complete + Approved (commit c94d004; review 0 Critical/Important, 7 minors)
+- Review: Approved - DDL/seed compared 1:1 vs brief, setval block verified load-bearing,
+  suite independently re-run 14/14 green MVN_EXIT=0
+- Notes: global gitignore *.sql (machine-level) was silently hiding migrations -> directory-
+  scoped db/migration/.gitignore negation; docs/deployment/pg-init.sql was a prior casualty -
+  coordinator committed it (d00fd96) with repo-level negation. Minor watch-items handed to
+  Batch 3: password hash must not leak (DTO mapping), deleted=0 on permission joins;
+  future explicit-id seed migrations repeat the setval tail; Flyway 7.7.3 x PG14.11 still
+  WARN-only (0 ERROR lines in migrated run)
+
+### Batch 3: Login loop (tasks 3.1-3.3)
+- Status: In progress

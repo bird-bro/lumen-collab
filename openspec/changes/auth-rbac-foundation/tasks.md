@@ -18,14 +18,14 @@
 
 ## 2. Flyway 迁移与数据层
 
-- [ ] 2.1 `V1__auth_schema.sql`：七表 `unit_info`（upId/level/type）、`department`
+- [x] 2.1 `V1__auth_schema.sql`：七表 `unit_info`（upId/level/type）、`department`
   （FK unit）、`user_info`（username unique、password hash、must_change_password）、
   `role`、`user_role`、`role_menu`、`menu_info`（upId/type/perms/path/component/sort）。
   Verify: Testcontainers 测试中断言七表存在（information_schema）。
-- [ ] 2.2 `V2__seed.sql`：医院根 unit、三科室（radiology/us/endo FK unit）、默认管理员
+- [x] 2.2 `V2__seed.sql`：医院根 unit、三科室（radiology/us/endo FK unit）、默认管理员
   （BCrypt 口令 + must-change-password）、基础角色、最小菜单集（登录/me/用户管理 + 三科室
   页面占位 + 审核按钮示例）。Verify: 迁移后查询断言种子行存在。
-- [ ] 2.3 实体 + Mapper（`org.birdbro.lumen.auth.entity/mapper`）：七实体继承
+- [x] 2.3 实体 + Mapper（`org.birdbro.lumen.auth.entity/mapper`）：七实体继承
   `EntityBase`（id 为各自 `@TableId Integer AUTO`）、Mapper 接口；`MenuTree` 装配
   service。Verify: mapper 冒烟测试（insert/select 往返）绿。
 
