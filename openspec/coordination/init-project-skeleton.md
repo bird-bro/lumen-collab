@@ -220,7 +220,7 @@ those services assign them and update this table.
 | Stack | Change | Status | Verify |
 |:--|:--|:--|:--|
 | backend | `init-backend-skeleton` | verified (PASS_WITH_ISSUES - credential in its verify.md) | 29/37 ✓, 0 NOT_IMPL |
-| frontend | `init-web-skeleton` | applied (verify pending) | - |
+| frontend | `init-web-skeleton` | verified (PASS - credential in its verify.md; L3 SKIP by design) | 13/13 ✓ |
 
 **Batch 5 traceability**: `lumen-web/vite.config.ts` gained a `build.rollupOptions.output.chunkFileNames` function in Batch 5 (commit `d00617a`) - an evidence-enabler deriving `assets/pages/<department>/` output paths so the lazy department chunks are greppable in the build log (B5 review accepted as not scope creep).
 
