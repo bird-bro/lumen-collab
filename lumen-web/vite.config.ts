@@ -10,6 +10,25 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Department route modules are lazy chunks whose source file is
+        // `src/pages/<department>/index.tsx`, so Rollup would name them all
+        // `index-*.js`. Derive the department folder name into the output path
+        // so the build log visibly proves one separate chunk per department
+        // (tasks 5.3/5.5 evidence). All other chunks keep the default layout.
+        chunkFileNames: (chunk) => {
+          const department = /src[/\\]pages[/\\]([^/\\]+)[/\\]/.exec(
+            chunk.facadeModuleId ?? '',
+          )?.[1]
+          return department
+            ? `assets/pages/${department}/[name]-[hash].js`
+            : 'assets/[name]-[hash].js'
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       // Unified API entry (design D3): /api/v1 goes to the nginx entry on port 80

@@ -1,7 +1,7 @@
 /**
- * Shell and navigation layouts.
+ * Shell and navigation layouts (`specs/web-app-shell` § Module Layout).
  *
- * The app shell layout is added in a later batch of `init-web-skeleton`
- * and rendered from `src/App.tsx`.
+ * `BasicLayout` is the parent route element in `src/router.tsx`: a navigation
+ * Sider plus the content region that renders the matched child route.
  */
-export {}
+export { BasicLayout } from './BasicLayout';
