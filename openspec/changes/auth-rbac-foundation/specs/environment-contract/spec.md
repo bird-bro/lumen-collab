@@ -9,7 +9,7 @@ containing one schema per service (`auth`, `patient`, `radiology`, `us`, `endo`,
 (`docs/deployment/pg-init.sql`). Each service connects with its own role confined to its
 schema.
 
-#### Scenario: Database and schemas exist before services start
+#### Scenario: Six databases exist before services start
 - **WHEN** a lumen service that requires its schema starts
 - **THEN** the `lumen` database and its schema already exist (created from
   `docs/deployment/pg-init.sql`)
