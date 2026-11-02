@@ -50,7 +50,7 @@
   `grep -rn "api/v1/" lumen-web/src --include=*.ts --include=*.tsx` returns only the
   `BASE_PATH` constant, with no resource-specific path.
 
-## 4. Dev-server gateway proxy
+## 4. Dev-server unified-entry proxy
 
 - [ ] 4.1 Configure the Vite dev server to proxy `/api/v1` to
   `process.env.VITE_API_ENTRY_URL ?? 'http://localhost:80'`, the **nginx unified entry** port

@@ -219,7 +219,7 @@ those services assign them and update this table.
 
 | Stack | Change | Status | Verify |
 |:--|:--|:--|:--|
-| backend | `init-backend-skeleton` | applied (verify pending) | - |
+| backend | `init-backend-skeleton` | verified (PASS_WITH_ISSUES - credential in its verify.md) | 29/37 ✓, 0 NOT_IMPL |
 | frontend | `init-web-skeleton` | proposing | - |
 
 ## Gate
