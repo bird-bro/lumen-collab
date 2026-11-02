@@ -1,18 +1,19 @@
 # Tasks
 
-> TDD：每个行为先红后绿（Testcontainers 测试即红绿载体）。验收命令一律
-> `cd lumen-sev && ./mvnw ...`；Docker daemon 为 lumen-auth 测试前置（设计 D3）。
+> TDD：每个行为先红后绿（测试即红绿载体，直连团队测试服务器）。验收命令一律
+> `cd lumen-sev && ./mvnw ...`；连接凭据走 gitignored `lumen-sev/.env-test.local`，
+> 未配置 = 显式失败（设计 D3，用户裁定 2026-11-02）。
 
 ## 1. 测试基建（测试服务器直连）
 
-- [ ] 1.1 创建 gitignored `lumen-sev/.env-test.local`（`AUTH_TEST_*` 变量，用户提供）并加
+- [x] 1.1 创建 gitignored `lumen-sev/.env-test.local`（`AUTH_TEST_*` 变量，用户提供）并加
   .gitignore；测试基类从该文件/环境读取连接。Verify: 文件存在且 `git check-ignore` 命中；
   变量名与 design D3 一致。
-- [ ] 1.2 写 `AuthIntegrationTestBase`（抽象基类）：启动自举（连 `postgres` 维护库 →
+- [x] 1.2 写 `AuthIntegrationTestBase`（抽象基类）：启动自举（连 `postgres` 维护库 →
   `CREATE DATABASE lumen` 存在性守卫 → 建 `auth` schema 幂等）；数据源
   `currentSchema=auth` 连 `lumen` 库；Redis 连测试服务器；Flyway 启用。Verify: 最小
   `@Test`（context loads + 连接真库）先红后绿——红 = env 未配置时的占位符解析失败。
-- [ ] 1.3 证明"未配置=显式失败"语义：无 env 文件/变量时测试**显式失败**（占位符解析错误，
+- [x] 1.3 证明"未配置=显式失败"语义：无 env 文件/变量时测试**显式失败**（占位符解析错误，
   捕获记录入报告），绝无静默跳过。Verify: 报告含 unconfigured 失败证据 + configured 绿证据。
 
 ## 2. Flyway 迁移与数据层
@@ -32,8 +33,9 @@
 
 - [ ] 3.1 `AuthController`：`POST /api/v1/auth/login`（BCrypt 验密 → `TokenService.createToken`
   → 信封携 JWT+profile）与 `GET /api/v1/auth/me`（token → profile + 菜单树 + perms 集合）。
-  先写红测试（MockMvc/TestRestTemplate 打真容器上下文）：正确凭据 → `"200"`+token；错凭据
-  → `A0210`；无 token 打 `/auth/me` → `A` 类拒绝。Verify: 三测试全绿。
+  先写红测试（TestRestTemplate 打真测试服务器上下文）：正确凭据 → `"200"`+token；错凭据
+  → `A0210`；无 token 打 `/auth/me` → `"203"` 信封拒绝（拷贝件 AuthenticationEntryPointImpl
+  语义，用户裁定 2026-11-02）。Verify: 三测试全绿。
 - [ ] 3.2 匿名放行：`/auth/login` 免 token（以拷贝件实际机制为准——`SecurityConfig` 放行
   规则或注解），其余端点过滤器生效。Verify: 无 token 打 `/auth/me` 拒绝测试即此证明。
 - [ ] 3.3 审计身份证明：以 admin token 调一个写端点（如创建用户）→ 断言
@@ -55,7 +57,8 @@
   登记信封变异控制已重跑（首个消费者已存在）；登记 `Endpoint Documentation` 对齐经 api
   delta 归档完成。Verify: 文档 grep。
 - [ ] 5.2 `lumen-auth/CLAUDE.md` 无需建（角色文件在）；确认 `verify.config.yaml` backend
-  L3 语义注释更新（需 Docker daemon）。Verify: 文件内容核对。
+  L3 语义注释更新（lumen-auth 测试需测试服务器连接，未配置=显式失败；framework/common
+  零依赖不变）。Verify: 文件内容核对。
 - [ ] 5.3 `openspec validate auth-rbac-foundation --strict`。Verify: exit 0 无警告。
 
 ## Workflow follow-up

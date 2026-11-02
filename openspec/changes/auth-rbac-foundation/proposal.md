@@ -66,7 +66,8 @@ single-stack: backend (`lumen-sev/`，仅 `lumen-auth` 模块 + 少量 copied-co
 
 - `cd lumen-sev && ./mvnw test -q`（Docker daemon 运行时）：Testcontainers 拉 PG+Redis，
   Flyway 迁移执行，全部测试绿
-- 登录端点集成测试：正确凭据 → `code:"200"` + JWT；错误凭据 → 字母码错误；无效 token → 401
+- 登录端点集成测试：正确凭据 → `code:"200"` + JWT；错误凭据 → 字母码错误；无效 token →
+  `"203"` 信封拒绝（拷贝件 `AuthenticationEntryPointImpl` 语义，用户裁定 2026-11-02）
 - 种子验证：默认管理员可登录、三科室存在
 - `create_by` 语义验证：登录用户创建数据时 `MetaObjectConfig` 填入其 id
 - `openspec validate auth-rbac-foundation --strict` 通过

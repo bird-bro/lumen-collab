@@ -29,13 +29,16 @@ return an `A`-class error code with a descriptive `msg`. Passwords SHALL be stor
 
 ### Requirement: Token Validation on Every Request
 Every authenticated request to `lumen-auth` SHALL pass through the copied
-`JwtAuthenticationTokenFilter`: a missing, expired, or invalid token SHALL be rejected with
-an `A`-class code and SHALL NOT reach any controller; a valid token SHALL populate the
-security context with the user identity used by `MetaObjectConfig` audit filling.
+`JwtAuthenticationTokenFilter`: a missing, expired, or invalid token SHALL be rejected by
+the copied `AuthenticationEntryPointImpl` with envelope code `"203"` (HTTP 200 - the copied
+machine's recorded transport-auth semantic, user ruling 2026-11-02) and SHALL NOT reach any
+controller; a valid token SHALL populate the security context with the user identity used
+by `MetaObjectConfig` audit filling.
 
 #### Scenario: Request without token
 - **WHEN** a request hits a protected endpoint without a token
-- **THEN** it is rejected with an `A`-class code and no controller method executes
+- **THEN** it is rejected with envelope code `"203"` (HTTP 200, `data` null) and no
+  controller method executes
 
 #### Scenario: Audit identity from valid token
 - **WHEN** an authenticated user creates data through any management endpoint

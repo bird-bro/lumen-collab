@@ -53,11 +53,11 @@ class AuthApplicationTests extends AuthIntegrationTestBase {
         assertEquals(1, jdbcTemplate.queryForObject("SELECT 1", Integer.class).intValue());
 
         // Flyway ran on the test server: its history table is queryable in the auth
-        // schema (Flyway 7.15 creates it on migrate() even before Batch 2's V1/V2
-        // migrations exist, so this holds for Batch 1 already)
+        // schema (Flyway 7.7.3 - the Boot 2.5.15 managed train - creates it on migrate()
+        // even before Batch 2's V1/V2 migrations exist, so this holds for Batch 1
+        // already; the query itself is the proof - it throws if the table is missing)
         Integer historyEntries = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM auth.flyway_schema_history", Integer.class);
         assertNotNull(historyEntries);
-        assertTrue(historyEntries >= 0);
     }
 }

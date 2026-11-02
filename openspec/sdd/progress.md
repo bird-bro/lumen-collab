@@ -87,3 +87,36 @@
 - Completed: 22
 - Blocked: 0
 - Final review: PASS (Ready for /opsx:verify)
+
+---
+
+# Change: auth-rbac-foundation
+## Execution Mode: SDD
+## Started: 2026-11-02
+## Base: 00c04e1 (branch: dev)
+
+### Preflight rulings (user, 2026-11-02)
+- Unauthenticated rejection = envelope code `"203"` (copied AuthenticationEntryPointImpl
+  semantic) - auth-rbac delta + tasks 3.1 + proposal re-worded; artifacts_hash refreshed
+  (602c782b), strict validate exit 0
+- Test-server credentials: user fills `lumen-sev/.env-test.local` themselves (gitignored;
+  AUTH_TEST_* names fixed in that file)
+- Test-server PG <= 14 -> Flyway 7.14.0 (Boot-managed), no version pin needed
+- New-code wiring decisions under design D6's "apply 时核对" mandate:
+  WebSecurityCustomizer permits `/api/v1/auth/login`; UserHeaderBridgeFilter derives
+  USER-HEADER from the security context (MetaObjectConfig fills create_by); UserDetailsServiceImpl
+  ships in lumen-auth; seed admin `admin`/`admin123` + must-change-password flag
+
+### Batch 1: Test-server integration base (tasks 1.1-1.3)
+- Status: In progress
+- Status: Complete + Approved (commits bb2815e + green-proof fix 9da15e9; minor cleanups in follow-up)
+- Review: Approved at HEAD - bb2815e carried three latent context-load blockers (Boot flyway
+  check-location, Flyway 7 schemas/default-schema, RANDOM_PORT port assert) fixed by 9da15e9;
+  Important-1 (report green evidence) resolved by coordinator addendum; 4 minors (2 fixed,
+  docs committed at boundary, 2 test-only nits accepted)
+- Notes: green run on real server PG 14.11; Flyway resolves 7.7.3 (Boot 2.5.15 managed, NOT
+  7.14.0) - PG14 is WARN-only (decompile-verified), watch-item carried to Batch 5 coordination
+  doc; test server credentials supplied by user in-chat and written to gitignored .env-test.local
+
+### Batch 2: Flyway migrations + data layer (tasks 2.1-2.3)
+- Status: In progress
