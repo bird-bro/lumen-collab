@@ -164,11 +164,11 @@ lumen-auth 生效（适配 (b) 的闭环兑现）。`/auth/login` 本身放行�
 
 | Dimension | Status | Findings |
 |:--|:--|:--|
-| Completeness | Pending - fill at final review | - |
-| Correctness | Pending - fill at final review | - |
-| Coherence | Pending - fill at final review | - |
+| Completeness | PASS_WITH_ISSUES | All 17 auth-rbac delta scenarios + service-topology/api delta scenarios test-covered (34/34 green, reactor MVN_EXIT=0); data-delta "Role isolation denies cross-schema access" undemonstrable (pg-init.sql GRANT block commented, DBA passwords pending - recorded in coordination doc 2026-11-02) and "Schemas exist after initialization" script-review only; GMT+8 serialization clause carried by UserItemDto annotation without a dedicated test |
+| Correctness | PASS_WITH_ISSUES | Login loop (createToken return value = JWT, Redis round trip, /auth/me DB-fresh), audit-identity bridge (gateway-wins, URL-encode symmetric with SecurityUtils), 203/HTTP-200 envelope, Integer serial-PK DDL vs data delta, and both api-delta endpoint paths all verified in code + tests; spec drift RESOLVED: main api spec "ID Serialization" (snowflake bigint → JSON string) contradicted by implemented Integer-number ids - api MODIFIED delta added (2026-11-02) so the archived set aligns |
+| Coherence | PASS | Batch artifacts/commits/reports/ledger agree; all deferrals durably recorded (authority gating, Flyway/PG14.11 watch-item, Endpoint-Documentation archive alignment, mutation-control re-run, bigint flag closure, pg-init role-isolation, later-batch minors); zero scope leaks; framework/common diff in range EMPTY; pre-pivot residue scrubbed (proposal Testcontainers bullet, design Risk bullet, lumen-sev/CLAUDE.md DB/ID guidance) |
 
-**Overall**: Pending
+**Overall**: PASS_WITH_ISSUES (final review 2026-11-02; no code blockers - the two spec-alignment items landed as the api ID-Serialization delta and the coordination-doc pg-init record; remaining items are deployment-time demonstrations queued for archive/verify)
 
 ## Review Gates
 

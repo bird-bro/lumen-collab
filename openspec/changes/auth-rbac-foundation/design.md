@@ -75,7 +75,9 @@ lumen-auth 生效（适配 (b) 的闭环兑现）。`/auth/login` 本身放行�
 - **首次真端点暴露照搬代码的运行时行为** → envelope/异常/审计填充首次可观察；与规格的
   偏差在本 change 内修，不得带病归档。
 - **BCrypt 与随访口令互认**：不追求跨项目口令互通，lumen 自管。
-- **Testcontainers 1.19.8 为 lumen-only 依赖**（非 OPS 验证）→ 版本冲突由 BOM 管控。
+- **Flyway 7.7.3（Boot 2.5.15 管控）× 测试服务器 PG 14.11**：仅 WARN（未官方支持 14，
+  反编译证实不抛错），迁移全为普通 DDL、套件绿——接受为零版本偏离；若后续迁移真触发
+  不兼容，修复路径是 lumen-only 的 flyway-core 钉版提案（7.15.0 起 PG 14），不走静默升版。
 
 ## Migration Plan
 

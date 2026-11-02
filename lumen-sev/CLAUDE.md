@@ -9,7 +9,7 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 ## Project Overview
 - **System**: lumen-collab - open-source medical imaging collaboration platform (RIS v1; pairs with dcm4chee-arc-light)
 - **Stack**: Java 11 + Spring Boot 2.5.15 + Spring Cloud 2020.0.3 + Spring Cloud Alibaba 2021.1 + OpenFeign + MyBatis-Plus + Flyway (OPS-verified train - all versions come from `lumen-bom`, copied 1:1 from the OPS reference project; do not change versions without a new proposal)
-- **Database**: PostgreSQL - one DB per service (`lumen_auth` / `lumen_patient` / `lumen_ris` / `lumen_us` ...)
+- **Database**: PostgreSQL - one shared database `lumen`, one schema per service (`auth` / `patient` / `radiology` / `us` / `endo` / `integration`), one connection role per service (user decision 2026-11-02, auth-rbac-foundation; handoff script `docs/deployment/pg-init.sql`)
 
 ## Before You Code
 1. Read `../openspec/specs/api/spec.md` (authoritative contract)
@@ -32,7 +32,7 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 - Department services never touch DICOM/HL7 protocols - `lumen-integration` owns MWL / MPPS / HL7v2
 - Study linkage: dcm4chee-arc QIDO-RS by Accession Number
 - Flexible structures (report templates, structured findings, department forms) → PostgreSQL `jsonb` + GIN index
-- IDs: snowflake at application layer (serialize as JSON string per API spec), PG sequence fallback
+- IDs: Integer auto-increment, serialized as JSON numbers (user decision 2026-11-02, OPS/随访 lineage - the former snowflake-bigint rule was withdrawn by auth-rbac-foundation's api/data deltas)
 - Sensitive config (DB passwords) via env vars / Nacos - never committed
 
 ## Coding Standards

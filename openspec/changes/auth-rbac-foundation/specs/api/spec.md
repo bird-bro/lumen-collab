@@ -11,6 +11,15 @@ with the standard envelope (string `code`).
 - **WHEN** a client requests `GET /api/v1/[resource]`
 - **THEN** returns `code: "200"` with the typed payload in `data`
 
+### Requirement: ID Serialization
+Entity IDs SHALL be Integer auto-increment (user decision 2026-11-02, OPS/随访 lineage; the
+former snowflake-bigint clause is withdrawn together with the data capability's delta in
+this change). IDs SHALL serialize as JSON numbers.
+
+#### Scenario: ID in JSON payload
+- **WHEN** a response contains an entity ID (e.g. the seeded admin's `uid`)
+- **THEN** the JSON value is the Integer number `1`, never a string
+
 ## ADDED Requirements
 
 ### Requirement: Authentication Endpoints

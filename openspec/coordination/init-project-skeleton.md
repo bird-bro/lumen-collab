@@ -294,3 +294,10 @@ reserved for lumen application containers + nginx entry. The archived change's c
 and diff remain as the historical record of what was built before the decision.
 **Archive order**: archive `init-backend-skeleton` and `init-web-skeleton` only after both
 verify PASS, then mark this doc's registry rows `archived`.
+**pg-init role-isolation scenario - deferred demonstration (auth-rbac-foundation, 2026-11-02)**:
+`docs/deployment/pg-init.sql` creates `lumen` + the six schemas idempotently (verified by
+script review; the test bootstrap exercises the same CREATE SCHEMA semantics for `auth`),
+but the per-service role/GRANT block ships COMMENTED OUT awaiting DBA-set passwords - so the
+data delta's "Role isolation denies cross-schema access" scenario stays undemonstrable from
+committed artifacts until a DBA fills the passwords on a real environment. Record now;
+demonstrate at deployment-time verification.

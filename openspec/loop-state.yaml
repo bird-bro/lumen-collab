@@ -13,7 +13,7 @@ retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: c09045e659036332046c5e423d432a553a12b8bbde5dcfe2c76bc039a2db51d9
+artifacts_hash: 7da9a9f644aa1c222ff1e1282246fbbd088977391df87feeb28d5cb565c80eaf
 contract_hash: null
 execution_mode: SDD
 batches_completed: 6

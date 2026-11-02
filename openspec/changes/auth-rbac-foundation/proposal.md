@@ -21,9 +21,9 @@ lumen-auth 成为第一个真服务：机构层级树（多机构能力，参照
   随访/OPS 同款）——**这与主规格 data 的 "bigint 雪花" 条款冲突**，由本 change 的 data
   MODIFIED 增量对齐；`create_by`/`update_by` 保持 Integer 不升宽（协调文档既有 flag 就此
   关闭为"维持 Integer"）
-- service-topology 的"零基础设施测试"条款修订：lumen-auth 的测试使用 **Testcontainers**
-  临时容器（PG + Redis）——不要求已部署环境，但要求测试期 Docker daemon；其他模块
-  （framework/common）的零依赖测试不变
+- service-topology 的"零基础设施测试"条款修订：lumen-auth 的测试直连**团队测试服务器**
+  （PG + Redis，外部供给），连接走 gitignored `lumen-sev/.env-test.local`——未配置 =
+  显式失败；其他模块（framework/common）的零依赖测试不变（2026-11-02 重定，用户裁定）
 - 随访模式移植：`menu_info`（type=目录/菜单/按钮 + perms 权限串）、`role_menu`/`user_role`
   绑定、`unit_info` 层级树（`upId`/`level`）、`UnitTree` 树形响应——common 里已照搬的
   `MenuTree` POJO 首次投入使用
