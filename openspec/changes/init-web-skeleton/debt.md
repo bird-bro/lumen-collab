@@ -10,7 +10,8 @@ runner is added to its stack. Linked from audit H-legacy check.
   mandates mock-first development against `openspec/specs/api/spec.md`, but the choice between
   MSW, `vite-plugin-mock-dev-server`, and mockjs is deferred (handoff doc §10 lists it as
   undecided; `design.md` D5 explains why deciding now is premature - no endpoint exists yet to
-  mock). This change delivers only the empty `src/api/` seam. Risk **med**: without a mock layer
+  mock). Batches 1-5 delivered only the typed `src/api/` seam (`ApiEnvelope` + `BASE_PATH` +
+  `EntityId` - no endpoints, no mock layer, zero consumers). Risk **med**: without a mock layer
   a contributor may invent an endpoint path to make progress, which
   `specs/web-app-shell` § API Client Seam Without Invented Endpoints forbids. Revisit **as soon
   as `openspec/specs/api/spec.md` gains its first concrete endpoint** - that change should select

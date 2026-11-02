@@ -220,7 +220,11 @@ those services assign them and update this table.
 | Stack | Change | Status | Verify |
 |:--|:--|:--|:--|
 | backend | `init-backend-skeleton` | verified (PASS_WITH_ISSUES - credential in its verify.md) | 29/37 ✓, 0 NOT_IMPL |
-| frontend | `init-web-skeleton` | proposing | - |
+| frontend | `init-web-skeleton` | applied (verify pending) | - |
+
+**Batch 5 traceability**: `lumen-web/vite.config.ts` gained a `build.rollupOptions.output.chunkFileNames` function in Batch 5 (commit `d00617a`) - an evidence-enabler deriving `assets/pages/<department>/` output paths so the lazy department chunks are greppable in the build log (B5 review accepted as not scope creep).
+
+**Envelope mutation control - QUEUED**: the type-level negative control on `ApiEnvelope` (TS2322 red probe) remains queued for the first endpoint-owning change (B3+B4 review carry-over); it stays vacuous by design while `src/api/` has zero envelope consumers.
 
 ## Gate
 

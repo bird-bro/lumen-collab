@@ -89,19 +89,19 @@
 
 ## 6. Debt and spec hygiene
 
-- [ ] 6.1 Confirm `debt.md` records both deferred decisions - the unselected mock tool and the
+- [x] 6.1 Confirm `debt.md` records both deferred decisions - the unselected mock tool and the
   absent test runner - each with its risk level and revisit trigger (design D5). Do not edit
   `lumen-web/CLAUDE.md`: the role file's mock-first mandate stays in force and the gap belongs in
   the debt log, not in a weakened rule. Verify:
   `grep -c "\[DEBT\]" openspec/changes/init-web-skeleton/debt.md` returns at least 2, and each
   entry names a revisit trigger.
-- [ ] 6.2 Update `openspec/coordination/init-project-skeleton.md`: confirm the API entry port the
+- [x] 6.2 Update `openspec/coordination/init-project-skeleton.md`: confirm the API entry port the
   proxy targets matches the doc's port table, and set this change's registry row to its current
   status. Verify: the port table says 80/443 for the nginx entry and `vite.config.ts` defaults to
   that same port.
-- [ ] 6.3 Run the L1 gate from `openspec/verify.config.yaml`. Verify: `pnpm --dir lumen-web
+- [x] 6.3 Run the L1 gate from `openspec/verify.config.yaml`. Verify: `pnpm --dir lumen-web
   build` exits 0 (L1 PASS); L3 is SKIP because `test: null`.
-- [ ] 6.4 Run `openspec validate init-web-skeleton --strict`. Verify: exit 0 with no errors and
+- [x] 6.4 Run `openspec validate init-web-skeleton --strict`. Verify: exit 0 with no errors and
   no warnings.
 
 ## Workflow follow-up
