@@ -32,6 +32,12 @@ DBA overhead with no isolation gain once connection roles exist.
 one schema per service, one connection role per service with GRANTs confined to its own
 schema, so cross-service access remains denied at the database layer.
 
+#### Scenario: Database-per-Service is retired
+- **WHEN** the data spec is inspected after this change is archived
+- **THEN** the six-database requirement is replaced by Schema-per-Service Isolation
+- **AND** the `lumen` database and the per-service schemas exist per the environment
+  contract (`docs/deployment/pg-init.sql`)
+
 ## ADDED Requirements
 
 ### Requirement: Schema-per-Service Isolation
