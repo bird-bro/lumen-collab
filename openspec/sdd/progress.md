@@ -48,3 +48,42 @@
 - Completed: 21
 - Blocked: 0
 - Final review: PASS (dimensions filled in contract)
+
+---
+
+# Frontend Change: init-web-skeleton
+## Execution Mode: SDD
+## Started: 2026-11-02
+## Base: 33e39b5 (branch: dev)
+
+### Batch 1-2: Scaffold + pinned toolchain + module layout (tasks 1.1-2.2)
+- Status: Complete (commit 661aca6) - review in progress
+- Commits: 33e39b5..661aca6
+- Review: Pending (gate: exact pins, strict TS, no caret/tilde on six core deps)
+- Notes: @types/react 18.3.31 / @types/react-dom 18.3.7 / @types/node 22.16.5 added exact-pinned (strict-build requirement, disclosed); alias proof redone with value-import + TS2307 negative control after the first side-effect-import probe proved vacuous; no "type":"module" so __dirname alias is valid
+
+### Batch 3-4: API seam + unified-entry proxy (tasks 3.1-4.3)
+- Status: Pending
+- Commits: -
+- Review: Pending (gate: no invented endpoints; proxy target = nginx :80 via VITE_API_ENTRY_URL)
+- Notes: -
+
+### Batch 5: Shell, theming, department routing (tasks 5.1-5.5)
+- Status: Pending
+- Commits: -
+- Review: Pending (contract calls this the most important review: non-red primary, lazy chunks, zero-request placeholders)
+- Notes: -
+
+### Batch 6: Debt and spec hygiene (tasks 6.1-6.4)
+- Status: Pending
+- Commits: -
+- Review: Pending
+- Notes: L3 stays SKIP (test: null) - debt.md already carries it
+
+---
+
+## Summary (frontend)
+- Total tasks: 22
+- Completed: 0
+- Blocked: 0
+- Final review: Pending
