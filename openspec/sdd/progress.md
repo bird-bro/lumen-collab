@@ -132,3 +132,14 @@
 
 ### Batch 3: Login loop (tasks 3.1-3.3)
 - Status: In progress
+- Status: Complete + Approved (commit fe03c96; review 10/10 PASS, 0 Critical/Important, 7 minors)
+- Review: Approved - suite independently re-run 20/20; TokenService UUID-vs-JWT trap caught
+  by pair-3 red/green BEFORE commit (createToken return value is the JWT; loginUser.token
+  holds the Redis-key UUID); 203-not-404 red shape explained (chain precedes dispatch)
+- Notes: minor handoffs to Batch 4 - A0111 service check required + DB partial-unique index
+  kept (minor-6); shared BCryptPasswordEncoder bean optional polish (minor-2); to later
+  work: me() enable re-check/token revoke (minor-3), servlet-level CORS if cross-origin
+  SPA calls login (minor-4), A0400 validation test (minor-5)
+
+### Batch 4: Admin CRUD (tasks 4.1-4.4)
+- Status: In progress

@@ -31,14 +31,14 @@
 
 ## 3. 登录闭环（首个真端点）
 
-- [ ] 3.1 `AuthController`：`POST /api/v1/auth/login`（BCrypt 验密 → `TokenService.createToken`
+- [x] 3.1 `AuthController`：`POST /api/v1/auth/login`（BCrypt 验密 → `TokenService.createToken`
   → 信封携 JWT+profile）与 `GET /api/v1/auth/me`（token → profile + 菜单树 + perms 集合）。
   先写红测试（TestRestTemplate 打真测试服务器上下文）：正确凭据 → `"200"`+token；错凭据
   → `A0210`；无 token 打 `/auth/me` → `"203"` 信封拒绝（拷贝件 AuthenticationEntryPointImpl
   语义，用户裁定 2026-11-02）。Verify: 三测试全绿。
-- [ ] 3.2 匿名放行：`/auth/login` 免 token（以拷贝件实际机制为准——`SecurityConfig` 放行
+- [x] 3.2 匿名放行：`/auth/login` 免 token（以拷贝件实际机制为准——`SecurityConfig` 放行
   规则或注解），其余端点过滤器生效。Verify: 无 token 打 `/auth/me` 拒绝测试即此证明。
-- [ ] 3.3 审计身份证明：以 admin token 调一个写端点（如创建用户）→ 断言
+- [x] 3.3 审计身份证明：以 admin token 调一个写端点（如创建用户）→ 断言
   `create_by` = admin id（MetaObjectConfig 填充被真库证实）。Verify: 测试绿。
 
 ## 4. 管理 CRUD
