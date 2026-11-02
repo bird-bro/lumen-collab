@@ -10,8 +10,17 @@ Each core entity MUST be documented with its fields, types, and constraints.
 
 #### Scenario: Standard entity fields
 - **WHEN** a new entity is defined
-- **THEN** it includes at minimum `id` (bigint, PK, snowflake generated at application layer, PG sequence fallback) and audit fields `created_at` / `updated_at` (timestamptz, not null, UTC) via `lumen-common-mybatis`
+- **THEN** it includes at minimum `id` (bigint, PK, snowflake generated at application
+  layer, PG sequence fallback) and the OPS `EntityBase` audit contract (delivered by the
+  copied `framework`/`common`):
+  `deleted` (logical delete flag, `0` = active, `1` = deleted),
+  `create_by` / `update_by` (operator id, filled on INSERT and INSERT_UPDATE respectively by
+  `MetaObjectConfig`, from the authenticated user context),
+  and `create_time` / `update_time` (persisted via the database defaults - `EntityBase`
+  carries no `FieldFill` on them, exactly as the OPS source)
+- **AND** `create_time` / `update_time` serialize as `yyyy-MM-dd HH:mm:ss` in GMT+8
 
+<!-- synced from: init-backend-skeleton 2026-11-02 -->
 ### Requirement: Database-per-Service
 Each service owns exactly one PostgreSQL database (`lumen_auth` / `lumen_patient` / `lumen_ris` / `lumen_us` / `lumen_endo` / `lumen_integration`). Cross-service data access MUST go through API/events, never cross-DB queries.
 

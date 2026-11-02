@@ -6,23 +6,39 @@ Defines error codes, HTTP status mapping, and error response format for all API 
 ## Requirements
 
 ### Requirement: Error Code Scheme
-Error codes MUST follow a numeric scheme mapping to HTTP statuses: `0` = success (200), `4xxxx` = client errors (4xx), `5xxxx` = server errors (5xx).
+Error codes MUST follow the OPS `ExceptionEnum` scheme, carried as strings in the
+envelope's `code` field: success uses HTTP-status codes (`"200"`, `"204"`), client-side
+errors use `A`-class codes, system errors use `B`-class codes, and third-party service
+errors use `C`-class codes. The enum's `SUCCESS("0000")` constant is retained verbatim from
+OPS but unused - lumen code never emits it (the copied `R.ofSuccess` uses `"200"`/`"204"`).
 
 #### Scenario: Success
 - **WHEN** a request succeeds
-- **THEN** returns `code: 0` (HTTP 200)
+- **THEN** `code` is `"200"` (or `"204"` when there is no content)
 
 #### Scenario: Client error
 - **WHEN** a request has invalid parameters
-- **THEN** returns `code: 40001` (HTTP 400) with a descriptive message
+- **THEN** `code` is an `A`-class code such as `"A0400"` with a descriptive `msg`
 
 #### Scenario: Server error
 - **WHEN** an internal error occurs
-- **THEN** returns `code: 50001` (HTTP 500) with a generic message
+- **THEN** the fallback handler returns the HTTP-status string `"500"` with a generic `msg`
+- **AND** `B`-class codes arrive via `BusinessException` (e.g. `"B0001"` for system
+  execution failure), matching the copied `GlobalExceptionHandler`
 
+#### Scenario: Third-party error
+- **WHEN** a PACS, HIS, or other external service call fails
+- **THEN** `code` is a `C`-class code such as `"C0001"`
+
+
+<!-- synced from: init-backend-skeleton 2026-11-02 -->
 ### Requirement: Error Response Format
-All error responses MUST use the standard envelope with `data: null` and a human-readable `message`.
+All error responses MUST use the standard envelope with `data` null and a human-readable
+`msg`.
 
 #### Scenario: Error envelope
 - **WHEN** any error occurs
-- **THEN** response body is `{ "code": <errorCode>, "data": null, "message": "<description>" }`
+- **THEN** the response body is
+  `{ "timestamp": ..., "code": "<errorCode>", "msg": "<description>", "data": null }`
+
+<!-- synced from: init-backend-skeleton 2026-11-02 -->
