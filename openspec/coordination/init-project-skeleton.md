@@ -253,8 +253,13 @@ yet; the radiology change settles the DB name and updates that line.
 **Archive order**: archive `init-backend-skeleton` and `init-web-skeleton` only after both
 verify PASS, then mark this doc's registry rows `archived`. Post-closure addendum
 (2026-11-02): `init-infra-compose` (hospital infra: PG six-DBs + Nacos config-center +
-Redis, ports via .env) archived as the lumen-auth precursor - its credential is
-PASS_WITH_ISSUES (six-DB up-smoke deferred: Docker daemon down); re-run its 3.2 smoke when
-the daemon is up to upgrade the credential.
+Redis as containers) was archived the same day, then **superseded by user decision
+(2026-10-30 clock note: 2026-11-02)** - PostgreSQL/Nacos/Redis are provided by the hospital
+machine-room servers or cloud managed instances; lumen NEVER deploys them. Consequences:
+the containerized compose is removed; the six-database script lives on as a DBA handoff
+artifact (`docs/deployment/pg-init.sql`); the main spec `infra-compose` was replaced by
+`environment-contract` (external provisioning + env-var consumption); `docker/` remains
+reserved for lumen application containers + nginx entry. The archived change's credential
+and diff remain as the historical record of what was built before the decision.
 **Archive order**: archive `init-backend-skeleton` and `init-web-skeleton` only after both
 verify PASS, then mark this doc's registry rows `archived`.
