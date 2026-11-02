@@ -2,7 +2,7 @@
 
 ## MODIFIED Requirements
 
-### Requirement: Tests Against the Team Test Server
+### Requirement: Context Load Without Infrastructure
 Each service SHALL load its Spring application context and run its tests without any
 **deployed production** infrastructure. `lumen-auth`'s data-layer tests SHALL run against
 the team test server's PostgreSQL and Redis (externally provisioned), with connections
