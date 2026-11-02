@@ -251,4 +251,10 @@ L2 (WHEN/THEN scenarios) is checked against each change's `specs/`.
 still names the radiology DB `lumen_ris` while the module is `lumen-radiology` - no DB exists
 yet; the radiology change settles the DB name and updates that line.
 **Archive order**: archive `init-backend-skeleton` and `init-web-skeleton` only after both
+verify PASS, then mark this doc's registry rows `archived`. Post-closure addendum
+(2026-11-02): `init-infra-compose` (hospital infra: PG six-DBs + Nacos config-center +
+Redis, ports via .env) archived as the lumen-auth precursor - its credential is
+PASS_WITH_ISSUES (six-DB up-smoke deferred: Docker daemon down); re-run its 3.2 smoke when
+the daemon is up to upgrade the credential.
+**Archive order**: archive `init-backend-skeleton` and `init-web-skeleton` only after both
 verify PASS, then mark this doc's registry rows `archived`.

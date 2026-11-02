@@ -7,13 +7,13 @@
 phase: archived
 change: null
 current_task: null
-tasks_total: 22
-tasks_done: 22
+tasks_total: 6
+tasks_done: 6
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: 344dbcac740bc4dca88d66b75034a1670af9f70d07d3365e0b65776e56213f10
+artifacts_hash: d9e26b65c68e7e06d20ebee7a92012f15affb38662bb2ad9a8d394a361a7379d
 contract_hash: null
 execution_mode: SDD
 batches_completed: 6

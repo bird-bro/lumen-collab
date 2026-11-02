@@ -14,3 +14,4 @@ coverage/
 # Maven flatten plugin output
 .flattened-pom.xml
 *.local
+docker/.env
