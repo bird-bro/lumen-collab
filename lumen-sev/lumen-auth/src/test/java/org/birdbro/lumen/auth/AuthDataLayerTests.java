@@ -15,7 +15,6 @@ import org.birdbro.lumen.auth.service.MenuTreeService;
 import org.birdbro.lumen.auth.service.UnitTreeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -36,7 +35,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * @author birdbro
  */
-@Import(AuthTestStubConfig.class)
 class AuthDataLayerTests extends AuthIntegrationTestBase {
 
     /** The seeded admin hash doubles as a realistic stored password for the round trip. */

@@ -33,6 +33,14 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- bean validation: common brings only validation-api (no implementation), so
+             the @NotBlank contract of the login/create-user DTOs needs the hibernate
+             validator - version managed by Boot's dependency management (task 3.1) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
         <!-- nacos: discovery + config + bootstrap, wired the OPS birdbro-launch way
              (design D3). Versions managed by lumen-bom's SCA 2021.1 / Spring Cloud
              2020.0.3 imports. Remote config loads through bootstrap.yml. -->

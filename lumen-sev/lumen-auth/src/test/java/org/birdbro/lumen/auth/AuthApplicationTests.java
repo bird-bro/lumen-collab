@@ -2,7 +2,6 @@ package org.birdbro.lumen.auth;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -20,13 +19,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * server and FAIL EXPLICITLY when its connection is unconfigured (the designed signal of
  * {@link AuthTestEnv#require(String...)}, never a silent skip).
  *
- * <p>{@code @Import(AuthTestStubConfig.class)}: the copied framework {@code SecurityConfig}
- * still requires a service-owned {@code UserDetailsService}; the real implementation
- * ships in Batch 3 - keep the stub until then.</p>
+ * <p>The Batch 1/2 {@code AuthTestStubConfig} deferral ended with the auth feature
+ * change: the service-owned real {@code UserDetailsService} ships and satisfies the
+ * copied framework {@code SecurityConfig} injection, so no test-context import is needed
+ * anymore.</p>
  *
  * @author birdbro
  */
-@Import(AuthTestStubConfig.class)
 class AuthApplicationTests extends AuthIntegrationTestBase {
 
     @Autowired

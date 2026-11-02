@@ -9,7 +9,6 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,7 +27,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * @author birdbro
  */
-@Import(AuthTestStubConfig.class)
 class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
 
     /** The seven tables of the binding DDL design, in creation order. */

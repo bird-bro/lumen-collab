@@ -4,7 +4,6 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
@@ -25,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * @author birdbro
  */
-@Import(AuthTestStubConfig.class)
 class AuthSeedMigrationTests extends AuthIntegrationTestBase {
 
     /**

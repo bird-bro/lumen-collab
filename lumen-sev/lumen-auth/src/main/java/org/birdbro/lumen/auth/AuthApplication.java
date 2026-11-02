@@ -16,8 +16,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * context-load test failed on {@code logInfoServiceImpl} without it. Discovery
  * registration is automatic on this train (no {@code @EnableDiscoveryClient} needed).
  * Deliberately nothing else: no controllers, no security wiring - token issuance
- * is this service's job but its wiring completes in the auth feature change (design D5,
- * adaptation 2).</p>
+ * is this service's job - its wiring shipped with auth-rbac-foundation Batch 3: the
+ * login loop (AuthController/AuthService + the copied TokenService), the service-owned
+ * UserDetailsService the copied SecurityConfig constructor-injects, the anonymous-login
+ * WebSecurityCustomizer, and the UserHeaderBridgeFilter for MetaObjectConfig audit
+ * identity.</p>
  *
  * @author birdbro
  */

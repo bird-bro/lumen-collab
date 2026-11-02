@@ -30,11 +30,15 @@ spring:
 # Values below are explicit dummies for tests only (not real credentials -
 # execution-contract behavior 16 is about real secrets; none of these is one):
 # - token.header / token.secret / token.expireTime -> framework/security/TokenService.java
-#   (@Component, always created; real values come from Nacos/env in the auth feature change)
+#   (@Component, always created). Since the auth feature change (task 3.1) token.header is
+#   the REAL client header name "Authorization" - clients send
+#   "Authorization: Bearer <jwt>" (Constants.TOKEN_PREFIX); the dummy secret/expireTime
+#   stay test-only dummies (not real credentials - execution-contract behavior 16).
+#   Production values still come from env/Nacos later.
 # - xss.excludes / xss.urlPatterns -> framework/config/FilterConfig.java
 #   (@Configuration, always created; its xss filter @Bean stays off - xss.enabled unset)
 token:
-  header: test-header
+  header: Authorization
   secret: test-only-dummy-not-a-secret
   expireTime: 3600
 xss:
