@@ -143,3 +143,15 @@
 
 ### Batch 4: Admin CRUD (tasks 4.1-4.4)
 - Status: In progress
+- Status: Complete + Approved (commit b72d4de; review 10/10 PASS, 0 Critical/Important, 5 minors)
+- Review: Approved - 34/34 independently re-confirmed; role-delete cascade verified as the
+  only sound choice (Batch-3 perms SQL has no role join - inert bindings would keep granting);
+  envelope discovery recorded (void->"204" branch; R.ofFail drops its data arg; mutations
+  return data:true)
+- Notes: RECORD AT ARCHIVE/VERIFY (minor-3): "authenticated administrator" enforced as
+  authentication-only - authority gating deferred to DataScope/radiology change per task
+  scope. Later-batch candidates: level re-derivation on unit re-parent, @NotBlank on update
+  DTOs, unit-delete child guard, cycle detection, user list pagination, A0400 validation test
+
+### Batch 5: Documentation & spec hygiene (tasks 5.1-5.3)
+- Status: In progress

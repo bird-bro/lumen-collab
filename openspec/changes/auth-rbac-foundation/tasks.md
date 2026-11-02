@@ -43,12 +43,12 @@
 
 ## 4. 管理 CRUD
 
-- [ ] 4.1 机构树端点：unit CRUD + 树形查询（`UnitTree` 装配）。Verify: 建 two-root 场景
+- [x] 4.1 机构树端点：unit CRUD + 树形查询（`UnitTree` 装配）。Verify: 建 two-root 场景
   测试（多根能力）+ 树形响应断言绿。
-- [ ] 4.2 科室端点：department CRUD（FK unit）。Verify: 三科室种子列出断言绿。
-- [ ] 4.3 用户端点：列表/创建/改密/停启用；重复用户名拒绝（`A` 类）。Verify: 创建+重复
+- [x] 4.2 科室端点：department CRUD（FK unit）。Verify: 三科室种子列出断言绿。
+- [x] 4.3 用户端点：列表/创建/改密/停启用；重复用户名拒绝（`A` 类）。Verify: 创建+重复
   拒绝测试绿。
-- [ ] 4.4 角色与菜单端点：role CRUD、role-menu 分配、menu 列表（树）。Verify: 分配后
+- [x] 4.4 角色与菜单端点：role CRUD、role-menu 分配、menu 列表（树）。Verify: 分配后
   `/auth/me` 的 perms 集合包含所配按钮串（含 `radiology:report:audit` 示例）测试绿。
 
 ## 5. 文档与规格卫生
