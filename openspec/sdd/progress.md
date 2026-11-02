@@ -57,33 +57,33 @@
 ## Base: 33e39b5 (branch: dev)
 
 ### Batch 1-2: Scaffold + pinned toolchain + module layout (tasks 1.1-2.2)
-- Status: Complete (commit 661aca6) - review in progress
-- Commits: 33e39b5..661aca6
-- Review: Pending (gate: exact pins, strict TS, no caret/tilde on six core deps)
-- Notes: @types/react 18.3.31 / @types/react-dom 18.3.7 / @types/node 22.16.5 added exact-pinned (strict-build requirement, disclosed); alias proof redone with value-import + TS2307 negative control after the first side-effect-import probe proved vacuous; no "type":"module" so __dirname alias is valid
+- Status: Complete + Approved (commits 661aca6 + minor-fix 9ab1d0b)
+- Commits: 33e39b5..9ab1d0b
+- Review: Approved - pin table 10/10 exact (resolved==pinned), lock free of React19/AntD6/Vite8/TS7, alias positive+negative controls reproduced; 4 minors (2 fixed: *.local gitignore, tsconfig.node.json gated into build; 2 noted: pages/.gitkeep form superseded by B5, wildcard-alias equivalence - single `@/*` in both configs proven functionally identical to the five named aliases, reviewer ran positive+negative controls)
+- Notes: @types trio exact-pinned; no "type":"module" so __dirname alias is valid
 
 ### Batch 3-4: API seam + unified-entry proxy (tasks 3.1-4.3)
-- Status: Pending
-- Commits: -
-- Review: Pending (gate: no invented endpoints; proxy target = nginx :80 via VITE_API_ENTRY_URL)
-- Notes: -
+- Status: Complete + Approved (commit 3cfacbe)
+- Commits: 9ab1d0b..3cfacbe
+- Review: Approved - endpoint-free seam re-proven; proxy both rungs physically reproduced (Rung B: request arrived at controlled :9999 listener); TS2322 control judged declaration-level (vacuous in variant A) - queued for first envelope-owning change
+- Notes: 5173 occupied by unrelated vite - review ran 5174/strictPort
 
 ### Batch 5: Shell, theming, department routing (tasks 5.1-5.5)
-- Status: Pending
-- Commits: -
-- Review: Pending (contract calls this the most important review: non-red primary, lazy chunks, zero-request placeholders)
-- Notes: -
+- Status: Complete + Approved (commit d00617a)
+- Commits: 3cfacbe..d00617a
+- Review: Approved - teal HSL(185,81,29%) independently recomputed; laziness proven IN THE EMITTED BUNDLE; placeholders request-free; implementer's "pre-existing" antd-chunk claim DISPROVEN (base build 142.78kB clean, warning new in B5, benign) -> correction addendum in report
+- Notes: chunkFileNames traceability + mutation-control-queued recorded in coordination doc (B6)
 
 ### Batch 6: Debt and spec hygiene (tasks 6.1-6.4)
-- Status: Pending
-- Commits: -
-- Review: Pending
-- Notes: L3 stays SKIP (test: null) - debt.md already carries it
+- Status: Complete (commit 65b163a)
+- Commits: d00617a..65b163a
+- Review: folded into final review (Approved)
+- Notes: debt entries verified live; registry flipped; B5 addendum appended
 
 ---
 
 ## Summary (frontend)
 - Total tasks: 22
-- Completed: 0
+- Completed: 22
 - Blocked: 0
-- Final review: Pending
+- Final review: PASS (Ready for /opsx:verify)
