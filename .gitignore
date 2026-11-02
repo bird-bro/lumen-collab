@@ -18,3 +18,8 @@ coverage/
 *.local
 docker/.env
 lumen-sev/.env-test.local
+
+# SQL handoff artifacts are tracked despite the machine-level global *.sql ignore
+# (docs/deployment/pg-init.sql is referenced by the environment-contract spec; a
+# directory-scoped negation already covers Flyway migrations under lumen-sev).
+!docs/deployment/*.sql
