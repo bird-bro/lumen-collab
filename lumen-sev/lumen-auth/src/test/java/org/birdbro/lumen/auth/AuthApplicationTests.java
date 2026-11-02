@@ -37,10 +37,15 @@ class AuthApplicationTests extends AuthIntegrationTestBase {
 
     @Test
     void contextLoads() {
-        // service identity (unchanged skeleton guarantee)
+        // service identity (unchanged skeleton guarantee). The port property is asserted
+        // through local.server.port: the base runs RANDOM_PORT, so server.port resolves
+        // to 0 in the environment by design - the skeleton's fixed 8081 remains the
+        // production/main-profile contract (application.yml), untouched here.
         assertNotNull(environment);
         assertEquals("lumen-auth", environment.getProperty("spring.application.name"));
-        assertEquals("8081", environment.getProperty("server.port"));
+        String localPort = environment.getProperty("local.server.port");
+        assertNotNull(localPort, "local.server.port must be set under RANDOM_PORT");
+        assertTrue(Integer.parseInt(localPort) > 0, "random port must be positive");
 
         // real connection to the team test server through the pooled DataSource, and
         // currentSchema=auth in force

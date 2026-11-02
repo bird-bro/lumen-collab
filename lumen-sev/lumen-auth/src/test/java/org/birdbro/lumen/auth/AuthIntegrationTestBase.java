@@ -72,8 +72,15 @@ public abstract class AuthIntegrationTestBase {
             registry.add("spring.redis.password", () -> redisPassword);
         }
 
-        // Flyway migrates the auth schema of the test server's database.
+        // Flyway migrates the auth schema of the test server's database. Flyway 7.x
+        // (the Boot-managed train) requires default-schema to be a member of schemas.
+        registry.add("spring.flyway.schemas", () -> AuthTestServerBootstrap.AUTH_SCHEMA);
         registry.add("spring.flyway.default-schema", () -> AuthTestServerBootstrap.AUTH_SCHEMA);
+        // Boot 2.5's check-location default rejects an EMPTY db/migration (production
+        // guard against typo'd locations). The test base must also hold BEFORE Batch 2's
+        // first migration lands, so the location check is relaxed here; the tests
+        // themselves assert Flyway actually ran (history table queryable).
+        registry.add("spring.flyway.check-location", () -> "false");
     }
 
     private static int parseIntPort(String name, String raw) {
