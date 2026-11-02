@@ -1,28 +1,17 @@
-# Test profile (init-backend-skeleton task 3.2, design D3): the context must load
-# with zero infrastructure - no Nacos server contacted, no discovery registration,
-# no remote config import. Activated by the Batch 4 context-load test.
+# Test profile (init-backend-skeleton task 3.2; test-server semantics reworked by
+# auth-rbac-foundation tasks 1.2-1.3, design D3). The context loads with NO Nacos: no
+# discovery registration, no remote config import (flags below plus the bootstrap.yml
+# test-profile document - keep both).
 #
-# NOTE (Batch 4 heads-up): deliberately NO framework property dummies here
-# (token.*, xss.*). If the context-load test reveals missing placeholders,
-# the red test drives adding them to THIS file.
-#
-# Batch 4 GREEN step (task 4.1), traced to the red ladder:
-# 1. xss.excludes / token.* placeholders -> framework FilterConfig / TokenService (below).
-# 2. SecurityConfig's service-owned UserDetailsService -> AuthTestStubConfig (src/test/java).
-# 3. DataSource: the @MapperScan'd framework log mappers force a DataSource bean through
-#    MybatisPlusAutoConfiguration, and druid's wrapper (initMethod="init") - and Boot's
-#    Hikari fallback alike - demand spring.datasource.url at startup. This change wires no
-#    datasource (design Non-Goal: nothing connects), so the test profile carries a dummy
-#    UNREACHABLE url + driver: druid initializes with initialSize=0 (opens no connection),
-#    and any accidental getConnection would fail loudly on the invalid host. Values are
-#    placeholders, not credentials (behavior 16 untouched; no password/username needed).
+# Test-server semantics (design D3): lumen-auth's data-layer tests connect to the TEAM
+# TEST SERVER (PostgreSQL + Redis, externally provisioned - no Testcontainers, no local
+# daemon). AuthIntegrationTestBase injects the REAL datasource, Redis, and Flyway
+# properties via @DynamicPropertySource at context creation, resolved from the gitignored
+# lumen-sev/.env-test.local (AUTH_TEST_* variables; the base class walks up from the
+# module dir to find it). Deliberately NO datasource properties here anymore: a static
+# entry would mask an unconfigured server, while missing AUTH_TEST_* variables now fail
+# the context explicitly in AuthTestEnv.require (never a silent skip).
 spring:
-  datasource:
-    url: jdbc:postgresql://test-invalid:5432/test
-    driver-class-name: org.postgresql.Driver
-    # explicit: must not rely on druid 1.2.18's DEFAULT_INITIAL_SIZE=0 library default
-    # (B4 review Minor-1) - a future non-zero main-profile value must not leak into tests
-    initial-size: 0
   cloud:
     nacos:
       discovery:
@@ -34,10 +23,10 @@ spring:
 
 ---
 
-# Batch 4 GREEN step (task 4.1): the copied framework beans demand these
-# placeholders via @Value. OPS supplies them from Nacos remote config, which does
-# not exist in this change - the red run named them (first: xss.excludes in
-# framework/config/FilterConfig; then TokenService's token.* fields).
+# Framework placeholder dummies (skeleton Batch 4 GREEN step, kept unchanged): the
+# copied framework beans demand these via @Value. OPS supplies them from Nacos remote
+# config, which does not exist here - the skeleton's red run named them (first:
+# xss.excludes in framework/config/FilterConfig; then TokenService's token.* fields).
 # Values below are explicit dummies for tests only (not real credentials -
 # execution-contract behavior 16 is about real secrets; none of these is one):
 # - token.header / token.secret / token.expireTime -> framework/security/TokenService.java

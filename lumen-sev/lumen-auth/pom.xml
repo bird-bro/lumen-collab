@@ -49,6 +49,14 @@
             <artifactId>spring-cloud-starter-bootstrap</artifactId>
         </dependency>
 
+        <!-- Flyway: migrations execute against the team test server's lumen database
+             (auth-rbac-foundation task 1.2, design D3). Version managed by Boot's
+             dependency management (2.5.15 -> flyway-core 7.7.3) - no version tag. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
         <!-- test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
