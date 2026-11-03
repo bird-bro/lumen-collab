@@ -4,6 +4,9 @@ import java.util.List;
 
 import javax.validation.Valid;
 
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+
 import org.birdbro.lumen.auth.dto.CreateOrgDepRequest;
 import org.birdbro.lumen.auth.dto.UpdateOrgDepRequest;
 import org.birdbro.lumen.auth.entity.OrgDep;
@@ -35,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * @author birdbro
  */
+@Api(tags = "科室管理")
 @RestController
 @RequestMapping("/api/v1/auth/org-deps")
 public class OrgDepController {
@@ -46,24 +50,28 @@ public class OrgDepController {
     }
 
     /** Creates a department for a org node (FK validated service-side); returns the new id. */
+    @ApiOperation("创建科室（FK 机构）")
     @PostMapping
     public Integer create(@Valid @RequestBody CreateOrgDepRequest request) {
         return orgDepService.create(request);
     }
 
     /** Partial update: re-anchor / change code / rename (null fields skipped). */
+    @ApiOperation("科室部分更新（改挂机构/编码/名称）")
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id, @Valid @RequestBody UpdateOrgDepRequest request) {
         return orgDepService.update(id, request);
     }
 
     /** Logical delete ({@code @TableLogic}: {@code UPDATE deleted = 1}). */
+    @ApiOperation("逻辑删除科室")
     @DeleteMapping("/{id}")
     public Boolean delete(@PathVariable Integer id) {
         return orgDepService.delete(id);
     }
 
     /** Live departments, all when {@code orgId} is absent, else scoped to that org. */
+    @ApiOperation("科室列表（orgId 可选过滤）")
     @GetMapping("/list")
     public List<OrgDep> list(@RequestParam(required = false) Integer orgId) {
         return orgDepService.list(orgId);

@@ -2,6 +2,9 @@ package org.birdbro.lumen.auth.controller;
 
 import javax.validation.Valid;
 
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+
 import org.birdbro.lumen.auth.dto.AssignRoleMenusRequest;
 import org.birdbro.lumen.auth.dto.CreateRoleRequest;
 import org.birdbro.lumen.auth.dto.UpdateRoleRequest;
@@ -29,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * @author birdbro
  */
+@Api(tags = "角色管理")
 @RestController
 @RequestMapping("/api/v1/auth/roles")
 public class RoleController {
@@ -40,12 +44,14 @@ public class RoleController {
     }
 
     /** Creates a role (duplicate live name rejected {@code A0714}); returns the new id. */
+    @ApiOperation("创建角色")
     @PostMapping
     public Integer create(@Valid @RequestBody CreateRoleRequest request) {
         return roleService.create(request);
     }
 
     /** Partial update: rename / type / remark (null fields skipped). */
+    @ApiOperation("角色部分更新")
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id, @Valid @RequestBody UpdateRoleRequest request) {
         return roleService.update(id, request);
@@ -55,12 +61,14 @@ public class RoleController {
      * Logical delete - cascades to the role's {@code user_role}/{@code role_menu} rows
      * (recorded decision; see {@code RoleServiceImpl}).
      */
+    @ApiOperation("删除角色（级联解绑 user_role/role_menu）")
     @DeleteMapping("/{id}")
     public Boolean delete(@PathVariable Integer id) {
         return roleService.delete(id);
     }
 
     /** FULL-REPLACE menu assignment: the given ids become the role's complete grant set. */
+    @ApiOperation("角色-菜单全量分配（全量替换语义）")
     @PutMapping("/{id}/menus")
     public Boolean assignMenus(@PathVariable Integer id,
             @Valid @RequestBody AssignRoleMenusRequest request) {

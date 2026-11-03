@@ -4,6 +4,9 @@ import java.util.List;
 
 import javax.validation.Valid;
 
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+
 import org.birdbro.lumen.auth.dto.CreateOrgRequest;
 import org.birdbro.lumen.auth.dto.UpdateOrgRequest;
 import org.birdbro.lumen.auth.entity.OrgInfo;
@@ -33,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * @author birdbro
  */
+@Api(tags = "机构管理")
 @RestController
 @RequestMapping("/api/v1/auth/orgs")
 public class OrgController {
@@ -44,24 +48,28 @@ public class OrgController {
     }
 
     /** Creates a org ({@code upId = 0} = a root - multi-root capable); returns the new id. */
+    @ApiOperation("创建机构（upId=0 为根，多机构部署）")
     @PostMapping
     public Integer create(@Valid @RequestBody CreateOrgRequest request) {
         return orgService.create(request);
     }
 
     /** Partial update: rename / re-parent / level / type (null fields skipped). */
+    @ApiOperation("机构部分更新（改名/挂父/层级/类型）")
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id, @Valid @RequestBody UpdateOrgRequest request) {
         return orgService.update(id, request);
     }
 
     /** Logical delete ({@code @TableLogic}: {@code UPDATE deleted = 1}). */
+    @ApiOperation("逻辑删除机构")
     @DeleteMapping("/{id}")
     public Boolean delete(@PathVariable Integer id) {
         return orgService.delete(id);
     }
 
     /** The assembled org tree (roots = {@code upId = 0}, children nested by {@code upId}). */
+    @ApiOperation("机构树（upId 装配，多根）")
     @GetMapping("/tree")
     public List<OrgInfo> tree() {
         return orgService.tree();

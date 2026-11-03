@@ -4,6 +4,9 @@ import java.util.List;
 
 import javax.validation.Valid;
 
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+
 import org.birdbro.lumen.auth.dto.CreateUserRequest;
 import org.birdbro.lumen.auth.dto.ResetPasswordRequest;
 import org.birdbro.lumen.auth.dto.SetEnableRequest;
@@ -34,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * @author birdbro
  */
+@Api(tags = "用户管理")
 @RestController
 @RequestMapping("/api/v1/auth/users")
 public class UserInfoController {
@@ -49,18 +53,21 @@ public class UserInfoController {
      * audit identity proven by the task 3.3 test against the real DB); returns the new
      * id.
      */
+    @ApiOperation("创建用户（BCrypt 散列 + 可选角色绑定）")
     @PostMapping
     public Integer create(@Valid @RequestBody CreateUserRequest request) {
         return userInfoService.createUser(request);
     }
 
     /** Lists every live user as {@link UserItemDto} items - the hash never serializes. */
+    @ApiOperation("用户列表")
     @GetMapping("/list")
     public List<UserItemDto> list() {
         return userInfoService.listUsers();
     }
 
     /** Admin password reset: BCrypt re-encode + {@code must_change_password = 1}. */
+    @ApiOperation("管理员重置密码（强制首次登录改密）")
     @PutMapping("/{id}/password")
     public Boolean resetPassword(@PathVariable Integer id,
             @Valid @RequestBody ResetPasswordRequest request) {
@@ -68,6 +75,7 @@ public class UserInfoController {
     }
 
     /** Sets the enable flag ({@code 1} active / {@code 0} disabled). */
+    @ApiOperation("启用/停用用户")
     @PutMapping("/{id}/enable")
     public Boolean setEnable(@PathVariable Integer id, @Valid @RequestBody SetEnableRequest request) {
         return userInfoService.setEnable(id, request.getEnable());

@@ -2,6 +2,8 @@ package org.birdbro.lumen.auth.controller;
 
 import java.util.List;
 
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.birdbro.common.core.pojo.user.MenuTree;
 import org.birdbro.lumen.auth.service.MenuTreeService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * @author birdbro
  */
+@Api(tags = "菜单管理")
 @RestController
 @RequestMapping("/api/v1/auth/menus")
 public class MenuController {
@@ -30,6 +33,7 @@ public class MenuController {
     }
 
     /** The full assembled menu tree (directories / menus / buttons). */
+    @ApiOperation("完整菜单树（目录/菜单/按钮）")
     @GetMapping("/tree")
     public List<MenuTree> tree() {
         return menuTreeService.menuTree();
