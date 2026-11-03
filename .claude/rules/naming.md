@@ -38,7 +38,7 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
   department-name consistency beats system-acronym naming).
 - **Author attribution**: `@author birdbro` in EVERY class header - ported code's headers are
   normalized to birdbro (adaptation (f), 2026-10-30; original `@date` lines preserved);
-  pom `<developer><id>birdbro</id>`; MIT LICENSE `Copyright (c) 2026 birdbro`;
+  pom `<developer><id>birdbro</id>`; Apache-2.0 LICENSE & NOTICE `Copyright 2026 birdbro`;
   Docker images `LABEL org.opencontainers.image.authors="birdbro"`.
 - **Library boundaries**: `framework`/`common`/`exam-core` are non-executable jars - no
   `@SpringBootApplication`, and `exam-core` carries no controllers (the HTTP surface belongs

@@ -27,7 +27,7 @@ This directory is the **single source of truth** for WHAT to build.
 ## Project Overview
 
 ### System
-lumen-collab (brand: LumenCollab) - open-source medical imaging collaboration platform for exam-department workflow, pairing with the open-source PACS **dcm4chee-arc-light**. v1 delivers a RIS (radiology); ultrasound / endoscopy follow as independent microservices, all sharing one exam-workflow kernel (booking → registration → exam → report). License: MIT.
+lumen-collab (brand: LumenCollab) - open-source medical imaging collaboration platform for exam-department workflow, pairing with the open-source PACS **dcm4chee-arc-light**. v1 delivers a RIS (radiology); ultrasound / endoscopy follow as independent microservices, all sharing one exam-workflow kernel (booking → registration → exam → report). License: Apache-2.0.
 
 ### Tech Stack
 | Layer | Tech |
