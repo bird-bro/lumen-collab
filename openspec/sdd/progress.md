@@ -177,3 +177,41 @@
   Overall PASS_WITH_ISSUES - no code blockers, remaining items are deployment-time
   demonstrations queued for archive/verify
 - Status: Complete; 16/16 tasks; awaiting /opsx:verify then archive decision
+
+---
+
+# Change: system-data
+## Execution Mode: SDD
+## Started: 2026-11-03
+## Base: e00d447 (branch: dev)
+
+### Preflight rulings (user, 2026-11-03)
+- Tables land in `public` schema of the shared lumen DB (public = design-level shared
+  exception to role confinement); entities UNQUALIFIED via `currentSchema=auth,public`
+- No new module: dict copies ADDITIVELY into `framework/dict` (symmetry with
+  `framework/log`); admin endpoints live in lumen-auth
+- Sign events: login success/failure wiring IN SCOPE (logout already wired by the copied
+  LogoutSuccessHandlerImpl - discovered during propose Q&A); dict_city DEFERRED to the
+  lumen-patient change
+
+### Batch 1: Migration + pg-init + framework (tasks 1.1-1.2, 2.1-2.2)
+- Status: Complete + Approved (commit 88806a7; review-fix cd703cf)
+- Commits: e00d447..cd703cf
+- Review: Approved - 0 Critical / 1 Important / 4 Minor; suite independently re-run 41/41;
+  DDL<->entity 1:1 verified (log_info 26 cols, log_sign 18); zero remaining ice. refs;
+  framework untouched beyond 2 entities + 2 XMLs
+- Review fix cd703cf: DictDetailServiceImpl enable filter aligned to lumen 1/0 (was OPS
+  EnableConstants.TRUE=11; V3 frozen so reverse alignment not viable); red-green test
+  dictDetailServiceCollectsSeededLiveDetails; full suite 42/42
+- Batch 2 heads-ups: LogSignMapper.xml:40 pre-existing #{req} bug (goes LIVE once sign
+  events wire - fix in batch 2, adaptation (7) scope); CatalCreate.enable is Byte
+  (lumen Integer adaptation); list-by-caCode needs a NEW mapper/service method (getPage
+  filters by caId); DetailQuery value-vs-label filter unpinned by spec (kept as copied)
+- Environment trap recorded: `-pl lumen-auth` resolves framework from ~/.m2 - after ANY
+  framework change run `./mvnw -pl lumen-bom,framework,common install -DskipTests` first
+  (or run the full reactor), or test-compile fails on the stale jar
+- RULING: V3 is applied to the shared test DB (checksum-frozen) - NEVER edited again,
+  only V4+ appended (matches the flyway-history ruling in project memory)
+
+### Batch 2: Endpoints + wiring + test closure (tasks 3.1-3.4, 4.1-4.5)
+- Status: In progress (implementer dispatched; brief carries the 4 review handoffs)

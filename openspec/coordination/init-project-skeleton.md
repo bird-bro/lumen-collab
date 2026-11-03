@@ -93,6 +93,17 @@ those services assign them and update this table.
   (per-service `security.permit-all` config; the copied `SecurityConfig` permitAll list
   stays verbatim) and the shared `BCryptPasswordEncoder` bean (`SecurityBeanConfig`)
   replacing lumen-auth's service-local config class. - 2026-11-03
+- **(7) `ice.`-free log table names** (system-data change): the copied
+  `LogInfoEntity`/`LogSignEntity` and the two log mapper XMLs (`insertInfo`/`insertSign`
+  are the real write path) drop the OPS `ice.` schema qualifier - unqualified names
+  resolve via `search_path = <service-schema>, public` (the 随访 precedent); the platform
+  shared dict/log tables live in `public` per user decision 2026-11-03. - 2026-11-03
+- **(8) request-context filter for the copied logout handler**
+  (`framework/config/RequestContextConfig.java`, new file): the copied
+  `LogoutSuccessHandlerImpl` records sign events through `AsyncFactory`, which needs
+  `RequestContextHolder` - empty at the `LogoutFilter` phase of the security chain, so
+  logout crashed 100% before this fix. Registers an `OrderedRequestContextFilter` ahead
+  of the security chain; zero copied-line changes. - 2026-11-03
 - **Package naming: dual root by code origin** - user decision 2026-10-29. groupId
   `org.birdbro` everywhere; copied modules keep `org.birdbro.{framework,common}`; new
   modules use `org.birdbro.lumen.*` (`org.birdbro.lumen.{auth,patient,radiology,us,endo,

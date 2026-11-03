@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-11-03
+goal: "Platform-shared dict + log foundation: public-schema tables
+  (dict_catal/dict_detail/log_info/log_sign), framework/dict additive copy,
+  ice-prefix fix (adaptation 7), admin endpoints in lumen-auth"
