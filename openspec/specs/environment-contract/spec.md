@@ -21,16 +21,18 @@ reserved for lumen application containers and the nginx entry (deployed by a lat
 - **AND** the six-database creation script exists as a DBA handoff artifact
   (`docs/deployment/pg-init.sql`)
 
+<!-- synced from: auth-rbac-foundation 2026-11-03 -->
 ### Requirement: Six Per-Service Databases
-The deployment environment's PostgreSQL instance SHALL contain six per-service databases -
-`lumen_auth`, `lumen_patient`, `lumen_radiology`, `lumen_us`, `lumen_endo`,
-`lumen_integration` - materializing the DB-per-service rule (`openspec/specs/data/spec.md`).
-Creation is performed once by the hospital DBA or deployment engineer using the handoff
-script.
+The deployment environment's PostgreSQL instance SHALL contain **one database `lumen`**
+containing one schema per service (`auth`, `patient`, `radiology`, `us`, `endo`,
+`integration`), created once by the DBA or deployment engineer using the handoff script
+(`docs/deployment/pg-init.sql`). Each service connects with its own role confined to its
+schema.
 
 #### Scenario: Six databases exist before services start
-- **WHEN** a lumen service that requires its database starts
-- **THEN** its database already exists (created from `docs/deployment/pg-init.sql`)
+- **WHEN** a lumen service that requires its schema starts
+- **THEN** the `lumen` database and its schema already exist (created from
+  `docs/deployment/pg-init.sql`)
 
 ### Requirement: Connection via Environment, Never Committed
 Service connections to the external data services SHALL be configured through environment

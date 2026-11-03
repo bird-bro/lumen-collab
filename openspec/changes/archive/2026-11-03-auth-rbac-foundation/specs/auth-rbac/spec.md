@@ -5,8 +5,8 @@
 Defines lumen-auth's authentication and RBAC foundation: the JWT issuance/validation loop
 (built on the copied framework security classes), the hierarchical org tree, users, roles,
 and the menu model with page-level and button-level permissions (pattern adopted from the
-随访 reference implementation), plus the `org_dep` department table that anchors medical workflows to
-the org tree.
+随访 reference implementation), plus the `org_dep` department table that anchors medical
+workflows to the org tree.
 
 ## ADDED Requirements
 
