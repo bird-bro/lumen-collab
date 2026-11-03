@@ -4,9 +4,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+import org.birdbro.common.core.pojo.IdList;
 import org.birdbro.common.core.pojo.user.MenuTree;
+import org.birdbro.framework.dict.entity.DictDetailEntity;
+import org.birdbro.framework.dict.service.IDictDetailService;
 import org.birdbro.lumen.auth.entity.OrgInfo;
 import org.birdbro.lumen.auth.entity.UserInfo;
 import org.birdbro.lumen.auth.mapper.OrgInfoMapper;
@@ -55,6 +59,30 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
 
     @Autowired
     private MenuTreeService menuTreeService;
+
+    @Autowired
+    private IDictDetailService dictDetailService;
+
+    @Test
+    void dictDetailServiceCollectsSeededLiveDetails() {
+        // lumen enable semantics: 1 = live. The V3 seed carries two enable=1 details under
+        // catalog 1 (common_status). The copied OPS filter used EnableConstants.TRUE = 11 -
+        // the red run proved the seeded rows were invisible until the copy adaptation.
+        Map<Integer, List<DictDetailEntity>> map =
+                dictDetailService.mapByCatalIds(idListOf(1));
+        assertNotNull(map.get(1), "catalog 1 (common_status) must expose its live details");
+        assertEquals(2, map.get(1).size(), "the two seeded status details must be live");
+        Set<String> labels = new HashSet<>();
+        map.get(1).forEach(item -> labels.add(item.getLabel()));
+        assertTrue(labels.contains("启用") && labels.contains("停用"),
+                "the seeded 启用/停用 details must be the live set: " + labels);
+    }
+
+    private static IdList idListOf(Integer... ids) {
+        IdList idList = new IdList();
+        idList.setIds(Arrays.asList(ids));
+        return idList;
+    }
 
     @Test
     void userInfoMapperInsertSelectRoundTrip() {

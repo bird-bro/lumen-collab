@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
-import org.birdbro.common.Constants.EnableConstants;
 import org.birdbro.common.core.pojo.IdList;
 import org.birdbro.common.utils.GadgetUtils;
 import org.birdbro.framework.dict.entity.DictDetailEntity;
@@ -56,10 +55,12 @@ public class DictDetailServiceImpl extends ServiceImpl<DictDetailMapper, DictDet
     public Map<Integer, List<DictDetailEntity>> mapByCatalIds(IdList query) {
         List<Integer> ids = query.getIds();
         // 单次批量查询
+        // lumen enable semantics: 1 = live (the OPS copy used EnableConstants.TRUE = 11;
+        // copy adaptation recorded in the batch report - lumen tables seed 1/0)
         List<DictDetailEntity> allDetails = list(
                 Wrappers.<DictDetailEntity>lambdaQuery()
                         .in(DictDetailEntity::getCaId, ids)
-                        .eq(DictDetailEntity::getEnable, EnableConstants.TRUE)
+                        .eq(DictDetailEntity::getEnable, 1)
                         .orderByAsc(DictDetailEntity::getSort)
                         .orderByAsc(DictDetailEntity::getCode)
         );
@@ -78,7 +79,7 @@ public class DictDetailServiceImpl extends ServiceImpl<DictDetailMapper, DictDet
     public Map<Integer, String> valueMapByCatalId(Integer catalId) {
         return list(Wrappers.<DictDetailEntity>lambdaQuery()
                         .eq(DictDetailEntity::getCaId, catalId)
-                        .eq(DictDetailEntity::getEnable, EnableConstants.TRUE)
+                        .eq(DictDetailEntity::getEnable, 1)
                         .orderByAsc(DictDetailEntity::getSort)
                         .orderByAsc(DictDetailEntity::getCode))
                 .stream()
