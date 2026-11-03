@@ -39,6 +39,14 @@ token:
   secret: lumen-collab-jwt-secret-change-me-in-production-0123456789abcdef
   expireTime: 1440              # minutes; TokenService slides the Redis expiry
 
+# Service-declared anonymous paths (framework AnonymousPathCustomizer, lumen adaptation (6)):
+# the JWT issuer owns the login endpoint - the ONLY path needing no authentication.
+# Every other path (including /auth/me) stays token-guarded by the copied chain
+# (rejected with the "203" envelope when tokenless).
+security:
+  permit-all:
+    - /api/v1/auth/login
+
 # XSS filter - demanded by framework/config/FilterConfig (@Value xss.*).
 xss:
   enabled: true

@@ -13,11 +13,17 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
 
 - **groupId**: `org.birdbro` for every module (author namespace, OPS-aligned).
 - **Dual package root by code origin**:
-  - Modules copied verbatim from OPS keep name, artifactId, and package:
+  - Modules copied from OPS keep name, artifactId, and package:
     `framework` → `org.birdbro.framework`, `common` → `org.birdbro.common`.
   - New lumen modules use `org.birdbro.lumen.<module>`:
     `org.birdbro.lumen.{auth,patient,radiology,us,endo,integration,examcore}`,
     `org.birdbro.lumen.api.{patient,integration}`.
+- **framework/common evolvability** (user decision 2026-11-03, supersedes the
+  verbatim-only reading of 2026-10-29): the OPS-lineage shared platform layer MAY be
+  adjusted/optimized. Evolution style is ADDITIVE-FIRST - new `framework`/`common` files
+  over modified OPS lines, so future upstream syncs stay conflict-free; lumen additions
+  keep the `org.birdbro.{framework,common}` namespaces. Every adaptation is recorded in
+  the coordination doc's adaptation list (six as of 2026-11-03).
 - **In-service layering packages** (fixed): `controller / service / mapper / entity / dto`.
   The application class lives in the service root package
   (e.g. `org.birdbro.lumen.auth.AuthApplication`); services scan `org.birdbro`

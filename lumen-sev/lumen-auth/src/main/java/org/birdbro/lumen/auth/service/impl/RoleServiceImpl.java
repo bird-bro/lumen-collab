@@ -37,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
  * {@code A0714} 数据重复, an unknown update target is {@code B0031}.</p>
  *
  * <p>The audit identity is NOT set here on purpose: the copied {@code MetaObjectConfig}
- * fill owns it (bridged from the JWT principal by the lumen filter).</p>
+ * fill owns it (bridged from the JWT principal by the framework bridge filter, adaptation (6)).</p>
  *
  * @author birdbro
  */

@@ -61,6 +61,15 @@
   零依赖不变）。Verify: 文件内容核对。
 - [x] 5.3 `openspec validate auth-rbac-foundation --strict`。Verify: exit 0 无警告。
 
+## 6. 安全装配平台化（2026-11-03，用户裁定 framework/common 可在 OPS 血统上演进）
+
+- [x] 6.1 `UserHeaderBridgeFilter` 上移 `framework/security/filter/`（适配 (6)）；framework
+  新增 `SecurityAnonymousProperties`/`AnonymousPathCustomizer`/`SecurityBeanConfig`；
+  lumen-auth 删除 `AuthWebSecurityConfig`，application.yml 以 `security.permit-all`
+  声明登录匿名路径。Verify: L1 绿 + 34 测试全绿（行为等价：login 匿名、/me 无 token 拒 203）。
+- [x] 6.2 规则文档同步：`.claude/rules/naming.md`、`lumen-sev/CLAUDE.md`、协调文档适配 (6)
+  条目、design D9。Verify: grep。
+
 ## Workflow follow-up
 
 - 全部完成后：`guard applying→verifying` → `/opsx:verify auth-rbac-foundation` 出凭证

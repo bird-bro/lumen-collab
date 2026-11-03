@@ -1,4 +1,4 @@
-package org.birdbro.lumen.auth.filter;
+package org.birdbro.framework.security.filter;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -23,7 +23,10 @@ import javax.servlet.http.HttpServletResponse;
 
 /**
  * Derives the OPS-style {@code USER-HEADER} request header from the JWT-authenticated
- * principal (auth-rbac-foundation task 3.3, binding design point 3).
+ * principal (auth-rbac-foundation task 3.3, binding design point 3; relocated to framework as
+ * lumen adaptation (6) - user ruling 2026-11-03: framework/common may evolve on the OPS
+ * lineage, and this bridge is needed by EVERY service with authenticated writes,
+ * since lumen has no Java gateway to inject USER-HEADER).
  *
  * <p><b>Why this filter exists:</b> the copied {@code MetaObjectConfig} fills
  * {@code create_by} from {@code SecurityUtils.getUserHeader()}, which reads the
@@ -31,7 +34,7 @@ import javax.servlet.http.HttpServletResponse;
  * {@code UserHeader} POJO that the OPS gateway injects on every request. lumen-auth has
  * NO gateway: the copied JWT filter populates the security context with the
  * {@link UserLogin} principal, but nothing translates that identity into the header the
- * copied audit machinery consumes. This bridge is the lumen-owned translation point -
+ * copied audit machinery consumes. This bridge is the framework-owned translation point (lumen adaptation (6)) -
  * it makes the spec sentence "token populates the security context with the identity
  * used by MetaObjectConfig" literally true. Verbatim framework/common classes stay
  * untouched.</p>

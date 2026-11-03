@@ -53,9 +53,9 @@ public class SwaggerConfig implements WebMvcConfigurer {
 
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("JF-RCP")
-                .description("<div style='font-size:14px;color:red;'>Lab-RCP</div>")
-                .termsOfServiceUrl("https://code.rdc.aliyun.com/")
+                .title("lumen-collab")
+                .description("<div style='font-size:14px;color:red;'>lumen-collab</div>")
+                .termsOfServiceUrl("https://github.com/bird-bro/lumen-collab/")
                 .contact(new Contact("birdbro", "", ""))
                 .version("1.0.0")
                 .build();

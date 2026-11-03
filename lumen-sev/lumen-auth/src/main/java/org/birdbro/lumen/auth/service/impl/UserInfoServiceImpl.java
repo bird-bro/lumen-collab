@@ -35,7 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The audit identity ({@code create_by}/{@code update_by}) is NOT set here on
  * purpose: the copied {@code MetaObjectConfig} insert/update fill owns it, sourced from
- * the USER-HEADER request header that the lumen {@code UserHeaderBridgeFilter} derives
+ * the USER-HEADER request header that the framework {@code UserHeaderBridgeFilter}
+ * derives (lumen adaptation (6))
  * from the JWT principal. The {@link BCryptPasswordEncoder} is the SHARED lumen bean
  * (Batch-3 review polish - one encoder instead of per-service {@code new} fields).</p>
  *

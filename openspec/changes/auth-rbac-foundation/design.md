@@ -82,6 +82,18 @@ lumen-auth 生效（适配 (b) 的闭环兑现）。`/auth/login` 本身放行�
 service-topology delta 对齐。`lumen-bom` 保留 SCA/Spring Cloud 版本管控（未来 cloud-form
 change 不受影响）；OpenFeign/Sentinel 是后续 change 的独立事项。
 
+### D9 - 安全装配平台化（用户裁定 2026-11-03：framework/common 可在 OPS 血统基础上演进）
+裁定放宽了 2026-10-29 的 verbatim-only 约束：共享平台层可调整优化，OPS 原仓库保持
+不动作为 re-diff 基线；演进一律**加法式**（新 framework/common 文件优先于改 OPS 老文件
+行）——未来上游同步零冲突。落地（适配 (6)，记入协调文档）：
+1. `UserHeaderBridgeFilter` 从 lumen-auth 上移 `framework/security/filter/`——无 Java
+   网关部署下 `MetaObjectConfig` 审计身份桥接是所有 Servlet 服务的共性需求，经组件
+   扫描自动注册，后续服务开箱即得；
+2. lumen-auth 删除 `AuthWebSecurityConfig`：匿名路径由 framework 新增件配置化
+   （`security.permit-all` + `AnonymousPathCustomizer`/`SecurityAnonymousProperties`，
+   拷贝件 `SecurityConfig` 的 permitAll 清单保持 verbatim），共享 `BCryptPasswordEncoder`
+   bean 上移 `SecurityBeanConfig`——服务只声明自己拥有的匿名端点。
+
 ## Risks / Trade-offs
 
 - **测试直连共享测试服务器** → Flyway 在其 `lumen` 库建七表（专用测试库，非生产）；测试

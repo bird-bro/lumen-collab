@@ -19,7 +19,7 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 
 ## Module Structure (Maven multi-module, aggregator at this dir's `pom.xml`)
 - `lumen-bom` - dependency versions (single source, only place versions are declared; OPS managed set 1:1)
-- `framework` + `common` - ★ copied **verbatim** from the OPS reference project (packages `org.birdbro.framework` / `org.birdbro.common`); shared base of all Servlet services; only the five recorded adaptations may differ (see coordination doc)
+- `framework` + `common` - OPS-lineage shared platform layer (packages `org.birdbro.framework` / `org.birdbro.common`); base of all Servlet services; EVOLVABLE on the OPS basis per user decision 2026-11-03 - additive-first adaptations recorded in the coordination doc (six as of 2026-11-03)
 - `lumen-exam-core` - ★ exam workflow kernel: booking → registration → exam → report state machine (services + extension points, **no controllers**)
 - `lumen-api/{patient-api,integration-api}` - inter-service contracts (OpenFeign interfaces + DTO, add-only)
 - `lumen-auth` - users / roles / departments / permissions (JWT issuer) · `lumen-patient` (EMPI) · `lumen-radiology` (v1 ★, radiology) · `lumen-us` / `lumen-endo` (v2) · `lumen-integration` (DICOM MWL/MPPS SCP + HL7v2, routes by department)

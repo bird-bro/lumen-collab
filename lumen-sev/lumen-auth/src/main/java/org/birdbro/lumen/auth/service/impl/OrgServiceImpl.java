@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
  * {@code deleteById} - {@code @TableLogic} makes it {@code UPDATE deleted = 1}.</p>
  *
  * <p>The audit identity ({@code create_by}/{@code update_by}) is NOT set here on
- * purpose: the copied {@code MetaObjectConfig} fill owns it, fed by the lumen
+ * purpose: the copied {@code MetaObjectConfig} fill owns it, fed by the framework
  * {@code UserHeaderBridgeFilter} from the JWT principal.</p>
  *
  * @author birdbro

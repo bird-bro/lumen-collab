@@ -26,6 +26,12 @@ verify:
 > `role`→`role_info`、FK `unit_id`→`org_id`，URL 跟随 `/orgs`、`/org-deps`）后全套重跑 ——
 > 测试服务器 `auth` schema 重置重放（V1/V2 未归档未出货，原地修正），L1/L3 全绿，凭证刷新。
 >
+> 重跑记录 3: 2026-11-03 安全装配平台化（用户裁定: framework/common 可在 OPS 血统基础上
+> 演进, 加法式）——`UserHeaderBridgeFilter` 上移 `framework/security/filter/`（适配 (6)），
+> 删除 `AuthWebSecurityConfig`，匿名路径配置化（framework AnonymousPathCustomizer +
+> `security.permit-all`），共享 BCrypt bean 上移 SecurityBeanConfig；规则文档同步
+> （naming.md / lumen-sev CLAUDE.md / 协调文档 / design D9）。L1/L3 重验全绿，凭证刷新。
+>
 > 重跑记录 2: 2026-11-03 配置本地化（用户决策: 取消 Nacos —— 移除 nacos-discovery/
 > nacos-config/spring-cloud-starter-bootstrap 三个依赖与 `bootstrap.yml`；配置 =
 > 提交的 `application.yml`（含 framework 所需 `token.*`/`xss.*`/`dispose.*`）+ gitignored
@@ -56,8 +62,8 @@ verify:
 |:---|:---|:---|
 | Successful login | ✓ 已实现 | AuthController.java:44-47 + AuthServiceImpl.java:70-100 (BCrypt → TokenService.createToken → token+profile); AuthLoginTests.java:52-61 (code "200" + uid 1 断言) |
 | Invalid credentials | ✓ 已实现 | AuthServiceImpl.java:80-82 (ERROR_A0210); AuthLoginTests.java:72; L3 日志实测 A0210 用户密码错误 |
-| Request without token | ✓ 已实现 | AuthenticationEntryPointImpl.java:30-34 (code "203" 信封, HTTP 200); AuthWebSecurityConfig.java:34-36 (仅 login 免检); AuthLoginTests.java:96 (meWithoutTokenRejectedWith203Envelope) |
-| Audit identity from valid token | ✓ 已实现 | MetaObjectConfig.java:19-26 (createBy 填充) + UserHeaderBridgeFilter.java:58-76 (JWT 主桥梁化 USER-HEADER); AuthAuditIdentityTests.java:48 (create_by = admin id 真库断言) |
+| Request without token | ✓ 已实现 | AuthenticationEntryPointImpl.java:30-34 (code "203" 信封, HTTP 200); 拷贝件 SecurityConfig permitAll 保持 verbatim + framework AnonymousPathCustomizer.java:36 (`security.permit-all` 配置化, 适配 (6), 仅 login 免检 — application.yml:47); AuthLoginTests.java:96 (meWithoutTokenRejectedWith203Envelope) |
+| Audit identity from valid token | ✓ 已实现 | MetaObjectConfig.java:19-26 (createBy 填充) + framework/security/filter/UserHeaderBridgeFilter.java:62-76 (JWT 主桥梁化 USER-HEADER, 适配 (6), 组件扫描自动注册所有服务); AuthAuditIdentityTests.java:48 (create_by = admin id 真库断言) |
 | Tree response | ✓ 已实现 | OrgTreeService.java:36-51 (TreeUtils 按 upId 装配) + OrgController.java:65 (GET /api/v1/auth/orgs/tree); AuthDataLayerTests.java:99 (orgTreeAssemblesFromSeedRoot) |
 | Multi-root capable | ✓ 已实现 | OrgTreeService.java:12-17 (无自 FK, upId=0 根约定); AuthOrgCrudTests.java:52 (secondRootAppearsAsIndependentTreeRoot) |
 | Seeded departments | ✓ 已实现 | V2__seed.sql:14-17 (radiology/us/endo 三科室 FK org_id=1, `org_dep` 表); AuthSeedMigrationTests.java:55 + AuthOrgDepTests.java:53 |

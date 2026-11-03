@@ -79,6 +79,20 @@ those services assign them and update this table.
   on framework/common (WebFlux vs Servlet); only Servlet services depend on them**. Remaining
   idle classes (`WorkOrderStatusEnum`, `pojo/user/*`) are copied but untouched - pruned only
   by the changes that touch them. - 2026-10-29
+- **framework/common evolvability + adaptation (6)** - user ruling 2026-11-03: the shared
+  platform layer MAY be adjusted/optimized on the OPS bloodline (supersedes the
+  verbatim-only reading of 2026-10-29; OPS originals in their own repo stay untouched and
+  remain the re-diff baseline). Evolution style: ADDITIVE-FIRST - new framework/common
+  files over modified OPS lines, so future upstream syncs cannot conflict. First fruits
+  (auth-rbac-foundation): **(6) no-gateway audit-identity bridging + per-service
+  anonymous paths** - `UserHeaderBridgeFilter` relocated from lumen-auth to
+  `framework/security/filter/` (the copied `MetaObjectConfig` consumes the
+  gateway-injected `USER-HEADER`; lumen has no Java gateway, so the JWT→USER-HEADER
+  translation is platform machinery auto-registered in every Servlet service), plus
+  `framework/security/SecurityAnonymousProperties` + `AnonymousPathCustomizer`
+  (per-service `security.permit-all` config; the copied `SecurityConfig` permitAll list
+  stays verbatim) and the shared `BCryptPasswordEncoder` bean (`SecurityBeanConfig`)
+  replacing lumen-auth's service-local config class. - 2026-11-03
 - **Package naming: dual root by code origin** - user decision 2026-10-29. groupId
   `org.birdbro` everywhere; copied modules keep `org.birdbro.{framework,common}`; new
   modules use `org.birdbro.lumen.*` (`org.birdbro.lumen.{auth,patient,radiology,us,endo,

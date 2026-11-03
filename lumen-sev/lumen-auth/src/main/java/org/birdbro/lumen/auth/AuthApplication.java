@@ -21,9 +21,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * <p>Deliberately nothing else: no controllers, no security wiring - token issuance
  * is this service's job - its wiring shipped with auth-rbac-foundation Batch 3: the
  * login loop (AuthController/AuthService + the copied TokenService), the service-owned
- * UserDetailsService the copied SecurityConfig constructor-injects, the anonymous-login
- * WebSecurityCustomizer, and the UserHeaderBridgeFilter for MetaObjectConfig audit
- * identity.</p>
+ * UserDetailsService the copied SecurityConfig constructor-injects, the framework anonymous-path customizer (security.permit-all config), and
+ * the framework UserHeaderBridgeFilter for MetaObjectConfig audit identity.</p>
  *
  * @author birdbro
  */
