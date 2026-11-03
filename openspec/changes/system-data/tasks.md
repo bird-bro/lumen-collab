@@ -43,6 +43,8 @@
 
 ## 5. 文档
 
-- [ ] 5.1 `docs/proposals/system-data.zh.md` 中文导读；协调文档适配 (7) 登记；
+- [x] 5.1 `docs/proposals/system-data.zh.md` 中文导读；协调文档适配 (7) 登记；
   spec-hygiene 若未归档则由其归档流程顺带落地 data/service-topology 措辞（避免两 change
-  冲突：system-data 的 delta 以归档顺序后者为准）。
+  冲突：system-data 的 delta 以归档顺序后者为准）。（附注：适配 (8)
+  RequestContextConfig 由 Batch 2 增补登记；两 delta 的适配清单措辞已与 spec-hygiene
+  收敛为同一最终文本，归档顺序无关。）

@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-11-03
+goal: Rename lumen-auth to lumen-system (module/package/app-class/app-name), API
+  paths /api/v1/auth/** -> /api/v1/system/**, PG schema auth -> system + role
+  lumen_system_role; dict data layer relocates into the service, log write path
+  stays framework (aspect constraint)

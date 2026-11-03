@@ -102,7 +102,10 @@ those services assign them and update this table.
   (`framework/config/RequestContextConfig.java`, new file): the copied
   `LogoutSuccessHandlerImpl` records sign events through `AsyncFactory`, which needs
   `RequestContextHolder` - empty at the `LogoutFilter` phase of the security chain, so
-  logout crashed 100% before this fix. Registers an `OrderedRequestContextFilter` ahead
+  logout crashed 100% before this fix. Root cause (review-verified): the copied
+  `SwaggerConfig`'s `@EnableWebMvc` disables `WebMvcAutoConfiguration`, silently removing
+  Boot 2.4+'s own auto-configured `RequestContextFilter` - the new file restores exactly
+  that bean with mirrored conditions. Registers an `OrderedRequestContextFilter` ahead
   of the security chain; zero copied-line changes. - 2026-11-03
 - **Package naming: dual root by code origin** - user decision 2026-10-29. groupId
   `org.birdbro` everywhere; copied modules keep `org.birdbro.{framework,common}`; new

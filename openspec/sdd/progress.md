@@ -214,4 +214,16 @@
   only V4+ appended (matches the flyway-history ruling in project memory)
 
 ### Batch 2: Endpoints + wiring + test closure (tasks 3.1-3.4, 4.1-4.5)
-- Status: In progress (implementer dispatched; brief carries the 4 review handoffs)
+- Status: Complete + Approved (commit 33167c3, 24 files +1556/-26; one API-error-free run;
+  146 tool uses)
+- Review: Approved - 0 Critical / 0 Important / 5 Minor; suite independently re-run 50/0/0
+  (real public.log_info/log_sign rows polled); sign-out test proves adaptations (7)+(8)
+  end-to-end (200 envelope + type=12 row); @Log 19/19 write endpoints; handoffs 1-4 verified
+- RequestContextConfig root cause deepened by review: copied SwaggerConfig @EnableWebMvc
+  disables WebMvcAutoConfiguration, silently removing Boot 2.4+'s auto-configured
+  RequestContextFilter - the new file restores exactly that bean (added to adaptation (8))
+- Minor queue: (1) non-browser UA NPEs async pool at AsyncFactory.java:77 - sign/@Log rows
+  silently dropped for scripted clients (copied-machinery defect, future recorded
+  adaptation); (2) /logs pageSize uncapped; (3) login try-width double-record edge
+  (theoretical); (4) DetailQuery value-vs-label kept as copied
+- Parallel-session residue untouched (18 worktree paths intact; relicense f451962 noted)
