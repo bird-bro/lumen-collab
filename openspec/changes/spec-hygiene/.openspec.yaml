@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-11-03
+goal: "Align main-spec wording with the 2026-11-03 rulings: framework/common
+  evolvability (additive-first) and local configuration (no Nacos)"
