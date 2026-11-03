@@ -14,6 +14,13 @@ spring:
     name: lumen-auth
   profiles:
     active: dev                 # the dev profile (gitignored file) carries datasource/redis
+  flyway:
+    # Migration ledger + unqualified DDL are pinned to THIS service's own schema
+    # (user ruling 2026-11-03: flyway_schema_history stays in the service schema,
+    # never public). Explicit values make a misconfigured connection URL
+    # (e.g. currentSchema=public) fail loudly instead of silently migrating public.
+    schemas: auth
+    default-schema: auth
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher   # springfox 3.0 requirement on Boot 2.5

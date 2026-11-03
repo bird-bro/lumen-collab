@@ -7,6 +7,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.StrUtil;
 import org.birdbro.common.core.pojo.user.MenuTree;
 import org.birdbro.common.utils.TreeUtils;
 import org.birdbro.lumen.auth.entity.MenuInfo;
@@ -73,12 +76,12 @@ public class MenuTreeService {
      * @return the non-blank perms strings, deduplicated
      */
     public Set<String> permsSet(Collection<Integer> menuIds) {
-        if (menuIds == null || menuIds.isEmpty()) {
+        if (CollUtil.isEmpty(menuIds)) {
             return Collections.emptySet();
         }
         Set<String> perms = new HashSet<>();
         for (MenuInfo menu : menuInfoMapper.selectBatchIds(menuIds)) {
-            if (menu.getPerms() != null && !menu.getPerms().trim().isEmpty()) {
+            if (StrUtil.isNotBlank(menu.getPerms())) {
                 perms.add(menu.getPerms().trim());
             }
         }
@@ -87,16 +90,9 @@ public class MenuTreeService {
 
     private static MenuTree toTreeNode(MenuInfo menu) {
         MenuTree node = new MenuTree();
-        node.setMid(menu.getId());
-        node.setUpId(menu.getUpId());
-        node.setType(menu.getType());
-        node.setTitle(menu.getTitle());
-        node.setPerms(menu.getPerms());
-        node.setPath(menu.getPath());
-        node.setComponent(menu.getComponent());
-        node.setIcon(menu.getIcon());
-        node.setSort(menu.getSort());
-        node.setVisible(Integer.valueOf(1).equals(menu.getVisible()));
+        BeanUtil.copyProperties(menu, node, true); // same-name fields: upId/type/title/perms/path/component/icon/sort
+        node.setMid(menu.getId());                                     // renamed column: id -> mid
+        node.setVisible(Integer.valueOf(1).equals(menu.getVisible())); // semantic: Integer 1/0 -> Boolean
         return node;
     }
 }

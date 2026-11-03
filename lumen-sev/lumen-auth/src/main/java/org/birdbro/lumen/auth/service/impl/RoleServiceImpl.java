@@ -3,6 +3,7 @@ package org.birdbro.lumen.auth.service.impl;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import org.birdbro.common.enums.ExceptionEnum;
@@ -62,9 +63,8 @@ public class RoleServiceImpl implements RoleService {
         rejectDuplicateName(request.getName(), null);
 
         RoleInfo role = new RoleInfo();
-        role.setName(request.getName());
-        role.setType(request.getType()); // null -> V1 column default 11 (NOT-NULL insert strategy)
-        role.setRemark(request.getRemark());
+        // a null type falls to the V1 column default 11 (NOT-NULL insert strategy)
+        BeanUtil.copyProperties(request, role, true);
         roleInfoMapper.insert(role);
         return role.getId();
     }
@@ -79,10 +79,8 @@ public class RoleServiceImpl implements RoleService {
         }
 
         RoleInfo patch = new RoleInfo();
-        patch.setId(id);
-        patch.setName(request.getName());
-        patch.setType(request.getType());
-        patch.setRemark(request.getRemark());
+        BeanUtil.copyProperties(request, patch, true);
+        patch.setId(id); // path param, not a request field
         roleInfoMapper.updateById(patch);
         return Boolean.TRUE;
     }

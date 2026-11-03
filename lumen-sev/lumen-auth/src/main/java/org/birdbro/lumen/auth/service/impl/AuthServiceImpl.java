@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import org.birdbro.common.Constants.Constants;
@@ -177,11 +178,8 @@ public class AuthServiceImpl implements AuthService {
 
     private ProfileDto toProfile(UserInfo user) {
         ProfileDto profile = new ProfileDto();
-        profile.setUid(user.getId());
-        profile.setUsername(user.getUsername());
-        profile.setName(user.getName());
-        profile.setEnable(user.getEnable());
-        profile.setMustChangePassword(user.getMustChangePassword());
+        BeanUtil.copyProperties(user, profile, true);
+        profile.setUid(user.getId()); // renamed: entity id -> profile uid
         profile.setRoles(roleInfoMapper.selectRoleNamesByUserId(user.getId()));
         return profile;
     }

@@ -2,6 +2,7 @@ package org.birdbro.lumen.auth.service.impl;
 
 import java.util.List;
 
+import cn.hutool.core.bean.BeanUtil;
 import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
 import org.birdbro.lumen.auth.dto.CreateOrgRequest;
@@ -59,10 +60,8 @@ public class OrgServiceImpl implements OrgService {
         }
 
         OrgInfo org = new OrgInfo();
-        org.setUpId(upId);
-        org.setLevel(level);
-        org.setType(request.getType());
-        org.setName(request.getName());
+        BeanUtil.copyProperties(request, org, true);
+        org.setLevel(level); // derived above (root/parent defaulting), not the raw request value
         orgInfoMapper.insert(org);
         return org.getId();
     }
@@ -83,11 +82,8 @@ public class OrgServiceImpl implements OrgService {
         // Null fields are skipped by the MyBatis-Plus NOT-NULL update strategy, so the
         // request is a true partial update.
         OrgInfo patch = new OrgInfo();
-        patch.setId(id);
-        patch.setUpId(upId);
-        patch.setLevel(request.getLevel());
-        patch.setType(request.getType());
-        patch.setName(request.getName());
+        BeanUtil.copyProperties(request, patch, true);
+        patch.setId(id); // path param, not a request field
         orgInfoMapper.updateById(patch);
         return Boolean.TRUE;
     }

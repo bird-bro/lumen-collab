@@ -5,6 +5,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import org.birdbro.common.enums.ExceptionEnum;
@@ -78,9 +79,8 @@ public class UserInfoServiceImpl implements UserInfoService {
         }
 
         UserInfo user = new UserInfo();
-        user.setUsername(request.getUsername());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setName(request.getName());
+        BeanUtil.copyProperties(request, user, true);
+        user.setPassword(passwordEncoder.encode(request.getPassword())); // hash replaces the copied plain text
         // must_change_password defaults 0 and enable defaults 1 (V1 column defaults).
         userInfoMapper.insert(user);
 
@@ -108,10 +108,11 @@ public class UserInfoServiceImpl implements UserInfoService {
     public Boolean resetPassword(Integer userId, String newPassword) {
         UserInfo user = requireLiveUser(userId);
 
-        UserInfo patch = new UserInfo();
-        patch.setId(user.getId());
-        patch.setPassword(passwordEncoder.encode(newPassword));
-        patch.setMustChangePassword(1); // the user must change it at the next login
+        UserInfo patch = UserInfo.builder()
+                .id(user.getId())
+                .password(passwordEncoder.encode(newPassword))
+                .mustChangePassword(1) // the user must change it at the next login
+                .build();
         userInfoMapper.updateById(patch);
         return Boolean.TRUE;
     }
@@ -120,9 +121,10 @@ public class UserInfoServiceImpl implements UserInfoService {
     public Boolean setEnable(Integer userId, Integer enable) {
         UserInfo user = requireLiveUser(userId);
 
-        UserInfo patch = new UserInfo();
-        patch.setId(user.getId());
-        patch.setEnable(enable);
+        UserInfo patch = UserInfo.builder()
+                .id(user.getId())
+                .enable(enable)
+                .build();
         userInfoMapper.updateById(patch);
         return Boolean.TRUE;
     }
@@ -146,15 +148,15 @@ public class UserInfoServiceImpl implements UserInfoService {
         return user;
     }
 
-    /** Explicit field mapping - the entity's password hash never reaches the DTO. */
+    /**
+     * Same-name fields flow via copyProperties; {@code uid} is the renamed {@code id}.
+     * The entity's password hash cannot reach the DTO - {@code UserItemDto} carries no
+     * password property for the copy to bind.
+     */
     private static UserItemDto toItem(UserInfo user) {
         UserItemDto item = new UserItemDto();
+        BeanUtil.copyProperties(user, item, true);
         item.setUid(user.getId());
-        item.setUsername(user.getUsername());
-        item.setName(user.getName());
-        item.setEnable(user.getEnable());
-        item.setMustChangePassword(user.getMustChangePassword());
-        item.setCreateTime(user.getCreateTime());
         return item;
     }
 }

@@ -2,6 +2,7 @@ package org.birdbro.lumen.auth.service.impl;
 
 import java.util.List;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import org.birdbro.common.enums.ExceptionEnum;
@@ -49,9 +50,7 @@ public class OrgDepServiceImpl implements OrgDepService {
         rejectDuplicateCode(request.getCode(), null);
 
         OrgDep department = new OrgDep();
-        department.setOrgId(request.getOrgId());
-        department.setCode(request.getCode());
-        department.setName(request.getName());
+        BeanUtil.copyProperties(request, department, true);
         orgDepMapper.insert(department);
         return department.getId();
     }
@@ -70,10 +69,8 @@ public class OrgDepServiceImpl implements OrgDepService {
         }
 
         OrgDep patch = new OrgDep();
-        patch.setId(id);
-        patch.setOrgId(request.getOrgId());
-        patch.setCode(request.getCode());
-        patch.setName(request.getName());
+        BeanUtil.copyProperties(request, patch, true);
+        patch.setId(id); // path param, not a request field
         orgDepMapper.updateById(patch);
         return Boolean.TRUE;
     }

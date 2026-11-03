@@ -39,7 +39,10 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 - Layering: controller → service → mapper; DTOs never leak into domain entities
 - Unified response + global exception handler from the copied `framework` (`GlobalResponseAdvice` / `GlobalExceptionHandler`); error codes per `../openspec/specs/errors/spec.md`
 - Every table: `id` + the OPS `EntityBase` audit fields (`deleted`, `create_by`, `create_time`, `update_by`, `update_time`) via the copied `framework`'s `MetaObjectConfig`
+- Entity classes carry the OPS Lombok combo `@Data @Builder @AllArgsConstructor @NoArgsConstructor` (user decision 2026-11-03) - `@Builder` alone removes the no-arg constructor MyBatis-Plus row mapping needs. Entity assignment: `BeanUtil.copyProperties(request, entity, true)` (OPS house idiom, ignore-null) when fields match 1:1; `Xxx.builder()...build()` for computed/no-source patches; renamed or semantic-converting fields stay explicit
+- Hutool (`hutool-all` 5.8.20, on the classpath via `common`) is the DEFAULT utility toolkit - reach for `StrUtil`/`CollUtil`/`MapUtil`/`BeanUtil.copyProperties(src, dest, true)`/`IdUtil`/... before hand-rolling any check or copy (user decision 2026-11-03, applies broadly); lumen-bom version pins still require a proposal
 - Schema changes ONLY via Flyway migrations (`src/main/resources/db/migration`) - never manual DDL
+- Every service's committed `application.yml` ships explicit `spring.flyway.schemas` + `spring.flyway.default-schema` = ITS OWN schema (e.g. `radiology`) - never public, never left to the implicit `currentSchema` first-entry fallback (user ruling 2026-11-03); a misconfigured URL must fail loudly, not migrate public
 - Shared conventions in `../.claude/rules/`
 
 ## Superpowers Workflow (auto-triggered by /opsx:propose, /opsx:apply)
