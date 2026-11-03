@@ -17,9 +17,9 @@ import org.springframework.test.context.DynamicPropertySource;
  *       {@code lumen-sev/.env-test.local} (see {@link AuthTestEnv}) - missing required
  *       variables fail the context EXPLICITLY, never a silent skip;</li>
  *   <li>bootstraps the server at most once per JVM: {@code CREATE DATABASE} guarded by a
- *       {@code pg_database} existence check, then {@code CREATE SCHEMA IF NOT EXISTS auth}
+ *       {@code pg_database} existence check, then {@code CREATE SCHEMA IF NOT EXISTS system}
  *       ({@link AuthTestServerBootstrap});</li>
- *   <li>injects the application datasource ({@code currentSchema=auth,public}), Redis, and
+ *   <li>injects the application datasource ({@code currentSchema=system,public}), Redis, and
  *       Flyway properties via {@code @DynamicPropertySource} - so Flyway executes its
  *       migrations against the real database and the token state lands in the server's
  *       Redis.</li>
@@ -58,11 +58,11 @@ public abstract class AuthIntegrationTestBase {
 
         AuthTestServerBootstrap.ensureDatabaseAndSchema(pgHost, pgPort, pgUser, pgPassword, database);
 
-        // Application datasource: the lumen database through the auth schema first,
+        // Application datasource: the lumen database through the system schema first,
         // then the shared public schema (design D1 - the four public system tables
         // resolve behind the service's own schema).
         registry.add("spring.datasource.url", () -> "jdbc:postgresql://" + pgHost + ":"
-                + pgPort + "/" + database + "?currentSchema=auth,public");
+                + pgPort + "/" + database + "?currentSchema=system,public");
         registry.add("spring.datasource.username", () -> pgUser);
         registry.add("spring.datasource.password", () -> pgPassword);
 
@@ -74,7 +74,7 @@ public abstract class AuthIntegrationTestBase {
             registry.add("spring.redis.password", () -> redisPassword);
         }
 
-        // Flyway migrates the auth schema of the test server's database. Flyway 7.x
+        // Flyway migrates the system schema of the test server's database. Flyway 7.x
         // (the Boot-managed train) requires default-schema to be a member of schemas.
         registry.add("spring.flyway.schemas", () -> AuthTestServerBootstrap.AUTH_SCHEMA);
         registry.add("spring.flyway.default-schema", () -> AuthTestServerBootstrap.AUTH_SCHEMA);

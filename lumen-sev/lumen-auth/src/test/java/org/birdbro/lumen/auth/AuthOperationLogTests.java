@@ -82,7 +82,7 @@ class AuthOperationLogTests extends AuthIntegrationTestBase {
                 Integer.class, ORGS_URL, "%" + orgName + "%");
         assertEquals(Integer.valueOf(0), record, "a successful call must be logged as record 0 (INFO)");
 
-        jdbcTemplate.update("UPDATE auth.org_info SET deleted = 1 WHERE id = ?", createdId);
+        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE id = ?", createdId);
     }
 
     private String adminToken() throws Exception {

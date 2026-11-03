@@ -19,7 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Schema + seed proof for {@code V3__system_data.sql} (system-data task 1.1): after
  * Flyway applies V3, the four platform-shared system tables must exist in the
  * {@code public} schema of the team test server's {@code lumen} database (design D1 -
- * the tables live in public, NOT in the auth schema; Flyway history stays in auth),
+ * the tables live in public, NOT in the service's system schema; Flyway history stays
+ * in system),
  * shaped exactly by their copied entities:
  *
  * <ul>
@@ -105,7 +106,7 @@ class AuthSystemDataMigrationTests extends AuthIntegrationTestBase {
                     Integer.class, table);
             assertEquals(1, found.intValue(),
                     "shared system table public." + table + " must exist (design D1: "
-                    + "the public schema, not the auth schema)");
+                    + "the public schema, not the system schema)");
         }
     }
 

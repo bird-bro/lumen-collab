@@ -196,7 +196,7 @@ class AuthUserManagementTests extends AuthIntegrationTestBase {
     }
 
     private void cleanupUser(int id) {
-        jdbcTemplate.update("UPDATE auth.user_info SET deleted = 1 WHERE id = ?", id);
+        jdbcTemplate.update("UPDATE system.user_info SET deleted = 1 WHERE id = ?", id);
     }
 
     private ResponseEntity<String> postJson(String url, String json) {

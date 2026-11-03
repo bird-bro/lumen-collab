@@ -17,7 +17,7 @@ import java.sql.Statement;
  *   <li>connect to the {@code postgres} MAINTENANCE database;</li>
  *   <li>{@code CREATE DATABASE} the test database only when a {@code pg_database}
  *       existence check finds it missing (existence guard - idempotent);</li>
- *   <li>connect to the test database and {@code CREATE SCHEMA IF NOT EXISTS auth}
+ *   <li>connect to the test database and {@code CREATE SCHEMA IF NOT EXISTS system}
  *       (idempotent).</li>
  * </ol>
  *
@@ -30,8 +30,9 @@ import java.sql.Statement;
  */
 public final class AuthTestServerBootstrap {
 
-    /** The fixed lumen-auth service schema (design D3; not env-configurable). */
-    static final String AUTH_SCHEMA = "auth";
+    /** The fixed lumen-auth service schema (design D3, renamed auth -> system by
+     *  rename-auth-to-system task 1.1; not env-configurable). */
+    static final String AUTH_SCHEMA = "system";
 
     private static final Object BOOTSTRAP_LOCK = new Object();
     private static volatile boolean bootstrapped;
@@ -40,7 +41,7 @@ public final class AuthTestServerBootstrap {
     }
 
     /**
-     * Idempotently ensures the test database and the {@code auth} schema exist on the
+     * Idempotently ensures the test database and the {@code system} schema exist on the
      * team test server (at most once per JVM).
      *
      * @throws IllegalStateException when the server is unreachable or rejects the DDL -

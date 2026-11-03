@@ -15,8 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Schema proof for the seven-table auth schema (auth-rbac-foundation task 2.1): after
- * Flyway applies {@code V1__auth_schema.sql} to the team test server's {@code auth}
+ * Schema proof for the seven-table system schema (auth-rbac-foundation task 2.1): after
+ * Flyway applies {@code V1__auth_schema.sql} to the team test server's {@code system}
  * schema, {@code information_schema} must hold the seven tables with the binding DDL
  * columns, the EntityBase audit block in its exact order, the logical-delete
  * partial-unique indexes, and the foreign keys exactly where the binding design puts
@@ -88,9 +88,9 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
         for (String table : SEVEN_TABLES) {
             Integer found = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM information_schema.tables "
-                    + "WHERE table_schema = 'auth' AND table_name = ?",
+                    + "WHERE table_schema = 'system' AND table_name = ?",
                     Integer.class, table);
-            assertEquals(1, found.intValue(), "table auth." + table + " must exist");
+            assertEquals(1, found.intValue(), "table system." + table + " must exist");
         }
     }
 
@@ -101,7 +101,7 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
             // physical order so the tail equals the audit block exactly.
             List<String> orderedColumns = jdbcTemplate.queryForList(
                     "SELECT column_name FROM information_schema.columns "
-                    + "WHERE table_schema = 'auth' AND table_name = ? "
+                    + "WHERE table_schema = 'system' AND table_name = ? "
                     + "ORDER BY ordinal_position", String.class, table);
 
             List<String> expected = new ArrayList<>();
@@ -109,15 +109,15 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
             expected.addAll(REQUIRED_COLUMNS.get(table));
             expected.addAll(AUDIT_COLUMNS);
             assertTrue(orderedColumns.containsAll(expected),
-                    "auth." + table + " must carry " + expected + " but had "
+                    "system." + table + " must carry " + expected + " but had "
                     + orderedColumns);
 
             assertEquals("id", orderedColumns.get(0),
-                    "auth." + table + " must lead with its serial id");
+                    "system." + table + " must lead with its serial id");
             List<String> tail = orderedColumns.subList(
                     orderedColumns.size() - AUDIT_COLUMNS.size(), orderedColumns.size());
             assertEquals(AUDIT_COLUMNS, tail,
-                    "auth." + table + " must end with the EntityBase audit block in order");
+                    "system." + table + " must end with the EntityBase audit block in order");
         }
     }
 
@@ -125,10 +125,10 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
     void logicalDeletePartialUniqueIndexesExist() {
         for (Map.Entry<String, String> index : PARTIAL_UNIQUE_INDEXES.entrySet()) {
             List<String> definitions = jdbcTemplate.queryForList(
-                    "SELECT indexdef FROM pg_indexes WHERE schemaname = 'auth' "
+                    "SELECT indexdef FROM pg_indexes WHERE schemaname = 'system' "
                     + "AND indexname = ?", String.class, index.getKey());
             assertEquals(1, definitions.size(),
-                    "partial-unique index " + index.getKey() + " must exist on auth schema");
+                    "partial-unique index " + index.getKey() + " must exist on system schema");
             String definition = definitions.get(0);
             assertTrue(definition.contains("UNIQUE"),
                     index.getKey() + " must be UNIQUE: " + definition);
@@ -147,10 +147,10 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
                     "SELECT COUNT(*) FROM pg_constraint con "
                     + "JOIN pg_class rel ON rel.oid = con.conrelid "
                     + "JOIN pg_namespace ns ON ns.oid = rel.relnamespace "
-                    + "WHERE ns.nspname = 'auth' AND rel.relname = ? AND con.contype = 'f'",
+                    + "WHERE ns.nspname = 'system' AND rel.relname = ? AND con.contype = 'f'",
                     Integer.class, table);
             assertEquals(EXPECTED_FK_COUNTS.get(table).intValue(), fkCount.intValue(),
-                    "auth." + table + " must carry exactly " + EXPECTED_FK_COUNTS.get(table)
+                    "system." + table + " must carry exactly " + EXPECTED_FK_COUNTS.get(table)
                     + " foreign keys (org_info deliberately has NO self-FK)");
         }
     }

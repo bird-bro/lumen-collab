@@ -108,7 +108,7 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
         }, "the wrong-password sign row (account " + username + ", type 11, uid " + uid
                 + ") never landed in public.log_sign");
 
-        jdbcTemplate.update("UPDATE auth.user_info SET deleted = 1 WHERE id = ?", uid);
+        jdbcTemplate.update("UPDATE system.user_info SET deleted = 1 WHERE id = ?", uid);
     }
 
     @Test
@@ -146,7 +146,7 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
                 Integer.class, username, "%退出成功%");
         assertEquals(Integer.valueOf(1), worded, "the logout row must carry the copied handler's wording");
 
-        jdbcTemplate.update("UPDATE auth.user_info SET deleted = 1 WHERE id = ?", uid);
+        jdbcTemplate.update("UPDATE system.user_info SET deleted = 1 WHERE id = ?", uid);
     }
 
     /** Creates a live user through the admin endpoint and returns its id. */

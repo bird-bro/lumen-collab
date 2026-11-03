@@ -66,11 +66,11 @@ class AuthAuditIdentityTests extends AuthIntegrationTestBase {
         // The real database verdict: create_by must be the admin's id (1) - MetaObjectConfig
         // fill proven end-to-end - and create_time non-null (DB default).
         Integer createBy = jdbcTemplate.queryForObject(
-                "SELECT create_by FROM auth.user_info WHERE id = ?", Integer.class, createdId);
+                "SELECT create_by FROM system.user_info WHERE id = ?", Integer.class, createdId);
         Integer deleted = jdbcTemplate.queryForObject(
-                "SELECT deleted FROM auth.user_info WHERE id = ?", Integer.class, createdId);
+                "SELECT deleted FROM system.user_info WHERE id = ?", Integer.class, createdId);
         java.sql.Date createTime = jdbcTemplate.queryForObject(
-                "SELECT create_time FROM auth.user_info WHERE id = ?", java.sql.Date.class, createdId);
+                "SELECT create_time FROM system.user_info WHERE id = ?", java.sql.Date.class, createdId);
         assertNotNull(createTime, "create_time must be non-null");
         assertEquals(Integer.valueOf(0), deleted, "the new row must be live (deleted = 0)");
         assertEquals(Integer.valueOf(1), createBy,
@@ -78,7 +78,7 @@ class AuthAuditIdentityTests extends AuthIntegrationTestBase {
                         + " (bridge filter) and fill the audit column; actual: " + createBy);
 
         // Logical cleanup (shared DB): hide the row after the evidence is captured.
-        jdbcTemplate.update("UPDATE auth.user_info SET deleted = 1 WHERE id = ?", createdId);
+        jdbcTemplate.update("UPDATE system.user_info SET deleted = 1 WHERE id = ?", createdId);
     }
 
     private ResponseEntity<String> postJson(String url, String json) {

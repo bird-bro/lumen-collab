@@ -80,7 +80,7 @@ class AuthUnitCrudTests extends AuthIntegrationTestBase {
                         + "roots were " + rootNames);
         assertTrue(rootNames.size() >= 2, "the tree must hold at least the two roots");
 
-        jdbcTemplate.update("UPDATE auth.org_info SET deleted = 1 WHERE id = ?", createdId);
+        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE id = ?", createdId);
     }
 
     @Test
@@ -116,7 +116,7 @@ class AuthUnitCrudTests extends AuthIntegrationTestBase {
                 "the created child must nest under the hospital root with the renamed title; "
                         + "children were " + childNames);
 
-        jdbcTemplate.update("UPDATE auth.org_info SET deleted = 1 WHERE id = ?", createdId);
+        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE id = ?", createdId);
     }
 
     @Test

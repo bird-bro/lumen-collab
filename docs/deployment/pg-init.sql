@@ -5,7 +5,7 @@
 SELECT 'CREATE DATABASE lumen' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'lumen')\gexec
 \connect lumen
 
-CREATE SCHEMA IF NOT EXISTS auth;
+CREATE SCHEMA IF NOT EXISTS system;
 CREATE SCHEMA IF NOT EXISTS patient;
 CREATE SCHEMA IF NOT EXISTS radiology;
 CREATE SCHEMA IF NOT EXISTS us;
@@ -14,14 +14,14 @@ CREATE SCHEMA IF NOT EXISTS integration;
 
 -- 每服务连接角色（口令由 DBA 设定；服务连接串只配自己的角色 → 跨 schema 不可见）
 -- DO $$ BEGIN
---   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'lumen_auth_role') THEN
---     CREATE ROLE lumen_auth_role LOGIN PASSWORD '<DBA-SET>';
+--   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'lumen_system_role') THEN
+--     CREATE ROLE lumen_system_role LOGIN PASSWORD '<DBA-SET>';
 --   END IF;
 -- END $$;
--- GRANT USAGE ON SCHEMA auth TO lumen_auth_role;
--- GRANT ALL ON ALL TABLES IN SCHEMA auth TO lumen_auth_role;
--- GRANT ALL ON ALL SEQUENCES IN SCHEMA auth TO lumen_auth_role;
--- ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT ALL ON TABLES TO lumen_auth_role;
+-- GRANT USAGE ON SCHEMA system TO lumen_system_role;
+-- GRANT ALL ON ALL TABLES IN SCHEMA system TO lumen_system_role;
+-- GRANT ALL ON ALL SEQUENCES IN SCHEMA system TO lumen_system_role;
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA system GRANT ALL ON TABLES TO lumen_system_role;
 
 -- =====================================================================
 -- 六、public 共享系统表授权（system-data，2026-11-03）
@@ -33,9 +33,9 @@ CREATE SCHEMA IF NOT EXISTS integration;
 -- 注意：GRANT 生效前角色须先存在（见上文角色块）；PG15+ 访问 public 下的表还需
 -- 对该 schema 授 USAGE：
 -- GRANT USAGE ON SCHEMA public
---   TO lumen_auth_role, lumen_patient_role, lumen_radiology_role,
+--   TO lumen_system_role, lumen_patient_role, lumen_radiology_role,
 --      lumen_us_role, lumen_endo_role, lumen_integration_role;
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON
 --   public.dict_catal, public.dict_detail, public.log_info, public.log_sign
---   TO lumen_auth_role, lumen_patient_role, lumen_radiology_role,
+--   TO lumen_system_role, lumen_patient_role, lumen_radiology_role,
 --      lumen_us_role, lumen_endo_role, lumen_integration_role;

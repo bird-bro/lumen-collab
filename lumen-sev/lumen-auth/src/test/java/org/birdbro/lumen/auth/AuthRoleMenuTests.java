@@ -214,19 +214,19 @@ class AuthRoleMenuTests extends AuthIntegrationTestBase {
         // cascade decision - the perms walk does not join role, so live bindings to a
         // dead role would keep granting).
         Integer roleDeleted = jdbcTemplate.queryForObject(
-                "SELECT deleted FROM auth.role_info WHERE id = ?", Integer.class, roleId);
+                "SELECT deleted FROM system.role_info WHERE id = ?", Integer.class, roleId);
         assertEquals(Integer.valueOf(1), roleDeleted, "the role row must be logically deleted");
         Integer liveUserRoleRows = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM auth.user_role WHERE role_id = ? AND deleted = 0",
+                "SELECT COUNT(*) FROM system.user_role WHERE role_id = ? AND deleted = 0",
                 Integer.class, roleId);
         assertEquals(Integer.valueOf(0), liveUserRoleRows,
                 "the role's user_role bindings must be logically deleted with it");
         Integer totalUserRoleRows = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM auth.user_role WHERE role_id = ?", Integer.class, roleId);
+                "SELECT COUNT(*) FROM system.user_role WHERE role_id = ?", Integer.class, roleId);
         assertTrue(totalUserRoleRows != null && totalUserRoleRows > 0,
                 "the bindings must have existed before the cascade (evidence sanity)");
         Integer liveRoleMenuRows = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM auth.role_menu WHERE role_id = ? AND deleted = 0",
+                "SELECT COUNT(*) FROM system.role_menu WHERE role_id = ? AND deleted = 0",
                 Integer.class, roleId);
         assertEquals(Integer.valueOf(0), liveRoleMenuRows,
                 "the role's role_menu bindings must be logically deleted with it");
@@ -282,14 +282,14 @@ class AuthRoleMenuTests extends AuthIntegrationTestBase {
 
     /** Logical-delete cleanup of everything the flow created (shared DB hygiene). */
     private void cleanupRoleAndUser(int roleId, int userId) {
-        jdbcTemplate.update("UPDATE auth.role_menu SET deleted = 1 WHERE role_id = ?", roleId);
-        jdbcTemplate.update("UPDATE auth.user_role SET deleted = 1 WHERE role_id = ?", roleId);
-        jdbcTemplate.update("UPDATE auth.role_info SET deleted = 1 WHERE id = ?", roleId);
+        jdbcTemplate.update("UPDATE system.role_menu SET deleted = 1 WHERE role_id = ?", roleId);
+        jdbcTemplate.update("UPDATE system.user_role SET deleted = 1 WHERE role_id = ?", roleId);
+        jdbcTemplate.update("UPDATE system.role_info SET deleted = 1 WHERE id = ?", roleId);
         cleanupUser(userId);
     }
 
     private void cleanupUser(int userId) {
-        jdbcTemplate.update("UPDATE auth.user_info SET deleted = 1 WHERE id = ?", userId);
+        jdbcTemplate.update("UPDATE system.user_info SET deleted = 1 WHERE id = ?", userId);
     }
 
     private ResponseEntity<String> postJson(String url, String json) {

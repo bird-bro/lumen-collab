@@ -19,8 +19,8 @@ spring:
     # (user ruling 2026-11-03: flyway_schema_history stays in the service schema,
     # never public). Explicit values make a misconfigured connection URL
     # (e.g. currentSchema=public) fail loudly instead of silently migrating public.
-    schemas: auth
-    default-schema: auth
+    schemas: system
+    default-schema: system
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher   # springfox 3.0 requirement on Boot 2.5

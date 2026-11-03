@@ -71,7 +71,7 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
     @Test
     void dictCatalEntityRoundTripResolvesIntoPublicSchema() {
         // system-data task 4.1 (spec scenario 8 at the data layer): the copied entity's
-        // UNQUALIFIED @TableName must resolve through currentSchema=auth,public to the
+        // UNQUALIFIED @TableName must resolve through currentSchema=system,public to the
         // shared public table - the insert lands there and selects back.
         String code = "ut.dictcatal." + System.currentTimeMillis(); // unique - shared DB
         DictCatalEntity catal = DictCatalEntity.builder()
@@ -98,13 +98,13 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
         assertEquals(Integer.valueOf(1), inPublic,
                 "the entity row must live in public.dict_catal (design D1 search_path resolution)");
 
-        // And no auth-schema shadow table exists that could have caught the write first.
-        Integer inAuth = jdbcTemplate.queryForObject(
+        // And no system-schema shadow table exists that could have caught the write first.
+        Integer inSystem = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables "
-                + "WHERE table_schema = 'auth' AND table_name = 'dict_catal'",
+                + "WHERE table_schema = 'system' AND table_name = 'dict_catal'",
                 Integer.class);
-        assertEquals(Integer.valueOf(0), inAuth,
-                "no auth.dict_catal shadow table may exist - the unqualified name must resolve to public");
+        assertEquals(Integer.valueOf(0), inSystem,
+                "no system.dict_catal shadow table may exist - the unqualified name must resolve to public");
 
         dictCatalService.removeById(catal.getId()); // logical cleanup - shared DB
         assertNull(dictCatalService.getById(catal.getId()), "cleanup must hide the catalog");
@@ -164,7 +164,7 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
         assertNull(userInfoMapper.selectById(user.getId()),
                 "a logically deleted row must no longer select back");
         Integer physicalDeleted = jdbcTemplate.queryForObject(
-                "SELECT deleted FROM auth.user_info WHERE id = ?",
+                "SELECT deleted FROM system.user_info WHERE id = ?",
                 Integer.class, user.getId());
         assertEquals(Integer.valueOf(1), physicalDeleted,
                 "deleteById must UPDATE deleted = 1, not remove the row");

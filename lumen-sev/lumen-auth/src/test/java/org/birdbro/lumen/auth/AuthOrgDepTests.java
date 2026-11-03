@@ -106,7 +106,7 @@ class AuthDepartmentTests extends AuthIntegrationTestBase {
         assertTrue(departmentWithCode(otherListBody.path("data"), code) == null,
                 "a department of org 1 must NOT appear under a different org");
 
-        jdbcTemplate.update("UPDATE auth.org_dep SET deleted = 1 WHERE id = ?", createdId);
+        jdbcTemplate.update("UPDATE system.org_dep SET deleted = 1 WHERE id = ?", createdId);
     }
 
     @Test

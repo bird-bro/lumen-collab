@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Batch 1 green proof (auth-rbac-foundation tasks 1.2-1.3, design D3): the lumen-auth
  * context loads against the TEAM TEST SERVER - a real PostgreSQL connection through the
- * {@code auth} schema and Flyway initialized on the server - while keeping the skeleton's
+ * {@code system} schema and Flyway initialized on the server - while keeping the skeleton's
  * service-identity asserts. The zero-infrastructure guarantee of init-backend-skeleton
  * task 4.1 now applies to the OTHER modules only: per the service-topology MODIFIED
  * delta, lumen-auth's data-layer tests run against the externally provisioned test
@@ -47,16 +47,16 @@ class AuthApplicationTests extends AuthIntegrationTestBase {
         assertTrue(Integer.parseInt(localPort) > 0, "random port must be positive");
 
         // real connection to the team test server through the pooled DataSource, and
-        // currentSchema=auth in force
-        assertEquals("auth", jdbcTemplate.queryForObject("SELECT current_schema()", String.class));
+        // currentSchema=system in force
+        assertEquals("system", jdbcTemplate.queryForObject("SELECT current_schema()", String.class));
         assertEquals(1, jdbcTemplate.queryForObject("SELECT 1", Integer.class).intValue());
 
-        // Flyway ran on the test server: its history table is queryable in the auth
+        // Flyway ran on the test server: its history table is queryable in the system
         // schema (Flyway 7.7.3 - the Boot 2.5.15 managed train - creates it on migrate()
         // even before Batch 2's V1/V2 migrations exist, so this holds for Batch 1
         // already; the query itself is the proof - it throws if the table is missing)
         Integer historyEntries = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM auth.flyway_schema_history", Integer.class);
+                "SELECT COUNT(*) FROM system.flyway_schema_history", Integer.class);
         assertNotNull(historyEntries);
     }
 }
