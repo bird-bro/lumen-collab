@@ -5,15 +5,16 @@
 `lumen-auth` 是骨架里唯一的空壳服务，而整个平台现在没有任何登录、任何用户、任何权限——
 前端三个占位页无守卫，EntityBase 的 `create_by`/`update_by` 悬空无语义，framework 里照搬的
 `TokenService`/`JwtAuthenticationTokenFilter`/`SecurityConfig` 没有签发方。本 change 让
-lumen-auth 成为第一个真服务：机构层级树（多机构能力，参照随访 `unit_info`）、用户/角色、
+lumen-auth 成为第一个真服务：机构层级树（多机构能力，参照随访 `unit_info`（lumen 表名更名 `org_info`，用户决策 2026-11-03））、用户/角色、
 菜单+按钮权限（随访已完整实现、OPS/RCP 从未有过的部分）、JWT 签发-验证闭环、首批 Flyway
 迁移，以及第一个真实 REST 端点。
 
 ## What Changes
 
 - `lumen-auth` 激活数据层：连接团队测试服务器 PG + 首批 Flyway 迁移（7 张表：
-  `unit_info` 层级树、`user_info`、`role`、`user_role`、`role_menu`、`menu_info`、
-  `department`）+ 种子数据（默认管理员 + 三科室 radiology/us/endo）
+  `org_info` 层级树、`user_info`、`role_info`、`user_role`、`role_menu`、`menu_info`、
+  `org_dep`）+ 种子数据（默认管理员 + 三科室 radiology/us/endo）（表命名：用户决策
+  2026-11-03，见 design D2）
 - 登录闭环：`POST /api/v1/auth/login`（首个真实端点）→ 拷贝来的 `TokenService` 签发 JWT
   （Redis 存 token 状态，Testcontainers Redis）→ `JwtAuthenticationTokenFilter` 验证
 - 管理 CRUD：用户 / 角色（含角色-菜单分配）/ 菜单 / 机构 / 科室 的端点与服务
@@ -25,14 +26,14 @@ lumen-auth 成为第一个真服务：机构层级树（多机构能力，参照
   （PG + Redis，外部供给），连接走 gitignored `lumen-sev/.env-test.local`——未配置 =
   显式失败；其他模块（framework/common）的零依赖测试不变（2026-11-02 重定，用户裁定）
 - 随访模式移植：`menu_info`（type=目录/菜单/按钮 + perms 权限串）、`role_menu`/`user_role`
-  绑定、`unit_info` 层级树（`upId`/`level`）、`UnitTree` 树形响应——common 里已照搬的
+  绑定、`org_info` 层级树（`upId`/`level`）、`OrgTree` 树形响应（随访原形 `unit_info`/`UnitTree`，lumen 更名：unit=计量单位、org=机构，用户决策 2026-11-03）——common 里已照搬的
   `MenuTree` POJO 首次投入使用
 
 ## Capabilities
 
 ### New Capabilities
 - `auth-rbac`: 认证与 RBAC 基础——登录签发/验证闭环、机构层级树、用户/角色/菜单/按钮
-  权限模型（含种子数据与首管理员）、科室（独立表 FK unit 树）。
+  权限模型（含种子数据与首管理员）、科室（独立表 `org_dep` FK `org_info` 树）。
 
 ### Modified Capabilities
 - `data`: "Entity Schema Documentation" 的 id 子句改为 Integer 自增（用户决策；雪花子句
@@ -47,7 +48,7 @@ single-stack: backend (`lumen-sev/`，仅 `lumen-auth` 模块 + 少量 copied-co
 
 ## Depends-On
 `init-backend-skeleton`（archived）、`init-infra-compose` 的环境契约
-（`environment-contract`：外部 PG/Nacos/Redis，连接走环境变量）。
+（`environment-contract`：外部 PG/Redis，连接走环境变量；配置本地化无 Nacos，见 design D8）。
 
 ## Scope
 

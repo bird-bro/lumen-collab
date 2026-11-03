@@ -25,9 +25,9 @@ import org.springframework.test.context.DynamicPropertySource;
  *       Redis.</li>
  * </ol>
  *
- * <p>{@code @ActiveProfiles("test")} keeps the Nacos-off semantics of
- * {@code application-test.yml}; the dummy datasource of the skeleton is gone - the
- * dynamic properties below are the ONLY datasource source of truth.</p>
+ * <p>{@code @ActiveProfiles("test")} overrides the dev default of application.yml, so
+ * the gitignored application-dev.yml is not loaded in tests - the dynamic properties
+ * below are the ONLY datasource source of truth.</p>
  *
  * @author birdbro
  */

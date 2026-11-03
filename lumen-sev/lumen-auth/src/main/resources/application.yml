@@ -1,11 +1,58 @@
-# lumen-auth local defaults (init-backend-skeleton task 3.1).
+# lumen-auth local configuration (随访 fu-launch shape - user decision 2026-11-03,
+# design D8: no Nacos anywhere; local files only).
+#   - THIS FILE is committed and carries NO credentials - framework-demanded feature
+#     values plus safe local defaults only.
+#   - Credentials / environment endpoints live in the GITIGNORED application-dev.yml
+#     (template: application-dev.yml.example, same pattern as fu_sev).
 # Service identity per specs/service-topology "Service Identity":
 # spring.application.name = module name, port 8081.
-# Sensitive values (credentials, environment-specific endpoints) come from
-# environment variables or Nacos - never committed here.
+server:
+  port: 8081
+
 spring:
   application:
     name: lumen-auth
+  profiles:
+    active: dev                 # the dev profile (gitignored file) carries datasource/redis
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher   # springfox 3.0 requirement on Boot 2.5
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss    # data spec: audit timestamps serialize GMT+8
 
-server:
-  port: 8081
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# JWT login state - demanded by framework/security/TokenService (@Value token.*).
+token:
+  header: Authorization         # clients send "Authorization: Bearer <jwt>"
+  # HS512-grade signing secret (>=64 chars) - PLACEHOLDER, production MUST replace it
+  # (env var or gitignored profile; never commit a real secret).
+  secret: lumen-collab-jwt-secret-change-me-in-production-0123456789abcdef
+  expireTime: 1440              # minutes; TokenService slides the Redis expiry
+
+# XSS filter - demanded by framework/config/FilterConfig (@Value xss.*).
+xss:
+  enabled: true
+  excludes: /css/*,/js/*,/images/*
+  urlPatterns: /*
+
+# Unified envelope advice exclusions - framework GlobalProperties (prefix "dispose").
+dispose:
+  adviceFilterPackage:
+    - springfox.documentation
+    - org.springframework
+
+logging:
+  level:
+    org.birdbro: debug
+  file:
+    name: ./logs/lumen-auth.log

@@ -15,7 +15,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * which no component scan can satisfy. Added during Batch 4's red-green cycle - the
  * context-load test failed on {@code logInfoServiceImpl} without it. Discovery
  * registration is automatic on this train (no {@code @EnableDiscoveryClient} needed).
- * Deliberately nothing else: no controllers, no security wiring - token issuance
+ * <p>No registry/config center exists (user decision 2026-11-03, design D8: local
+ * configuration, 随访 fu-launch shape) - nothing to enable.</p>
+ *
+ * <p>Deliberately nothing else: no controllers, no security wiring - token issuance
  * is this service's job - its wiring shipped with auth-rbac-foundation Batch 3: the
  * login loop (AuthController/AuthService + the copied TokenService), the service-owned
  * UserDetailsService the copied SecurityConfig constructor-injects, the anonymous-login

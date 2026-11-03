@@ -33,7 +33,7 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 - Study linkage: dcm4chee-arc QIDO-RS by Accession Number
 - Flexible structures (report templates, structured findings, department forms) → PostgreSQL `jsonb` + GIN index
 - IDs: Integer auto-increment, serialized as JSON numbers (user decision 2026-11-02, OPS/随访 lineage - the former snowflake-bigint rule was withdrawn by auth-rbac-foundation's api/data deltas)
-- Sensitive config (DB passwords) via env vars / Nacos - never committed
+- Sensitive config (DB passwords) via env vars / the gitignored application-dev.yml (随访 fu-launch pattern, design D8 - no Nacos since 2026-11-03) - never committed
 
 ## Coding Standards
 - Layering: controller → service → mapper; DTOs never leak into domain entities

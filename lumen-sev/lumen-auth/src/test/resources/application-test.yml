@@ -1,46 +1,21 @@
 # Test profile (init-backend-skeleton task 3.2; test-server semantics reworked by
-# auth-rbac-foundation tasks 1.2-1.3, design D3). The context loads with NO Nacos: no
-# discovery registration, no remote config import (flags below plus the bootstrap.yml
-# test-profile document - keep both).
+# auth-rbac-foundation tasks 1.2-1.3, design D3).
+#
+# Local-config era (user decision 2026-11-03, design D8): there is NO Nacos anywhere in
+# the stack, so this file carries no nacos-off flags and no framework placeholder
+# dummies anymore - the committed application.yml supplies token.*/xss.*/dispose.*
+# directly (the old dummies existed only because the values were expected from a
+# remote config center that does not exist).
 #
 # Test-server semantics (design D3): lumen-auth's data-layer tests connect to the TEAM
 # TEST SERVER (PostgreSQL + Redis, externally provisioned - no Testcontainers, no local
 # daemon). AuthIntegrationTestBase injects the REAL datasource, Redis, and Flyway
 # properties via @DynamicPropertySource at context creation, resolved from the gitignored
 # lumen-sev/.env-test.local (AUTH_TEST_* variables; the base class walks up from the
-# module dir to find it). Deliberately NO datasource properties here anymore: a static
-# entry would mask an unconfigured server, while missing AUTH_TEST_* variables now fail
-# the context explicitly in AuthTestEnv.require (never a silent skip).
-spring:
-  cloud:
-    nacos:
-      discovery:
-        enabled: false
-      config:
-        enabled: false
-    discovery:
-      enabled: false
-
----
-
-# Framework placeholder dummies (skeleton Batch 4 GREEN step, kept unchanged): the
-# copied framework beans demand these via @Value. OPS supplies them from Nacos remote
-# config, which does not exist here - the skeleton's red run named them (first:
-# xss.excludes in framework/config/FilterConfig; then TokenService's token.* fields).
-# Values below are explicit dummies for tests only (not real credentials -
-# execution-contract behavior 16 is about real secrets; none of these is one):
-# - token.header / token.secret / token.expireTime -> framework/security/TokenService.java
-#   (@Component, always created). Since the auth feature change (task 3.1) token.header is
-#   the REAL client header name "Authorization" - clients send
-#   "Authorization: Bearer <jwt>" (Constants.TOKEN_PREFIX); the dummy secret/expireTime
-#   stay test-only dummies (not real credentials - execution-contract behavior 16).
-#   Production values still come from env/Nacos later.
-# - xss.excludes / xss.urlPatterns -> framework/config/FilterConfig.java
-#   (@Configuration, always created; its xss filter @Bean stays off - xss.enabled unset)
-token:
-  header: Authorization
-  secret: test-only-dummy-not-a-secret
-  expireTime: 3600
-xss:
-  excludes: /css/*,/js/*,/images/*
-  urlPatterns: /*
+# module dir to find it). Deliberately NO datasource properties here: a static entry
+# would mask an unconfigured server, while missing AUTH_TEST_* variables fail the
+# context explicitly in AuthTestEnv.require (never a silent skip).
+#
+# The spring.profiles.active=dev default of application.yml is overridden by
+# @ActiveProfiles("test"), so the gitignored application-dev.yml is NOT loaded in
+# tests - the dynamic properties remain the only datasource source of truth.

@@ -18,10 +18,27 @@ keep their zero-dependency tests unchanged.
   mappers have been exercised against it
 
 #### Scenario: Nacos unreachable during verification
-- **WHEN** no Nacos server responds at verification time
+- **WHEN** verification runs where no Nacos server exists or responds - the stack has no
+  service registry and no remote config center at all since user decision 2026-11-03
+  (configuration is local, 随访 fu-launch shape, design D8)
 - **THEN** service discovery registration and remote config import are inactive for that
-  run
-- **AND** the context still loads, so the absence is not a build failure
+  run - the starters are removed and nothing attempts either
+- **AND** the context still loads from the local `application.yml` (+ the gitignored
+  profile file), so the absence is not a build failure
+
+### Requirement: Sensitive Configuration Exclusion
+Credentials and environment-specific connection values SHALL come from environment
+variables or a GITIGNORED profile file (`application-dev.yml`, with the template
+`application-dev.yml.example` committed - the 随访 fu-launch pattern, user decision
+2026-11-03). No configuration center exists in the stack. Real secret values MUST NOT
+be committed to the repository; committed `application.yml` may carry feature defaults
+and explicit replace-me placeholders only.
+
+#### Scenario: A database password is needed for a future service
+- **WHEN** a service requires a credential
+- **THEN** it is read from an environment variable or the gitignored
+  `application-dev.yml`
+- **AND** no literal secret value appears in any committed file
 
 #### Scenario: Test-server connection unconfigured
 - **WHEN** the test-server env file/variables are absent

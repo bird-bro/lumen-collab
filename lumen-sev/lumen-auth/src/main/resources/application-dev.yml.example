@@ -1,0 +1,30 @@
+# Template for application-dev.yml (GITIGNORED - copy this file to application-dev.yml
+# and fill in real values; same pattern as fu_sev's application-dev.yml.example).
+# Development runtime configuration for the 随访-shape local config (design D8):
+# no Nacos - this file is the only credential source at runtime, never committed.
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: org.postgresql.Driver
+    druid:
+      url: jdbc:postgresql://<PG_HOST>:<PG_PORT>/lumen?currentSchema=auth
+      username: <PG_USER>
+      password: <PG_PASSWORD>
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+  redis:
+    host: <REDIS_HOST>
+    port: <REDIS_PORT>
+    password: <REDIS_PASSWORD or empty>
+    timeout: 5000
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 2
