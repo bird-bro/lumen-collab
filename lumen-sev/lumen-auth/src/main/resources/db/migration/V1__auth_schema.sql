@@ -6,16 +6,19 @@
 --       deleted / create_by / create_time / update_by / update_time, with the
 --       database defaults supplying deleted = 0 and CURRENT_TIMESTAMP (EntityBase
 --       declares no FieldFill on the timestamps - data spec, "Standard entity fields").
---   D2: unit_info is the pure org tree (no medical attributes); department anchors to
---       it by FK. unit_info deliberately has NO self-FK: root rows use up_id = 0 (the
+--   D2: org_info is the pure org tree (no medical attributes); org_dep anchors to
+--       it by FK. org_info deliberately has NO self-FK: root rows use up_id = 0 (the
 --       TreeUtils rootParentValue convention) and tree integrity is service-level.
+--   Table naming (user decision 2026-11-03): `org` carries the 机构 semantics
+--       (English "unit" reads as a measurement unit), so org_info / org_dep with the
+--       `_info` suffix consistent with user_info / menu_info / role_info.
 --   Logical delete: unique values live in PARTIAL unique indexes (WHERE deleted = 0),
 --       so a logically deleted row never blocks re-creating the value. The in-service
 --       duplicate rejection remains the A-class path; the index is the backstop.
 
--- Hierarchical org tree: hospital roots and their sub-units (multi-organisation ready -
+-- Hierarchical org tree: hospital roots and their sub-orgs (multi-organisation ready -
 -- a second root is just another up_id = 0 row).
-CREATE TABLE unit_info (
+CREATE TABLE org_info (
     id          serial PRIMARY KEY,
     up_id       integer      NOT NULL DEFAULT 0,
     level       integer      NOT NULL DEFAULT 1,
@@ -27,13 +30,13 @@ CREATE TABLE unit_info (
     update_by   integer,
     update_time timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_unit_info_up_id ON unit_info (up_id);
+CREATE INDEX idx_org_info_up_id ON org_info (up_id);
 
--- Departments anchor medical workflows to the org tree; `code` (radiology/us/endo) is
--- the stable identifier lumen-integration routes DICOM/HL7 by.
-CREATE TABLE department (
+-- Departments (org_dep) anchor medical workflows to the org tree; `code` (radiology/us/
+-- endo) is the stable identifier lumen-integration routes DICOM/HL7 by.
+CREATE TABLE org_dep (
     id          serial PRIMARY KEY,
-    unit_id     integer      NOT NULL REFERENCES unit_info (id),
+    org_id      integer      NOT NULL REFERENCES org_info (id),
     code        varchar(32)  NOT NULL,
     name        varchar(128) NOT NULL,
     deleted     integer      NOT NULL DEFAULT 0,
@@ -42,8 +45,8 @@ CREATE TABLE department (
     update_by   integer,
     update_time timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_department_unit_id ON department (unit_id);
-CREATE UNIQUE INDEX uk_department_code ON department (code) WHERE deleted = 0;
+CREATE INDEX idx_org_dep_org_id ON org_dep (org_id);
+CREATE UNIQUE INDEX uk_org_dep_code ON org_dep (code) WHERE deleted = 0;
 
 -- Platform users. username is unique among live rows only (a logically deleted row does
 -- not block re-creating the username). password holds the BCrypt hash (design D4).
@@ -63,7 +66,7 @@ CREATE TABLE user_info (
 CREATE UNIQUE INDEX uk_user_info_username ON user_info (username) WHERE deleted = 0;
 
 -- Roles; type follows the copied RoleConstants lineage (10 system / 11 business).
-CREATE TABLE role (
+CREATE TABLE role_info (
     id          serial PRIMARY KEY,
     name        varchar(64)  NOT NULL,
     type        integer      NOT NULL DEFAULT 11,
@@ -74,13 +77,13 @@ CREATE TABLE role (
     update_by   integer,
     update_time timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE UNIQUE INDEX uk_role_name ON role (name) WHERE deleted = 0;
+CREATE UNIQUE INDEX uk_role_info_name ON role_info (name) WHERE deleted = 0;
 
 -- User-role bindings.
 CREATE TABLE user_role (
     id          serial PRIMARY KEY,
     user_id     integer NOT NULL REFERENCES user_info (id),
-    role_id     integer NOT NULL REFERENCES role (id),
+    role_id     integer NOT NULL REFERENCES role_info (id),
     deleted     integer      NOT NULL DEFAULT 0,
     create_by   integer,
     create_time timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -115,7 +118,7 @@ CREATE INDEX idx_menu_info_up_id ON menu_info (up_id);
 -- Role-menu bindings (the page/button permission grants).
 CREATE TABLE role_menu (
     id          serial PRIMARY KEY,
-    role_id     integer NOT NULL REFERENCES role (id),
+    role_id     integer NOT NULL REFERENCES role_info (id),
     menu_id     integer NOT NULL REFERENCES menu_info (id),
     deleted     integer      NOT NULL DEFAULT 0,
     create_by   integer,

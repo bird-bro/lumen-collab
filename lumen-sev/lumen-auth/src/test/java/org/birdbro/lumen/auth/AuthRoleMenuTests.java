@@ -214,7 +214,7 @@ class AuthRoleMenuTests extends AuthIntegrationTestBase {
         // cascade decision - the perms walk does not join role, so live bindings to a
         // dead role would keep granting).
         Integer roleDeleted = jdbcTemplate.queryForObject(
-                "SELECT deleted FROM auth.role WHERE id = ?", Integer.class, roleId);
+                "SELECT deleted FROM auth.role_info WHERE id = ?", Integer.class, roleId);
         assertEquals(Integer.valueOf(1), roleDeleted, "the role row must be logically deleted");
         Integer liveUserRoleRows = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM auth.user_role WHERE role_id = ? AND deleted = 0",
@@ -284,7 +284,7 @@ class AuthRoleMenuTests extends AuthIntegrationTestBase {
     private void cleanupRoleAndUser(int roleId, int userId) {
         jdbcTemplate.update("UPDATE auth.role_menu SET deleted = 1 WHERE role_id = ?", roleId);
         jdbcTemplate.update("UPDATE auth.user_role SET deleted = 1 WHERE role_id = ?", roleId);
-        jdbcTemplate.update("UPDATE auth.role SET deleted = 1 WHERE id = ?", roleId);
+        jdbcTemplate.update("UPDATE auth.role_info SET deleted = 1 WHERE id = ?", roleId);
         cleanupUser(userId);
     }
 

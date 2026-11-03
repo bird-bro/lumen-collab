@@ -4,7 +4,7 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 /**
- * Update-unit request body ({@code PUT /api/v1/auth/units/{id}}, auth-rbac-foundation
+ * Update-org request body ({@code PUT /api/v1/auth/orgs/{id}}, auth-rbac-foundation
  * task 4.1): partial update - every field is optional and a {@code null} is skipped by
  * the MyBatis-Plus NOT-NULL update strategy, so {@code {"name": "..."}} renames only and
  * a new {@code upId} re-parents.
@@ -12,7 +12,7 @@ import lombok.Data;
  * @author birdbro
  */
 @Data
-public class UpdateUnitRequest {
+public class UpdateOrgRequest {
 
     @ApiModelProperty("New parent id (0 = re-root); validated to exist when non-zero")
     private Integer upId;
@@ -20,7 +20,7 @@ public class UpdateUnitRequest {
     @ApiModelProperty("New depth; pass explicitly when re-parenting")
     private Integer level;
 
-    @ApiModelProperty("New unit type")
+    @ApiModelProperty("New org type")
     private Integer type;
 
     @ApiModelProperty("New display name")

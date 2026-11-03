@@ -5,13 +5,13 @@
 -- V1 defaults (deleted = 0, CURRENT_TIMESTAMP). Chinese strings are product display
 -- data; comments stay English.
 
--- Hospital root unit (up_id = 0 root convention, level 1, lumen type 0 = hospital root).
-INSERT INTO unit_info (id, up_id, level, type, name) VALUES
+-- Hospital root org (up_id = 0 root convention, level 1, lumen type 0 = hospital root).
+INSERT INTO org_info (id, up_id, level, type, name) VALUES
     (1, 0, 1, 0, '示例医院');
 
 -- The three v1 departments anchored to the hospital root. The codes are the stable
 -- identifiers lumen-integration routes DICOM/HL7 by (binding DDL rationale).
-INSERT INTO department (id, unit_id, code, name) VALUES
+INSERT INTO org_dep (id, org_id, code, name) VALUES
     (1, 1, 'radiology', '放射科'),
     (2, 1, 'us',        '超声科'),
     (3, 1, 'endo',      '内镜科');
@@ -23,7 +23,7 @@ INSERT INTO user_info (id, username, password, must_change_password, enable, nam
     (1, 'admin', '$2a$10$/WMgAykBpAYjFFYxZkttUuOkA7HOeSpkUtPTosdRPvIE.uKFYeK2m', 1, 1, '系统管理员');
 
 -- Default administrator role: type 10 = system (copied RoleConstants lineage).
-INSERT INTO role (id, name, type, remark) VALUES
+INSERT INTO role_info (id, name, type, remark) VALUES
     (1, '系统管理员', 10, 'seed default administrator role');
 
 INSERT INTO user_role (id, user_id, role_id) VALUES
@@ -52,10 +52,10 @@ INSERT INTO role_menu (id, role_id, menu_id) VALUES
 -- Advance every serial sequence past the explicit seed ids. Without this, the first
 -- application-side insert (MyBatis-Plus IdType.AUTO = nextval) would collide with the
 -- seeded id 1 rows.
-SELECT setval(pg_get_serial_sequence('unit_info',  'id'), (SELECT COALESCE(MAX(id), 1) FROM unit_info));
-SELECT setval(pg_get_serial_sequence('department', 'id'), (SELECT COALESCE(MAX(id), 1) FROM department));
-SELECT setval(pg_get_serial_sequence('user_info',  'id'), (SELECT COALESCE(MAX(id), 1) FROM user_info));
-SELECT setval(pg_get_serial_sequence('role',       'id'), (SELECT COALESCE(MAX(id), 1) FROM role));
-SELECT setval(pg_get_serial_sequence('user_role',  'id'), (SELECT COALESCE(MAX(id), 1) FROM user_role));
-SELECT setval(pg_get_serial_sequence('menu_info',  'id'), (SELECT COALESCE(MAX(id), 1) FROM menu_info));
-SELECT setval(pg_get_serial_sequence('role_menu',  'id'), (SELECT COALESCE(MAX(id), 1) FROM role_menu));
+SELECT setval(pg_get_serial_sequence('org_info',  'id'), (SELECT COALESCE(MAX(id), 1) FROM org_info));
+SELECT setval(pg_get_serial_sequence('org_dep',   'id'), (SELECT COALESCE(MAX(id), 1) FROM org_dep));
+SELECT setval(pg_get_serial_sequence('user_info', 'id'), (SELECT COALESCE(MAX(id), 1) FROM user_info));
+SELECT setval(pg_get_serial_sequence('role_info', 'id'), (SELECT COALESCE(MAX(id), 1) FROM role_info));
+SELECT setval(pg_get_serial_sequence('user_role', 'id'), (SELECT COALESCE(MAX(id), 1) FROM user_role));
+SELECT setval(pg_get_serial_sequence('menu_info', 'id'), (SELECT COALESCE(MAX(id), 1) FROM menu_info));
+SELECT setval(pg_get_serial_sequence('role_menu', 'id'), (SELECT COALESCE(MAX(id), 1) FROM role_menu));

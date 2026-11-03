@@ -18,7 +18,7 @@ import org.birdbro.lumen.auth.dto.MeResponse;
 import org.birdbro.lumen.auth.dto.ProfileDto;
 import org.birdbro.lumen.auth.entity.UserInfo;
 import org.birdbro.lumen.auth.mapper.MenuInfoMapper;
-import org.birdbro.lumen.auth.mapper.RoleMapper;
+import org.birdbro.lumen.auth.mapper.RoleInfoMapper;
 import org.birdbro.lumen.auth.mapper.RoleMenuMapper;
 import org.birdbro.lumen.auth.mapper.UserInfoMapper;
 import org.birdbro.lumen.auth.service.AuthService;
@@ -48,19 +48,19 @@ public class AuthServiceImpl implements AuthService {
     private final UserInfoMapper userInfoMapper;
     private final RoleMenuMapper roleMenuMapper;
     private final MenuInfoMapper menuInfoMapper;
-    private final RoleMapper roleMapper;
+    private final RoleInfoMapper roleInfoMapper;
     private final MenuTreeService menuTreeService;
     private final TokenService tokenService;
     private final BCryptPasswordEncoder passwordEncoder;
 
     public AuthServiceImpl(UserInfoMapper userInfoMapper, RoleMenuMapper roleMenuMapper,
-            MenuInfoMapper menuInfoMapper, RoleMapper roleMapper,
+            MenuInfoMapper menuInfoMapper, RoleInfoMapper roleInfoMapper,
             MenuTreeService menuTreeService, TokenService tokenService,
             BCryptPasswordEncoder passwordEncoder) {
         this.userInfoMapper = userInfoMapper;
         this.roleMenuMapper = roleMenuMapper;
         this.menuInfoMapper = menuInfoMapper;
-        this.roleMapper = roleMapper;
+        this.roleInfoMapper = roleInfoMapper;
         this.menuTreeService = menuTreeService;
         this.tokenService = tokenService;
         this.passwordEncoder = passwordEncoder;
@@ -132,7 +132,7 @@ public class AuthServiceImpl implements AuthService {
         profile.setName(user.getName());
         profile.setEnable(user.getEnable());
         profile.setMustChangePassword(user.getMustChangePassword());
-        profile.setRoles(roleMapper.selectRoleNamesByUserId(user.getId()));
+        profile.setRoles(roleInfoMapper.selectRoleNamesByUserId(user.getId()));
         return profile;
     }
 }

@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * schema, {@code information_schema} must hold the seven tables with the binding DDL
  * columns, the EntityBase audit block in its exact order, the logical-delete
  * partial-unique indexes, and the foreign keys exactly where the binding design puts
- * them (unit_info deliberately carries NO self-FK - root rows use {@code up_id = 0}).
+ * them (org_info deliberately carries NO self-FK - root rows use {@code up_id = 0}).
  *
  * <p>Shared long-lived database: every assertion is a CONTAINS-style existence check,
  * never an exact row count.</p>
@@ -31,7 +31,7 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
 
     /** The seven tables of the binding DDL design, in creation order. */
     private static final List<String> SEVEN_TABLES = Arrays.asList(
-            "unit_info", "department", "user_info", "role", "user_role",
+            "org_info", "org_dep", "user_info", "role_info", "user_role",
             "menu_info", "role_menu");
 
     /** The EntityBase audit block every table carries (exact columns, same order). */
@@ -45,16 +45,16 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
      *  re-creation; the WHERE deleted = 0 clause is asserted via indexdef). */
     private static final Map<String, String> PARTIAL_UNIQUE_INDEXES;
 
-    /** Foreign keys per table (0 = deliberately none, e.g. unit_info's no-self-FK rule). */
+    /** Foreign keys per table (0 = deliberately none, e.g. org_info's no-self-FK rule). */
     private static final Map<String, Integer> EXPECTED_FK_COUNTS;
 
     static {
         Map<String, List<String>> columns = new LinkedHashMap<>();
-        columns.put("unit_info", Arrays.asList("up_id", "level", "type", "name"));
-        columns.put("department", Arrays.asList("unit_id", "code", "name"));
+        columns.put("org_info", Arrays.asList("up_id", "level", "type", "name"));
+        columns.put("org_dep", Arrays.asList("org_id", "code", "name"));
         columns.put("user_info", Arrays.asList("username", "password",
                 "must_change_password", "enable", "name"));
-        columns.put("role", Arrays.asList("name", "type", "remark"));
+        columns.put("role_info", Arrays.asList("name", "type", "remark"));
         columns.put("user_role", Arrays.asList("user_id", "role_id"));
         columns.put("menu_info", Arrays.asList("up_id", "type", "title", "perms",
                 "path", "component", "icon", "sort", "visible"));
@@ -62,18 +62,18 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
         REQUIRED_COLUMNS = Collections.unmodifiableMap(columns);
 
         Map<String, String> indexes = new LinkedHashMap<>();
-        indexes.put("uk_department_code", "code");
+        indexes.put("uk_org_dep_code", "code");
         indexes.put("uk_user_info_username", "username");
-        indexes.put("uk_role_name", "name");
+        indexes.put("uk_role_info_name", "name");
         indexes.put("uk_user_role_user_role", "user_id, role_id");
         indexes.put("uk_role_menu_role_menu", "role_id, menu_id");
         PARTIAL_UNIQUE_INDEXES = Collections.unmodifiableMap(indexes);
 
         Map<String, Integer> foreignKeys = new LinkedHashMap<>();
-        foreignKeys.put("unit_info", 0);
-        foreignKeys.put("department", 1);
+        foreignKeys.put("org_info", 0);
+        foreignKeys.put("org_dep", 1);
         foreignKeys.put("user_info", 0);
-        foreignKeys.put("role", 0);
+        foreignKeys.put("role_info", 0);
         foreignKeys.put("user_role", 2);
         foreignKeys.put("menu_info", 0);
         foreignKeys.put("role_menu", 2);
@@ -151,7 +151,7 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
                     Integer.class, table);
             assertEquals(EXPECTED_FK_COUNTS.get(table).intValue(), fkCount.intValue(),
                     "auth." + table + " must carry exactly " + EXPECTED_FK_COUNTS.get(table)
-                    + " foreign keys (unit_info deliberately has NO self-FK)");
+                    + " foreign keys (org_info deliberately has NO self-FK)");
         }
     }
 }

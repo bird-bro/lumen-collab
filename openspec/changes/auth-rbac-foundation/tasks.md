@@ -18,11 +18,11 @@
 
 ## 2. Flyway 迁移与数据层
 
-- [x] 2.1 `V1__auth_schema.sql`：七表 `unit_info`（upId/level/type）、`department`
-  （FK unit）、`user_info`（username unique、password hash、must_change_password）、
-  `role`、`user_role`、`role_menu`、`menu_info`（upId/type/perms/path/component/sort）。
+- [x] 2.1 `V1__auth_schema.sql`：七表 `org_info`（upId/level/type）、`org_dep`
+  （FK org）、`user_info`（username unique、password hash、must_change_password）、
+  `role_info`、`user_role`、`role_menu`、`menu_info`（upId/type/perms/path/component/sort）。
   Verify: Testcontainers 测试中断言七表存在（information_schema）。
-- [x] 2.2 `V2__seed.sql`：医院根 unit、三科室（radiology/us/endo FK unit）、默认管理员
+- [x] 2.2 `V2__seed.sql`：医院根 org、三科室（radiology/us/endo FK org）、默认管理员
   （BCrypt 口令 + must-change-password）、基础角色、最小菜单集（登录/me/用户管理 + 三科室
   页面占位 + 审核按钮示例）。Verify: 迁移后查询断言种子行存在。
 - [x] 2.3 实体 + Mapper（`org.birdbro.lumen.auth.entity/mapper`）：七实体继承
@@ -43,9 +43,9 @@
 
 ## 4. 管理 CRUD
 
-- [x] 4.1 机构树端点：unit CRUD + 树形查询（`UnitTree` 装配）。Verify: 建 two-root 场景
+- [x] 4.1 机构树端点：org CRUD + 树形查询（`/orgs`，`OrgTree` 装配）。Verify: 建 two-root 场景
   测试（多根能力）+ 树形响应断言绿。
-- [x] 4.2 科室端点：department CRUD（FK unit）。Verify: 三科室种子列出断言绿。
+- [x] 4.2 科室端点：org_dep CRUD（`/org-deps`，FK org）。Verify: 三科室种子列出断言绿。
 - [x] 4.3 用户端点：列表/创建/改密/停启用；重复用户名拒绝（`A` 类）。Verify: 创建+重复
   拒绝测试绿。
 - [x] 4.4 角色与菜单端点：role CRUD、role-menu 分配、menu 列表（树）。Verify: 分配后

@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * minimal create into the full endpoint set). Kept separate from the token-loop
  * {@code AuthController} - this is resource management, not authentication - under the
  * same {@code /api/v1/auth} namespace nginx routes to this service; the Batch 4
- * unit/department/role controllers follow the same per-resource layout. All endpoints
+ * org/department/role controllers follow the same per-resource layout. All endpoints
  * stay token-guarded by the copied security chain ({@code anyRequest().authenticated()}
  * - no {@code WebSecurityCustomizer} addition).
  *

@@ -21,15 +21,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Department management proof (auth-rbac-foundation task 4.2): the {@code
- * /api/v1/auth/departments} CRUD endpoints against the real servlet context with the
+ * OrgDep management proof (auth-rbac-foundation task 4.2): the {@code
+ * /api/v1/auth/org-deps} CRUD endpoints against the real servlet context with the
  * admin token.
  *
- * <p>The required scenario is the SEEDED LIST (spec: Department Anchored to the Unit
+ * <p>The required scenario is the SEEDED LIST (spec: OrgDep Anchored to the Org
  * Tree): the V2 seed's three departments (radiology / us / endo) must come back from
- * the list endpoint, and a department created for the hospital root (unit id 1) must
- * appear under that unit. The FK is enforced SERVICE-side with an {@code A0400}
- * rejection for a non-existent unit (the DB FK stays as the backstop) - proven by the
+ * the list endpoint, and a department created for the hospital root (org id 1) must
+ * appear under that org. The FK is enforced SERVICE-side with an {@code A0400}
+ * rejection for a non-existent org (the DB FK stays as the backstop) - proven by the
  * third test. Shared long-lived database: unique timestamp-suffixed code, logical-delete
  * cleanup.</p>
  *
@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AuthDepartmentTests extends AuthIntegrationTestBase {
 
     private static final String LOGIN_URL = "/api/v1/auth/login";
-    private static final String DEPARTMENTS_URL = "/api/v1/auth/departments";
+    private static final String ORG_DEPS_URL = "/api/v1/auth/org-deps";
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -54,7 +54,7 @@ class AuthDepartmentTests extends AuthIntegrationTestBase {
         String token = adminToken();
 
         ResponseEntity<String> listResponse = exchangeJson(HttpMethod.GET,
-                DEPARTMENTS_URL + "/list", null, token);
+                ORG_DEPS_URL + "/list", null, token);
         assertEquals(200, listResponse.getStatusCodeValue());
         JsonNode listBody = parse(listResponse);
         assertEquals("200", listBody.path("code").asText(),
@@ -72,19 +72,19 @@ class AuthDepartmentTests extends AuthIntegrationTestBase {
         JsonNode radiology = departmentWithCode(rows, "radiology");
         assertEquals("放射科", radiology.path("name").asText(),
                 "the seeded display name must come through");
-        assertEquals(1, radiology.path("unitId").asInt(-1),
-                "the seeded departments are FK-linked to the hospital root (unit id 1)");
+        assertEquals(1, radiology.path("orgId").asInt(-1),
+                "the seeded departments are FK-linked to the hospital root (org id 1)");
     }
 
     @Test
-    void createDepartmentForHospitalRootAppearsInUnitList() throws Exception {
+    void createDepartmentForHospitalRootAppearsInOrgList() throws Exception {
         String token = adminToken();
         long ts = System.currentTimeMillis();
         String code = "dep_" + ts; // unique among live rows - shared DB
         String name = "体检科_" + ts;
 
-        ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, DEPARTMENTS_URL,
-                "{\"unitId\":1,\"code\":\"" + code + "\",\"name\":\"" + name + "\"}", token);
+        ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, ORG_DEPS_URL,
+                "{\"orgId\":1,\"code\":\"" + code + "\",\"name\":\"" + name + "\"}", token);
         JsonNode createBody = parse(createResponse);
         assertEquals("200", createBody.path("code").asText(),
                 "the department create must succeed: " + createBody);
@@ -92,35 +92,35 @@ class AuthDepartmentTests extends AuthIntegrationTestBase {
         assertTrue(createdId > 0, "the created department id must come back");
 
         ResponseEntity<String> unitListResponse = exchangeJson(HttpMethod.GET,
-                DEPARTMENTS_URL + "/list?unitId=1", null, token);
+                ORG_DEPS_URL + "/list?orgId=1", null, token);
         JsonNode unitListBody = parse(unitListResponse);
         assertEquals("200", unitListBody.path("code").asText(),
-                "the unit-scoped list must succeed: " + unitListBody);
+                "the org-scoped list must succeed: " + unitListBody);
         assertNotNull(departmentWithCode(unitListBody.path("data"), code),
-                "the created department must appear in the list of its unit (unitId=1)");
+                "the created department must appear in the list of its org (orgId=1)");
 
         ResponseEntity<String> otherListResponse = exchangeJson(HttpMethod.GET,
-                DEPARTMENTS_URL + "/list?unitId=" + createdId, null, token);
+                ORG_DEPS_URL + "/list?orgId=" + createdId, null, token);
         JsonNode otherListBody = parse(otherListResponse);
         assertEquals("200", otherListBody.path("code").asText());
         assertTrue(departmentWithCode(otherListBody.path("data"), code) == null,
-                "a department of unit 1 must NOT appear under a different unit");
+                "a department of org 1 must NOT appear under a different org");
 
-        jdbcTemplate.update("UPDATE auth.department SET deleted = 1 WHERE id = ?", createdId);
+        jdbcTemplate.update("UPDATE auth.org_dep SET deleted = 1 WHERE id = ?", createdId);
     }
 
     @Test
-    void createDepartmentWithUnknownUnitRejectedWithA0400() throws Exception {
+    void createDepartmentWithUnknownOrgRejectedWithA0400() throws Exception {
         String token = adminToken();
         long ts = System.currentTimeMillis();
 
-        ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, DEPARTMENTS_URL,
-                "{\"unitId\":987654321,\"code\":\"orphan_" + ts + "\",\"name\":\"孤儿科室_" + ts + "\"}",
+        ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, ORG_DEPS_URL,
+                "{\"orgId\":987654321,\"code\":\"orphan_" + ts + "\",\"name\":\"孤儿科室_" + ts + "\"}",
                 token);
         assertEquals(200, createResponse.getStatusCodeValue());
         JsonNode createBody = parse(createResponse);
         assertEquals("A0400", createBody.path("code").asText(),
-                "a non-existent FK unit must be rejected service-side (the DB FK stays the "
+                "a non-existent FK org must be rejected service-side (the DB FK stays the "
                         + "backstop): " + createBody);
     }
 

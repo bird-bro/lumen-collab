@@ -10,11 +10,11 @@ import org.birdbro.common.exception.BusinessException;
 import org.birdbro.lumen.auth.dto.AssignRoleMenusRequest;
 import org.birdbro.lumen.auth.dto.CreateRoleRequest;
 import org.birdbro.lumen.auth.dto.UpdateRoleRequest;
-import org.birdbro.lumen.auth.entity.Role;
+import org.birdbro.lumen.auth.entity.RoleInfo;
 import org.birdbro.lumen.auth.entity.RoleMenu;
 import org.birdbro.lumen.auth.entity.UserRole;
 import org.birdbro.lumen.auth.mapper.MenuInfoMapper;
-import org.birdbro.lumen.auth.mapper.RoleMapper;
+import org.birdbro.lumen.auth.mapper.RoleInfoMapper;
 import org.birdbro.lumen.auth.mapper.RoleMenuMapper;
 import org.birdbro.lumen.auth.mapper.UserRoleMapper;
 import org.birdbro.lumen.auth.service.RoleService;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Role management implementation (auth-rbac-foundation task 4.4).
+ * RoleInfo management implementation (auth-rbac-foundation task 4.4).
  *
  * <p>Recorded decisions. (1) FULL-REPLACE assignment: {@code assignMenus} deletes the
  * role's live {@code role_menu} rows (logical, via {@code @TableLogic}) then inserts
@@ -44,14 +44,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RoleServiceImpl implements RoleService {
 
-    private final RoleMapper roleMapper;
+    private final RoleInfoMapper roleInfoMapper;
     private final RoleMenuMapper roleMenuMapper;
     private final UserRoleMapper userRoleMapper;
     private final MenuInfoMapper menuInfoMapper;
 
-    public RoleServiceImpl(RoleMapper roleMapper, RoleMenuMapper roleMenuMapper,
+    public RoleServiceImpl(RoleInfoMapper roleInfoMapper, RoleMenuMapper roleMenuMapper,
             UserRoleMapper userRoleMapper, MenuInfoMapper menuInfoMapper) {
-        this.roleMapper = roleMapper;
+        this.roleInfoMapper = roleInfoMapper;
         this.roleMenuMapper = roleMenuMapper;
         this.userRoleMapper = userRoleMapper;
         this.menuInfoMapper = menuInfoMapper;
@@ -61,29 +61,29 @@ public class RoleServiceImpl implements RoleService {
     public Integer create(CreateRoleRequest request) {
         rejectDuplicateName(request.getName(), null);
 
-        Role role = new Role();
+        RoleInfo role = new RoleInfo();
         role.setName(request.getName());
         role.setType(request.getType()); // null -> V1 column default 11 (NOT-NULL insert strategy)
         role.setRemark(request.getRemark());
-        roleMapper.insert(role);
+        roleInfoMapper.insert(role);
         return role.getId();
     }
 
     @Override
     public Boolean update(Integer id, UpdateRoleRequest request) {
-        if (roleMapper.selectById(id) == null) {
+        if (roleInfoMapper.selectById(id) == null) {
             throw new BusinessException(ExceptionEnum.ERROR_B0031, "role id " + id + " does not exist");
         }
         if (request.getName() != null) {
             rejectDuplicateName(request.getName(), id);
         }
 
-        Role patch = new Role();
+        RoleInfo patch = new RoleInfo();
         patch.setId(id);
         patch.setName(request.getName());
         patch.setType(request.getType());
         patch.setRemark(request.getRemark());
-        roleMapper.updateById(patch);
+        roleInfoMapper.updateById(patch);
         return Boolean.TRUE;
     }
 
@@ -95,14 +95,14 @@ public class RoleServiceImpl implements RoleService {
         // @TableLogic turns every delete into UPDATE deleted = 1.
         roleMenuMapper.delete(new LambdaQueryWrapper<RoleMenu>().eq(RoleMenu::getRoleId, id));
         userRoleMapper.delete(new LambdaQueryWrapper<UserRole>().eq(UserRole::getRoleId, id));
-        roleMapper.deleteById(id);
+        roleInfoMapper.deleteById(id);
         return Boolean.TRUE;
     }
 
     @Override
     @Transactional
     public Boolean assignMenus(Integer roleId, AssignRoleMenusRequest request) {
-        if (roleMapper.selectById(roleId) == null) {
+        if (roleInfoMapper.selectById(roleId) == null) {
             throw new BusinessException(ExceptionEnum.ERROR_A0400, "role does not exist: role id " + roleId);
         }
         Set<Integer> menuIds = new LinkedHashSet<>(request.getMenuIds()); // dedupe, keep order
@@ -126,11 +126,11 @@ public class RoleServiceImpl implements RoleService {
 
     /** The role name is unique among live rows; {@code excludeId} spares the updated role itself. */
     private void rejectDuplicateName(String name, Integer excludeId) {
-        LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<Role>().eq(Role::getName, name);
+        LambdaQueryWrapper<RoleInfo> wrapper = new LambdaQueryWrapper<RoleInfo>().eq(RoleInfo::getName, name);
         if (excludeId != null) {
-            wrapper.ne(Role::getId, excludeId);
+            wrapper.ne(RoleInfo::getId, excludeId);
         }
-        if (roleMapper.selectCount(wrapper) > 0) {
+        if (roleInfoMapper.selectCount(wrapper) > 0) {
             throw new BusinessException(ExceptionEnum.ERROR_A0714, "role name already exists: " + name);
         }
     }

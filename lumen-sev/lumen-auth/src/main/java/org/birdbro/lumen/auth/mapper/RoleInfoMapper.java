@@ -5,7 +5,7 @@ import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
-import org.birdbro.lumen.auth.entity.Role;
+import org.birdbro.lumen.auth.entity.RoleInfo;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
@@ -17,7 +17,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  * @author birdbro
  */
 @Mapper
-public interface RoleMapper extends BaseMapper<Role> {
+public interface RoleInfoMapper extends BaseMapper<RoleInfo> {
 
     /**
      * The DISTINCT live role names of the user - the {@code user_role -> role} walk for
@@ -28,7 +28,7 @@ public interface RoleMapper extends BaseMapper<Role> {
      * @return the distinct live role names (empty list when the user owns no roles)
      */
     @Select("SELECT DISTINCT r.name FROM user_role ur "
-            + "JOIN role r ON r.id = ur.role_id AND r.deleted = 0 "
+            + "JOIN role_info r ON r.id = ur.role_id AND r.deleted = 0 "
             + "WHERE ur.user_id = #{userId} AND ur.deleted = 0")
     List<String> selectRoleNamesByUserId(@Param("userId") Integer userId);
 }

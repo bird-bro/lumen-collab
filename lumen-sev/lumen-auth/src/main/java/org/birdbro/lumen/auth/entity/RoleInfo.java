@@ -8,25 +8,25 @@ import lombok.EqualsAndHashCode;
 import org.birdbro.common.core.base.EntityBase;
 
 /**
- * Role ({@code role}, auth-rbac-foundation task 2.3). {@code name} is unique among live
+ * RoleInfo ({@code role}, auth-rbac-foundation task 2.3). {@code name} is unique among live
  * rows (partial unique index). {@code type} follows the copied {@code RoleConstants}
  * lineage: 10 system / 11 business.
  *
  * @author birdbro
  */
-@TableName("role")
+@TableName("role_info")
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class Role extends EntityBase {
+public class RoleInfo extends EntityBase {
 
     /** Primary key, database auto-increment (design D1). */
     @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
 
-    /** Role name, unique among live rows. */
+    /** RoleInfo name, unique among live rows. */
     private String name;
 
-    /** Role type (copied RoleConstants lineage): 10 system / 11 business. */
+    /** RoleInfo type (copied RoleConstants lineage): 10 system / 11 business. */
     private Integer type;
 
     /** Free-text remark. */

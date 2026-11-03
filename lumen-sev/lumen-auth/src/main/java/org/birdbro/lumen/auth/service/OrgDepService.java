@@ -2,32 +2,32 @@ package org.birdbro.lumen.auth.service;
 
 import java.util.List;
 
-import org.birdbro.lumen.auth.dto.CreateDepartmentRequest;
-import org.birdbro.lumen.auth.dto.UpdateDepartmentRequest;
-import org.birdbro.lumen.auth.entity.Department;
+import org.birdbro.lumen.auth.dto.CreateOrgDepRequest;
+import org.birdbro.lumen.auth.dto.UpdateOrgDepRequest;
+import org.birdbro.lumen.auth.entity.OrgDep;
 
 /**
- * Department management (auth-rbac-foundation task 4.2): CRUD on the {@code department}
- * table that anchors medical workflows to the org tree. The {@code unitId} FK is
+ * OrgDep management (auth-rbac-foundation task 4.2): CRUD on the {@code department}
+ * table that anchors medical workflows to the org tree. The {@code orgId} FK is
  * enforced SERVICE-side (explicit {@code A0400} envelope) with the database FK as the
  * backstop; {@code code} is duplicate-checked among live rows.
  *
  * @author birdbro
  */
-public interface DepartmentService {
+public interface OrgDepService {
 
     /**
-     * Creates a department for a unit node: the unit must exist (live) or the create is
+     * Creates a department for a org node: the org must exist (live) or the create is
      * rejected with {@code A0400}; a duplicate live {@code code} is rejected with
      * {@code A0712} (the partial unique index stays the backstop).
      *
-     * @param request unit id + stable code + display name
+     * @param request org id + stable code + display name
      * @return the database-generated id of the new row
      */
-    Integer create(CreateDepartmentRequest request);
+    Integer create(CreateOrgDepRequest request);
 
     /**
-     * Partial update: re-anchor to another unit / change code / rename (null fields
+     * Partial update: re-anchor to another org / change code / rename (null fields
      * skipped). New values carry the same validations as create; an unknown target id
      * is rejected with {@code B0031}.
      *
@@ -36,7 +36,7 @@ public interface DepartmentService {
      * @return {@code Boolean.TRUE} (envelope {@code "200"}; a void return would fall
      *         into the copied advice's null branch and render the {@code "204"} code)
      */
-    Boolean update(Integer id, UpdateDepartmentRequest request);
+    Boolean update(Integer id, UpdateOrgDepRequest request);
 
     /**
      * Logical delete - delegated to MyBatis-Plus {@code deleteById}
@@ -48,11 +48,11 @@ public interface DepartmentService {
     Boolean delete(Integer id);
 
     /**
-     * Lists live departments, optionally scoped to one unit ({@code unitId = null}
+     * Lists live departments, optionally scoped to one org ({@code orgId = null}
      * lists all). Ordered by id for a stable response.
      *
-     * @param unitId the owning unit to scope by, or null for all units
+     * @param orgId the owning org to scope by, or null for all orgs
      * @return the live department rows
      */
-    List<Department> list(Integer unitId);
+    List<OrgDep> list(Integer orgId);
 }

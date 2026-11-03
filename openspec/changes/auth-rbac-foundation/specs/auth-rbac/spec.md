@@ -3,9 +3,9 @@
 ## Purpose
 
 Defines lumen-auth's authentication and RBAC foundation: the JWT issuance/validation loop
-(built on the copied framework security classes), the hierarchical unit tree, users, roles,
+(built on the copied framework security classes), the hierarchical org tree, users, roles,
 and the menu model with page-level and button-level permissions (pattern adopted from the
-随访 reference implementation), plus the department table that anchors medical workflows to
+随访 reference implementation), plus the `org_dep` department table that anchors medical workflows to
 the org tree.
 
 ## ADDED Requirements
@@ -44,11 +44,11 @@ by `MetaObjectConfig` audit filling.
 - **WHEN** an authenticated user creates data through any management endpoint
 - **THEN** `MetaObjectConfig` fills `create_by` with that user's id
 
-### Requirement: Hierarchical Unit Tree
-The service SHALL provide `unit_info` - a self-referencing hierarchy (`upId`, `level`,
+### Requirement: Hierarchical Org Tree
+The service SHALL provide `org_info` - a self-referencing hierarchy (`upId`, `level`,
 `type`) supporting multi-organisation deployment: the local product defaults to a single
 root (the hospital), and multiple roots serve the cloud product. CRUD endpoints SHALL
-maintain the tree and expose it as a tree response (pattern: 随访 `UnitTree`).
+maintain the tree and expose it as a tree response (pattern: 随访 `UnitTree`, lumen tables renamed `org_info`/`org_dep`/`role_info` - user decision 2026-11-03).
 
 #### Scenario: Tree response
 - **WHEN** the unit tree is queried
@@ -56,11 +56,11 @@ maintain the tree and expose it as a tree response (pattern: 随访 `UnitTree`).
 - **AND** the seeded hospital root is present
 
 #### Scenario: Multi-root capable
-- **WHEN** a second root unit is created
+- **WHEN** a second root org is created
 - **THEN** the tree holds two independent roots without schema change
 
-### Requirement: Department Anchored to the Unit Tree
-Departments SHALL live in their own `department` table with a foreign key to a `unit_info`
+### Requirement: Department Anchored to the Org Tree
+Departments SHALL live in their own `org_dep` table with a foreign key to an `org_info`
 node - keeping medical attributes (added by later changes) out of the org tree. The seed
 SHALL create three departments (radiology, ultrasound, endoscopy) under the hospital root.
 
@@ -87,7 +87,7 @@ default administrator SHALL carry a must-change-password flag on first login.
 - **THEN** the service rejects it with an `A`-class code
 
 ### Requirement: Roles and Menu-Button Permissions
-The service SHALL provide `role`, `user_role`, `role_menu`, and `menu_info` (`upId` tree,
+The service SHALL provide `role_info`, `user_role`, `role_menu`, and `menu_info` (`upId` tree,
 `type` = directory/menu/button, `perms` strings) - the model proven in the 随访 reference.
 Role-menu assignment SHALL be an endpoint; the login/me responses SHALL include the user's
 permission set (menu tree + `perms` strings) so the frontend can render dynamic menus and

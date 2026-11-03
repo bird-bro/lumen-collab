@@ -7,12 +7,12 @@ import java.util.List;
 import java.util.Set;
 
 import org.birdbro.common.core.pojo.user.MenuTree;
-import org.birdbro.lumen.auth.entity.UnitInfo;
+import org.birdbro.lumen.auth.entity.OrgInfo;
 import org.birdbro.lumen.auth.entity.UserInfo;
-import org.birdbro.lumen.auth.mapper.UnitInfoMapper;
+import org.birdbro.lumen.auth.mapper.OrgInfoMapper;
 import org.birdbro.lumen.auth.mapper.UserInfoMapper;
 import org.birdbro.lumen.auth.service.MenuTreeService;
-import org.birdbro.lumen.auth.service.UnitTreeService;
+import org.birdbro.lumen.auth.service.OrgTreeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * the tree-assembly services work against the team test server - a mapper insert/select
  * round trip on {@code user_info} (including the logical-delete semantics of the copied
  * {@code EntityBase @TableLogic} contract), plus round trips through {@link
- * UnitTreeService} and {@link MenuTreeService} over the V2 seed rows.
+ * OrgTreeService} and {@link MenuTreeService} over the V2 seed rows.
  *
  * <p>Shared long-lived database: anything this test inserts uses a timestamp-suffixed
  * unique name and is cleaned up (logical delete) afterwards.</p>
@@ -48,10 +48,10 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
     private UserInfoMapper userInfoMapper;
 
     @Autowired
-    private UnitInfoMapper unitInfoMapper;
+    private OrgInfoMapper orgInfoMapper;
 
     @Autowired
-    private UnitTreeService unitTreeService;
+    private OrgTreeService orgTreeService;
 
     @Autowired
     private MenuTreeService menuTreeService;
@@ -96,29 +96,29 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
     }
 
     @Test
-    void unitTreeAssemblesFromSeedRoot() {
+    void orgTreeAssemblesFromSeedRoot() {
         String childName = "ut.smoke." + System.currentTimeMillis(); // unique - shared DB
-        UnitInfo child = new UnitInfo();
+        OrgInfo child = new OrgInfo();
         child.setUpId(1); // the seeded hospital root
         child.setLevel(2);
         child.setType(0);
         child.setName(childName);
-        assertEquals(1, unitInfoMapper.insert(child), "child unit insert must affect one row");
+        assertEquals(1, orgInfoMapper.insert(child), "child org insert must affect one row");
 
-        List<UnitInfo> tree = unitTreeService.unitTree();
-        UnitInfo root = tree.stream()
-                .filter(unit -> Integer.valueOf(1).equals(unit.getId()))
+        List<OrgInfo> tree = orgTreeService.orgTree();
+        OrgInfo root = tree.stream()
+                .filter(org -> Integer.valueOf(1).equals(org.getId()))
                 .findFirst()
                 .orElse(null);
         assertNotNull(root, "the seeded hospital root (id 1, up_id 0) must be a tree root");
         assertEquals("示例医院", root.getName());
         assertNotNull(root.getChildren(), "the root must nest the inserted child");
         assertTrue(root.getChildren().stream()
-                        .anyMatch(unit -> child.getId().equals(unit.getId())),
+                        .anyMatch(org -> child.getId().equals(org.getId())),
                 "the inserted child must nest under the root via up_id");
 
-        unitInfoMapper.deleteById(child.getId()); // logical cleanup - shared DB
-        assertNull(unitInfoMapper.selectById(child.getId()), "cleanup must hide the child");
+        orgInfoMapper.deleteById(child.getId()); // logical cleanup - shared DB
+        assertNull(orgInfoMapper.selectById(child.getId()), "cleanup must hide the child");
     }
 
     @Test

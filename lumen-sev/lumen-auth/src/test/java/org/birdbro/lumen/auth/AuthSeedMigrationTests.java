@@ -38,9 +38,9 @@ class AuthSeedMigrationTests extends AuthIntegrationTestBase {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void hospitalRootUnitSeeded() {
+    void hospitalRootOrgSeeded() {
         Map<String, Object> root = jdbcTemplate.queryForMap(
-                "SELECT up_id, level, type, name FROM auth.unit_info WHERE id = 1");
+                "SELECT up_id, level, type, name FROM auth.org_info WHERE id = 1");
         assertEquals(0, ((Number) root.get("up_id")).intValue(),
                 "the hospital root uses up_id = 0 (TreeUtils rootParentValue convention)");
         assertEquals(1, ((Number) root.get("level")).intValue(),
@@ -59,9 +59,9 @@ class AuthSeedMigrationTests extends AuthIntegrationTestBase {
                 {"endo", "内镜科"}};
         for (String[] department : codeAndName) {
             Map<String, Object> row = jdbcTemplate.queryForMap(
-                    "SELECT unit_id, name FROM auth.department "
+                    "SELECT org_id, name FROM auth.org_dep "
                     + "WHERE code = ? AND deleted = 0", department[0]);
-            assertEquals(1, ((Number) row.get("unit_id")).intValue(),
+            assertEquals(1, ((Number) row.get("org_id")).intValue(),
                     "department " + department[0] + " must anchor to the hospital root");
             assertEquals(department[1], row.get("name"),
                     "department " + department[0] + " display name");
@@ -86,7 +86,7 @@ class AuthSeedMigrationTests extends AuthIntegrationTestBase {
     @Test
     void defaultRoleAndUserBindingSeeded() {
         Map<String, Object> role = jdbcTemplate.queryForMap(
-                "SELECT name, type, remark FROM auth.role WHERE id = 1");
+                "SELECT name, type, remark FROM auth.role_info WHERE id = 1");
         assertEquals("系统管理员", role.get("name"));
         assertEquals(10, ((Number) role.get("type")).intValue(),
                 "seed role type 10 = system (copied RoleConstants lineage)");

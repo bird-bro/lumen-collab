@@ -4,17 +4,17 @@ import java.util.List;
 
 import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
-import org.birdbro.lumen.auth.dto.CreateUnitRequest;
-import org.birdbro.lumen.auth.dto.UpdateUnitRequest;
-import org.birdbro.lumen.auth.entity.UnitInfo;
-import org.birdbro.lumen.auth.mapper.UnitInfoMapper;
-import org.birdbro.lumen.auth.service.UnitService;
-import org.birdbro.lumen.auth.service.UnitTreeService;
+import org.birdbro.lumen.auth.dto.CreateOrgRequest;
+import org.birdbro.lumen.auth.dto.UpdateOrgRequest;
+import org.birdbro.lumen.auth.entity.OrgInfo;
+import org.birdbro.lumen.auth.mapper.OrgInfoMapper;
+import org.birdbro.lumen.auth.service.OrgService;
+import org.birdbro.lumen.auth.service.OrgTreeService;
 import org.springframework.stereotype.Service;
 
 /**
- * Unit management implementation (auth-rbac-foundation task 4.1). The tree integrity
- * checks live here because {@code unit_info} has NO self-FK (design D2): a non-root
+ * Org management implementation (auth-rbac-foundation task 4.1). The tree integrity
+ * checks live here because {@code org_info} has NO self-FK (design D2): a non-root
  * {@code upId} is verified against a live parent before the row is written - otherwise
  * the API could silently plant an orphan the {@code TreeUtils} assembly would drop.
  *
@@ -31,20 +31,20 @@ import org.springframework.stereotype.Service;
  * @author birdbro
  */
 @Service
-public class UnitServiceImpl implements UnitService {
+public class OrgServiceImpl implements OrgService {
 
     private static final int ROOT_PARENT_ID = 0;
 
-    private final UnitInfoMapper unitInfoMapper;
-    private final UnitTreeService unitTreeService;
+    private final OrgInfoMapper orgInfoMapper;
+    private final OrgTreeService orgTreeService;
 
-    public UnitServiceImpl(UnitInfoMapper unitInfoMapper, UnitTreeService unitTreeService) {
-        this.unitInfoMapper = unitInfoMapper;
-        this.unitTreeService = unitTreeService;
+    public OrgServiceImpl(OrgInfoMapper orgInfoMapper, OrgTreeService orgTreeService) {
+        this.orgInfoMapper = orgInfoMapper;
+        this.orgTreeService = orgTreeService;
     }
 
     @Override
-    public Integer create(CreateUnitRequest request) {
+    public Integer create(CreateOrgRequest request) {
         Integer upId = request.getUpId();
         Integer level = request.getLevel();
         if (upId == null || upId == ROOT_PARENT_ID) {
@@ -52,69 +52,69 @@ public class UnitServiceImpl implements UnitService {
                 level = 1; // a root sits at level 1
             }
         } else {
-            UnitInfo parent = requireLiveUnit(upId, "parent unit does not exist");
+            OrgInfo parent = requireLiveOrg(upId, "parent org does not exist");
             if (level == null) {
                 level = parent.getLevel() + 1; // one deeper than the parent
             }
         }
 
-        UnitInfo unit = new UnitInfo();
-        unit.setUpId(upId);
-        unit.setLevel(level);
-        unit.setType(request.getType());
-        unit.setName(request.getName());
-        unitInfoMapper.insert(unit);
-        return unit.getId();
+        OrgInfo org = new OrgInfo();
+        org.setUpId(upId);
+        org.setLevel(level);
+        org.setType(request.getType());
+        org.setName(request.getName());
+        orgInfoMapper.insert(org);
+        return org.getId();
     }
 
     @Override
-    public Boolean update(Integer id, UpdateUnitRequest request) {
-        requireLiveUnit(id, "unit does not exist");
+    public Boolean update(Integer id, UpdateOrgRequest request) {
+        requireLiveOrg(id, "org does not exist");
 
         Integer upId = request.getUpId();
         if (upId != null && upId != ROOT_PARENT_ID) {
             if (upId.equals(id)) {
                 throw new BusinessException(ExceptionEnum.ERROR_A0400,
-                        "a unit cannot be re-parented under itself");
+                        "a org cannot be re-parented under itself");
             }
-            requireLiveUnit(upId, "new parent unit does not exist");
+            requireLiveOrg(upId, "new parent org does not exist");
         }
 
         // Null fields are skipped by the MyBatis-Plus NOT-NULL update strategy, so the
         // request is a true partial update.
-        UnitInfo patch = new UnitInfo();
+        OrgInfo patch = new OrgInfo();
         patch.setId(id);
         patch.setUpId(upId);
         patch.setLevel(request.getLevel());
         patch.setType(request.getType());
         patch.setName(request.getName());
-        unitInfoMapper.updateById(patch);
+        orgInfoMapper.updateById(patch);
         return Boolean.TRUE;
     }
 
     @Override
     public Boolean delete(Integer id) {
         // @TableLogic turns this into UPDATE deleted = 1 (EntityBase contract).
-        unitInfoMapper.deleteById(id);
+        orgInfoMapper.deleteById(id);
         return Boolean.TRUE;
     }
 
     @Override
-    public List<UnitInfo> tree() {
-        return unitTreeService.unitTree();
+    public List<OrgInfo> tree() {
+        return orgTreeService.orgTree();
     }
 
     /**
-     * Loads a live unit or rejects with {@code A0400} (a missing referenced unit is a
+     * Loads a live org or rejects with {@code A0400} (a missing referenced org is a
      * bad request, not a server fault). {@code @TableLogic} appends {@code deleted = 0},
-     * so a logically deleted unit counts as missing.
+     * so a logically deleted org counts as missing.
      */
-    private UnitInfo requireLiveUnit(Integer id, String detail) {
-        UnitInfo unit = unitInfoMapper.selectById(id);
-        if (unit == null) {
+    private OrgInfo requireLiveOrg(Integer id, String detail) {
+        OrgInfo org = orgInfoMapper.selectById(id);
+        if (org == null) {
             throw new BusinessException(ExceptionEnum.ERROR_A0400,
-                    detail + ": unit id " + id);
+                    detail + ": org id " + id);
         }
-        return unit;
+        return org;
     }
 }

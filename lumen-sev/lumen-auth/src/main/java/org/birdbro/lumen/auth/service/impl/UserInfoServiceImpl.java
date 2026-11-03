@@ -11,10 +11,10 @@ import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
 import org.birdbro.lumen.auth.dto.CreateUserRequest;
 import org.birdbro.lumen.auth.dto.UserItemDto;
-import org.birdbro.lumen.auth.entity.Role;
+import org.birdbro.lumen.auth.entity.RoleInfo;
 import org.birdbro.lumen.auth.entity.UserInfo;
 import org.birdbro.lumen.auth.entity.UserRole;
-import org.birdbro.lumen.auth.mapper.RoleMapper;
+import org.birdbro.lumen.auth.mapper.RoleInfoMapper;
 import org.birdbro.lumen.auth.mapper.UserInfoMapper;
 import org.birdbro.lumen.auth.mapper.UserRoleMapper;
 import org.birdbro.lumen.auth.service.UserInfoService;
@@ -45,14 +45,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserInfoServiceImpl implements UserInfoService {
 
     private final UserInfoMapper userInfoMapper;
-    private final RoleMapper roleMapper;
+    private final RoleInfoMapper roleInfoMapper;
     private final UserRoleMapper userRoleMapper;
     private final BCryptPasswordEncoder passwordEncoder;
 
-    public UserInfoServiceImpl(UserInfoMapper userInfoMapper, RoleMapper roleMapper,
+    public UserInfoServiceImpl(UserInfoMapper userInfoMapper, RoleInfoMapper roleInfoMapper,
             UserRoleMapper userRoleMapper, BCryptPasswordEncoder passwordEncoder) {
         this.userInfoMapper = userInfoMapper;
-        this.roleMapper = roleMapper;
+        this.roleInfoMapper = roleInfoMapper;
         this.userRoleMapper = userRoleMapper;
         this.passwordEncoder = passwordEncoder;
     }
@@ -68,8 +68,8 @@ public class UserInfoServiceImpl implements UserInfoService {
                 ? java.util.Collections.emptySet()
                 : new LinkedHashSet<>(request.getRoleIds());
         if (!roleIds.isEmpty()) {
-            long liveRoles = roleMapper.selectCount(
-                    new LambdaQueryWrapper<Role>().in(Role::getId, roleIds));
+            long liveRoles = roleInfoMapper.selectCount(
+                    new LambdaQueryWrapper<RoleInfo>().in(RoleInfo::getId, roleIds));
             if (liveRoles != roleIds.size()) {
                 throw new BusinessException(ExceptionEnum.ERROR_A0400,
                         "some role ids do not exist: " + roleIds);

@@ -21,12 +21,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Unit-tree management proof (auth-rbac-foundation task 4.1): the {@code /api/v1/auth/
- * units} CRUD + tree endpoints, driven through the real servlet context with the admin
+ * Org-tree management proof (auth-rbac-foundation task 4.1): the {@code /api/v1/auth/
+ * orgs} CRUD + tree endpoints, driven through the real servlet context with the admin
  * token (TestRestTemplate against the RANDOM_PORT server of {@link
  * AuthIntegrationTestBase}).
  *
- * <p>The required scenario is the MULTI-ROOT capability (spec: Hierarchical Unit Tree):
+ * <p>The required scenario is the MULTI-ROOT capability (spec: Hierarchical Org Tree):
  * a second root is just another {@code upId = 0} row, so the tree must hold the seeded
  * hospital root AND the created root side by side, and a child created under the
  * hospital root must nest there (after a rename proves the update path). Shared
@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AuthUnitCrudTests extends AuthIntegrationTestBase {
 
     private static final String LOGIN_URL = "/api/v1/auth/login";
-    private static final String UNITS_URL = "/api/v1/auth/units";
+    private static final String ORGS_URL = "/api/v1/auth/orgs";
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -54,17 +54,17 @@ class AuthUnitCrudTests extends AuthIntegrationTestBase {
         long ts = System.currentTimeMillis();
         String rootName = "第二根_" + ts; // unique - shared DB
 
-        ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, UNITS_URL,
+        ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, ORGS_URL,
                 "{\"upId\":0,\"level\":1,\"type\":0,\"name\":\"" + rootName + "\"}", token);
         assertEquals(200, createResponse.getStatusCodeValue(),
-                "unit create must answer over HTTP 200 (envelope transport)");
+                "org create must answer over HTTP 200 (envelope transport)");
         JsonNode createBody = parse(createResponse);
         assertEquals("200", createBody.path("code").asText(),
-                "the root-unit create must succeed: " + createBody);
+                "the root-org create must succeed: " + createBody);
         int createdId = createBody.path("data").asInt(-1);
-        assertTrue(createdId > 0, "the created unit id must come back (IdType.AUTO backfill)");
+        assertTrue(createdId > 0, "the created org id must come back (IdType.AUTO backfill)");
 
-        ResponseEntity<String> treeResponse = exchangeJson(HttpMethod.GET, UNITS_URL + "/tree", null, token);
+        ResponseEntity<String> treeResponse = exchangeJson(HttpMethod.GET, ORGS_URL + "/tree", null, token);
         assertEquals(200, treeResponse.getStatusCodeValue());
         JsonNode treeBody = parse(treeResponse);
         assertEquals("200", treeBody.path("code").asText(), "the tree query must succeed: " + treeBody);
@@ -80,17 +80,17 @@ class AuthUnitCrudTests extends AuthIntegrationTestBase {
                         + "roots were " + rootNames);
         assertTrue(rootNames.size() >= 2, "the tree must hold at least the two roots");
 
-        jdbcTemplate.update("UPDATE auth.unit_info SET deleted = 1 WHERE id = ?", createdId);
+        jdbcTemplate.update("UPDATE auth.org_info SET deleted = 1 WHERE id = ?", createdId);
     }
 
     @Test
-    void childUnitNestsUnderHospitalRootAfterCreateAndRename() throws Exception {
+    void childOrgNestsUnderHospitalRootAfterCreateAndRename() throws Exception {
         String token = adminToken();
         long ts = System.currentTimeMillis();
         String childName = "二级机构_" + ts; // unique - shared DB
         String renamedName = "二级机构改名_" + ts;
 
-        ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, UNITS_URL,
+        ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, ORGS_URL,
                 "{\"upId\":1,\"type\":1,\"name\":\"" + childName + "\"}", token);
         JsonNode createBody = parse(createResponse);
         assertEquals("200", createBody.path("code").asText(),
@@ -98,13 +98,13 @@ class AuthUnitCrudTests extends AuthIntegrationTestBase {
         int createdId = createBody.path("data").asInt(-1);
         assertTrue(createdId > 0, "the created child id must come back");
 
-        ResponseEntity<String> renameResponse = exchangeJson(HttpMethod.PUT, UNITS_URL + "/" + createdId,
+        ResponseEntity<String> renameResponse = exchangeJson(HttpMethod.PUT, ORGS_URL + "/" + createdId,
                 "{\"name\":\"" + renamedName + "\"}", token);
         JsonNode renameBody = parse(renameResponse);
         assertEquals("200", renameBody.path("code").asText(),
                 "the rename (partial update) must succeed: " + renameBody);
 
-        ResponseEntity<String> treeResponse = exchangeJson(HttpMethod.GET, UNITS_URL + "/tree", null, token);
+        ResponseEntity<String> treeResponse = exchangeJson(HttpMethod.GET, ORGS_URL + "/tree", null, token);
         JsonNode treeBody = parse(treeResponse);
         assertEquals("200", treeBody.path("code").asText(), "the tree query must succeed: " + treeBody);
 
@@ -116,20 +116,20 @@ class AuthUnitCrudTests extends AuthIntegrationTestBase {
                 "the created child must nest under the hospital root with the renamed title; "
                         + "children were " + childNames);
 
-        jdbcTemplate.update("UPDATE auth.unit_info SET deleted = 1 WHERE id = ?", createdId);
+        jdbcTemplate.update("UPDATE auth.org_info SET deleted = 1 WHERE id = ?", createdId);
     }
 
     @Test
-    void createUnitUnderUnknownParentRejectedWithA0400() throws Exception {
+    void createOrgUnderUnknownParentRejectedWithA0400() throws Exception {
         String token = adminToken();
         long ts = System.currentTimeMillis();
 
-        ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, UNITS_URL,
+        ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, ORGS_URL,
                 "{\"upId\":987654321,\"name\":\"孤儿机构_" + ts + "\"}", token);
         assertEquals(200, createResponse.getStatusCodeValue());
         JsonNode createBody = parse(createResponse);
         assertEquals("A0400", createBody.path("code").asText(),
-                "a non-existent parent unit must be rejected service-side (unit_info has no "
+                "a non-existent parent org must be rejected service-side (org_info has no "
                         + "self-FK, tree integrity is service-level): " + createBody);
     }
 
