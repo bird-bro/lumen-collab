@@ -19,7 +19,7 @@ import org.springframework.test.context.DynamicPropertySource;
  *   <li>bootstraps the server at most once per JVM: {@code CREATE DATABASE} guarded by a
  *       {@code pg_database} existence check, then {@code CREATE SCHEMA IF NOT EXISTS auth}
  *       ({@link AuthTestServerBootstrap});</li>
- *   <li>injects the application datasource ({@code currentSchema=auth}), Redis, and
+ *   <li>injects the application datasource ({@code currentSchema=auth,public}), Redis, and
  *       Flyway properties via {@code @DynamicPropertySource} - so Flyway executes its
  *       migrations against the real database and the token state lands in the server's
  *       Redis.</li>
@@ -58,9 +58,11 @@ public abstract class AuthIntegrationTestBase {
 
         AuthTestServerBootstrap.ensureDatabaseAndSchema(pgHost, pgPort, pgUser, pgPassword, database);
 
-        // Application datasource: the lumen database through the auth schema.
+        // Application datasource: the lumen database through the auth schema first,
+        // then the shared public schema (design D1 - the four public system tables
+        // resolve behind the service's own schema).
         registry.add("spring.datasource.url", () -> "jdbc:postgresql://" + pgHost + ":"
-                + pgPort + "/" + database + "?currentSchema=auth");
+                + pgPort + "/" + database + "?currentSchema=auth,public");
         registry.add("spring.datasource.username", () -> pgUser);
         registry.add("spring.datasource.password", () -> pgPassword);
 

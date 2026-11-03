@@ -44,7 +44,7 @@
 
     <select id="getLogInfoPage" parameterType="org.birdbro.framework.log.request.LogRequest" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"></include>
-            FROM ice.log_info
+            FROM log_info
         WHERE deleted = 0
             <if test="req.account!= null and req.account!= ''">
                 AND account = #{req.account}
@@ -58,7 +58,7 @@
 
 
     <insert id="insertInfo" parameterType="org.birdbro.framework.log.entity.LogInfoEntity">
-        INSERT INTO ice.log_info (
+        INSERT INTO log_info (
                                    date_ym, title, descr, type, uid, account, action_time, spent, method, name, pack,
                                    url, session, mobile, ip, os, browser, engine, record, param, result, exception, app
                                    )

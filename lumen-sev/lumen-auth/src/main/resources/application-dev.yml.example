@@ -7,7 +7,7 @@ spring:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: org.postgresql.Driver
     druid:
-      url: jdbc:postgresql://<PG_HOST>:<PG_PORT>/lumen?currentSchema=auth
+      url: jdbc:postgresql://<PG_HOST>:<PG_PORT>/lumen?currentSchema=auth,public
       username: <PG_USER>
       password: <PG_PASSWORD>
       initial-size: 5

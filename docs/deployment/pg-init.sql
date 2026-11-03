@@ -22,3 +22,20 @@ CREATE SCHEMA IF NOT EXISTS integration;
 -- GRANT ALL ON ALL TABLES IN SCHEMA auth TO lumen_auth_role;
 -- GRANT ALL ON ALL SEQUENCES IN SCHEMA auth TO lumen_auth_role;
 -- ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT ALL ON TABLES TO lumen_auth_role;
+
+-- =====================================================================
+-- 六、public 共享系统表授权（system-data，2026-11-03）
+-- =====================================================================
+-- 平台共享系统表落在 public schema（四表由 lumen-auth 的 Flyway V3__system_data.sql
+-- 一次性创建，其余服务 Flyway 不携带）：字典 dict_catal / dict_detail + 日志
+-- log_info / log_sign。六个服务角色均可读写（D1：各服务连接串同构
+-- currentSchema=<own>,public）；各服务私有 schema 的表仍互不可见（隔离不受影响）。
+-- 注意：GRANT 生效前角色须先存在（见上文角色块）；PG15+ 访问 public 下的表还需
+-- 对该 schema 授 USAGE：
+-- GRANT USAGE ON SCHEMA public
+--   TO lumen_auth_role, lumen_patient_role, lumen_radiology_role,
+--      lumen_us_role, lumen_endo_role, lumen_integration_role;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON
+--   public.dict_catal, public.dict_detail, public.log_info, public.log_sign
+--   TO lumen_auth_role, lumen_patient_role, lumen_radiology_role,
+--      lumen_us_role, lumen_endo_role, lumen_integration_role;

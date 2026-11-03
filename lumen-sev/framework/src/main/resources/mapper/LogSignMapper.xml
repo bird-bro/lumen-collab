@@ -34,7 +34,7 @@
 
     <select id="getLogSignPage" parameterType="org.birdbro.framework.log.request.LogRequest" resultMap="BaseResultMap">
         SELECT <include refid="Base_Column_List"></include>
-            FROM ice.log_sign
+            FROM log_sign
         WHERE deleted = 0
         <if test="req.account!= null and req.account!= ''">
             AND account = #{req}
@@ -48,7 +48,7 @@
 
 
     <insert id="insertSign" parameterType="org.birdbro.framework.log.entity.LogSignEntity">
-        INSERT INTO ice.log_sign (
+        INSERT INTO log_sign (
                                   date_ym,msg,descr,type,uid,account,action_time,mobile,ip,os,
                                   browser,engine,session,token,app
                                   )

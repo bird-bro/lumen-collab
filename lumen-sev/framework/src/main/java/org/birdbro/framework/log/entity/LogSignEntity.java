@@ -20,7 +20,7 @@ import java.util.Date;
  * @author birdbro
  * @since 2024-11-01
  */
-@TableName("ice.log_sign")
+@TableName("log_sign")
 @Data
 @Builder
 @AllArgsConstructor
