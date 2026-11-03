@@ -9,7 +9,9 @@ import java.util.Set;
 
 import org.birdbro.common.core.pojo.IdList;
 import org.birdbro.common.core.pojo.user.MenuTree;
+import org.birdbro.framework.dict.entity.DictCatalEntity;
 import org.birdbro.framework.dict.entity.DictDetailEntity;
+import org.birdbro.framework.dict.service.IDictCatalService;
 import org.birdbro.framework.dict.service.IDictDetailService;
 import org.birdbro.lumen.auth.entity.OrgInfo;
 import org.birdbro.lumen.auth.entity.UserInfo;
@@ -62,6 +64,51 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
 
     @Autowired
     private IDictDetailService dictDetailService;
+
+    @Autowired
+    private IDictCatalService dictCatalService;
+
+    @Test
+    void dictCatalEntityRoundTripResolvesIntoPublicSchema() {
+        // system-data task 4.1 (spec scenario 8 at the data layer): the copied entity's
+        // UNQUALIFIED @TableName must resolve through currentSchema=auth,public to the
+        // shared public table - the insert lands there and selects back.
+        String code = "ut.dictcatal." + System.currentTimeMillis(); // unique - shared DB
+        DictCatalEntity catal = DictCatalEntity.builder()
+                .code(code)
+                .name("数据层往返目录")
+                .enable(1)
+                .sort(0)
+                .build();
+        assertTrue(dictCatalService.save(catal), "the dict_catal insert must succeed");
+        assertNotNull(catal.getId(), "IdType.AUTO must backfill the database-generated id");
+        assertTrue(catal.getId() > 2,
+                "the sequence must run past the seeded ids 1/2 (V3 setval advance)");
+
+        DictCatalEntity loaded = dictCatalService.getById(catal.getId());
+        assertNotNull(loaded, "the inserted catalog must select back");
+        assertEquals(code, loaded.getCode());
+        assertEquals("数据层往返目录", loaded.getName());
+        assertEquals(Integer.valueOf(1), loaded.getEnable());
+
+        // The unqualified write landed in PUBLIC: found via the explicitly qualified read.
+        Integer inPublic = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM public.dict_catal WHERE id = ?",
+                Integer.class, catal.getId());
+        assertEquals(Integer.valueOf(1), inPublic,
+                "the entity row must live in public.dict_catal (design D1 search_path resolution)");
+
+        // And no auth-schema shadow table exists that could have caught the write first.
+        Integer inAuth = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.tables "
+                + "WHERE table_schema = 'auth' AND table_name = 'dict_catal'",
+                Integer.class);
+        assertEquals(Integer.valueOf(0), inAuth,
+                "no auth.dict_catal shadow table may exist - the unqualified name must resolve to public");
+
+        dictCatalService.removeById(catal.getId()); // logical cleanup - shared DB
+        assertNull(dictCatalService.getById(catal.getId()), "cleanup must hide the catalog");
+    }
 
     @Test
     void dictDetailServiceCollectsSeededLiveDetails() {

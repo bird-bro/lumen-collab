@@ -63,4 +63,17 @@ public interface IDictDetailService extends IService<DictDetailEntity> {
      * @return:
      **/
     IPage<DictDetailEntity> getPage(DetailQuery query);
+
+
+    /**
+     * 按 caCode 列出该目录的启用（enable=1）明细，sort 升序（sort 相同按 id 稳定）；
+     * {@code @TableLogic} 滤已删。lumen 字典明细端点 GET /list?caCode= 的数据源
+     * （system-data task 3.1；加法式新方法，原 getPage 按 caId 过滤保持不动）。
+     *
+     * @author: birdbro
+     * @since: 2026-11-03
+     * @param: caCode 目录编码（dict_catal.code，冗余锚点）
+     * @return: 启用明细列表
+     **/
+    List<DictDetailEntity> listByCaCode(String caCode);
 }

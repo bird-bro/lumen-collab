@@ -6,12 +6,15 @@ import java.util.Set;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
+import org.birdbro.common.Constants.Constants;
 import org.birdbro.common.core.pojo.user.MenuTree;
 import org.birdbro.common.core.pojo.user.UserLogin;
 import org.birdbro.common.core.pojo.user.UserSign;
 import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
 import org.birdbro.common.utils.SecurityUtils;
+import org.birdbro.framework.manager.AsyncManager;
+import org.birdbro.framework.manager.factory.AsyncFactory;
 import org.birdbro.framework.security.TokenService;
 import org.birdbro.lumen.auth.dto.LoginResponse;
 import org.birdbro.lumen.auth.dto.MeResponse;
@@ -33,6 +36,11 @@ import org.springframework.stereotype.Service;
  * codes follow the copied {@code ExceptionEnum}: A0201 unknown account, A0202 disabled
  * account, A0210 wrong password - the copied {@code GlobalExceptionHandler} renders each
  * as the A-class envelope with {@code data} null.
+ *
+ * <p>Sign events (system-data task 3.4): BOTH outcomes append a {@code public.log_sign}
+ * row through {@code AsyncFactory.recordForSign} - success with the session identity,
+ * failure recorded then RETHROWN so the envelope behavior is unchanged - symmetric to
+ * the copied {@code LogoutSuccessHandlerImpl}'s wired sign-out event.</p>
  *
  * <p>The {@link UserLogin} stored in Redis carries identity only: {@link UserSign} is
  * built WITHOUT the password hash, so no secret ever reaches Redis or the responses
@@ -68,35 +76,77 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginResponse login(String username, String rawPassword) {
+        // Resolved BEFORE the try: the failure branches know the account row (when it
+        // exists) for the sign-event uid. TableLogic appends deleted = 0, so a logically
+        // deleted account is "unknown".
         UserInfo user = userInfoMapper.selectOne(
                 new LambdaQueryWrapper<UserInfo>().eq(UserInfo::getUsername, username));
+        try {
+            if (user == null) {
+                throw new BusinessException(ExceptionEnum.ERROR_A0201);
+            }
+            if (!Integer.valueOf(1).equals(user.getEnable())) {
+                throw new BusinessException(ExceptionEnum.ERROR_A0202);
+            }
+            if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+                throw new BusinessException(ExceptionEnum.ERROR_A0210);
+            }
+
+            UserSign sign = new UserSign();
+            sign.setUid(user.getId());
+            sign.setAccount(user.getUsername());
+            sign.setName(user.getName());
+            sign.setEnable(user.getEnable());
+            UserLogin loginUser = new UserLogin(user.getId(), sign, permissionSet(user.getId()));
+            // createToken RETURNS the signed JWT; the UUID it stashes on loginUser is the
+            // Redis session key - only the returned string may leave as data.token.
+            String jwt = tokenService.createToken(loginUser);
+
+            // Sign-event wiring (system-data task 3.4): the success twin of the copied
+            // LogoutSuccessHandlerImpl's recordForSign call. Event constant: the copied
+            // Constants carry no SIGN_IN - the generic SUCCESS(10)/FAIL(11) pair is the
+            // recorded selection (SIGN_OUT=12 stays the logout event); the UserLogin arg
+            // supplies uid + the session token anchor (UUID, not the JWT).
+            AsyncManager.me().execute(AsyncFactory.recordForSign(
+                    user.getUsername(),
+                    Constants.SUCCESS,
+                    "Sign-IN",
+                    "登录成功，用户" + user.getUsername(),
+                    loginUser));
+
+            LoginResponse response = new LoginResponse();
+            response.setToken(jwt);
+            response.setProfile(toProfile(user));
+            response.setMenus(menuTree(user.getId()));
+            response.setPerms(permissionSet(user.getId()));
+            return response;
+        } catch (BusinessException e) {
+            // Sign-event wiring (system-data task 3.4): record then RETHROW - the A-class
+            // envelope behavior is unchanged.
+            recordFailedSign(username, user, e);
+            throw e;
+        }
+    }
+
+    /**
+     * Records the failed sign-in (the {@code Constants.FAIL} event) and rethrows nothing -
+     * the caller rethrows the ORIGINAL exception so the envelope stays byte-identical.
+     * The login loop has no UserLogin session yet: a minimal attempt identity (uid only)
+     * is built when the account row exists, so the failure row still carries the uid;
+     * the UNKNOWN-account branch passes NO UserLogin at all - {@code recordForSign}
+     * tolerates the absent varargs ({@code new UserLogin()} - uid/token land null).
+     */
+    private void recordFailedSign(String username, UserInfo user, BusinessException e) {
+        String descr = "登录失败：" + e.getMessage();
         if (user == null) {
-            // TableLogic appends deleted = 0, so a logically deleted account is "unknown".
-            throw new BusinessException(ExceptionEnum.ERROR_A0201);
+            AsyncManager.me().execute(AsyncFactory.recordForSign(
+                    username, Constants.FAIL, "Sign-IN", descr));
+            return;
         }
-        if (!Integer.valueOf(1).equals(user.getEnable())) {
-            throw new BusinessException(ExceptionEnum.ERROR_A0202);
-        }
-        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
-            throw new BusinessException(ExceptionEnum.ERROR_A0210);
-        }
-
-        UserSign sign = new UserSign();
-        sign.setUid(user.getId());
-        sign.setAccount(user.getUsername());
-        sign.setName(user.getName());
-        sign.setEnable(user.getEnable());
-        UserLogin loginUser = new UserLogin(user.getId(), sign, permissionSet(user.getId()));
-        // createToken RETURNS the signed JWT; the UUID it stashes on loginUser is the
-        // Redis session key - only the returned string may leave as data.token.
-        String jwt = tokenService.createToken(loginUser);
-
-        LoginResponse response = new LoginResponse();
-        response.setToken(jwt);
-        response.setProfile(toProfile(user));
-        response.setMenus(menuTree(user.getId()));
-        response.setPerms(permissionSet(user.getId()));
-        return response;
+        UserLogin attempt = new UserLogin();
+        attempt.setUserId(user.getId());
+        AsyncManager.me().execute(AsyncFactory.recordForSign(
+                username, Constants.FAIL, "Sign-IN", descr, attempt));
     }
 
     @Override

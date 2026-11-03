@@ -37,7 +37,7 @@
             FROM log_sign
         WHERE deleted = 0
         <if test="req.account!= null and req.account!= ''">
-            AND account = #{req}
+            AND account = #{req.account}
         </if>
         <if test="req.operateStartTime != null and req.operateEndTime != ''">
             AND (action_time BETWEEN to_timestamp(#{req.operateStartTime}, 'YYYY-MM-DD HH24:MI:MS')

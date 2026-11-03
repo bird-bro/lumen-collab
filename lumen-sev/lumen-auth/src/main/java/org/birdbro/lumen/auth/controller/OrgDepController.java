@@ -7,6 +7,8 @@ import javax.validation.Valid;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 
+import org.birdbro.common.annotation.Log;
+
 import org.birdbro.lumen.auth.dto.CreateOrgDepRequest;
 import org.birdbro.lumen.auth.dto.UpdateOrgDepRequest;
 import org.birdbro.lumen.auth.entity.OrgDep;
@@ -50,6 +52,7 @@ public class OrgDepController {
     }
 
     /** Creates a department for a org node (FK validated service-side); returns the new id. */
+    @Log(title = "科室管理", type = "新增")
     @ApiOperation("创建科室（FK 机构）")
     @PostMapping
     public Integer create(@Valid @RequestBody CreateOrgDepRequest request) {
@@ -57,6 +60,7 @@ public class OrgDepController {
     }
 
     /** Partial update: re-anchor / change code / rename (null fields skipped). */
+    @Log(title = "科室管理", type = "修改")
     @ApiOperation("科室部分更新（改挂机构/编码/名称）")
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id, @Valid @RequestBody UpdateOrgDepRequest request) {
@@ -64,6 +68,7 @@ public class OrgDepController {
     }
 
     /** Logical delete ({@code @TableLogic}: {@code UPDATE deleted = 1}). */
+    @Log(title = "科室管理", type = "删除")
     @ApiOperation("逻辑删除科室")
     @DeleteMapping("/{id}")
     public Boolean delete(@PathVariable Integer id) {

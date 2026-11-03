@@ -99,6 +99,21 @@ public class DictDetailServiceImpl extends ServiceImpl<DictDetailMapper, DictDet
     }
 
 
+    /**
+     * lumen 1/0 启用语义（与 mapByCatalIds/valueMapByCatalId 同款适配）；加法式新方法，
+     * 既有 getPage（按 caId 过滤）不动。
+     */
+    @Override
+    public List<DictDetailEntity> listByCaCode(String caCode) {
+        return list(Wrappers.<DictDetailEntity>lambdaQuery()
+                .eq(DictDetailEntity::getCaCode, caCode)
+                .eq(DictDetailEntity::getEnable, 1)
+                .orderByAsc(DictDetailEntity::getSort)
+                .orderByAsc(DictDetailEntity::getId)
+        );
+    }
+
+
 
 
 
