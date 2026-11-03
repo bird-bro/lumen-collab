@@ -67,9 +67,15 @@ Any deviation beyond the recorded adaptations MUST be a recorded decision.
 - **THEN** the difference is a governance violation
 - **AND** it must be reverted or recorded as a decision
 
+<!-- synced from: system-data 2026-11-03 -->
 ### Requirement: Recorded Adaptations to the Base Modules
-Exactly the five adaptations enumerated in `design.md` D5 MAY be applied to the copied
-modules, and no other change SHALL touch them.
+The adaptations enumerated in the coordination doc (`init-project-skeleton.md`) MAY be
+applied to the shared platform layer, and no other change SHALL touch it without a
+recorded decision. The list grows only by recorded decision - as of 2026-11-03 it spans,
+among others: (6) no-gateway audit bridging + per-service anonymous paths; (7)
+`ice.`-free log table names (entities AND the log mapper XMLs - the real write path)
+resolving via `search_path = <service-schema>, public` (the 随访 precedent); (8) the
+request-context filter that lets the copied logout handler record sign events.
 
 #### Scenario: Redis is optional
 - **WHEN** a service loads its context with no Redis server available
@@ -88,6 +94,19 @@ modules, and no other change SHALL touch them.
 - **WHEN** the copied `common/pom.xml` is compared against the OPS original
 - **THEN** the `bcprov-jdk16:1.46` version literal is absent
 - **AND** `lumen-bom` manages `bcprov-jdk16:1.46`, so the resolved version is unchanged
+
+#### Scenario: No-gateway audit bridging is platform machinery
+- **WHEN** a service with authenticated writes handles an INSERT
+- **THEN** `MetaObjectConfig` fills `create_by` from the USER-HEADER bridged by the
+  framework `UserHeaderBridgeFilter` (present in every service via component scan)
+- **AND** anonymous paths come from the service's `security.permit-all` config
+
+#### Scenario: Log entities resolve without the ice schema
+- **WHEN** the copied `framework/log` entities (`LogInfoEntity`/`LogSignEntity`) run
+  against the lumen database
+- **THEN** their table names are unqualified (`log_info`/`log_sign`) and resolve through
+  the connection's search_path to the `public` schema
+- **AND** no `ice` schema exists in lumen
 
 ### Requirement: Shared Library Boundary
 `framework`, `common`, and the future `lumen-exam-core` SHALL be non-executable library
