@@ -10,7 +10,7 @@ stacks:
   backend:
     dir: lumen-sev
     build: ./mvnw compile -q    # JDK 11; wrapper pins Maven 3.9.9 (see lumen-sev/CLAUDE.md Build Commands)
-    test: ./mvnw test -q        # lumen-auth tests need the team test server via gitignored lumen-sev/.env-test.local (unconfigured = explicit failure); framework/common tests stay zero-dependency
+    test: ./mvnw test -q        # lumen-system tests need the team test server via gitignored lumen-sev/.env-test.local (unconfigured = explicit failure); framework/common tests stay zero-dependency
   lumen-web:
     dir: lumen-web
     build: pnpm build

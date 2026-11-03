@@ -35,7 +35,7 @@ These are the contracts both stacks must agree on. They are already normative in
 | Entry / Service | Port | Note |
 |:--|:--|:--|
 | **nginx** (unified API entry + SPA static) | 80 / 443 | the only inbound route; there is **no Java gateway** |
-| `lumen-auth` | 8081 | |
+| `lumen-system` | 8081 | |
 | `lumen-web` dev server | 5173 | proxies `/api/v1` to the nginx entry |
 
 Ports for patient / ris / integration are **not** allocated here - the changes that create

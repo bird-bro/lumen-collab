@@ -1,0 +1,16 @@
+package org.birdbro.lumen.system.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Mapper;
+import org.birdbro.lumen.system.entity.UserInfo;
+
+/**
+ * MyBatis-Plus mapper for {@code user_info} (auth-rbac-foundation task 2.3). Declared
+ * with {@code @Mapper} to match the copied framework's {@code LogInfoMapper} precedent;
+ * AuthApplication's {@code @MapperScan("org.birdbro.**.mapper")} covers it regardless.
+ *
+ * @author birdbro
+ */
+@Mapper
+public interface UserInfoMapper extends BaseMapper<UserInfo> {
+}

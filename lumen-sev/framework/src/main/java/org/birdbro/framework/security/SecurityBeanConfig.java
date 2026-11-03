@@ -10,7 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
  * fields. Note: the copied {@code SecurityConfig} pins its OWN {@code NoOpPasswordEncoder}
  * on the {@code AuthenticationManagerBuilder} (OPS MD5 lineage, manual compare in the
  * {@code UserDetailsService}) - this bean is independent of that wiring and is consumed
- * by-type by services that hash passwords (lumen-auth login + user management).
+ * by-type by services that hash passwords (lumen-system login + user management).
  *
  * @author birdbro
  */

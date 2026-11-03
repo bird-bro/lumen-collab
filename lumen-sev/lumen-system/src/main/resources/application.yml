@@ -1,0 +1,73 @@
+# lumen-system local configuration (随访 fu-launch shape - user decision 2026-11-03,
+# design D8: no Nacos anywhere; local files only).
+#   - THIS FILE is committed and carries NO credentials - framework-demanded feature
+#     values plus safe local defaults only.
+#   - Credentials / environment endpoints live in the GITIGNORED application-dev.yml
+#     (template: application-dev.yml.example, same pattern as fu_sev).
+# Service identity per specs/service-topology "Service Identity":
+# spring.application.name = module name, port 8081.
+server:
+  port: 8081
+
+spring:
+  application:
+    name: lumen-system
+  profiles:
+    active: dev                 # the dev profile (gitignored file) carries datasource/redis
+  flyway:
+    # Migration ledger + unqualified DDL are pinned to THIS service's own schema
+    # (user ruling 2026-11-03: flyway_schema_history stays in the service schema,
+    # never public). Explicit values make a misconfigured connection URL
+    # (e.g. currentSchema=public) fail loudly instead of silently migrating public.
+    schemas: system
+    default-schema: system
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher   # springfox 3.0 requirement on Boot 2.5
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss    # data spec: audit timestamps serialize GMT+8
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# JWT login state - demanded by framework/security/TokenService (@Value token.*).
+token:
+  header: Authorization         # clients send "Authorization: Bearer <jwt>"
+  # HS512-grade signing secret (>=64 chars) - PLACEHOLDER, production MUST replace it
+  # (env var or gitignored profile; never commit a real secret).
+  secret: lumen-collab-jwt-secret-change-me-in-production-0123456789abcdef
+  expireTime: 1440              # minutes; TokenService slides the Redis expiry
+
+# Service-declared anonymous paths (framework AnonymousPathCustomizer, lumen adaptation (6)):
+# the JWT issuer owns the login endpoint - the ONLY path needing no authentication.
+# Every other path (including /system/me) stays token-guarded by the copied chain
+# (rejected with the "203" envelope when tokenless).
+security:
+  permit-all:
+    - /api/v1/system/login
+
+# XSS filter - demanded by framework/config/FilterConfig (@Value xss.*).
+xss:
+  enabled: true
+  excludes: /css/*,/js/*,/images/*
+  urlPatterns: /*
+
+# Unified envelope advice exclusions - framework GlobalProperties (prefix "dispose").
+dispose:
+  adviceFilterPackage:
+    - springfox.documentation
+    - org.springframework
+
+logging:
+  level:
+    org.birdbro: debug
+  file:
+    name: ./logs/lumen-system.log

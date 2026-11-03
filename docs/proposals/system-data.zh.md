@@ -10,7 +10,7 @@ schema；Java 侧独立于 auth、与 log 的 framework 归属对称）：
 
 1. **字典**：`public.dict_catal`/`dict_detail`（随访验证的形状：caId+caCode 双锚点、
    label/value/color/css），从 OPS `manage/dict` 加法式拷入 `framework/dict/`，管理端点
-   归 lumen-auth；种子 `common_status` 起步。
+   归 lumen-system；种子 `common_status` 起步。
 2. **日志**：拷贝件机器全套在 `framework/log` 但实体指着不存在的 `ice.` schema——本次
    去前缀（**适配 (7)**，随访先例）+ `V3` 建 `public.log_info`/`log_sign` + `@Log` 接线
    管理写端点 + 分页查询端点。
@@ -19,11 +19,11 @@ schema；Java 侧独立于 auth、与 log 的 framework 归属对称）：
 
 | 路径 | 角色 |
 |:--|:--|
-| `lumen-sev/lumen-auth/src/main/resources/db/migration/V3__system_data.sql` | 四张 public 表 + 种子（新建） |
+| `lumen-sev/lumen-system/src/main/resources/db/migration/V3__system_data.sql` | 四张 public 表 + 种子（新建） |
 | `lumen-sev/framework/log/entity/*.java` | 去 `ice.` 前缀（适配 (7)，改 2 文件） |
 | `lumen-sev/framework/dict/**` | 加法式拷入（新建，entity/mapper/service/助手） |
-| `lumen-sev/lumen-auth/.../controller/Dict*Controller` `LogController` | 管理端点（新建） |
-| `lumen-sev/lumen-auth/src/main/resources/application.yml` | `currentSchema=auth,public` |
+| `lumen-sev/lumen-system/.../controller/Dict*Controller` `LogController` | 管理端点（新建） |
+| `lumen-sev/lumen-system/src/main/resources/application.yml` | `currentSchema=system,public` |
 | `docs/deployment/pg-init.sql` | public 系统表 GRANT 模板增补 |
 
 ## 下一步动作建议

@@ -12,12 +12,12 @@ import lombok.Data;
  * 2026-11-03: framework/common may evolve on the OPS lineage). The copied
  * {@code SecurityConfig} keeps the OPS hardcoded {@code permitAll} list verbatim; each
  * lumen service declares the anonymous paths it OWNS through this property instead of
- * a per-service security config class - e.g. lumen-auth:
+ * a per-service security config class - e.g. lumen-system:
  *
  * <pre>
  * security:
  *   permit-all:
- *     - /api/v1/auth/login
+ *     - /api/v1/system/login
  * </pre>
  *
  * <p>Bound by {@link AnonymousPathCustomizer} via {@code @EnableConfigurationProperties}.

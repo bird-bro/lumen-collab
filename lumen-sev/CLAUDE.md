@@ -9,7 +9,7 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 ## Project Overview
 - **System**: lumen-collab - open-source medical imaging collaboration platform (RIS v1; pairs with dcm4chee-arc-light)
 - **Stack**: Java 11 + Spring Boot 2.5.15 + Spring Cloud 2020.0.3 + Spring Cloud Alibaba 2021.1 + OpenFeign + MyBatis-Plus + Flyway (OPS-verified train - all versions come from `lumen-bom`, copied 1:1 from the OPS reference project; do not change versions without a new proposal)
-- **Database**: PostgreSQL - one shared database `lumen`, one schema per service (`auth` / `patient` / `radiology` / `us` / `endo` / `integration`), one connection role per service (user decision 2026-11-02, auth-rbac-foundation; handoff script `docs/deployment/pg-init.sql`)
+- **Database**: PostgreSQL - one shared database `lumen`, one schema per service (`system` / `patient` / `radiology` / `us` / `endo` / `integration`), one connection role per service (user decision 2026-11-02, auth-rbac-foundation; schema renamed `auth` → `system` by rename-auth-to-system, 2026-11-03; handoff script `docs/deployment/pg-init.sql`)
 
 ## Before You Code
 1. Read `../openspec/specs/api/spec.md` (authoritative contract)
@@ -22,7 +22,7 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 - `framework` + `common` - OPS-lineage shared platform layer (packages `org.birdbro.framework` / `org.birdbro.common`); base of all Servlet services; EVOLVABLE on the OPS basis per user decision 2026-11-03 - additive-first adaptations recorded in the coordination doc (six as of 2026-11-03)
 - `lumen-exam-core` - ★ exam workflow kernel: booking → registration → exam → report state machine (services + extension points, **no controllers**)
 - `lumen-api/{patient-api,integration-api}` - inter-service contracts (OpenFeign interfaces + DTO, add-only)
-- `lumen-auth` - users / roles / departments / permissions (JWT issuer) · `lumen-patient` (EMPI) · `lumen-radiology` (v1 ★, radiology) · `lumen-us` / `lumen-endo` (v2) · `lumen-integration` (DICOM MWL/MPPS SCP + HL7v2, routes by department)
+- `lumen-system` - users / roles / departments / permissions / dicts / log query (JWT issuer; renamed from lumen-auth, 2026-11-03) · `lumen-patient` (EMPI) · `lumen-radiology` (v1 ★, radiology) · `lumen-us` / `lumen-endo` (v2) · `lumen-integration` (DICOM MWL/MPPS SCP + HL7v2, routes by department)
 - **No Java gateway** - nginx is the unified API entry (`/api/v1/<service>/**`, port 80/443); Spring Cloud Gateway is a future cloud-form change
 - Packages: copied modules keep `org.birdbro.{framework,common}`; new modules use `org.birdbro.lumen.*`; layering `controller → service → mapper` per service (see `.claude/rules/naming.md`)
 - Department services depend on `lumen-exam-core` and extend it - never fork the kernel

@@ -31,7 +31,7 @@ import javax.servlet.http.HttpServletResponse;
  * <p><b>Why this filter exists:</b> the copied {@code MetaObjectConfig} fills
  * {@code create_by} from {@code SecurityUtils.getUserHeader()}, which reads the
  * {@code USER-HEADER} HTTP header - a URL-encoded JSON of the copied
- * {@code UserHeader} POJO that the OPS gateway injects on every request. lumen-auth has
+ * {@code UserHeader} POJO that the OPS gateway injects on every request. lumen-system has
  * NO gateway: the copied JWT filter populates the security context with the
  * {@link UserLogin} principal, but nothing translates that identity into the header the
  * copied audit machinery consumes. This bridge is the framework-owned translation point (lumen adaptation (6)) -

@@ -16,7 +16,7 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
   - Modules copied from OPS keep name, artifactId, and package:
     `framework` → `org.birdbro.framework`, `common` → `org.birdbro.common`.
   - New lumen modules use `org.birdbro.lumen.<module>`:
-    `org.birdbro.lumen.{auth,patient,radiology,us,endo,integration,examcore}`,
+    `org.birdbro.lumen.{system,patient,radiology,us,endo,integration,examcore}`,
     `org.birdbro.lumen.api.{patient,integration}`.
 - **framework/common evolvability** (user decision 2026-11-03, supersedes the
   verbatim-only reading of 2026-10-29): the OPS-lineage shared platform layer MAY be
@@ -26,7 +26,7 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
   the coordination doc's adaptation list (six as of 2026-11-03).
 - **In-service layering packages** (fixed): `controller / service / mapper / entity / dto`.
   The application class lives in the service root package
-  (e.g. `org.birdbro.lumen.auth.AuthApplication`); services scan `org.birdbro`
+  (e.g. `org.birdbro.lumen.system.SystemApplication`); services scan `org.birdbro`
   (OPS `LaunchApplication` habit) so shared beans from `framework`/`common` register.
 - **Module artifact names**: copied modules keep OPS names (`framework`, `common`);
   new modules are `lumen-*`. Department services use each domain's most recognizable
