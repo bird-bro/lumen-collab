@@ -4,8 +4,8 @@
 # MOD-3: phase gates read this file; MOD-4: retry_count >= 3 -> enter debugging.
 # Module-A: artifacts_hash/contract_hash for execution-contract freshness.
 # Module-SDD: execution_mode/batches_completed for subagent-driven development.
-phase: archived
-change: auth-rbac-foundation
+phase: verifying
+change: system-data
 current_task: null
 tasks_total: 16
 tasks_done: 16
@@ -13,7 +13,7 @@ retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: 7da9a9f644aa1c222ff1e1282246fbbd088977391df87feeb28d5cb565c80eaf
+artifacts_hash: 680cce0b7e2cad5fcf7d42d08b41d7629704ca9d0321cdef7a7ef9de01842d22
 contract_hash: null
 execution_mode: SDD
 batches_completed: 6
