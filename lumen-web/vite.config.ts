@@ -37,6 +37,10 @@ export default defineConfig({
     },
   },
   server: {
+    // Default dev-server port 1573 (user request 2026-11-04; vite bumps to
+    // the next free port when 1573 is taken). The /api/v1 proxy below is
+    // unaffected - it is port-agnostic on the dev-server side.
+    port: 1573,
     proxy: {
       // Unified API entry (design D3): /api/v1 goes to the nginx entry on port 80
       // per openspec/coordination/init-project-skeleton.md's port table - there is
