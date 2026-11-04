@@ -46,6 +46,26 @@ not micro-frontends.
 - **THEN** it lives under `src/pages/` alongside the department route modules
 - **AND** it uses the same typed client seam and theme tokens as the rest of the app
 
+## MODIFIED Requirements
+
+### Requirement: API Client Seam Without Invented Endpoints
+`src/api/` SHALL expose the response envelope `{ timestamp, code, msg, data }` as a typed
+contract consistent with `openspec/specs/api/spec.md`, with `code` typed as `string` and
+entity IDs typed as JSON numbers per that spec's ID Serialization requirement (Integer
+auto-increment; the former snowflake-string clause is withdrawn - user decision 2026-11-02,
+synced by rename-auth-to-system). No endpoint path MAY be declared until it exists in
+`openspec/specs/api/spec.md`.
+
+#### Scenario: Envelope type is consumed
+- **WHEN** a future API client is written against the seam
+- **THEN** it returns the typed envelope with `timestamp`, `code`, `msg`, and `data`
+- **AND** entity ID fields are typed as `number`, never `string` (per ID Serialization)
+
+#### Scenario: An endpoint is not yet specified
+- **WHEN** a page needs data that `openspec/specs/api/spec.md` does not define
+- **THEN** no endpoint path is invented in `src/api/`
+- **AND** the missing contract is raised through a proposal rather than guessed at
+
 ## ADDED Requirements
 
 ### Requirement: Dev Mock Server
