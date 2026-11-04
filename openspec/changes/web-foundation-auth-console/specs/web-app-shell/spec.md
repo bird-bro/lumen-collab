@@ -6,7 +6,8 @@
 Visual styling SHALL be driven by Ant Design 5 theme tokens carrying the duotone visual
 language (user decision 2026-11-04, revising the 2026-11-03 all-OPS-blue call): the action
 primary color is clinical teal `#0E7C86` while the navigation shell keeps the OPS deep-blue
-family (`#003676`/`#0f356a`/`#007bc2`), and the base font size is 18px per the OPS type
+family (near-black tech blue `#0B2540`, rail decision 2026-11-04), and the base font size
+is 18px per the OPS type
 scale. The primary color MUST NOT be red, because red is
 reserved for clinical alarm semantics. Ad-hoc hex values MUST NOT be used in place of tokens;
 hex literals live only in the theme token module. The bundled MiSans family is the

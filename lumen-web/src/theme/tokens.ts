@@ -12,11 +12,12 @@ type ThemeToken = NonNullable<ThemeConfig['token']>
  * Design tokens for the single AntD 5 `ConfigProvider` (design D1).
  *
  * Palette is the **duotone** decided by the user 2026-11-04 (revising the
- * 2026-11-03 all-OPS-blue call after prototype review): the layout shell keeps
- * the OPS deep-blue navigation family (tech anchor), while the ACTION primary -
- * buttons, links, information, text selection, light-menu selection - is the
- * clinical teal `#0E7C86` (hover states derive from AntD's ramp). Red stays
- * reserved for clinical alarm semantics per `lumen-web/CLAUDE.md`.
+ * 2026-11-03 all-OPS-blue call after prototype review): the layout shell uses
+ * the near-black tech blue `#0B2540` (user rail-color decision 2026-11-04,
+ * hover `#12355C`, rail selection resolves to the brand teal) while the ACTION
+ * primary - buttons, links, information, text selection, light-menu selection -
+ * is the clinical teal `#0E7C86` (hover states derive from AntD's ramp). Red
+ * stays reserved for clinical alarm semantics per `lumen-web/CLAUDE.md`.
  *
  * Light tints of the primary (`colorPrimaryBg` / `colorPrimaryBgHover` /
  * `colorPrimaryBorder`, the OPS `--primary-color-rgba1..3` equivalents) are
@@ -50,13 +51,13 @@ export const themeTokens: ThemeToken = {
  */
 const themeComponents: ThemeConfig['components'] = {
   Layout: {
-    siderBg: '#0f356a',
+    siderBg: '#0B2540',
     headerBg: '#ffffff',
   },
   Menu: {
-    darkItemBg: '#0f356a',
-    darkItemSelectedBg: '#007bc2',
-    darkItemHoverBg: '#32aef3',
+    darkItemBg: '#0B2540',
+    darkItemSelectedBg: '#0E7C86',
+    darkItemHoverBg: '#12355C',
   },
   Table: {
     headerBg: '#f0f3fa',

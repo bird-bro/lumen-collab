@@ -49,17 +49,17 @@ describe('themeConfig - OPS component tokens (design D1 mapping)', () => {
   })
 
   it('styles the layout shell with the OPS navigation blues', () => {
-    expect(themeExports).toHaveProperty('themeConfig.components.Layout.siderBg', '#0f356a')
+    expect(themeExports).toHaveProperty('themeConfig.components.Layout.siderBg', '#0B2540')
     expect(themeExports).toHaveProperty('themeConfig.components.Layout.headerBg', '#ffffff')
   })
 
   it('styles the dark menu with the OPS selected/hover blues', () => {
-    expect(themeExports).toHaveProperty('themeConfig.components.Menu.darkItemBg', '#0f356a')
+    expect(themeExports).toHaveProperty('themeConfig.components.Menu.darkItemBg', '#0B2540')
     expect(themeExports).toHaveProperty(
       'themeConfig.components.Menu.darkItemSelectedBg',
-      '#007bc2',
+      '#0E7C86',
     )
-    expect(themeExports).toHaveProperty('themeConfig.components.Menu.darkItemHoverBg', '#32aef3')
+    expect(themeExports).toHaveProperty('themeConfig.components.Menu.darkItemHoverBg', '#12355C')
   })
 
   it('styles the table chrome with the OPS header/row neutrals', () => {

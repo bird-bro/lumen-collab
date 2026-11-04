@@ -39,7 +39,8 @@ outside AntD components SHALL use the same scale (token-derived, not ad-hoc px).
 The design tokens SHALL adopt the duotone palette (user decision 2026-11-04, revising the
 2026-11-03 all-OPS-blue call after prototype review): the ACTION primary - buttons, links,
 information, text and light-menu selection - is the clinical teal `#0E7C86` (with its tints),
-while the navigation shell keeps the OPS deep-blue family `#003676`/`#0f356a`/`#007bc2`; plus
+while the navigation shell uses the near-black tech blue `#0B2540` (rail decision
+2026-11-04, hover `#12355C`, rail selection = the brand teal); plus
 the OPS neutrals for text, borders, table headers, and striped rows. All color values SHALL live only in the theme
 token module - ad-hoc hex values in components remain forbidden. The primary color MUST NOT be
 red; red stays reserved for clinical alarm semantics.
@@ -58,7 +59,8 @@ red; red stays reserved for clinical alarm semantics.
 
 ### Requirement: OPS Layout Metrics
 The application shell SHALL adopt the OPS three-region layout (user feedback 2026-11-04,
-read from the OPS layout sources): a 68px dark-blue icon main-nav rail carrying the level-1
+read from the OPS layout sources): a 68px near-black tech blue icon main-nav rail
+(user rail-color decision 2026-11-04: `#0B2540`) carrying the level-1
 menus (icon + short label, logo on top), a 60px header spanning the remaining width (product
 title left, user area right), and below the header a 160px white secondary sidebar
 (collapsible to 40px) beside the content area. Sidebar navigation SHALL render as group
@@ -70,8 +72,11 @@ identity is carried by the active sidebar item (OPS compact-list style).
 
 #### Scenario: Shell regions
 - **WHEN** the main layout renders
-- **THEN** the icon rail is 68px wide and dark blue, the header is 60px tall, and the
+- **THEN** the icon rail is 68px wide and dark blue with 26px white icons and white
+  labels (OPS rail sizes, user feedback 2026-11-04), the header is 60px tall, and the
   secondary sidebar is 160px wide (40px collapsed) and white
+- **AND** the content area padding is 10px (user-specified 2026-11-04, tighter than the OPS
+  equivalent)
 - **AND** the values trace to a single shared definition
 
 #### Scenario: Header composition
@@ -88,6 +93,8 @@ identity is carried by the active sidebar item (OPS compact-list style).
   children: leaf entries as flat items, sub-directories as group titles with their children
   as flat items beneath (user feedback 2026-11-04: the level-1 title never repeats in the
   sidebar)
+- **AND** group titles carry icons while leaf page items render text-only, per the OPS
+  sidebar (user feedback 2026-11-04)
 - **AND** no accordion submenu nesting is introduced
 
 #### Scenario: Compact list pages
