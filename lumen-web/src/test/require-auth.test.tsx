@@ -156,15 +156,22 @@ describe('index redirect (web-foundation-auth-console 5.3)', () => {
   })
 })
 
-describe('/system/** placeholder routes (web-foundation-auth-console 5.3)', () => {
-  it('renders the explicit not-implemented state with no api request', async () => {
+describe('/system/** console routes (batch 6 replaces the 5.3 placeholders)', () => {
+  it('serves the real dict page and issues its documented list request', async () => {
     useAuthStore.getState().setSession({ token: 't-login', profile: null, menus: ADMIN_MENUS, perms: [] })
-    const fetchMock = stubFetch(async () => okEnvelope({ profile: null, menus: ADMIN_MENUS, perms: [] }))
+    const fetchMock = stubFetch(async (input) => {
+      const url = String(input)
+      if (url.includes('/dicts/catal/list')) {
+        return okEnvelope({ records: [], total: 0, size: 20, current: 1, pages: 0 })
+      }
+      return okEnvelope({ profile: null, menus: ADMIN_MENUS, perms: [] })
+    })
     renderRoutes('/system/dicts')
 
-    expect(await screen.findByText(/not yet implemented/i)).toBeInTheDocument()
-    // Only the boot /me refresh ran - the placeholder itself never fetches.
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/system/me')
+    expect(await screen.findByPlaceholderText('编码 / 名称')).toBeInTheDocument()
+    // The boot /me refresh ran AND the dict page issued its documented read.
+    const urls = fetchMock.mock.calls.map(([input]) => String(input))
+    expect(urls).toContain('/api/v1/system/me')
+    expect(urls.some((url) => url.startsWith('/api/v1/system/dicts/catal/list'))).toBe(true)
   })
 })

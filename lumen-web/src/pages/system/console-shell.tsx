@@ -1,4 +1,5 @@
 import {
+  ApartmentOutlined,
   DeleteOutlined,
   EditOutlined,
   KeyOutlined,
@@ -141,6 +142,8 @@ const ACTION_ICONS = {
   remove: DeleteOutlined,
   /** 重置密码 - the prototype's key glyph (console-shell.html `.act title="重置密码"`). */
   key: KeyOutlined,
+  /** 菜单授权 - the role-assignment tree glyph (role-menus.html `.act title="菜单授权"`). */
+  assign: ApartmentOutlined,
 } as const
 
 /**
@@ -198,6 +201,7 @@ export function ConsoleTable<RowType extends object>({
   loading,
   actions,
   onRefresh,
+  onRow,
 }: {
   rowKey: (row: RowType) => number | string
   columns: TableColumnsType<RowType>
@@ -205,6 +209,7 @@ export function ConsoleTable<RowType extends object>({
   loading?: boolean
   actions?: ConsoleActionColumn<RowType>
   onRefresh?: () => void
+  onRow?: (row: RowType) => React.HTMLAttributes<HTMLTableRowElement>
 }) {
   const actionColumns: TableColumnsType<RowType> = actions
     ? [
@@ -252,6 +257,7 @@ export function ConsoleTable<RowType extends object>({
       loading={loading}
       pagination={false}
       size="middle"
+      onRow={onRow}
     />
   )
 }
