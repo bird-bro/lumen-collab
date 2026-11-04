@@ -1,0 +1,31 @@
+/**
+ * Self-hosted MiSans (Regular 400 / Medium 500 / Bold 700), copied from the
+ * OPS reference project. Microsoft YaHei is deliberately NOT bundled
+ * (licensing); the CJK fallback lives in the `fontFamily` theme token
+ * (`src/theme/tokens.ts`), not here. No hex literals in this file - colors
+ * belong to the token module only (specs/web-design-system § OPS Palette
+ * Tokens).
+ */
+@font-face {
+  font-family: 'MiSans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/MiSans-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'MiSans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/MiSans-Medium.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'MiSans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/MiSans-Bold.ttf') format('truetype');
+}
