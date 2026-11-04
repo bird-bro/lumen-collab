@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<!-- LumenCollab · web-foundation-auth-console · task 5.1 static prototype (no build, no CDN).
+     Rev.2 OPS three-zone shell (68px rail + 60px header + 160px white sidebar, fold to 40px).
+     Rev.3: sidebar = active section's children; tool row = query (left) + CirclePlus add (right);
+            icon-only actions; no info badges. Rev.4: header user area = text + 50px avatar right.
+     Rev.5/12: shell deep blue, action bright blue #3178fc (hover #5C97FD); sidebar selected =
+            blue left bar + light-blue bg; rail icons 26px/labels 16px. Rev.6: pager centered.
+     Rev.7: sidebar renders level-2 group titles (组织架构/用户权限/系统配置) + flat items;
+            grant tree synced to the three-level structure. Rev.8: main padding 10px.
+     Fonts: relative path 4 levels up to lumen-web/src/theme/fonts (verified). -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>角色管理 · LumenCollab 控制台</title>
+<style>
+/* ---------- MiSans (400/500/700) ---------- */
+@font-face{font-family:'MiSans';font-style:normal;font-weight:400;font-display:swap;
+  src:url('../../../../lumen-web/src/theme/fonts/MiSans-Regular.ttf') format('truetype')}
+@font-face{font-family:'MiSans';font-style:normal;font-weight:500;font-display:swap;
+  src:url('../../../../lumen-web/src/theme/fonts/MiSans-Medium.ttf') format('truetype')}
+@font-face{font-family:'MiSans';font-style:normal;font-weight:700;font-display:swap;
+  src:url('../../../../lumen-web/src/theme/fonts/MiSans-Bold.ttf') format('truetype')}
+
+/* ---------- tokens · mirror src/theme/tokens.ts ---------- */
+:root{
+  --colorPrimary:#3178fc; --colorInfo:#3178fc; --colorLink:#3178fc; /* rev.12: bright-blue action (teal #0E7C86 retired - single blue family) */
+  --fontSize:18px; --fontSizeSM:16px; --fontSizeLG:20px;
+  --fontFamily:'MiSans','PingFang SC','Microsoft YaHei',sans-serif;
+  --colorText:#333; --colorTextSecondary:#666; --colorTextTertiary:#999;
+  --colorBorder:#d7dbe2; --colorBgLayout:#f3f5f7;
+  --Layout-headerBg:#ffffff; --Layout-siderBg:#0f356a;
+  --Menu-darkItemBg:#0f356a; --Menu-darkItemSelectedBg:#007bc2; --Menu-darkItemHoverBg:#32aef3;
+  --Table-headerBg:#f0f3fa; --Table-rowHoverBg:#f6f6f6;
+  --Header-height:60px; --Sider-width:160px;
+  --borderRadius:6px; --borderRadiusLG:8px; --controlHeightLG:40px;
+  --colorPrimaryHover:#5C97FD; --colorPrimaryBg:rgba(49,120,252,.08);
+  --colorError:#ff4d4f; --colorSuccess:#52c41a;
+  --row-line:rgba(215,219,226,.55);
+  /* OPS shell facts (var.scss / light theme) - mirrored with OPS variable names */
+  --mainnav-width:68px;                    /* zone 1: icon rail */
+  --hide-sidebar-width:40px;               /* collapsed secondary sidebar */
+  --mainnav-background-color:#0B2540;      /* rev.11 user decision 2026-11-04: near-black tech blue (was #0f356a; tokens.ts sync by coordinator) */
+  --mainnav-item-hover:#12355C;            /* rev.11 rail hover (was Menu.darkItemHoverBg #32aef3) */
+  --mainnav-item-active:#3178fc;           /* rev.12: rail selected follows primary #3178fc */
+  --menu-active-bar:#3178fc;               /* rev.12: sidebar selected = blue left bar + light-blue chip */
+  --menu-active-bg:#EBF2FF;                /* rev.12: light-blue selected chip #EBF2FF on white sidebar */
+  --menu-text-color:#6f6f6f;               /* OPS light-theme sidebar text */
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--fontFamily);font-size:var(--fontSize);color:var(--colorText);
+  background:var(--colorBgLayout);-webkit-font-smoothing:antialiased;min-width:1180px}
+a{text-decoration:none;color:inherit}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+
+/* ============ three-zone OPS shell ============ */
+.shell{display:flex;align-items:stretch;min-height:100vh}
+
+/* ============ zone 1: 68px main-nav rail (full height, deep blue) ============ */
+.rail{flex:0 0 var(--mainnav-width);width:var(--mainnav-width);
+  background:var(--mainnav-background-color);display:flex;flex-direction:column;
+  align-items:center;padding-bottom:14px}
+.rail-logo{height:var(--Header-height);width:100%;display:grid;place-items:center;flex:0 0 auto}
+.rail-logo .mark{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  background:linear-gradient(135deg, var(--mainnav-item-active), var(--mainnav-background-color))}
+.rail-logo .mark svg{width:18px;height:18px;stroke:#fff;stroke-width:2.4;stroke-linecap:round;fill:none}
+.rail-item{width:100%;display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:12px 2px 10px;color:#fff;text-align:center;cursor:pointer; /* OPS --mainnav-color: white */
+  transition:background .18s, color .18s}
+.rail-item svg.i{width:26px;height:26px;stroke-width:1.7} /* OPS fact: main-nav svg 26px */
+.rail-item .lb{font-size:16px;line-height:1.25;max-width:64px; /* OPS mainnav label ~16px */
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+a.rail-item:hover{background:var(--mainnav-item-hover);color:#fff}
+.rail-item.active{background:var(--mainnav-item-active);color:#fff;font-weight:500}
+.rail-item.dim{color:rgba(255,255,255,.36);cursor:default}
+.rail-item.dim:hover{background:transparent;color:rgba(255,255,255,.36)}
+
+/* ============ zone 2: 60px white header (right of the rail) ============ */
+.right{flex:1;min-width:0;display:flex;flex-direction:column}
+.hdr{height:var(--Header-height);flex:0 0 var(--Header-height);
+  background:var(--Layout-headerBg);border-bottom:1px solid var(--colorBorder);
+  display:flex;align-items:center;gap:16px;padding:0 20px;position:sticky;top:0;z-index:30}
+.app-title{font-size:26px;font-weight:600; /* OPS header title fact: 26px / 600 */
+  color:var(--colorText);letter-spacing:.3px;white-space:nowrap}
+.env-chip{height:24px;padding:0 10px;border-radius:4px;background:var(--colorPrimaryBg);
+  color:var(--colorPrimary);font-size:var(--fontSizeSM);font-weight:500;
+  display:inline-flex;align-items:center}
+.hdr-right{margin-left:auto;position:relative}
+.user{display:flex;align-items:center;gap:12px;cursor:pointer;padding:5px 6px 5px 10px;
+  border-radius:var(--borderRadius);transition:background .18s}
+.user:hover{background:var(--colorBgLayout)}
+.user-info{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.user-name{font-size:var(--fontSizeSM);font-weight:500;color:var(--colorText);
+  max-width:6.5em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} /* OPS: >6 chars -> … */
+.user-org{font-size:12px;color:var(--colorTextTertiary);
+  max-width:8em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.avatar{width:50px;height:50px;border-radius:50%;color:#fff;display:grid;place-items:center;
+  font-size:20px;font-weight:500;flex:0 0 auto;
+  background:linear-gradient(135deg, var(--colorPrimary), var(--colorPrimaryHover))}
+.caret{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;
+  border-top:5px solid var(--colorTextTertiary)}
+.user-pop{position:absolute;right:0;top:calc(100% + 6px);width:250px;background:#fff;
+  border:1px solid var(--row-line);border-radius:var(--borderRadius);
+  box-shadow:0 6px 16px rgba(15,53,106,.12);padding:14px;
+  opacity:0;visibility:hidden;transform:translateY(-4px);transition:all .18s}
+.user:hover .user-pop,.user-pop:hover{opacity:1;visibility:visible;transform:none}
+.pop-info{display:flex;flex-direction:column;gap:3px;padding-bottom:12px;margin-bottom:12px;
+  border-bottom:1px solid var(--row-line)}
+.pop-logout{display:flex;align-items:center;justify-content:center;height:40px;
+  border:1px solid var(--colorBorder);border-radius:var(--borderRadius);background:#fff;
+  color:var(--colorText);font-size:var(--fontSizeSM);transition:all .15s}
+.pop-logout:hover{color:var(--colorPrimary);border-color:var(--colorPrimary);
+  background:var(--colorPrimaryBg)}
+
+/* ============ zone 3: 160px white secondary sidebar + content ============ */
+.body{flex:1;display:flex;align-items:stretch;min-height:calc(100vh - var(--Header-height))}
+.sidebar{flex:0 0 var(--Sider-width);width:var(--Sider-width);background:#fff;
+  border-right:1px solid var(--row-line);display:flex;flex-direction:column;
+  overflow:hidden;transition:flex-basis .2s, width .2s;padding-top:10px;position:relative}
+.body.folded .sidebar{flex-basis:var(--hide-sidebar-width);width:var(--hide-sidebar-width)}
+.side-item{display:flex;align-items:center;height:40px;margin:2px 8px;
+  padding:0 12px;border-radius:var(--borderRadius);color:var(--menu-text-color);
+  font-size:var(--fontSize);white-space:nowrap;transition:background .15s, color .15s}
+/* OPS sidebar.scss: item 18px / 40px row; level-3 items carry NO icon (SidebarItem
+   conditionals - menu data has none) -> pure text rows. Group titles keep 20px icons. */
+/* level-2 group title (OPS group style): 16px gray + 20px icon; 1px separator between groups */
+.side-group{display:flex;align-items:center;gap:10px;padding:14px 14px 8px;
+  color:var(--colorTextTertiary);font-size:var(--fontSizeSM);font-weight:500;white-space:nowrap}
+.side-group svg.i{width:20px;height:20px}
+.side-sep{height:1px;background:var(--row-line);margin:8px 12px}
+a.side-item:hover{background:var(--Table-headerBg);color:var(--colorText)}
+.side-item.active{background:var(--menu-active-bg);color:var(--colorPrimary);font-weight:500;
+  box-shadow:inset 3px 0 0 var(--menu-active-bar)}
+a.side-item.active:hover{background:var(--menu-active-bg);color:var(--colorPrimary)}
+.side-item.dim{color:var(--colorTextTertiary);cursor:default}
+.side-item.dim:hover{background:transparent;color:var(--colorTextTertiary)}
+/* fold / expand (OPS form, rev.9): expanded = 24px Fold icon absolutely at the sidebar
+   bottom-right (right:4px bottom:0 padding:5px, no text); collapsed = 40px vertical strip
+   with Expand icon + vertical 18px/600 text (18px column, one char per line), clickable */
+.fold-btn{position:absolute;right:4px;bottom:0;padding:5px;border:0;background:transparent;
+  color:var(--colorTextTertiary);cursor:pointer;display:grid;place-items:center;
+  border-radius:var(--borderRadius);transition:background .15s, color .15s}
+.fold-btn:hover{background:var(--Table-headerBg);color:var(--colorText)}
+.fold-btn svg.i{width:24px;height:24px} /* OPS: 24px Fold icon */
+.expand-strip{display:none;flex:1;width:40px;flex-direction:column;align-items:center;
+  justify-content:space-between;padding:12px 0;border:0;background:transparent;cursor:pointer;
+  color:var(--menu-text-color);font-family:inherit;transition:background .15s, color .15s}
+.expand-strip:hover{background:var(--Table-headerBg);color:var(--colorText)}
+.expand-strip svg.i{width:24px;height:24px}
+.strip-text{width:18px;font-size:var(--fontSize);font-weight:600;line-height:1.35;
+  word-break:break-all;text-align:center}
+.body.folded .side-group,.body.folded .side-sep,.body.folded .side-item,
+.body.folded .fold-btn{display:none}
+.body.folded .expand-strip{display:flex}
+
+/* ============ content area (OPS compact: no page-head title block) ============ */
+.main{flex:1;min-width:0;padding:10px} /* rev.8: user-set 10px */
+.panel{background:#fff;border:1px solid var(--row-line);border-radius:var(--borderRadiusLG);
+  box-shadow:0 1px 2px rgba(15,53,106,.04);overflow:hidden}
+.tool-row{display:flex;align-items:center;gap:12px;padding:12px 16px;flex-wrap:wrap;
+  border-bottom:1px solid var(--row-line)}
+.tool-row .push{margin-left:auto}
+.inp{height:var(--controlHeightLG);border:1px solid var(--colorBorder);
+  border-radius:var(--borderRadius);padding:0 12px;font-family:inherit;
+  font-size:var(--fontSize);color:var(--colorText);background:#fff;outline:none;
+  transition:border-color .2s, box-shadow .2s}
+.inp:focus{border-color:var(--colorPrimary);box-shadow:0 0 0 3px rgba(49,120,252,.12)}
+.inp::placeholder{color:var(--colorTextTertiary)}
+.f-label{color:var(--colorTextSecondary)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  height:var(--controlHeightLG);padding:0 20px;border-radius:var(--borderRadius);
+  border:1px solid var(--colorBorder);background:#fff;color:var(--colorText);
+  font-family:inherit;font-size:var(--fontSize);font-weight:500;cursor:pointer;transition:all .18s}
+.btn:hover{color:var(--colorPrimary);border-color:var(--colorPrimary)}
+.btn-primary{background:var(--colorPrimary);border-color:var(--colorPrimary);color:#fff}
+.btn-primary:hover{background:var(--colorPrimaryHover);border-color:var(--colorPrimaryHover);color:#fff}
+.btn svg.i{width:16px;height:16px}
+/* action column: icon-only link buttons (OPS el-button link + svg, text via tooltip) */
+.act-group{display:inline-flex;gap:4px}
+.act{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;
+  border-radius:var(--borderRadius);color:var(--colorLink);cursor:pointer;
+  transition:background .15s, color .15s}
+.act:hover{background:var(--colorPrimaryBg);color:var(--colorPrimaryHover)}
+.act.danger{color:var(--colorError)}
+.act.danger:hover{background:rgba(255,77,79,.08);color:var(--colorError)}
+.act svg.i{width:16px;height:16px}
+.th-act{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.th-refresh{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:4px;
+  color:var(--colorTextTertiary);cursor:pointer;transition:all .15s}
+.th-refresh:hover{color:var(--colorPrimary);background:var(--colorPrimaryBg)}
+.th-refresh svg{width:14px;height:14px}
+
+/* table */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{background:var(--Table-headerBg);color:var(--colorText);font-weight:500;
+  font-size:var(--fontSizeSM);text-align:left;padding:11px 16px;white-space:nowrap}
+.tbl td{font-size:var(--fontSize);padding:13px 16px;border-top:1px solid var(--row-line)}
+.tbl tbody tr{transition:background .15s}
+.tbl tbody tr:nth-child(even){background:var(--Table-rowHoverBg)}
+.tbl tbody tr:hover{background:var(--Table-rowHoverBg)}
+.tbl .mono{font-variant-numeric:tabular-nums}
+.tbl .mut{color:var(--colorTextSecondary)}
+.tbl-foot{border-top:1px solid var(--row-line)}
+.pager{display:flex;justify-content:center;align-items:center;gap:10px;height:60px;
+  padding:0 16px;font-size:var(--fontSizeSM);color:var(--colorTextSecondary)} /* OPS .hpage-pagination: centered, 60px */
+.tbl-note{font-size:var(--fontSizeSM);color:var(--colorTextTertiary);padding:10px 16px}
+.tag{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;
+  font-size:var(--fontSizeSM);line-height:1;border:1px solid transparent;white-space:nowrap}
+.tag-default{color:var(--colorTextSecondary);background:var(--colorBgLayout);
+  border-color:var(--colorBorder)}
+.tag-demo{color:var(--colorTextTertiary);background:transparent;border:1px dashed var(--colorBorder)}
+.tag-btn{color:var(--colorTextTertiary);background:var(--colorBgLayout);
+  border-color:var(--colorBorder);font-size:14px;height:20px;padding:0 6px}
+
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;display:flex;
+  align-items:flex-start;justify-content:center;padding-top:80px;
+  opacity:0;visibility:hidden;transition:opacity .22s}
+.overlay.show{opacity:1;visibility:visible}
+.modal{width:560px;background:#fff;border-radius:var(--borderRadiusLG);
+  box-shadow:0 12px 40px rgba(6,18,40,.22);transform:scale(.96) translateY(-10px);
+  transition:transform .22s cubic-bezier(.22,1,.36,1)}
+.overlay.show .modal{transform:none}
+.modal-hd{display:flex;align-items:center;padding:18px 24px;border-bottom:1px solid var(--row-line)}
+.modal-hd h2{font-size:var(--fontSizeLG);font-weight:500}
+.modal-x{margin-left:auto;width:32px;height:32px;border:0;background:transparent;
+  border-radius:var(--borderRadius);cursor:pointer;display:grid;place-items:center;
+  color:var(--colorTextTertiary);transition:all .15s}
+.modal-x:hover{background:var(--colorBgLayout);color:var(--colorText)}
+.modal-x svg{width:16px;height:16px;stroke-width:2}
+.modal-bd{padding:18px 24px 6px;max-height:62vh;overflow:auto}
+.modal-ft{padding:14px 24px 20px;display:flex;justify-content:flex-end;gap:12px}
+
+.callout{display:flex;gap:10px;padding:12px 14px;border-radius:var(--borderRadius);
+  background:var(--colorPrimaryBg);border:1px solid rgba(49,120,252,.25);
+  font-size:var(--fontSizeSM);line-height:1.6;color:var(--colorText);margin-bottom:16px}
+.callout svg{width:18px;height:18px;stroke:var(--colorPrimary);fill:none;
+  stroke-width:1.8;stroke-linecap:round;flex:0 0 auto;margin-top:2px}
+
+/* checkable tree (three levels after rev.7) */
+.tree{padding:2px 0 10px}
+.t-node{display:flex;align-items:center;gap:9px;height:38px;border-radius:var(--borderRadius);
+  padding:0 10px;cursor:pointer;transition:background .15s}
+.t-node:hover{background:rgba(15,53,106,.05)}
+.t-car{width:0;height:0;border-top:4px solid transparent;border-bottom:4px solid transparent;
+  border-left:5px solid var(--colorTextTertiary);transition:transform .2s;flex:0 0 auto}
+.t-node.open .t-car{transform:rotate(90deg)}
+.t-kids{margin-left:26px;padding-left:14px;border-left:1px solid var(--row-line)}
+.t-kids .t-kids{margin-left:20px}
+.t-leaf{height:36px}
+.cb{width:16px;height:16px;border-radius:3px;border:1px solid var(--colorBorder);background:#fff;
+  display:inline-grid;place-items:center;flex:0 0 auto;transition:all .15s;cursor:pointer}
+.cb:hover{border-color:var(--colorPrimary)}
+.cb.on{background:var(--colorPrimary);border-color:var(--colorPrimary)}
+.cb svg{width:11px;height:11px;stroke:#fff;stroke-width:3;fill:none;stroke-linecap:round;
+  stroke-linejoin:round;opacity:0;transition:opacity .1s}
+.cb.on svg{opacity:1}
+.t-title{color:var(--colorText)}
+.t-branch{font-weight:500}
+.t-count{margin-left:auto;font-size:var(--fontSizeSM);color:var(--colorTextTertiary)}
+
+.proto-chip{position:fixed;right:14px;bottom:12px;z-index:50;font-size:var(--fontSizeSM);
+  color:var(--colorTextTertiary);border:1px dashed var(--colorBorder);background:rgba(255,255,255,.85);
+  padding:2px 10px;border-radius:999px}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- zone 1: 68px main-nav rail, first-level items (icon over short label) -->
+  <nav class="rail">
+    <a class="rail-logo" href="index.html" title="原型导览">
+      <span class="mark"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+    </a>
+    <a class="rail-item active" href="console-shell.html" title="系统管理">
+      <svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>
+      <span class="lb">系统管理</span>
+    </a>
+    <span class="rail-item dim" title="科室工作台占位(后续批次)">
+      <svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg>
+      <span class="lb">放射科</span>
+    </span>
+    <span class="rail-item dim" title="科室工作台占位(后续批次)">
+      <svg class="i" viewBox="0 0 24 24"><path d="M3 12c2.2-4.2 4.4-4.2 6.6 0s4.4 4.2 6.6 0 3.6-3.4 4.8-1.6"/></svg>
+      <span class="lb">超声科</span>
+    </span>
+    <span class="rail-item dim" title="科室工作台占位(后续批次)">
+      <svg class="i" viewBox="0 0 24 24"><path d="M7 4c7.5 0 11.5 3.4 11.5 8s-4 8-11.5 8"/><circle cx="6" cy="4" r="2.2"/></svg>
+      <span class="lb">内镜科</span>
+    </span>
+  </nav>
+
+  <div class="right">
+    <!-- zone 2: 60px white header -->
+    <header class="hdr">
+      <div class="app-title">LumenCollab 影像协作平台</div>
+      <span class="env-chip">开发环境</span>
+      <div class="hdr-right">
+        <!-- OPS Header/index.vue: two-line text block LEFT (username / org), 50px avatar RIGHT,
+             no caret; popover = basic info + plain large logout button (personal-center rows omitted) -->
+        <div class="user" title="用户区(静态原型:悬停弹出)">
+          <div class="user-info">
+            <span class="user-name">系统管理员</span>
+            <span class="user-org">示例医院</span>
+          </div>
+          <span class="avatar">管</span>
+        </div>
+        <div class="user-pop">
+          <div class="pop-info">
+            <span class="user-name">系统管理员</span>
+            <span class="user-org">示例医院</span>
+          </div>
+          <a class="pop-logout" href="login.html">退出登录</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="body" id="shellBody">
+      <!-- zone 3: 160px white secondary sidebar - group titles + flat items -->
+      <aside class="sidebar">
+        <!-- Rev.7 menu-structure decision: 系统管理 gains three level-2 group directories
+             (组织架构 / 用户权限 / 系统配置). Sidebar renders the ACTIVE section's children:
+             level-2 directory = group title, level-3 page = flat item, 1px separators between
+             groups. Needs mock SEED_MENUS + backend V2 seed sync (backend follow-up item). -->
+        <div class="side-group">
+          <svg class="i" viewBox="0 0 24 24"><path d="M4 20h16M6 20V9l6-4.5L18 9v11"/><path d="M10 20v-5h4v5"/></svg>
+          <span class="gt">组织架构</span>
+        </div>
+        <a class="side-item" href="org-deps.html">
+          <span class="lt">机构管理</span>
+        </a>
+        <a class="side-item" href="org-deps.html">
+          <span class="lt">科室管理</span>
+        </a>
+        <div class="side-sep"></div>
+        <div class="side-group">
+          <svg class="i" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.2 8.4-7 10-3.8-1.6-7-5-7-10V6l7-3z"/></svg>
+          <span class="gt">用户权限</span>
+        </div>
+        <a class="side-item" href="console-shell.html">
+          <span class="lt">用户管理</span>
+        </a>
+        <a class="side-item active" href="role-menus.html">
+          <span class="lt">角色管理</span>
+        </a>
+        <span class="side-item dim" title="只读菜单树(含 perms)原型未单独覆盖;树形态见本页授权弹窗">
+          <span class="lt">菜单管理</span>
+        </span>
+        <div class="side-sep"></div>
+        <div class="side-group">
+          <svg class="i" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+          <span class="gt">系统配置</span>
+        </div>
+        <a class="side-item" href="dicts-logs.html">
+          <span class="lt">字典管理</span>
+        </a>
+        <a class="side-item" href="dicts-logs.html#logs">
+          <span class="lt">日志查询</span>
+        </a>
+        <button class="fold-btn" id="foldBtn" aria-expanded="true" title="收起侧栏(OPS: 右下角 Fold 图标)">
+          <svg class="i" viewBox="0 0 24 24"><path d="M5 4v16"/><path d="M19 7l-5 5 5 5M12 7l-5 5 5 5"/></svg>
+        </button>
+        <button class="expand-strip" id="expandStrip" title="展开侧栏(OPS: Expand 图标 + 竖排文字)">
+          <svg class="i" viewBox="0 0 24 24"><path d="M19 4v16"/><path d="M5 7l5 5-5 5M12 7l5 5-5 5"/></svg>
+          <span class="strip-text">系统管理</span>
+        </button>
+      </aside>
+
+      <main class="main">
+        <!-- OPS compact: tool row (query | add) then table - no page-head block -->
+        <section class="panel">
+          <div class="tool-row">
+            <span class="f-label">角色名称</span>
+            <input class="inp" style="width:220px" placeholder="请输入角色名称">
+            <button class="btn" title="查询">
+              <svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+              查询
+            </button>
+            <button class="btn btn-primary push" title="OPS add-btn:CirclePlus + 文字">
+              <svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+              新建角色
+            </button>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width:200px">角色名称</th>
+                <th style="width:110px">类型</th>
+                <th style="width:320px">备注</th>
+                <th style="width:220px">创建时间</th>
+                <th>
+                  <span class="th-act">操作
+                    <span class="th-refresh" title="刷新列表">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+                    </span>
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>系统管理员</td>
+                <td class="mono">10</td>
+                <td class="mut">seed default administrator role</td>
+                <td class="mono mut">2026-11-04 09:00:00</td>
+                <td>
+                  <span class="act-group">
+                    <a class="act" id="openGrant" title="菜单授权"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="6" height="6" rx="1"/><rect x="3" y="14" width="6" height="6" rx="1"/><path d="M13 7h8M13 17h8"/></svg></a>
+                    <a class="act" title="编辑"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l4 4L8.5 19.5H4.5v-4L15 5z"/><path d="M13 7l4 4"/></svg></a>
+                    <a class="act danger" title="删除"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5"/></svg></a>
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td>放射科技师 <span class="tag tag-demo">示意</span></td>
+                <td class="mono">20</td>
+                <td class="mut">演示用示意角色,非种子数据</td>
+                <td class="mono mut">2026-11-02 15:21:38</td>
+                <td>
+                  <span class="act-group">
+                    <a class="act" title="菜单授权"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="6" height="6" rx="1"/><rect x="3" y="14" width="6" height="6" rx="1"/><path d="M13 7h8M13 17h8"/></svg></a>
+                    <a class="act" title="编辑"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l4 4L8.5 19.5H4.5v-4L15 5z"/><path d="M13 7l4 4"/></svg></a>
+                    <a class="act danger" title="删除"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5"/></svg></a>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="tbl-note">类型列显示种子原值(系统管理员 = 10);第二行为本原型补充的示意数据。</div>
+          <div class="pager tbl-foot">共 2 条</div>
+        </section>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- menu-assignment dialog: checkable three-level tree + full-replace save (rev.7 structure) -->
+<div class="overlay" id="grantModal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-label="菜单授权">
+    <div class="modal-hd">
+      <h2>菜单授权 · 系统管理员</h2>
+      <button class="modal-x" data-close title="关闭">
+        <svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-bd">
+      <div class="callout">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11.5V16"/></svg>
+        <span>保存即<b>全量替换</b>该角色的菜单授权(对应 PUT /api/v1/system/roles/{id}/menus):
+          提交的勾选集合就是该角色的完整授权;重新打开本弹窗时显示的正是上次保存的勾选集。</span>
+      </div>
+      <div class="tree">
+        <div class="t-node open">
+          <span class="t-car"></span>
+          <span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span>
+          <span class="t-title t-branch">系统管理</span>
+          <span class="t-count">目录</span>
+        </div>
+        <div class="t-kids">
+          <div class="t-node open">
+            <span class="t-car"></span>
+            <span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span>
+            <span class="t-title t-branch">组织架构</span>
+            <span class="t-count">目录</span>
+          </div>
+          <div class="t-kids">
+            <div class="t-node t-leaf"><span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="t-title">机构管理</span></div>
+            <div class="t-node t-leaf"><span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="t-title">科室管理</span></div>
+          </div>
+
+          <div class="t-node open">
+            <span class="t-car"></span>
+            <span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span>
+            <span class="t-title t-branch">用户权限</span>
+            <span class="t-count">目录</span>
+          </div>
+          <div class="t-kids">
+            <div class="t-node t-leaf"><span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="t-title">用户管理</span></div>
+            <div class="t-node t-leaf"><span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="t-title">角色管理</span></div>
+            <div class="t-node t-leaf"><span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="t-title">菜单管理</span></div>
+          </div>
+
+          <div class="t-node open">
+            <span class="t-car"></span>
+            <span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span>
+            <span class="t-title t-branch">系统配置</span>
+            <span class="t-count">目录</span>
+          </div>
+          <div class="t-kids">
+            <div class="t-node t-leaf"><span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="t-title">字典管理</span></div>
+            <div class="t-node t-leaf"><span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span><span class="t-title">日志查询</span></div>
+          </div>
+        </div>
+
+        <div class="t-node open">
+          <span class="t-car"></span>
+          <span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span>
+          <span class="t-title t-branch">放射科</span>
+          <span class="t-count">菜单</span>
+        </div>
+        <div class="t-kids">
+          <div class="t-node t-leaf">
+            <span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span>
+            <span class="t-title">报告审核</span>
+            <span class="tag tag-btn">按钮</span>
+          </div>
+        </div>
+
+        <div class="t-node t-leaf">
+          <span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span>
+          <span class="t-title t-branch">超声科</span>
+          <span class="t-count">菜单</span>
+        </div>
+        <div class="t-node t-leaf">
+          <span class="cb on"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></span>
+          <span class="t-title t-branch">内镜科</span>
+          <span class="t-count">菜单</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn" data-close>取消</button>
+      <button class="btn btn-primary">保存授权</button>
+    </div>
+  </div>
+</div>
+
+<span class="proto-chip">静态原型 · 任务 5.1</span>
+
+<script>
+// Demo-only: dialog open/close + checkbox toggle + sidebar fold. Static, no network.
+(function () {
+  var overlay = document.getElementById('grantModal');
+  document.getElementById('openGrant').addEventListener('click', function () {
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+  });
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay || e.target.closest('[data-close]')) {
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && overlay.classList.contains('show')) {
+      overlay.classList.remove('show');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+  });
+  overlay.querySelectorAll('.cb').forEach(function (cb) {
+    cb.addEventListener('click', function () { cb.classList.toggle('on'); });
+  });
+  overlay.querySelectorAll('.t-node:not(.t-leaf)').forEach(function (n) {
+    n.addEventListener('click', function (e) {
+      if (e.target.closest('.cb')) return;
+      n.classList.toggle('open');
+    });
+  });
+  var bodyEl = document.getElementById('shellBody');
+  function toggleFold() {
+    bodyEl.classList.toggle('folded');
+    document.getElementById('foldBtn').setAttribute('aria-expanded',
+      bodyEl.classList.contains('folded') ? 'false' : 'true');
+  }
+  document.getElementById('foldBtn').addEventListener('click', toggleFold);
+  document.getElementById('expandStrip').addEventListener('click', toggleFold);
+})();
+</script>
+</body>
+</html>

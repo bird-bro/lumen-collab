@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<!-- LumenCollab · web-foundation-auth-console · task 5.1 static prototype (no build, no CDN).
+     Fonts load via RELATIVE path: this file sits 4 levels below the repo root, hence
+     ../../../../lumen-web/src/theme/fonts/*.ttf (verified depth - not the brief's 3).
+     All token values mirror lumen-web/src/theme/tokens.ts 1:1 (see README.md table). -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登录 · LumenCollab 影像协作平台</title>
+<style>
+/* ---------- MiSans (400/500/700) - bundled assets, relative to this file ---------- */
+@font-face{font-family:'MiSans';font-style:normal;font-weight:400;font-display:swap;
+  src:url('../../../../lumen-web/src/theme/fonts/MiSans-Regular.ttf') format('truetype')}
+@font-face{font-family:'MiSans';font-style:normal;font-weight:500;font-display:swap;
+  src:url('../../../../lumen-web/src/theme/fonts/MiSans-Medium.ttf') format('truetype')}
+@font-face{font-family:'MiSans';font-style:normal;font-weight:700;font-display:swap;
+  src:url('../../../../lumen-web/src/theme/fonts/MiSans-Bold.ttf') format('truetype')}
+
+/* ---------- tokens · mirror src/theme/tokens.ts ---------- */
+:root{
+  /* global tokens (tokens.ts themeTokens) - rev.12: bright-blue action (teal retired) */
+  --colorPrimary:#3178fc;
+  --colorInfo:#3178fc;
+  --colorLink:#3178fc;
+  --fontSize:18px;
+  --fontSizeSM:16px;
+  --fontSizeLG:20px;
+  --fontFamily:'MiSans','PingFang SC','Microsoft YaHei',sans-serif;
+  --colorText:#333;
+  --colorTextSecondary:#666;
+  --colorTextTertiary:#999;
+  --colorBorder:#d7dbe2;
+  --colorBgLayout:#f3f5f7;
+  /* component tokens (tokens.ts themeComponents) */
+  --Layout-headerBg:#ffffff;
+  --Layout-siderBg:#0f356a;
+  --Menu-darkItemBg:#0f356a;
+  --Menu-darkItemSelectedBg:#007bc2;
+  --Menu-darkItemHoverBg:#32aef3;
+  --Table-headerBg:#f0f3fa;
+  --Table-rowHoverBg:#f6f6f6;
+  /* OPS shell metrics (specs/web-design-system - OPS Layout Metrics) */
+  --Header-height:60px;
+  --Sider-width:160px;
+  /* AntD defaults / derived tints - documented, NOT in tokens.ts */
+  --borderRadius:6px;
+  --borderRadiusLG:8px;
+  --controlHeightLG:40px;
+  --colorPrimaryHover:#5C97FD;           /* rev.12 hover #5C97FD (user-specified) */
+  --colorPrimaryBg:rgba(49,120,252,.08); /* rev.12 primary tint (AntD-derived) */
+  --colorError:#ff4d4f;                  /* AntD default - error semantics only, never primary */
+  --navDeep:#003676;                     /* spec nav-family shade - decorative backdrop only */
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--fontFamily);font-size:var(--fontSize);color:var(--colorText);
+  background:var(--colorBgLayout);-webkit-font-smoothing:antialiased}
+
+/* ---------- stage: deep-blue backdrop, imaging-grid atmosphere ---------- */
+.stage{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;overflow:hidden;padding:32px 16px;
+  background:
+    radial-gradient(1100px 700px at 74% -14%, rgba(0,123,194,.30), transparent 62%),
+    radial-gradient(880px 640px at 4% 112%, rgba(0,123,194,.36), transparent 58%),
+    linear-gradient(160deg, var(--Layout-siderBg) 0%, var(--navDeep) 100%)}
+.stage::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(to top, rgba(0,0,0,.20), transparent 38%)}
+.bg-grid{position:absolute;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size:96px 96px;
+  -webkit-mask-image:radial-gradient(760px 580px at 50% 44%, rgba(0,0,0,.9), transparent 78%);
+          mask-image:radial-gradient(760px 580px at 50% 44%, rgba(0,0,0,.9), transparent 78%)}
+.bg-plus{position:absolute;pointer-events:none;stroke:rgba(255,255,255,.06);fill:none;
+  stroke-width:8;stroke-linecap:round}
+.bg-plus.p1{width:460px;height:460px;right:-70px;top:110px}
+.bg-plus.p2{width:260px;height:260px;left:-40px;bottom:60px;stroke:rgba(255,255,255,.045)}
+
+/* ---------- A-class error toast (message.error position demo) ---------- */
+.toast-wrap{position:absolute;top:18px;left:50%;transform:translateX(-50%);z-index:40;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  opacity:0;visibility:hidden;transform:translateX(-50%) translateY(-10px);
+  transition:all .3s cubic-bezier(.22,1,.36,1)}
+.toast-wrap.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+.toast{display:flex;align-items:center;gap:10px;background:#fff;border-radius:var(--borderRadiusLG);
+  padding:10px 18px;font-size:var(--fontSize);color:var(--colorText);
+  box-shadow:0 6px 16px rgba(3,16,40,.18), 0 9px 28px 8px rgba(3,16,40,.10)}
+.toast svg{width:20px;height:20px;flex:0 0 auto}
+.toast-note{font-size:var(--fontSizeSM);color:rgba(255,255,255,.72);
+  background:rgba(255,255,255,.10);border:1px dashed rgba(255,255,255,.35);
+  padding:3px 12px;border-radius:999px}
+
+/* ---------- card ---------- */
+.card{position:relative;z-index:10;width:400px;background:#fff;border-radius:var(--borderRadiusLG);
+  padding:42px 38px 34px;box-shadow:0 24px 64px rgba(2,18,46,.42);animation:rise .7s cubic-bezier(.22,1,.36,1) both}
+.card>*{animation:rise .6s cubic-bezier(.22,1,.36,1) both}
+.card>.brand-row{animation-delay:.12s}
+.card>.login-form{animation-delay:.22s}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+.brand-row{display:flex;align-items:center;gap:14px;margin-bottom:30px}
+.mark{width:44px;height:44px;border-radius:11px;flex:0 0 auto;display:grid;place-items:center;
+  background:linear-gradient(135deg, var(--colorPrimary) 0%, var(--colorPrimaryHover) 100%);
+  box-shadow:0 6px 16px rgba(49,120,252,.35)}
+.mark svg{width:22px;height:22px;stroke:#fff;stroke-width:2.4;stroke-linecap:round;fill:none}
+.brand-name{font-size:var(--fontSizeLG);font-weight:700;letter-spacing:.3px;color:var(--colorText)}
+.brand-sub{font-size:var(--fontSizeSM);color:var(--colorTextTertiary);margin-top:2px;letter-spacing:2px}
+
+/* ---------- fields ---------- */
+.login-form{display:flex;flex-direction:column;gap:16px}
+.field{display:flex;align-items:center;gap:10px;height:var(--controlHeightLG);
+  border:1px solid var(--colorBorder);border-radius:var(--borderRadius);padding:0 14px;background:#fff;
+  transition:border-color .2s, box-shadow .2s}
+.field:focus-within{border-color:var(--colorPrimary);box-shadow:0 0 0 3px rgba(49,120,252,.12)}
+.field svg{width:18px;height:18px;stroke:var(--colorTextTertiary);fill:none;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.field input{border:0;outline:0;flex:1;min-width:0;font-family:inherit;font-size:var(--fontSize);
+  color:var(--colorText);background:transparent;letter-spacing:.5px}
+.field input::placeholder{color:var(--colorTextTertiary)}
+
+.enter-hint{display:flex;justify-content:flex-end;align-items:center;gap:8px;
+  font-size:var(--fontSizeSM);color:var(--colorTextTertiary);margin-top:-4px}
+kbd{font-family:inherit;font-size:var(--fontSizeSM);color:var(--colorTextSecondary);
+  border:1px solid var(--colorBorder);border-bottom-width:2px;border-radius:4px;
+  padding:1px 8px;background:var(--colorBgLayout)}
+
+/* ---------- button + loading ---------- */
+.btn-block{width:100%;height:var(--controlHeightLG);border:1px solid var(--colorPrimary);
+  border-radius:var(--borderRadius);background:var(--colorPrimary);color:#fff;
+  font-family:inherit;font-size:var(--fontSize);font-weight:500;letter-spacing:8px;text-indent:8px;
+  cursor:pointer;transition:background .18s, box-shadow .18s;margin-top:2px}
+.btn-block:hover{background:var(--colorPrimaryHover);border-color:var(--colorPrimaryHover);
+  box-shadow:0 6px 16px rgba(49,120,252,.30)}
+.btn-block:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(49,120,252,.25)}
+.btn-block:disabled{cursor:default;opacity:.85;box-shadow:none}
+.spinner{width:18px;height:18px;border-radius:50%;display:inline-block;vertical-align:-4px;
+  border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:spin .7s linear infinite;
+  margin-right:10px;letter-spacing:0;text-indent:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- footer notes ---------- */
+.seed-note{position:relative;z-index:10;margin-top:22px;font-size:var(--fontSizeSM);
+  color:rgba(255,255,255,.55);animation:rise .6s .4s cubic-bezier(.22,1,.36,1) both}
+.foot{position:absolute;z-index:10;bottom:20px;left:0;right:0;text-align:center;
+  font-size:var(--fontSizeSM);color:rgba(255,255,255,.38);letter-spacing:1px}
+.proto-chip{position:fixed;right:14px;bottom:12px;z-index:50;font-size:var(--fontSizeSM);
+  color:rgba(255,255,255,.45);border:1px dashed rgba(255,255,255,.25);
+  padding:2px 10px;border-radius:999px;letter-spacing:.5px}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-grid"></div>
+  <svg class="bg-plus p1" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 12v76M12 50h76"/></svg>
+  <svg class="bg-plus p2" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 12v76M12 50h76"/></svg>
+
+  <!-- A-class error toast: shown once on load (per brief), replayed by a failed submit.
+       Text is the mock's verbatim A-class msg (auth.mock.ts: fail('A0210','用户密码错误')). -->
+  <div class="toast-wrap show" id="toastWrap" role="alert">
+    <div class="toast">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" fill="#ff4d4f"/>
+        <path d="M8.2 8.2l7.6 7.6M15.8 8.2l-7.6 7.6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span>用户密码错误</span>
+    </div>
+    <span class="toast-note">message.error 位置示意 · 文案 = A 类错误( A0210 ) msg 原文</span>
+  </div>
+
+  <main class="card">
+    <div class="brand-row">
+      <span class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span>
+      <div>
+        <div class="brand-name">LumenCollab</div>
+        <div class="brand-sub">影像协作平台</div>
+      </div>
+    </div>
+
+    <form class="login-form" id="loginForm" autocomplete="off">
+      <label class="field">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.6-3.8 4.6-5.6 7.5-5.6s5.9 1.8 7.5 5.6"/></svg>
+        <input id="account" name="account" value="admin" placeholder="账号" autocomplete="username">
+      </label>
+      <label class="field">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>
+        <input id="password" name="password" type="password" value="admin123" placeholder="密码" autocomplete="current-password">
+      </label>
+      <div class="enter-hint"><kbd>Enter ⏎</kbd>输入密码后按回车直接登录</div>
+      <button type="submit" class="btn-block" id="loginBtn"><span id="btnLabel">登 录</span></button>
+    </form>
+  </main>
+
+  <p class="seed-note">开发种子账号:admin / admin123 · 仅开发 mock 环境</p>
+  <p class="foot">LumenCollab · 开发环境</p>
+  <span class="proto-chip">静态原型 · 任务 5.1</span>
+</div>
+
+<script>
+// Demo-only behavior: loading state + error-toast replay. No network, static prototype.
+(function () {
+  var form = document.getElementById('loginForm');
+  var btn = document.getElementById('loginBtn');
+  var label = document.getElementById('btnLabel');
+  var toast = document.getElementById('toastWrap');
+  var toastTimer = null;
+
+  function showToast() {
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 4500);
+  }
+  // initial reveal after the card entrance settles
+  toast.classList.remove('show');
+  setTimeout(showToast, 1100);
+
+  function submitDemo() {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    label.innerHTML = '<span class="spinner"></span>登录中';
+    setTimeout(function () {
+      btn.disabled = false;
+      label.textContent = '登 录';
+      showToast(); // wrong-password path: stays on page, A-class msg surfaced
+    }, 1400);
+  }
+  form.addEventListener('submit', function (e) { e.preventDefault(); submitDemo(); });
+})();
+</script>
+</body>
+</html>
