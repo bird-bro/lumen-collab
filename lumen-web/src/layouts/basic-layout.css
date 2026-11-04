@@ -1,0 +1,188 @@
+/*
+ * BasicLayout shell styles (batch 5b of web-foundation-auth-console, task 5.4;
+ * user-confirmed prototype console-shell.html).
+ *
+ * Hex discipline (`specs/web-design-system` § OPS Palette Tokens): this file
+ * deliberately contains NO color literals. Every color arrives through CSS
+ * custom properties injected inline from the AntD token pipeline by
+ * BasicLayout.tsx (--lumen-* vars below); geometry/typography values here are
+ * the OPS shell metrics from the prototype (68/60/160/40, 26/16/20/18/24px,
+ * 40px rows).
+ */
+
+/* ============ zone 1: 68px main-nav rail ============ */
+.lumen-rail-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 2px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--lumen-rail-text);
+  text-align: center;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.18s, color 0.18s;
+}
+.lumen-rail-item:hover {
+  background: var(--lumen-rail-hover);
+}
+.lumen-rail-item-active,
+.lumen-rail-item-active:hover {
+  background: var(--lumen-rail-active);
+  font-weight: 500;
+}
+.lumen-rail-label {
+  font-size: 16px; /* OPS mainnav label ~16px */
+  line-height: 1.25;
+  max-width: 64px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============ zone 2: 60px header ============ */
+.lumen-header-title {
+  font-size: 26px; /* OPS header title fact: 26px / 600 */
+  font-weight: 600;
+  color: var(--lumen-title-color);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.lumen-header-env {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 4px;
+  background: var(--lumen-env-bg);
+  color: var(--lumen-env-color);
+  font-size: 16px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+}
+.lumen-header-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 5px 6px 5px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-family: inherit;
+  transition: background 0.18s;
+}
+.lumen-header-user:hover {
+  background: var(--lumen-user-hover-bg);
+}
+.lumen-header-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+.lumen-header-user-name {
+  font-size: 16px; /* OPS: >6 chars -> ellipsis */
+  font-weight: 500;
+  color: var(--lumen-user-name-color);
+  max-width: 6.5em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lumen-header-user-org {
+  font-size: 12px;
+  color: var(--lumen-user-org-color);
+  max-width: 8em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lumen-header-avatar {
+  width: 50px; /* OPS Header fact: 50px round avatar block, no caret */
+  height: 50px;
+  border-radius: 50%;
+  color: var(--lumen-avatar-color);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 500;
+  flex: 0 0 auto;
+  background: linear-gradient(135deg, var(--lumen-avatar-from), var(--lumen-avatar-to));
+}
+
+/* ============ zone 3: 160px white secondary sidebar ============ */
+.lumen-side .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+/* AntD renders the inline-mode selected bar at the inline END; the OPS shell
+   wants a 3px LEFT bar on the selected row - override via a token-injected
+   variable (activeBarWidth token is zeroed in the Menu component tokens). */
+.lumen-side-menu.ant-menu-inline .ant-menu-item-selected {
+  box-shadow: inset 3px 0 0 var(--lumen-menu-active-bar);
+}
+/* OPS group title: 16px gray text + 20px icon, 14/14/8 padding. */
+.lumen-side-menu.ant-menu-inline .ant-menu-item-group-title {
+  padding: 14px 14px 8px;
+  white-space: nowrap;
+}
+.lumen-side-group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--lumen-group-color);
+}
+/* OPS fold control (rev.9): expanded = 24px Fold icon absolutely at the
+   sidebar bottom-right (right:4px bottom:0 padding:5px, no text); collapsed =
+   40px vertical strip with the Expand icon + vertical 18px/600 text. */
+.lumen-side-fold {
+  position: absolute;
+  right: 4px;
+  bottom: 0;
+  padding: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--lumen-fold-color);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+.lumen-side-fold:hover {
+  background: var(--lumen-fold-hover-bg);
+  color: var(--lumen-fold-hover-color);
+}
+.lumen-side-expand {
+  display: flex;
+  flex: 1;
+  width: 40px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--lumen-fold-color);
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.lumen-side-expand:hover {
+  background: var(--lumen-fold-hover-bg);
+  color: var(--lumen-fold-hover-color);
+}
+.lumen-side-expand-text {
+  width: 18px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-all;
+  text-align: center;
+}

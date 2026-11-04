@@ -1,94 +1,384 @@
-import { Suspense } from 'react'
-import { Layout, Menu, Spin, theme } from 'antd'
-import type { MenuProps } from 'antd'
+import {
+  BankOutlined,
+  MenuUnfoldOutlined,
+  MenuFoldOutlined,
+  PlusOutlined,
+  RadarChartOutlined,
+  SafetyCertificateOutlined,
+  SettingOutlined,
+  SlidersOutlined,
+} from '@ant-design/icons'
+import { Button, ConfigProvider, Layout, Menu, Popover, Spin, theme } from 'antd'
+import type { MenuProps, ThemeConfig } from 'antd'
+import type { ComponentType, CSSProperties } from 'react'
+import { Suspense, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { activeTopLevelNode, firstLeafRouteOf, resolveMenuRoute } from '@/routes/menu-paths'
+import { useAuthStore } from '@/stores/auth'
+import { themeConfig } from '@/theme'
+import './basic-layout.css'
 
 /**
- * OPS shell metrics (`specs/web-design-system` § OPS Layout Metrics): the
- * header height and sidebar width trace to this single shared definition -
- * never scatter magic numbers across pages.
+ * OPS three-zone shell (batch 5b of web-foundation-auth-console, task 5.4;
+ * user-confirmed prototype `console-shell.html` rev.11/12):
+ *
+ * - zone 1: a 68px deep-blue main-nav RAIL (full height) - the L1 entries of
+ *   the store menu tree as a 26px icon over a ~16px white label; clicking an
+ *   entry activates it and navigates to its first leaf. The rail is custom
+ *   buttons (AntD Menu has no icon-over-label mode); its hover/active colors
+ *   are the Menu dark tokens from `src/theme/tokens.ts` injected as CSS
+ *   variables (see `./basic-layout.css` - the CSS file itself holds no
+ *   colors).
+ * - zone 2: a 60px white header - product title left; the user area right is
+ *   the OPS form: two-line text (name/org) LEFT + a 50px round avatar RIGHT,
+ *   no caret; a click opens a Popover with the basic info and a plain
+ *   退出登录 button (store.clear() + navigate /login).
+ * - zone 3: a 160px white collapsible secondary sidebar rendering the ACTIVE
+ *   L1's children as group titles (AntD Menu `type: 'group'`, 16px text +
+ *   20px icon) and flat text-only 40px leaf rows; selection = light-blue chip
+ *   + 3px primary left bar (token-injected variable). Fold control per OPS:
+ *   a 24px Fold icon absolute at the sidebar bottom-right; collapsed = a
+ *   40px strip with the Expand icon + vertical active-L1 text.
+ * - content: the routed child through `<Outlet />` under the Suspense
+ *   boundary, with the user-set 10px padding.
+ *
+ * The navigation data comes ONLY from the auth store's menu tree (`/me`) -
+ * NAV_ITEMS is deleted (design D6). AntD 5 components are composed via props
+ * only - never edited (`specs/web-app-shell` § Component Style).
  */
+
+/** OPS shell metrics (`specs/web-design-system` § OPS Layout Metrics). */
+export const RAIL_WIDTH = 68
 export const HEADER_HEIGHT = 60
 export const SIDER_WIDTH = 160
+export const SIDER_COLLAPSED_WIDTH = 40
+export const CONTENT_PADDING = 10
 
 /**
- * Top-level navigation entries. Each key is the route path of a department
- * route module (`src/router.tsx`, design D7).
+ * org label: the profile DTO carries no org field yet, so the seeded hospital
+ * root name stands in (the mock's only org row, `示例医院`); replace with
+ * `profile.org` once the backend adds it to /me (recorded batch-report item).
  */
-const NAV_ITEMS: MenuProps['items'] = [
-  { key: '/radiology', label: 'Radiology' },
-  { key: '/ultrasound', label: 'Ultrasound' },
-  { key: '/endoscopy', label: 'Endoscopy' },
-]
+const SEED_ORG_LABEL = '示例医院'
+
+type IconComponent = ComponentType<{ style?: CSSProperties }>
+
+/** Menu fixture `icon` column names -> AntD icon components (group titles + rail). */
+const MENU_ICON_BY_NAME: Record<string, IconComponent> = {
+  setting: SettingOutlined,
+  bank: BankOutlined,
+  safety: SafetyCertificateOutlined,
+  sliders: SlidersOutlined,
+}
 
 /**
- * App shell (task 5.1; batch 2 of web-foundation-auth-console): navigation
- * Sider (brand block on top, OPS deep blue via the `siderBg` component token)
- * + OPS-metrics Header (60px tall, background via the `headerBg` component
- * token) + content region rendering the routed child through `<Outlet />`.
- * AntD 5 components are composed via props only - never edited
- * (`specs/web-app-shell` § Component Style); every color here comes from the
- * ConfigProvider theme tokens, never an inline hex (§ Design Token Theming).
- *
- * The header content is a placeholder: the user/logout region belongs to the
- * auth batch (task 5.4), so only the environment name renders for now, in a
- * token-derived muted color.
- *
- * The Suspense boundary wraps the whole content region so it covers every
- * lazily-loaded department route module (task 5.3).
+ * Rail fallback for menu nodes without an icon (the three department L1s):
+ * the prototype's department glyphs are circular/ray marks - RadarChartOutlined
+ * is the closest AntD glyph (recorded batch-report icon note).
  */
+const RAIL_FALLBACK_ICON: IconComponent = RadarChartOutlined
+
+/**
+ * Static component-token reads (values live in `src/theme/tokens.ts`; the
+ * tokens test pins every key read here).
+ */
+const RAIL_BG = themeConfig.components?.Layout?.siderBg
+const RAIL_HOVER_BG = themeConfig.components?.Menu?.darkItemHoverBg
+const RAIL_ACTIVE_BG = themeConfig.components?.Menu?.darkItemSelectedBg
+const SIDE_ITEM_HOVER_BG = themeConfig.components?.Table?.headerBg
+
+/** Derived global tokens of the project config (computed once, module scope). */
+const DESIGN_TOKEN = theme.getDesignToken(themeConfig)
+
+/**
+ * The light secondary-sidebar Menu theme (nested ConfigProvider): the
+ * prototype's `--menu-text-color` gray maps to the token ramp
+ * `colorTextSecondary`, and the prototype's light-blue selected chip to the
+ * derived `colorPrimaryBg` tint of the action primary (both rows are recorded
+ * in the batch report's prototype-vs-implementation table). AntD's inline
+ * selected bar renders at the inline END, so it is zeroed here and the OPS
+ * 3px LEFT bar comes from the token-injected CSS variable override.
+ */
+const SIDE_MENU_THEME: ThemeConfig = {
+  components: {
+    Menu: {
+      itemColor: DESIGN_TOKEN.colorTextSecondary,
+      itemHoverColor: DESIGN_TOKEN.colorText,
+      itemHoverBg: SIDE_ITEM_HOVER_BG,
+      itemSelectedColor: DESIGN_TOKEN.colorPrimary,
+      itemSelectedBg: DESIGN_TOKEN.colorPrimaryBg,
+      itemHeight: 40,
+      itemMarginInline: 8,
+      itemMarginBlock: 2,
+      itemBorderRadius: DESIGN_TOKEN.borderRadius,
+      groupTitleColor: DESIGN_TOKEN.colorTextTertiary,
+      groupTitleFontSize: 16,
+      activeBarWidth: 0,
+      activeBarBorderWidth: 0,
+    },
+  },
+}
+
+function MenuIcon({ name, size }: { name: string | null; size: number }) {
+  const Icon = (name && MENU_ICON_BY_NAME[name]) || RAIL_FALLBACK_ICON
+  return <Icon style={{ fontSize: size }} />
+}
+
 export function BasicLayout() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { token } = theme.useToken()
+  const menus = useAuthStore((state) => state.menus)
+  const profile = useAuthStore((state) => state.profile)
+  const [folded, setFolded] = useState(false)
+
+  const activeL1 = useMemo(() => activeTopLevelNode(menus, pathname), [menus, pathname])
+
+  const logout = () => {
+    useAuthStore.getState().clear()
+    navigate('/login', { replace: true })
+  }
+
+  const userPopContent = (
+    <div style={{ width: 250, padding: 14 }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 3,
+          paddingBottom: 12,
+          marginBottom: 12,
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+        }}
+      >
+        <span style={{ fontSize: token.fontSizeSM, fontWeight: 500, color: token.colorText }}>
+          {profile?.name ?? '未登录'}
+        </span>
+        <span style={{ fontSize: 12, color: token.colorTextTertiary }}>{SEED_ORG_LABEL}</span>
+      </div>
+      <Button block size="large" onClick={logout}>
+        退出登录
+      </Button>
+    </div>
+  )
+
+  /** The ACTIVE L1's children: L2 directories become group titles, leaves flat rows. */
+  const sidebarItems = useMemo<MenuProps['items']>(() => {
+    const items: NonNullable<MenuProps['items']> = []
+    let previousWasGroup = false
+    for (const child of activeL1?.children ?? []) {
+      if (child.type === 'F') continue
+      if (child.type === 'M') {
+        if (previousWasGroup && items.length > 0) items.push({ type: 'divider' })
+        const leaves = (child.children ?? [])
+          .filter((leaf) => leaf.type !== 'F')
+          .map((leaf) => {
+            const route = resolveMenuRoute(leaf)
+            return { key: route ?? `#node-${leaf.mid}`, label: leaf.title }
+          })
+        items.push({
+          key: `group-${child.mid}`,
+          type: 'group',
+          label: (
+            <span className="lumen-side-group-label">
+              <MenuIcon name={child.icon} size={20} />
+              <span>{child.title}</span>
+            </span>
+          ),
+          children: leaves,
+        })
+        previousWasGroup = true
+      } else {
+        const route = resolveMenuRoute(child)
+        if (route) items.push({ key: route, label: child.title })
+        previousWasGroup = false
+      }
+    }
+    return items
+  }, [activeL1])
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Layout.Sider width={SIDER_WIDTH}>
+    <Layout
+      style={
+        {
+          minHeight: '100vh',
+          // CSS custom properties consumed by ./basic-layout.css - every value
+          // comes from the token pipeline (the CSS file itself holds no colors).
+          '--lumen-title-color': token.colorText,
+          '--lumen-env-bg': token.colorPrimaryBg,
+          '--lumen-env-color': token.colorPrimary,
+          '--lumen-user-hover-bg': token.colorBgLayout,
+          '--lumen-user-name-color': token.colorText,
+          '--lumen-user-org-color': token.colorTextTertiary,
+          '--lumen-avatar-color': token.colorTextLightSolid,
+          '--lumen-avatar-from': token.colorPrimary,
+          '--lumen-avatar-to': token.colorPrimaryHover,
+          '--lumen-group-color': token.colorTextTertiary,
+          '--lumen-fold-color': token.colorTextTertiary,
+          '--lumen-fold-hover-bg': SIDE_ITEM_HOVER_BG,
+          '--lumen-fold-hover-color': token.colorText,
+        } as CSSProperties
+      }
+    >
+      {/* zone 1: 68px main-nav rail, full height, deep blue */}
+      <Layout.Sider
+        className="lumen-rail"
+        width={RAIL_WIDTH}
+        style={
+          {
+            '--lumen-rail-hover': RAIL_HOVER_BG,
+            '--lumen-rail-active': RAIL_ACTIVE_BG,
+            '--lumen-rail-text': token.colorTextLightSolid,
+          } as CSSProperties
+        }
+      >
         <div
           style={{
-            color: token.colorTextLightSolid,
-            fontSize: token.fontSizeLG,
-            fontWeight: 600,
-            padding: token.padding,
-            textAlign: 'center',
+            height: HEADER_HEIGHT,
+            width: '100%',
+            display: 'grid',
+            placeItems: 'center',
+            flex: '0 0 auto',
           }}
+          title="LumenCollab"
         >
-          LumenCollab
+          <span
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 9,
+              display: 'grid',
+              placeItems: 'center',
+              background: `linear-gradient(135deg, ${RAIL_ACTIVE_BG}, ${RAIL_BG})`,
+            }}
+          >
+            <PlusOutlined style={{ color: token.colorTextLightSolid, fontSize: 18 }} />
+          </span>
         </div>
-        <Menu
-          mode="inline"
-          theme="dark"
-          items={NAV_ITEMS}
-          selectedKeys={[pathname]}
-          onClick={({ key }) => {
-            navigate(key)
-          }}
-        />
+        {menus.map((item) => {
+          const target = firstLeafRouteOf(item)
+          const active = activeL1?.mid === item.mid
+          return (
+            <button
+              key={item.mid}
+              type="button"
+              className={active ? 'lumen-rail-item lumen-rail-item-active' : 'lumen-rail-item'}
+              onClick={() => {
+                if (target) navigate(target)
+              }}
+              title={item.title}
+            >
+              <MenuIcon name={item.icon} size={26} />
+              <span className="lumen-rail-label">{item.title}</span>
+            </button>
+          )
+        })}
       </Layout.Sider>
+
       <Layout>
+        {/* zone 2: 60px white header */}
         <Layout.Header
           style={{
             height: HEADER_HEIGHT,
-            lineHeight: `${HEADER_HEIGHT}px`,
-            paddingInline: 24,
+            background: token.colorBgContainer,
+            borderBottom: `1px solid ${token.colorBorder}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            padding: '0 20px',
+            lineHeight: 'normal',
           }}
         >
-          {/* Placeholder pending the auth batch (task 5.4): user/logout region. */}
-          <span style={{ color: token.colorTextSecondary }}>{import.meta.env.MODE}</span>
+          <span className="lumen-header-title">LumenCollab 影像协作平台</span>
+          <span className="lumen-header-env">{import.meta.env.DEV ? '开发环境' : import.meta.env.MODE}</span>
+          <div style={{ marginLeft: 'auto' }}>
+            <Popover trigger="click" placement="bottomRight" content={userPopContent}>
+              <button type="button" className="lumen-header-user" title="用户区">
+                <span className="lumen-header-user-info">
+                  <span className="lumen-header-user-name">{profile?.name ?? '未登录'}</span>
+                  <span className="lumen-header-user-org">{SEED_ORG_LABEL}</span>
+                </span>
+                <span className="lumen-header-avatar" style={{ width: 50, height: 50 }}>
+                  {profile?.name?.charAt(0) ?? '?'}
+                </span>
+              </button>
+            </Popover>
+          </div>
         </Layout.Header>
-        <Layout.Content style={{ padding: token.paddingLG }}>
-          <Suspense
-            fallback={
-              <Spin
-                size="large"
-                style={{ display: 'block', margin: `${token.sizeXXL}px auto` }}
-              />
+
+        {/* zone 3 + content */}
+        <Layout hasSider>
+          <Layout.Sider
+            className="lumen-side"
+            width={SIDER_WIDTH}
+            collapsible
+            collapsed={folded}
+            collapsedWidth={SIDER_COLLAPSED_WIDTH}
+            trigger={null}
+            style={
+              {
+                background: token.colorBgContainer,
+                borderRight: `1px solid ${token.colorBorderSecondary}`,
+                paddingTop: 10,
+                overflow: 'hidden',
+                position: 'relative',
+              } as CSSProperties
             }
           >
-            <Outlet />
-          </Suspense>
-        </Layout.Content>
+            <ConfigProvider theme={SIDE_MENU_THEME}>
+              {!folded && (sidebarItems?.length ?? 0) > 0 && (
+                <Menu
+                  className="lumen-side-menu"
+                  mode="inline"
+                  items={sidebarItems}
+                  selectedKeys={[pathname]}
+                  onClick={({ key }) => {
+                    if (key.startsWith('/')) navigate(key)
+                  }}
+                  style={
+                    {
+                      borderInlineEnd: 0,
+                      background: 'transparent',
+                      '--lumen-menu-active-bar': token.colorPrimary,
+                    } as CSSProperties
+                  }
+                />
+              )}
+            </ConfigProvider>
+            {folded ? (
+              <button
+                type="button"
+                className="lumen-side-expand"
+                onClick={() => setFolded(false)}
+                title="展开侧栏"
+              >
+                <MenuUnfoldOutlined style={{ fontSize: 24 }} />
+                <span className="lumen-side-expand-text">{activeL1?.title}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="lumen-side-fold"
+                onClick={() => setFolded(true)}
+                title="收起侧栏"
+              >
+                <MenuFoldOutlined style={{ fontSize: 24 }} />
+              </button>
+            )}
+          </Layout.Sider>
+          <Layout.Content style={{ padding: CONTENT_PADDING, minWidth: 0 }}>
+            <Suspense
+              fallback={
+                <Spin
+                  size="large"
+                  style={{ display: 'block', margin: `${token.sizeXXL}px auto` }}
+                />
+              }
+            >
+              <Outlet />
+            </Suspense>
+          </Layout.Content>
+        </Layout>
       </Layout>
     </Layout>
   )

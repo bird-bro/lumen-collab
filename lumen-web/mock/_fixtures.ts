@@ -184,7 +184,7 @@ export function roleIds(): number[] {
   return state('roleIds', () => [1])
 }
 
-// --- menus (V2 rows 1-6 + the brief's six extra console nodes 7-12, mock-only) ---
+// --- menus (V2 rows 1-6 + the console pages/groups 7-15, mock-only) ---
 export interface MockMenuInfo {
   id: number
   upId: number
@@ -203,24 +203,34 @@ export const SEED_MENUS: MockMenuInfo[] = [
   // brief's router-aligned placeholders - V2's /us /endo become /ultrasound /endoscopy,
   // a recorded mock-only deviation; org_dep codes stay seed-exact).
   { id: 1, upId: 0, type: 'M', title: '系统管理', perms: null, path: '/system', component: null, icon: 'setting', sort: 1, visible: 1 },
-  { id: 2, upId: 1, type: 'C', title: '用户管理', perms: 'system:user:list', path: 'user', component: 'system/user/index', icon: null, sort: 1, visible: 1 },
+  { id: 2, upId: 14, type: 'C', title: '用户管理', perms: 'system:user:list', path: 'user', component: 'system/user/index', icon: null, sort: 1, visible: 1 },
   { id: 3, upId: 0, type: 'C', title: '放射科', perms: null, path: '/radiology', component: 'radiology/index', icon: null, sort: 2, visible: 1 },
   { id: 4, upId: 0, type: 'C', title: '超声科', perms: null, path: '/ultrasound', component: 'ultrasound/index', icon: null, sort: 3, visible: 1 },
   { id: 5, upId: 0, type: 'C', title: '内镜科', perms: null, path: '/endoscopy', component: 'endoscopy/index', icon: null, sort: 4, visible: 1 },
   { id: 6, upId: 3, type: 'F', title: '报告审核', perms: 'radiology:report:audit', path: null, component: null, icon: null, sort: 1, visible: 1 },
-  // Brief-mandated console pages under the system directory (mock-only - not in V2).
-  { id: 7, upId: 1, type: 'C', title: '机构管理', perms: 'system:org:list', path: 'org', component: 'system/org/index', icon: null, sort: 2, visible: 1 },
-  { id: 8, upId: 1, type: 'C', title: '科室管理', perms: 'system:dep:list', path: 'dep', component: 'system/dep/index', icon: null, sort: 3, visible: 1 },
-  { id: 9, upId: 1, type: 'C', title: '角色管理', perms: 'system:role:list', path: 'role', component: 'system/role/index', icon: null, sort: 4, visible: 1 },
-  { id: 10, upId: 1, type: 'C', title: '菜单管理', perms: 'system:menu:list', path: 'menu', component: 'system/menu/index', icon: null, sort: 5, visible: 1 },
-  { id: 11, upId: 1, type: 'C', title: '字典管理', perms: 'system:dict:list', path: 'dict', component: 'system/dict/index', icon: null, sort: 6, visible: 1 },
-  { id: 12, upId: 1, type: 'C', title: '日志查询', perms: 'system:log:list', path: 'log', component: 'system/log/index', icon: null, sort: 7, visible: 1 },
+  // Console menu per the user-confirmed 3-level structure (console-shell.html rev.7
+  // menu decision, batch 5b task 0; mock-only - not in V2; backend V2 seed sync is a
+  // recorded backend follow-up): 系统管理 gains three level-2 GROUP DIRECTORIES
+  // (组织架构 13 / 用户权限 14 / 系统配置 15) and the seven page nodes hang off them.
+  // Group directories carry path: null (a group never navigates - the sidebar renders
+  // group titles, only leaves are links). Page ids/paths/perms are unchanged from the
+  // former flat structure; only upId (and the per-group sort renumbering) moved.
+  { id: 13, upId: 1, type: 'M', title: '组织架构', perms: null, path: null, component: null, icon: 'bank', sort: 1, visible: 1 },
+  { id: 7, upId: 13, type: 'C', title: '机构管理', perms: 'system:org:list', path: 'org', component: 'system/org/index', icon: null, sort: 1, visible: 1 },
+  { id: 8, upId: 13, type: 'C', title: '科室管理', perms: 'system:dep:list', path: 'dep', component: 'system/dep/index', icon: null, sort: 2, visible: 1 },
+  { id: 14, upId: 1, type: 'M', title: '用户权限', perms: null, path: null, component: null, icon: 'safety', sort: 2, visible: 1 },
+  { id: 9, upId: 14, type: 'C', title: '角色管理', perms: 'system:role:list', path: 'role', component: 'system/role/index', icon: null, sort: 1, visible: 1 },
+  { id: 10, upId: 14, type: 'C', title: '菜单管理', perms: 'system:menu:list', path: 'menu', component: 'system/menu/index', icon: null, sort: 2, visible: 1 },
+  { id: 15, upId: 1, type: 'M', title: '系统配置', perms: null, path: null, component: null, icon: 'sliders', sort: 3, visible: 1 },
+  { id: 11, upId: 15, type: 'C', title: '字典管理', perms: 'system:dict:list', path: 'dict', component: 'system/dict/index', icon: null, sort: 1, visible: 1 },
+  { id: 12, upId: 15, type: 'C', title: '日志查询', perms: 'system:log:list', path: 'log', component: 'system/log/index', icon: null, sort: 2, visible: 1 },
 ]
 
 // --- role_menu grants (V2 grants menus 1-6 to role 1; the mock extends the grant to
-// the six extra console nodes so the seeded admin owns every mock menu - mock-only) ---
+// the console nodes 7-15 (pages + group directories) so the seeded admin owns every
+// mock menu - mock-only) ---
 export function seedRoleMenus(): Record<number, number[]> {
-  return clone({ 1: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] })
+  return clone({ 1: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] })
 }
 
 // --- orgs (V2: hospital root id 1) ---
