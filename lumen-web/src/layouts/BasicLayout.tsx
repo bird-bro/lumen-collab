@@ -108,8 +108,7 @@ const SIDE_MENU_THEME: ThemeConfig = {
       // resolves to var(--text-color) (its dark neutral), base 18px, height
       // 40, padding 0 20px.
       itemColor: DESIGN_TOKEN.colorText,
-      itemFontSize: 18,
-      itemColorActive: DESIGN_TOKEN.colorPrimary,
+      fontSize: 18,
       itemHoverColor: DESIGN_TOKEN.colorText,
       itemHoverBg: SIDE_ITEM_HOVER_BG,
       itemSelectedColor: DESIGN_TOKEN.colorPrimary,
@@ -119,10 +118,10 @@ const SIDE_MENU_THEME: ThemeConfig = {
       // a tab that bleeds into the content side): margin 8px 0, radius on the
       // left corners only. Leaf text aligns to the group-title text column:
       // 8 margin + 37 padding = 45px from the sidebar edge (icon 15-35).
-      itemMarginInline: '8px 0',
+      itemMarginInline: 8,
       itemMarginBlock: 0,
       itemPaddingInline: 37,
-      itemBorderRadius: '6px 0 0 6px',
+      itemBorderRadius: DESIGN_TOKEN.borderRadius,
       groupTitleColor: DESIGN_TOKEN.colorTextTertiary,
       groupTitleFontSize: 16,
       activeBarWidth: 0,

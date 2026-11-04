@@ -1,5 +1,5 @@
-import { PlusOutlined } from '@ant-design/icons'
-import { Button, Form, Input, InputNumber, Modal, Popconfirm, Typography, message } from 'antd'
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import { Button, Form, Input, InputNumber, Modal, Popconfirm, Tooltip, Typography, message } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -20,7 +20,6 @@ import {
   ConsoleAddButton,
   ConsolePanel,
   ConsolePagination,
-  ConsoleQueryButton,
   ConsoleTable,
   ConsoleToolRow,
   readForm,
@@ -63,6 +62,7 @@ export default function DictsPage() {
   const [selected, setSelected] = useState<DictCatal | null>(null)
   const [details, setDetails] = useState<DictDetail[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
+  const [detailPage, setDetailPage] = useState(1)
   const [messageApi, messageHolder] = message.useMessage()
   const [saving, setSaving] = useState(false)
 
@@ -130,10 +130,13 @@ export default function DictsPage() {
   const selectCatal = useCallback(
     (row: DictCatal) => {
       setSelected(row)
+      setDetailPage(1)
       void reloadDetails(row.code)
     },
     [reloadDetails],
   )
+  const DETAIL_PAGE_SIZE = 10
+  const detailRows = details.slice((detailPage - 1) * DETAIL_PAGE_SIZE, detailPage * DETAIL_PAGE_SIZE)
 
   const closeCatal = useCallback(() => {
     setCatalOpen(false)
@@ -196,24 +199,22 @@ export default function DictsPage() {
     }
   }, [closeDetail, detailEditTarget, detailForm, messageApi, reloadDetails, selected])
 
+  // 随访 columns-lf cell: 名称 over 编码 in one two-line cell (the OPS
+  // user-cell pattern), plus the 排序 column.
   const catalColumns: TableColumnsType<DictCatal> = [
     {
-      title: '编码',
-      dataIndex: 'code',
-      width: 200,
-      render: (code: string, row: DictCatal) => (
-        <Typography.Text
-          code={selected?.id === row.id}
-          style={{ fontVariantNumeric: 'tabular-nums', cursor: 'pointer' }}
-          onClick={() => selectCatal(row)}
-        >
-          {code}
-        </Typography.Text>
+      title: '目录/编码',
+      dataIndex: 'name',
+      render: (_: unknown, row: DictCatal) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontWeight: 500 }}>{row.name}</span>
+          <Typography.Text type="secondary" style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+            {row.code}
+          </Typography.Text>
+        </div>
       ),
     },
-    { title: '名称', dataIndex: 'name', width: 180 },
-    { title: '排序', dataIndex: 'sort', width: 90 },
-    { title: '备注', dataIndex: 'remark', render: (remark: string | null) => remark ?? '—' },
+    { title: '排序', dataIndex: 'sort', width: 70 },
   ]
 
   const detailColumns: TableColumnsType<DictDetail> = [
@@ -224,8 +225,10 @@ export default function DictsPage() {
   ]
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
+    // 左右双列(随访 EIS 字典页布局,用户 2026-11-04):左 = 目录表,右 = 选中目录的明细表。
+    <div style={{ height: '100%', display: 'flex', gap: 16 }}>
       {messageHolder}
+      <div style={{ flex: '0 0 380px', width: 380, minWidth: 0, display: 'flex' }}>
       <ConsolePanel>
         <ConsoleToolRow
           trailing={
@@ -242,7 +245,7 @@ export default function DictsPage() {
         >
           <Input
             allowClear
-            style={{ width: 220 }}
+            style={{ width: 120, minWidth: 0 }}
             placeholder="编码 / 名称"
             aria-label="编码 / 名称"
             value={queryDraft}
@@ -252,12 +255,16 @@ export default function DictsPage() {
               setCatalPage(1)
             }}
           />
-          <ConsoleQueryButton
-            onClick={() => {
-              setQuery(queryDraft)
-              setCatalPage(1)
-            }}
-          />
+          <Tooltip title="查询">
+            <Button
+              aria-label="查询"
+              icon={<SearchOutlined />}
+              onClick={() => {
+                setQuery(queryDraft)
+                setCatalPage(1)
+              }}
+            />
+          </Tooltip>
         </ConsoleToolRow>
 
         <ConsoleTable<DictCatal>
@@ -329,7 +336,9 @@ export default function DictsPage() {
           }}
         />
       </ConsolePanel>
+      </div>
 
+      <div style={{ flex: '1 1 0', minWidth: 0, display: 'flex' }}>
       <ConsolePanel>
         <ConsoleToolRow
           trailing={
@@ -356,7 +365,7 @@ export default function DictsPage() {
                 明细于目录 <Typography.Text code>{selected.code}</Typography.Text>
               </>
             ) : (
-              '点击上方目录行以加载其明细(sort 升序)'
+              '点击左侧目录行以加载其明细(sort 升序)'
             )}
           </Typography.Text>
         </ConsoleToolRow>
@@ -364,7 +373,7 @@ export default function DictsPage() {
         <ConsoleTable<DictDetail>
           rowKey={(row) => row.id}
           columns={detailColumns}
-          dataSource={details}
+          dataSource={detailRows}
           loading={detailLoading}
           actions={
             canManage
@@ -408,7 +417,16 @@ export default function DictsPage() {
               : undefined
           }
         />
+
+        <ConsolePagination
+          total={details.length}
+          current={detailPage}
+          pageSize={DETAIL_PAGE_SIZE}
+          showSizeChanger={false}
+          onChange={(next) => setDetailPage(next)}
+        />
       </ConsolePanel>
+      </div>
 
       <Modal
         open={catalOpen}

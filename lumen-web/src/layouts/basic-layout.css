@@ -51,6 +51,13 @@
   letter-spacing: 0.3px;
   white-space: nowrap;
 }
+/* Selected/hover rows: LEFT inset 8px (token margin) with the RIGHT edge
+   flush - a tab bleeding toward the content side (user request 2026-11-04).
+   Radius on the left corners only; the token pipeline stays numeric. */
+.lumen-side-menu.ant-menu-inline .ant-menu-item {
+  margin-inline-end: 0;
+  border-radius: 6px 0 0 6px;
+}
 /* OPS .right-info verbatim: full header height, 0 10px padding, a LEFT
    hairline separator, and NO hover background (the hover bleed the user
    reported came from the removed custom hover chip). */
