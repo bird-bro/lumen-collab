@@ -1,6 +1,7 @@
 package org.birdbro.framework.config;
 
 import io.swagger.annotations.Api;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -31,6 +32,24 @@ import java.util.List;
 @EnableWebMvc
 public class SwaggerConfig implements WebMvcConfigurer {
 
+    /**
+     * OpenAPI metadata via properties (lumen adaptation (9), user decision 2026-11-03:
+     * framework/common may evolve on the OPS lineage) - the OPS literals below are the
+     * @Value DEFAULTS, so zero-config behavior is unchanged; each service overrides them
+     * in its own application.yml (lumen-system: swagger.title/description/version).
+     */
+    @Value("${swagger.title:JF-RCP}")
+    private String swaggerTitle;
+
+    @Value("${swagger.description:Lab-RCP}")
+    private String swaggerDescription;
+
+    @Value("${swagger.version:1.0.0}")
+    private String swaggerVersion;
+
+    @Value("${swagger.contact-name:birdbro}")
+    private String swaggerContactName;
+
 
     @Bean
     @Order(value = 1)
@@ -53,11 +72,11 @@ public class SwaggerConfig implements WebMvcConfigurer {
 
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("lumen-collab")
-                .description("<div style='font-size:14px;color:red;'>lumen-collab</div>")
+                .title(swaggerTitle)
+                .description(swaggerDescription)
                 .termsOfServiceUrl("https://github.com/bird-bro/lumen-collab/")
-                .contact(new Contact("birdbro", "", ""))
-                .version("1.0.0")
+                .contact(new Contact(swaggerContactName, "", ""))
+                .version(swaggerVersion)
                 .build();
     }
 

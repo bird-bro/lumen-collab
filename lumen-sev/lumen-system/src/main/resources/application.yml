@@ -46,6 +46,12 @@ token:
   secret: lumen-collab-jwt-secret-change-me-in-production-0123456789abcdef
   expireTime: 1440              # minutes; TokenService slides the Redis expiry
 
+# OpenAPI metadata (framework SwaggerConfig @Value; OPS literals are the defaults)
+swagger:
+  title: LumenCollab
+  description: LumenCollab system service API
+  version: 1.0.0
+
 # Service-declared anonymous paths (framework AnonymousPathCustomizer, lumen adaptation (6)):
 # the JWT issuer owns the login endpoint - the ONLY path needing no authentication.
 # Every other path (including /system/me) stays token-guarded by the copied chain

@@ -107,6 +107,12 @@ those services assign them and update this table.
   Boot 2.4+'s own auto-configured `RequestContextFilter` - the new file restores exactly
   that bean with mirrored conditions. Registers an `OrderedRequestContextFilter` ahead
   of the security chain; zero copied-line changes. - 2026-11-03
+- **(9) OpenAPI metadata via properties** (`framework/config/SwaggerConfig.java`, 3-line
+  modification): `apiInfo()` builds from `@Value("${swagger.title/description/version/
+  contact-name}")` with the OPS literals as DEFAULTS (zero-config behavior unchanged);
+  each service overrides in its own application.yml (lumen-system: LumenCollab).
+  Additive-first was not possible here - `ApiInfo` is built inline in the copied file,
+  so configurability requires touching it. - 2026-11-04
 - **Package naming: dual root by code origin** - user decision 2026-10-29. groupId
   `org.birdbro` everywhere; copied modules keep `org.birdbro.{framework,common}`; new
   modules use `org.birdbro.lumen.*` (`org.birdbro.lumen.{auth,patient,radiology,us,endo,

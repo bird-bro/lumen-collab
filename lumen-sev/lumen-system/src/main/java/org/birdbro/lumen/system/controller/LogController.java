@@ -28,6 +28,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/system/logs")
 public class LogController {
 
+    /** Hard cap on {@code pageSize} - a fetch-everything request must not page the whole log. */
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final ILogInfoService logInfoService;
 
     public LogController(ILogInfoService logInfoService) {
@@ -35,7 +38,8 @@ public class LogController {
     }
 
     /**
-     * Paginated log query ({@code page}/{@code pageSize} default 1/20; the optional
+     * Paginated log query ({@code page}/{@code pageSize} default 1/20, {@code pageSize}
+     * capped at {@value #MAX_PAGE_SIZE} and floored at 1; the optional
      * {@code type}/{@code uid}/{@code dateYm} filters AND-combine).
      */
     @ApiOperation("操作日志分页查询（type/uid/dateYm 可选过滤，actionTime 倒序）")
@@ -45,6 +49,8 @@ public class LogController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) Integer uid,
             @RequestParam(required = false) Integer dateYm) {
-        return logInfoService.getPage(page, pageSize, type, uid, dateYm);
+        int safePage = Math.max(page == null ? 1 : page, 1);
+        int safeSize = Math.min(Math.max(pageSize == null ? 20 : pageSize, 1), MAX_PAGE_SIZE);
+        return logInfoService.getPage(safePage, safeSize, type, uid, dateYm);
     }
 }
