@@ -23,8 +23,8 @@ NOT be a Maven project, and no `lumen-services/` grouping layer SHALL exist.
 
 <!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Foundation Module Set
-The backend SHALL provide the v1 foundation modules: `lumen-bom`, the OPS reference modules
-`framework` and `common` copied verbatim, and the `lumen-system` service. Department and
+The backend SHALL provide the v1 foundation modules: `lumen-bom`, the OPS-lineage reference
+modules `framework` and `common`, and the `lumen-system` service. Department and
 workflow modules (`lumen-exam-core`, `lumen-api`, `lumen-patient`, `lumen-radiology`,
 `lumen-integration`, `lumen-us`, `lumen-endo`) SHALL NOT be created by this capability; the
 changes that give them behavior add them.
@@ -52,10 +52,14 @@ change.
 - **AND** the nginx entry contract (`/api/v1/<service>/**`, 80/443) is reserved for the
   deferred `docker/` change to deploy
 
+<!-- synced from: spec-hygiene 2026-11-04 -->
 ### Requirement: Verbatim Adoption of the OPS Base Modules
-`framework` and `common` SHALL be copied from the OPS reference project with their module
-names, artifactIds, and packages (`org.birdbro.framework` / `org.birdbro.common`) unchanged.
-Any deviation beyond the recorded adaptations MUST be a recorded decision.
+`framework` and `common` are the OPS-lineage shared platform layer: module names,
+artifactIds, and packages (`org.birdbro.framework` / `org.birdbro.common`) SHALL stay
+unchanged, and the modules MAY evolve on the OPS basis (user decision 2026-11-03,
+superseding the verbatim-only reading of 2026-10-29). Evolution SHALL be ADDITIVE-FIRST -
+new files over modified OPS lines - so future upstream syncs stay conflict-free. Any
+deviation beyond the recorded adaptations MUST be a recorded decision.
 
 #### Scenario: Base modules compile on the pinned train
 - **WHEN** the aggregator builds `framework` and `common`
@@ -67,6 +71,12 @@ Any deviation beyond the recorded adaptations MUST be a recorded decision.
   adaptations
 - **THEN** the difference is a governance violation
 - **AND** it must be reverted or recorded as a decision
+
+#### Scenario: Additive evolution lands in the shared layer
+- **WHEN** a lumen capability needs platform-wide machinery (e.g. the no-gateway
+  USER-HEADER bridge)
+- **THEN** it lands as NEW `framework`/`common` files keeping the OPS namespaces
+- **AND** the adaptation is recorded in the coordination doc's adaptation list
 
 <!-- synced from: system-data 2026-11-03 -->
 ### Requirement: Recorded Adaptations to the Base Modules

@@ -15,5 +15,5 @@
 ## 2. 校验与归档
 
 - [x] 2.1 `openspec validate spec-hygiene --strict` exit 0。
-- [ ] 2.2 归档同步后全规格 grep 复查：主规格无 "Nacos 配置中心"残留措辞（历史决策记录性
+- [x] 2.2 归档同步后全规格 grep 复查：主规格无 "Nacos 配置中心"残留措辞（历史决策记录性
   提及除外）、"verbatim-only" 语义清零。
