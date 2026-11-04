@@ -63,7 +63,7 @@ function errorBoxStyle(): CSSProperties {
 
 /** Clearly-bordered large inputs (user request 2026-11-04: visible border, larger font). */
 const boxedInputStyle: CSSProperties = {
-  fontSize: 18,
+  fontSize: 20,
 }
 const prefixIconStyle: CSSProperties = {
   color: 'rgba(78, 78, 78, 1)',

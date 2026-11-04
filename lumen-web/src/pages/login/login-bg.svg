@@ -1,77 +1,127 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
   <!--
-    Login backdrop (web-foundation-auth-console login rework, user request
-    2026-11-04: a dedicated background image like the OPS login's cover art).
-    Bespoke open-source-safe asset: deep navy field, brand-blue glows, a fine
-    imaging grid, concentric scan arcs and plus markers weighted to the LEFT
-    half (the OPS card sits at left 75%, so the art stays visible). Swapping
-    in a licensed brand photo later = replacing this one file reference.
+    Login backdrop v2 (user request 2026-11-04: a tech-rich MEDICAL IMAGING
+    scene). Composition: an abstract axial CT/MR slice with gantry ring and
+    MPR plane tags on the LEFT half, a reading-HUD layer (window/level,
+    slice index, DICOM-tag rows, intensity curve), a data-flow line, and a
+    calm right half where the OPS-geometry card sits. Palette stays inside
+    the single blue family + white HUD text.
   -->
   <defs>
     <linearGradient id="base" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#0d2c4e"/>
-      <stop offset="0.55" stop-color="#0B2540"/>
-      <stop offset="1" stop-color="#06182b"/>
+      <stop offset="0" stop-color="#0a2038"/>
+      <stop offset="0.5" stop-color="#0B2540"/>
+      <stop offset="1" stop-color="#051424"/>
     </linearGradient>
-    <radialGradient id="glowA" cx="0.24" cy="0.18" r="0.55">
-      <stop offset="0" stop-color="#3178fc" stop-opacity="0.30"/>
+    <radialGradient id="amb" cx="0.3" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#3178fc" stop-opacity="0.16"/>
       <stop offset="1" stop-color="#3178fc" stop-opacity="0"/>
     </radialGradient>
-    <radialGradient id="glowB" cx="0.06" cy="0.95" r="0.5">
-      <stop offset="0" stop-color="#12355C" stop-opacity="0.85"/>
-      <stop offset="1" stop-color="#12355C" stop-opacity="0"/>
+    <radialGradient id="tissue" cx="0.42" cy="0.4" r="0.75">
+      <stop offset="0" stop-color="#9db8e8" stop-opacity="0.85"/>
+      <stop offset="0.45" stop-color="#4a7fd4" stop-opacity="0.55"/>
+      <stop offset="0.8" stop-color="#1c3f74" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#0e2547" stop-opacity="0.85"/>
     </radialGradient>
-    <radialGradient id="glowC" cx="0.5" cy="1.15" r="0.6">
-      <stop offset="0" stop-color="#0d2c4e" stop-opacity="0.9"/>
-      <stop offset="1" stop-color="#0d2c4e" stop-opacity="0"/>
+    <radialGradient id="ventricle" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#06182b" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#06182b" stop-opacity="0"/>
     </radialGradient>
-    <pattern id="grid" width="96" height="96" patternUnits="userSpaceOnUse">
-      <path d="M96 0H0V96" fill="none" stroke="#ffffff" stroke-opacity="0.045" stroke-width="1"/>
-    </pattern>
-    <linearGradient id="sweep" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
-      <stop offset="0.5" stop-color="#3178fc" stop-opacity="0.10"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    <linearGradient id="scanline" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5C97FD" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#5C97FD" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#5C97FD" stop-opacity="0"/>
     </linearGradient>
+    <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse">
+      <path d="M80 0H0V80" fill="none" stroke="#7FB5FF" stroke-opacity="0.05" stroke-width="1"/>
+    </pattern>
   </defs>
 
   <rect width="1920" height="1080" fill="url(#base)"/>
   <rect width="1920" height="1080" fill="url(#grid)"/>
-  <rect width="1920" height="1080" fill="url(#glowA)"/>
-  <rect width="1920" height="1080" fill="url(#glowB)"/>
-  <rect width="1920" height="1080" fill="url(#glowC)"/>
+  <rect width="1920" height="1080" fill="url(#amb)"/>
 
-  <!-- concentric scan arcs, anchored off-canvas bottom-left -->
-  <g fill="none" stroke="#3178fc" transform="translate(60 1240)">
-    <circle r="360" stroke-opacity="0.16" stroke-width="1.5"/>
-    <circle r="560" stroke-opacity="0.12" stroke-width="1.5"/>
-    <circle r="780" stroke-opacity="0.09" stroke-width="1.5"/>
-    <circle r="1020" stroke-opacity="0.06" stroke-width="1.5"/>
-    <circle r="1280" stroke-opacity="0.04" stroke-width="1.5"/>
+  <!-- ============ the axial slice (left half, the hero) ============ -->
+  <g transform="translate(560 560)">
+    <!-- gantry ring -->
+    <circle r="330" fill="none" stroke="#5C97FD" stroke-opacity="0.25" stroke-width="2"/>
+    <circle r="318" fill="none" stroke="#5C97FD" stroke-opacity="0.5" stroke-width="1"/>
+    <circle r="286" fill="none" stroke="#7FB5FF" stroke-opacity="0.18" stroke-width="14"/>
+    <!-- tissue window -->
+    <circle r="268" fill="url(#tissue)"/>
+    <!-- skull ring -->
+    <circle r="262" fill="none" stroke="#cfe0ff" stroke-opacity="0.35" stroke-width="10"/>
+    <!-- brain folds: abstract bezier folds -->
+    <g fill="none" stroke="#dbe8ff" stroke-opacity="0.30" stroke-width="3" stroke-linecap="round">
+      <path d="M-190 -60 C -150 -130, -60 -160, 10 -140 C 80 -120, 150 -140, 190 -70"/>
+      <path d="M-200 10 C -160 -40, -110 -20, -80 -60 C -40 -110, 40 -100, 90 -130"/>
+      <path d="M-180 80 C -120 30, -70 60, -20 20 C 30 -20, 100 10, 170 -20"/>
+      <path d="M-150 150 C -90 100, -30 130, 30 90 C 90 50, 150 80, 200 40"/>
+      <path d="M-90 200 C -40 160, 20 180, 80 140"/>
+    </g>
+    <!-- ventricles (dark pair) -->
+    <path d="M-46 -30 C -30 -70, 10 -80, 34 -50 C 50 -30, 40 -6, 18 -4 C -6 -2, -34 -8, -46 -30 Z" fill="url(#ventricle)"/>
+    <path d="M-40 34 C -20 60, 20 62, 40 38 C 52 22, 44 4, 22 6 C -2 8, -28 14, -40 34 Z" fill="url(#ventricle)" opacity="0.8"/>
+    <!-- crosshair through the slice -->
+    <g stroke="#7FB5FF">
+      <line x1="-330" y1="0" x2="330" y2="0" stroke-opacity="0.35" stroke-width="1" stroke-dasharray="14 10"/>
+      <line x1="0" y1="-330" x2="0" y2="330" stroke-opacity="0.35" stroke-width="1" stroke-dasharray="14 10"/>
+      <circle r="6" fill="#5C97FD" fill-opacity="0.9" stroke="none"/>
+    </g>
+    <!-- MPR planes crossing the slice -->
+    <g stroke="#5C97FD" stroke-width="1.5">
+      <line x1="-300" y1="-140" x2="300" y2="-90" stroke-opacity="0.4" stroke-dasharray="4 8"/>
+      <line x1="-260" y1="180" x2="310" y2="120" stroke-opacity="0.3" stroke-dasharray="4 8"/>
+    </g>
+    <g font-family="ui-monospace, Menlo, monospace" font-size="15" fill="#9dc3ff" fill-opacity="0.85">
+      <text x="306" y="-86">AX</text>
+      <text x="316" y="124">COR</text>
+      <text x="-332" y="-112">SAG</text>
+    </g>
+    <!-- gantry tick marks -->
+    <g stroke="#9dc3ff" stroke-opacity="0.6" stroke-width="2">
+      <line x1="0" y1="-318" x2="0" y2="-296"/>
+      <line x1="0" y1="318" x2="0" y2="296"/>
+      <line x1="-318" y1="0" x2="-296" y2="0"/>
+      <line x1="318" y1="0" x2="296" y2="0"/>
+    </g>
   </g>
-  <!-- crosshair sweep, the imaging read motif -->
-  <g transform="translate(300 620)" stroke="#3178fc" fill="none">
-    <circle r="150" stroke-opacity="0.22" stroke-width="1.5"/>
-    <circle r="150" stroke-opacity="0.10" stroke-width="10"/>
-    <line x1="-190" y1="0" x2="-110" y2="0" stroke-opacity="0.45" stroke-width="2"/>
-    <line x1="110" y1="0" x2="190" y2="0" stroke-opacity="0.45" stroke-width="2"/>
-    <line x1="0" y1="-190" x2="0" y2="-110" stroke-opacity="0.45" stroke-width="2"/>
-    <line x1="0" y1="110" x2="0" y2="190" stroke-opacity="0.45" stroke-width="2"/>
-    <circle r="4" fill="#3178fc" fill-opacity="0.8" stroke="none"/>
+
+  <!-- ============ reading HUD ============ -->
+  <g font-family="ui-monospace, Menlo, monospace" fill="#cfe0ff">
+    <text x="150" y="120" font-size="16" fill-opacity="0.75">LumenCollab Imaging Workspace</text>
+    <text x="150" y="146" font-size="13" fill-opacity="0.5">MODALITY MR · SERIES 3 · SLICE 42/120</text>
+    <text x="150" y="820" font-size="14" fill-opacity="0.6">WW 400 / WL 40</text>
+    <text x="150" y="844" font-size="14" fill-opacity="0.6">ZOOM 1.0 · PAN 0,0</text>
+    <text x="150" y="868" font-size="14" fill-opacity="0.6">FPS 60 · GPU OK</text>
   </g>
-  <!-- secondary read marker, upper area -->
-  <g transform="translate(760 240)" stroke="#5C97FD" fill="none" opacity="0.55">
-    <circle r="80" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="6 10"/>
-    <line x1="-104" y1="0" x2="-56" y2="0" stroke-width="1.5"/>
-    <line x1="56" y1="0" x2="104" y2="0" stroke-width="1.5"/>
+  <!-- intensity histogram -->
+  <g transform="translate(150 620)" fill="none">
+    <rect width="220" height="90" stroke="#7FB5FF" stroke-opacity="0.3" fill="#0B2540" fill-opacity="0.35"/>
+    <path d="M0 78 C 30 70, 44 30, 66 34 C 88 38, 96 12, 118 16 C 140 20, 152 48, 172 44 C 190 40, 206 62, 220 58"
+          stroke="#5C97FD" stroke-opacity="0.85" stroke-width="2"/>
   </g>
-  <!-- plus markers -->
-  <g fill="#5C97FD" opacity="0.5">
-    <path d="M520 420h16M528 412v16" stroke="#5C97FD" stroke-width="2"/>
-    <path d="M180 300h16M188 292v16" stroke="#5C97FD" stroke-width="2" opacity="0.7"/>
-    <path d="M900 760h16M908 752v16" stroke="#5C97FD" stroke-width="2" opacity="0.45"/>
-    <path d="M1120 180h16M1128 172v16" stroke="#5C97FD" stroke-width="2" opacity="0.35"/>
+
+  <!-- ============ data-flow line toward the card side ============ -->
+  <g fill="none" stroke="#5C97FD" stroke-width="1.5">
+    <path d="M980 300 H 1220 L 1300 380 H 1500" stroke-opacity="0.35"/>
+    <path d="M980 780 H 1180 L 1260 700 H 1520" stroke-opacity="0.25"/>
   </g>
-  <!-- diagonal light sweep -->
-  <rect width="1920" height="1080" fill="url(#sweep)" transform="rotate(-18 960 540)"/>
+  <g fill="#5C97FD">
+    <circle cx="1220" cy="300" r="4" fill-opacity="0.8"/>
+    <circle cx="1300" cy="380" r="4" fill-opacity="0.6"/>
+    <circle cx="1180" cy="780" r="4" fill-opacity="0.6"/>
+  </g>
+
+  <!-- ============ bottom signal trace ============ -->
+  <path d="M0 1010 H 520 L 560 1010 590 950 620 1060 650 1000 H 1180 L 1210 1010 1240 964 1270 1042 1300 1010 H 1920"
+        fill="none" stroke="#5C97FD" stroke-opacity="0.4" stroke-width="2"/>
+
+  <!-- ============ right-half calm markers ============ -->
+  <g stroke="#7FB5FF" fill="none" opacity="0.5">
+    <path d="M1560 200h18M1569 191v18" stroke-width="2"/>
+    <path d="M1700 520h14M1707 513v14" stroke-width="2" opacity="0.7"/>
+    <path d="M1480 900h14M1487 893v14" stroke-width="2" opacity="0.6"/>
+  </g>
+  <circle cx="1660" cy="330" r="90" fill="none" stroke="#5C97FD" stroke-opacity="0.2" stroke-width="1.5" stroke-dasharray="5 9"/>
 </svg>
