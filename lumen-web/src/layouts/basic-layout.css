@@ -35,7 +35,7 @@
   font-weight: 500;
 }
 .lumen-rail-label {
-  font-size: 16px; /* OPS mainnav label ~16px */
+  font-size: 18px; /* OPS: no override on .w-40 -> html base 18px (index.scss:35) */
   line-height: 1.25;
   max-width: 64px;
   white-space: nowrap;
@@ -73,7 +73,7 @@
   align-items: flex-start;
 }
 .lumen-header-user-name {
-  font-size: 16px; /* OPS: >6 chars -> ellipsis */
+  font-size: 18px; /* OPS .username: var(--font-size-base) = 18px */
   font-weight: 500;
   color: var(--lumen-user-name-color);
   max-width: 6.5em;
@@ -82,7 +82,7 @@
   text-overflow: ellipsis;
 }
 .lumen-header-user-org {
-  font-size: 12px;
+  font-size: 16px; /* OPS .org: var(--font-size-small) = 16px */
   color: var(--lumen-user-org-color);
   max-width: 8em;
   white-space: nowrap;
