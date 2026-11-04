@@ -97,7 +97,7 @@
   color: var(--lumen-avatar-color);
   display: grid;
   place-items: center;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 500;
   flex: 0 0 auto;
   background: linear-gradient(135deg, var(--lumen-avatar-from), var(--lumen-avatar-to));
@@ -145,15 +145,14 @@
   line-height: 1.4;
 }
 .lumen-side-group-label {
+  /* flex centering fixes the icon/text optical misalignment the absolute
+     placement had (user feedback 2026-11-04); geometry still OPS: 20px icon,
+     text cleared by the 45px title padding. */
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-size: 16px;
   color: var(--lumen-group-color);
-}
-.lumen-side-group-label .anticon {
-  position: absolute;
-  top: 50%;
-  left: 15px;
-  font-size: 20px;
-  transform: translateY(-50%);
 }
 /* OPS fold control (rev.9): expanded = 24px Fold icon absolutely at the
    sidebar bottom-right (right:4px bottom:0 padding:5px, no text); collapsed =

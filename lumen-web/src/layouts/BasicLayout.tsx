@@ -112,10 +112,14 @@ const SIDE_MENU_THEME: ThemeConfig = {
       itemSelectedColor: DESIGN_TOKEN.colorPrimary,
       itemSelectedBg: DESIGN_TOKEN.colorPrimaryBg,
       itemHeight: 40,
-      itemMarginInline: 0,
+      // Selected chip: 8px inline inset + 6px radius (user request 2026-11-04:
+      // the selected background/bar needs a gap from the sidebar edge - the
+      // user-confirmed prototype row form), while text keeps the OPS 0 20px
+      // rhythm inside it.
+      itemMarginInline: 8,
       itemMarginBlock: 0,
-      itemPaddingInline: 20,
-      itemBorderRadius: 0,
+      itemPaddingInline: 12,
+      itemBorderRadius: DESIGN_TOKEN.borderRadius,
       groupTitleColor: DESIGN_TOKEN.colorTextTertiary,
       groupTitleFontSize: 16,
       activeBarWidth: 0,
@@ -245,7 +249,7 @@ export function BasicLayout() {
           <img
             src={headLogo}
             alt="LumenCollab"
-            style={{ width: 34, height: 34, borderRadius: 9, display: 'block' }}
+            style={{ width: 44, height: 44, borderRadius: 11, display: 'block' }}
           />
         </div>
         {menus.map((item) => {
@@ -291,7 +295,7 @@ export function BasicLayout() {
                   <span className="lumen-header-user-org">{SEED_ORG_LABEL}</span>
                 </span>
                 <span className="lumen-header-avatar" style={{ width: 50, height: 50 }}>
-                  {profile?.name?.charAt(0) ?? '?'}
+                  {profile?.name ? profile.name.slice(-2) : '??'}
                 </span>
               </button>
             </Popover>

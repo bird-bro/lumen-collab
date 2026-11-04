@@ -240,7 +240,7 @@ describe('header user area + logout (web-foundation-auth-console 5.4)', () => {
     expect(avatar?.style.width).toBe('50px')
     // The avatar derives the first character of the name (the prototype's
     // static 管 is a hand-picked demo glyph - recorded in the batch report).
-    expect(avatar?.textContent).toBe('系')
+    expect(avatar?.textContent).toBe('理员')
 
     await user.click(screen.getByText('系统管理员'))
     await user.click(await screen.findByRole('button', { name: '退出登录' }))
