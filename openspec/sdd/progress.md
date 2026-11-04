@@ -193,16 +193,56 @@
   in CLAUDE.md) snapshotted as its own commit 9839652 BEFORE the module rename, per
   user approval (clean-tree git mv)
 
-### Batch 1: DB schema rename + config base (tasks 1.1-1.2)
-- Status: Complete + Approved (commit 8d73970, 17 files; review 0C/0I/3m)
-- Review: Approved - DB independently verified via JDBC (pg_namespace has system not
-  auth; system.flyway_schema_history 3 rows, checksums exact match V1/V2/V3; 7/7
-  business tables in system, 4/4 public tables; unqualified names resolve); sweep
-  zero schema-semantic auth residue; independent clean test 50/0/0/0 (15 classes)
 - Minors folded into Batch 2: (1) AUTH_SCHEMA constant/label/javadoc in bootstrap,
   (2) pre-existing class/filename mismatch AuthUnitCrudTests/AuthDepartmentTests,
   (3) frozen V3 comment stale - checksum discipline forbids edit, noted for
   spec-hygiene (no action)
+
+### Batch 2: Endpoints + wiring + test closure (tasks 3.1-3.4, 4.1-4.5)
+- Status: Complete + Approved (commit 33167c3, 24 files +1556/-26; one API-error-free run;
+  146 tool uses)
+- Review: Approved - 0 Critical / 0 Important / 5 Minor; suite independently re-run 50/0/0
+  (real public.log_info/log_sign rows polled); sign-out test proves adaptations (7)+(8)
+  end-to-end (200 envelope + type=12 row); @Log 19/19 write endpoints; handoffs 1-4 verified
+- RequestContextConfig root cause deepened by review: copied SwaggerConfig @EnableWebMvc
+  disables WebMvcAutoConfiguration, silently removing Boot 2.4+'s auto-configured
+  RequestContextFilter - the new file restores exactly that bean (added to adaptation (8))
+- Minor queue: (1) non-browser UA NPEs async pool at AsyncFactory.java:77 - sign/@Log rows
+  silently dropped for scripted clients (copied-machinery defect, future recorded
+  adaptation); (2) /logs pageSize uncapped; (3) login try-width double-record edge
+  (theoretical); (4) DetailQuery value-vs-label kept as copied
+- Parallel-session residue untouched (18 worktree paths intact; relicense f451962 noted)
+
+### Batch 3: Test closure + swagger smoke + docs (tasks 4.1-4.2, 5.1)
+- Status: Complete (Batch Inline - coordinator executed)
+- Smoke: POST /api/v1/system/login 200+JWT; /v3/api-docs 23 paths all system; old path
+  returns the "203" envelope (security chain precedes dispatch - contract's "404" wording
+  noted imprecise, intent met); port cleaned
+- Guard applying->verifying PASS; phase: verifying
+
+---
+
+# Change: dict-city-reference
+## Execution Mode: SDD
+## Started: 2026-11-04
+## Base: 847790c (branch: dev)
+
+### Preflight (2026-11-04)
+- DP-3 approved; contract hash 326cebce; guard proposing->applying PASS;
+  workflow_mode: SDD
+- Data asset committed with the change: data/rows.sql (3751-row lineage export from
+  followup.public.dict_city, 2026-11-03 snapshot; required a dir-local !*.sql negation
+  mirroring the db/migration precedent - global gitignore excludes *.sql)
+
+### Batch 1: All tasks (1.1-3.1)
+- Status: Implementer DONE (commit 032221c, 17 files); reviewer dispatched
+- TDD both gates: migration checksum RED (relation missing) -> V4 -> 6/0/0; endpoint RED
+  (compile) -> 6/0/0; full suite 65/0/0 (baseline 53 + 12 new)
+- Real defects caught during GREEN: snapshot trailing-comma terminator (V4 last tuple
+  closes with ; - interior boundaries verbatim); manual sequence needed OWNED BY for
+  pg_get_serial_sequence/setval to resolve
+- Deviations recorded: entity upId Long (TreeUtils key-type; DDL stays integer);
+  Long id lineage-fidelity (per contract)
 
 ### Batch 2: Atomic cascade (tasks 2.1-2.2, 3.1-3.3)
 - Status: Implementer DONE (commit 898382c, 111 files +357/-357 all git-mv; reviewer
@@ -282,6 +322,74 @@
 > 规划完成时同步了并行更名(2026-11-03/04):模块 lumen-auth→lumen-system,端点前缀
 > /api/v1/auth/**→/api/v1/system/**(proposal/specs/design/tasks/contract/zh 文档已全部对齐,
 > artifacts_hash b0a081d7)。roles/list 缺口已声明(api delta),后端小变更跟进。
+
+### Batch 5: UI Prototype (task 5.1) - COMPLETE, user-confirmed
+- Status: Complete + Confirmed (user 2026-11-04, after 12 revision rounds; commit follows)
+- Review: prototype delivered via frontend-design skill (subagent w/ Skill tool), then
+  12 user-feedback revision rounds each anchored to OPS source facts - (1) three-region
+  shell (68px rail/60px header/160px white collapsible sidebar), (2) no page-title blocks
+  (compact lists), (3) sidebar renders active-L1 children: L2 dirs=group titles w/ icons,
+  L3=flat text-only items, L1 never repeats; icon-only op columns; query-left tool-rows,
+  (4) header user area text-left/avatar-right no caret + popover plain logout, (5)
+  duotone -> (9) L3 iconless + rail 26px white + OPS fold button (24px icon bottom-right,
+  40px collapsed strip w/ vertical text), (10) teal sidebar experiment REVERTED to white,
+  (11) rail near-black tech blue #0B2540 (hover #12355C), (12) action primary reverted
+  teal->bright blue #3178fc - final palette: single blue family (near-black shell +
+  bright blue actions), red alarm-only
+- Spec sync during revisions: web-design-system delta - Layout Metrics rewritten
+  (three-region + menu display rules + compact lists + 10px content padding + header
+  composition scenario + 26px white rail); OPS Palette Tokens -> single blue family
+  (trajectory all-OPS-blue -> teal-action -> bright-blue recorded, hash 2876e72a)
+- Pending follow-ups recorded: mock menu fixtures restructure to 3-level (batches 5.2-5.4
+  brief), backend V2 seed menu restructure + roles/list (backend change), profile org field
+- Notes: prototype HTML committed as planning artifacts; 61/61 tests green throughout
+
+### Batch 4: Transport Client & Auth Session (tasks 4.1-4.3)
+- Status: Complete + Approved (commit with review fixes)
+- Review: Approved - coordinator independently re-ran test (61/61, 7 files) + build
+  (exit 0 strict); client 203 semantics verified structurally (never reads
+  response.status; dedicated HTTP-200-203 test) + no store imports (DI one-way);
+  path->spec table audited (19 functions, all documented); concerns: test-stub bug
+  fixed by implementer without touching impl (26/27 -> 27/27); ListLogsQuery as type
+  alias (implicit index signature) - accepted
+- Review fixes by coordinator: web-app-shell delta gains MODIFIED API Client Seam
+  (entity IDs typed as JSON numbers per ID Serialization - resolves the
+  entity-id.ts(string) vs api spec(number) contradiction implementer flagged);
+  entity-id.ts rewritten to `EntityId = number` (stale snowflake-string doc updated);
+  src/api/index.ts seam comment refreshed (seam now populated); hash 98f2d2e7
+- Deferred observations: timeout/abort non-goal (additive later); login returns
+  menus/perms superset vs main-spec wording (recorded, harmless); tasks 4.2 said
+  login/clear, brief specified setSession/clear - brief wins (store has no HTTP)
+
+### Batch 3: Mock Server & Seed-Parity Fixtures (task 3.1)
+- Status: Complete + Approved (commit with spec-fix, see b3 feat commit)
+- Review: Approved - coordinator independently re-ran test (14/14) + build (exit 0) and
+  curl smoke on :5178 (login good/bad, 203 gate, /me, orgs tree, roles IPage, full-replace
+  shrink 4->1 top menus + perms [] then restored, port freed). Three concerns accepted:
+  (1) brief's literal url-gate conflicted with itself (auth/dicts/logs live in main specs) -
+  union-gate over all openspec sources is the correct resolution, 24/24 URLs documented;
+  (2) users/list is a plain List per implemented surface - api delta + web-system-console
+  wording fixed by coordinator in this batch's commit (paged -> plain list; hash d2722d21);
+  (3) menu placeholder paths follow frontend routes (/ultrasound//endoscopy) over V2 seed
+  (/us//endo), org_dep codes stay seed-exact - noted as potential backend follow-up
+- Notes: plugin 2.7.1 needs NAMED export mockDevServerPlugin (README default-import broken);
+  *.mock.ts include glob only - _fixtures.ts safe as helper; per-file esbuild bundling means
+  cross-file session state lives in a globalThis bucket (dev-memory only); mock-only fields
+  flagged (token shape, menu ids 7-12, roles menuIds echo, arbitrary-Bearer fallback);
+  login field is username (mirrors backend LoginRequest); OrbStack real backend on :80 - 
+  proxy passthrough proven both variants (real 203 / ECONNREFUSED 500)
+
+### Batch 2: Design System Foundation (tasks 2.1-2.3)
+- Status: Complete + Approved (commit 766c81e, 12 files incl. 3 TTFs)
+- Review: Approved - coordinator independently re-ran test (14/14) + build (exit 0,
+  3 hashed MiSans in dist); hex-scan re-run with corrected globs (first run's 2 "hits"
+  were the reviewer's own glob error - both files sit in the sanctioned theme/test
+  exclusions); MSYH scan clean; scope exact (4 M + 5 new in lumen-web)
+- Notes: TDD RED->GREEN evidence captured for tokens (9 failures on teal baseline) and
+  layout (header null / sider 200px); hex guard proven to bite via canary mutation;
+  TS18048 fixed by tightening type (NonNullable<ThemeConfig['token']>) - strict intact;
+  App.tsx wiring corrected to full themeConfig so component tokens reach the tree;
+  fonts 24MB total (8.07/8.05/7.96 MB), cmp-verified byte-identical to OPS sources
 
 ### Batch 1: Dependencies & Tooling (task 1.1)
 - Status: Complete + Approved (docs commit 3244ccd; feat commit b02e5ca)

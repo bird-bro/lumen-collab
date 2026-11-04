@@ -4,17 +4,20 @@
 # MOD-3: phase gates read this file; MOD-4: retry_count >= 3 -> enter debugging.
 # Module-A: artifacts_hash/contract_hash for execution-contract freshness.
 # Module-SDD: execution_mode/batches_completed for subagent-driven development.
+# rename-auth-to-system archived (slot released); web-foundation-auth-console apply in
+# progress via SDD (ledger: openspec/sdd/progress.md). Artifacts swept to
+# /api/v1/system/** + lumen-system and re-verified 2026-11-04 (hash b0a081d7 unchanged).
 phase: archived
-change: spec-hygiene
+change: dict-city-reference
 current_task: null
 tasks_total: 5
-tasks_done: 4
+tasks_done: 5
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: b0a081d7eab995becd2a3ca14afbf57cdd0c8dd0cacbc1fd3363f4615a715d3f
+artifacts_hash: 0d8795dc6e80c0fd1b236d68705c0278fff036b0ca55efbb7db3d8e0b083cd39
 contract_hash: null
 execution_mode: SDD
-batches_completed: 0
-last_updated: 2026-11-03
+batches_completed: 4
+last_updated: 2026-11-04
