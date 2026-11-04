@@ -1,9 +1,18 @@
 # LumenCollab
 
-**Open-source medical imaging collaboration platform** — a Radiology Information System (RIS)
-for v1, designed to pair with the open-source PACS [dcm4chee-arc-light](https://github.com/dcm4che/dcm4chee-arc-light).
-Ultrasound and endoscopy departments follow as independent microservices, all sharing one
-exam-workflow kernel.
+**LumenCollab** is an open-source medical imaging collaboration platform. It pairs with the
+battle-tested open-source PACS [dcm4chee-arc-light](https://github.com/dcm4che/dcm4chee-arc-light)
+rather than replacing it: studies stay in the PACS (linked by Accession Number via QIDO-RS),
+while LumenCollab owns the clinical workflow around them — a Radiology Information System in
+v1, with ultrasound and endoscopy departments following as independent microservices. All
+departments share one exam-workflow kernel (booking → registration → exam → report), one
+authentication and RBAC foundation (JWT sessions, menu-tree permissions with button-level
+gating), and one system-data layer (org tree, departments, users, roles, dictionaries,
+operation logs). Built on a spec-driven development process (OpenSpec), every behavior
+contract is testable — 65+ integration tests verify login, permissions, audit identity and
+reference data against real infrastructure. If your hospital runs dcm4chee and needs a
+lightweight, inspectable RIS that speaks DICOM MWL/MPPS and HL7v2 — LumenCollab is built for
+that gap.
 
 > 中文说明：[docs/README.zh-CN.md](docs/README.zh-CN.md)
 

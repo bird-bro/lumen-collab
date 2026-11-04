@@ -1,8 +1,14 @@
 # LumenCollab
 
-**开源医学影像协作平台** —— v1 交付放射科信息系统（RIS），与开源 PACS
-[dcm4chee-arc-light](https://github.com/dcm4che/dcm4chee-arc-light) 配套使用。超声、内镜
-科室将以独立微服务形态跟进，全部共享同一检查流程内核（exam-workflow kernel）。
+**LumenCollab（流明协作）** 是一个开源医学影像协作平台。它与久经考验的开源 PACS
+[dcm4chee-arc-light](https://github.com/dcm4che/dcm4chee-arc-light) 配套而非替代：影像留在
+PACS（通过 QIDO-RS 按 Accession Number 关联），LumenCollab 负责影像之外的临床流程——v1
+交付放射科信息系统（RIS），超声、内镜科室随后以独立微服务跟进。所有科室共用同一个检查流程
+内核（预约→登记→检查→报告）、同一套认证与 RBAC 基座（JWT 会话、菜单树权限与按钮级门控）、
+同一层系统数据（机构树、科室、用户、角色、字典、操作日志）。项目全程采用规格驱动开发
+（OpenSpec）——每条行为契约都可测试，65+ 集成测试对着真实基础设施验证登录、权限、审计身份
+与参照数据。如果你的医院在用 dcm4chee，又需要一个轻量、可读、能说 DICOM MWL/MPPS 与 HL7v2
+的 RIS——LumenCollab 就是为这个缺口而建。
 
 > English documentation: [README.md](../README.md)
 
