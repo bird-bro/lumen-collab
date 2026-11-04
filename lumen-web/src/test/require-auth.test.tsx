@@ -128,12 +128,23 @@ describe('RequireAuth guard (web-foundation-auth-console 5.3)', () => {
 })
 
 describe('index redirect (web-foundation-auth-console 5.3)', () => {
+  // Batch 6.1 replaced the /system/orgs placeholder with the real org page, so
+  // the landing evidence is now the org tree request + the tree panel chrome
+  // (the assertion's INTENT is unchanged: / lands on the first granted route).
   it('redirects / to the first route the menu tree grants (admin: /system/orgs)', async () => {
     useAuthStore.getState().setSession({ token: 't-login', profile: null, menus: ADMIN_MENUS, perms: [] })
-    stubFetch(async () => okEnvelope({ profile: null, menus: ADMIN_MENUS, perms: [] }))
+    const fetchMock = stubFetch(async (input) => {
+      const url = String(input)
+      if (url.startsWith('/api/v1/system/orgs')) return okEnvelope([])
+      return okEnvelope({ profile: null, menus: ADMIN_MENUS, perms: [] })
+    })
     renderRoutes('/')
 
-    expect(await screen.findByText(/not yet implemented/i)).toBeInTheDocument()
+    expect(await screen.findByText('机构')).toBeInTheDocument()
+    const urls = fetchMock.mock.calls.map(([input]) => String(input))
+    expect(urls).toContain('/api/v1/system/me')
+    expect(urls).toContain('/api/v1/system/orgs/tree')
+    expect(screen.queryByText(/no granted menu/i)).not.toBeInTheDocument()
   })
 
   it('shows an explicit no-menu state instead of redirecting when nothing is granted', async () => {
