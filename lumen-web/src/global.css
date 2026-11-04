@@ -1,0 +1,9 @@
+/*
+ * Global reset (batch 5b login-rework follow-up): the browser-default body
+ * margin (8px) showed as a white frame around the full-bleed shell - OPS has
+ * a full reset, so the shell spans edge to edge. Deliberately MINIMAL: only
+ * what the app shell needs (no aggressive preflight).
+ */
+body {
+  margin: 0;
+}

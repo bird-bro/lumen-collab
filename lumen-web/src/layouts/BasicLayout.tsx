@@ -2,7 +2,6 @@ import {
   BankOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
-  PlusOutlined,
   RadarChartOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
@@ -14,6 +13,7 @@ import type { ComponentType, CSSProperties } from 'react'
 import { Suspense, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { activeTopLevelNode, firstLeafRouteOf, resolveMenuRoute } from '@/routes/menu-paths'
+import headLogo from '@/assets/head.png'
 import { useAuthStore } from '@/stores/auth'
 import { themeConfig } from '@/theme'
 import './basic-layout.css'
@@ -52,7 +52,7 @@ export const RAIL_WIDTH = 68
 export const HEADER_HEIGHT = 60
 export const SIDER_WIDTH = 160
 export const SIDER_COLLAPSED_WIDTH = 40
-export const CONTENT_PADDING = 10
+export const CONTENT_PADDING = 5
 
 /**
  * org label: the profile DTO carries no org field yet, so the seeded hospital
@@ -82,7 +82,6 @@ const RAIL_FALLBACK_ICON: IconComponent = RadarChartOutlined
  * Static component-token reads (values live in `src/theme/tokens.ts`; the
  * tokens test pins every key read here).
  */
-const RAIL_BG = themeConfig.components?.Layout?.siderBg
 const RAIL_HOVER_BG = themeConfig.components?.Menu?.darkItemHoverBg
 const RAIL_ACTIVE_BG = themeConfig.components?.Menu?.darkItemSelectedBg
 const SIDE_ITEM_HOVER_BG = themeConfig.components?.Table?.headerBg
@@ -205,9 +204,7 @@ export function BasicLayout() {
           // CSS custom properties consumed by ./basic-layout.css - every value
           // comes from the token pipeline (the CSS file itself holds no colors).
           '--lumen-title-color': token.colorText,
-          '--lumen-env-bg': token.colorPrimaryBg,
-          '--lumen-env-color': token.colorPrimary,
-          '--lumen-user-hover-bg': token.colorBgLayout,
+          '--lumen-user-separator': token.colorBorder,
           '--lumen-user-name-color': token.colorText,
           '--lumen-user-org-color': token.colorTextTertiary,
           '--lumen-avatar-color': token.colorTextLightSolid,
@@ -242,18 +239,11 @@ export function BasicLayout() {
           }}
           title="LumenCollab"
         >
-          <span
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 9,
-              display: 'grid',
-              placeItems: 'center',
-              background: `linear-gradient(135deg, ${RAIL_ACTIVE_BG}, ${RAIL_BG})`,
-            }}
-          >
-            <PlusOutlined style={{ color: token.colorTextLightSolid, fontSize: 18 }} />
-          </span>
+          <img
+            src={headLogo}
+            alt="LumenCollab"
+            style={{ width: 34, height: 34, borderRadius: 9, display: 'block' }}
+          />
         </div>
         {menus.map((item) => {
           const target = firstLeafRouteOf(item)
@@ -289,8 +279,7 @@ export function BasicLayout() {
             lineHeight: 'normal',
           }}
         >
-          <span className="lumen-header-title">LumenCollab 影像协作平台</span>
-          <span className="lumen-header-env">{import.meta.env.DEV ? '开发环境' : import.meta.env.MODE}</span>
+          <span className="lumen-header-title">LumenCollab</span>
           <div style={{ marginLeft: 'auto' }}>
             <Popover trigger="click" placement="bottomRight" content={userPopContent}>
               <button type="button" className="lumen-header-user" title="用户区">

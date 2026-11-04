@@ -51,31 +51,20 @@
   letter-spacing: 0.3px;
   white-space: nowrap;
 }
-.lumen-header-env {
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 4px;
-  background: var(--lumen-env-bg);
-  color: var(--lumen-env-color);
-  font-size: 16px;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-}
+/* OPS .right-info verbatim: full header height, 0 10px padding, a LEFT
+   hairline separator, and NO hover background (the hover bleed the user
+   reported came from the removed custom hover chip). */
 .lumen-header-user {
   display: flex;
   align-items: center;
-  gap: 12px;
+  height: 100%;
+  gap: 0;
   cursor: pointer;
-  padding: 5px 6px 5px 10px;
+  padding: 0 10px;
   border: 0;
-  border-radius: 6px;
+  border-left: 1px solid var(--lumen-user-separator);
   background: transparent;
   font-family: inherit;
-  transition: background 0.18s;
-}
-.lumen-header-user:hover {
-  background: var(--lumen-user-hover-bg);
 }
 .lumen-header-user-info {
   display: flex;
@@ -101,6 +90,7 @@
   text-overflow: ellipsis;
 }
 .lumen-header-avatar {
+  margin-left: 8px; /* OPS .user-avatar fact */
   width: 50px; /* OPS Header fact: 50px round avatar block, no caret */
   height: 50px;
   border-radius: 50%;

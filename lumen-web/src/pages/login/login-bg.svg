@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <!--
+    Login backdrop (web-foundation-auth-console login rework, user request
+    2026-11-04: a dedicated background image like the OPS login's cover art).
+    Bespoke open-source-safe asset: deep navy field, brand-blue glows, a fine
+    imaging grid, concentric scan arcs and plus markers weighted to the LEFT
+    half (the OPS card sits at left 75%, so the art stays visible). Swapping
+    in a licensed brand photo later = replacing this one file reference.
+  -->
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d2c4e"/>
+      <stop offset="0.55" stop-color="#0B2540"/>
+      <stop offset="1" stop-color="#06182b"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.24" cy="0.18" r="0.55">
+      <stop offset="0" stop-color="#3178fc" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#3178fc" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.06" cy="0.95" r="0.5">
+      <stop offset="0" stop-color="#12355C" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#12355C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowC" cx="0.5" cy="1.15" r="0.6">
+      <stop offset="0" stop-color="#0d2c4e" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#0d2c4e" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="96" height="96" patternUnits="userSpaceOnUse">
+      <path d="M96 0H0V96" fill="none" stroke="#ffffff" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="sweep" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#3178fc" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#base)"/>
+  <rect width="1920" height="1080" fill="url(#grid)"/>
+  <rect width="1920" height="1080" fill="url(#glowA)"/>
+  <rect width="1920" height="1080" fill="url(#glowB)"/>
+  <rect width="1920" height="1080" fill="url(#glowC)"/>
+
+  <!-- concentric scan arcs, anchored off-canvas bottom-left -->
+  <g fill="none" stroke="#3178fc" transform="translate(60 1240)">
+    <circle r="360" stroke-opacity="0.16" stroke-width="1.5"/>
+    <circle r="560" stroke-opacity="0.12" stroke-width="1.5"/>
+    <circle r="780" stroke-opacity="0.09" stroke-width="1.5"/>
+    <circle r="1020" stroke-opacity="0.06" stroke-width="1.5"/>
+    <circle r="1280" stroke-opacity="0.04" stroke-width="1.5"/>
+  </g>
+  <!-- crosshair sweep, the imaging read motif -->
+  <g transform="translate(300 620)" stroke="#3178fc" fill="none">
+    <circle r="150" stroke-opacity="0.22" stroke-width="1.5"/>
+    <circle r="150" stroke-opacity="0.10" stroke-width="10"/>
+    <line x1="-190" y1="0" x2="-110" y2="0" stroke-opacity="0.45" stroke-width="2"/>
+    <line x1="110" y1="0" x2="190" y2="0" stroke-opacity="0.45" stroke-width="2"/>
+    <line x1="0" y1="-190" x2="0" y2="-110" stroke-opacity="0.45" stroke-width="2"/>
+    <line x1="0" y1="110" x2="0" y2="190" stroke-opacity="0.45" stroke-width="2"/>
+    <circle r="4" fill="#3178fc" fill-opacity="0.8" stroke="none"/>
+  </g>
+  <!-- secondary read marker, upper area -->
+  <g transform="translate(760 240)" stroke="#5C97FD" fill="none" opacity="0.55">
+    <circle r="80" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="6 10"/>
+    <line x1="-104" y1="0" x2="-56" y2="0" stroke-width="1.5"/>
+    <line x1="56" y1="0" x2="104" y2="0" stroke-width="1.5"/>
+  </g>
+  <!-- plus markers -->
+  <g fill="#5C97FD" opacity="0.5">
+    <path d="M520 420h16M528 412v16" stroke="#5C97FD" stroke-width="2"/>
+    <path d="M180 300h16M188 292v16" stroke="#5C97FD" stroke-width="2" opacity="0.7"/>
+    <path d="M900 760h16M908 752v16" stroke="#5C97FD" stroke-width="2" opacity="0.45"/>
+    <path d="M1120 180h16M1128 172v16" stroke="#5C97FD" stroke-width="2" opacity="0.35"/>
+  </g>
+  <!-- diagonal light sweep -->
+  <rect width="1920" height="1080" fill="url(#sweep)" transform="rotate(-18 960 540)"/>
+</svg>

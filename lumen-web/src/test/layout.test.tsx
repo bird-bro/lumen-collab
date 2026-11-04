@@ -146,7 +146,7 @@ describe('three-zone shell metrics (web-foundation-auth-console 5.4)', () => {
     const header = container.querySelector<HTMLElement>('.ant-layout-header')
     expect(header).not.toBeNull()
     expect(header?.style.height).toBe('60px')
-    expect(screen.getByText('LumenCollab 影像协作平台')).toBeInTheDocument()
+    expect(screen.getByText('LumenCollab')).toBeInTheDocument()
   })
 
   it('renders a 160px white secondary sidebar and 10px content padding', () => {
@@ -158,7 +158,7 @@ describe('three-zone shell metrics (web-foundation-auth-console 5.4)', () => {
     expect(sidebar?.style.width).toBe('160px')
 
     const content = container.querySelector<HTMLElement>('.ant-layout-content')
-    expect(content?.style.padding).toBe('10px')
+    expect(content?.style.padding).toBe('5px')
   })
 
   it('renders the rail L1 entries from the store menu tree (not a hard-coded list)', () => {

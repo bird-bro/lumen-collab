@@ -75,15 +75,16 @@ identity is carried by the active sidebar item (OPS compact-list style).
 - **THEN** the icon rail is 68px wide and dark blue with 26px white icons and white
   labels (OPS rail sizes, user feedback 2026-11-04), the header is 60px tall, and the
   secondary sidebar is 160px wide (40px collapsed) and white
-- **AND** the content area padding is 10px (user-specified 2026-11-04, tighter than the OPS
-  equivalent)
+- **AND** the content area padding is 5px (user-specified 2026-11-04, revised from the
+  earlier 10px call - tighter than the OPS equivalent)
 - **AND** the values trace to a single shared definition
 
 #### Scenario: Header composition
 - **WHEN** the shell header renders for a logged-in user
-- **THEN** the left side shows the product title and the right side shows the user area as
-  stacked username + org text with the avatar at the right edge and no caret indicator
-  (OPS header pattern, user feedback 2026-11-04)
+- **THEN** the left side shows the product title (brand name only, per user request
+  2026-11-04) and the right side shows the user area as the OPS `.right-info` verbatim:
+  full header height, a left hairline separator, stacked username + org text with the
+  avatar at the right edge, no caret, and NO hover background (user feedback 2026-11-04)
 - **AND** activating the user area opens a popover holding the basic info and a plain
   logout button
 

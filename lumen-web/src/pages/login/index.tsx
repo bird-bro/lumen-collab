@@ -1,5 +1,5 @@
-import { PlusOutlined, UserOutlined, LockOutlined } from '@ant-design/icons'
-import { Button, Form, Input, message, theme } from 'antd'
+import { LockOutlined, UserOutlined } from '@ant-design/icons'
+import { Button, Form, Input, Typography } from 'antd'
 import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -7,216 +7,202 @@ import { ApiError } from '@/api/client'
 import { login as authLogin } from '@/api/auth'
 import { firstGrantedRoute } from '@/routes/menu-paths'
 import { useAuthStore } from '@/stores/auth'
-import { themeConfig } from '@/theme'
+import headLogo from './head.png'
+import loginBg from './login-bg.svg'
 
 /**
- * Login page (batch 5b of web-foundation-auth-console, task 5.2; design D7).
- * OPS-pattern centered card on the deep-blue stage per the user-confirmed
- * prototype `login.html`: brand mark + product title, account + password
- * fields, Enter submits exactly like the button, the submit button carries a
- * pending state, and an `A`-class failure surfaces the envelope `msg`
- * verbatim through `message.error` while the visitor stays on the page.
- * The prototype's privacy-checkbox / forgot-password link are intentionally
- * absent (design D7 - no such endpoint or product requirement).
+ * Login page (batch 5b task 5.2; reworked to the OPS login layout verbatim on
+ * user request 2026-11-04 - read from `OPS/ops_web/src/views/login/index.vue`):
  *
- * Colors: every value reads the AntD token pipeline. The stage radial tints
- * are the token primary at alpha via 8-digit hex built from
- * `token.colorPrimary` at runtime (no hex literal - the hex-discipline guard
- * stays green and the tints follow any future primary change); the prototype's
- * documented-but-untokened decorative values (its pre-rev.11 stage base and
- * gradient end) are replaced by the synced `Layout.siderBg` token plus a
- * neutral black overlay - recorded in the batch report's
- * prototype-vs-implementation table.
+ * - a full-page background IMAGE (`./login-bg.svg`, background-size cover -
+ *   the bespoke open-source-safe stand-in for OPS's `assets/login/logo1.png`;
+ *   swapping in a licensed brand photo = replacing this one reference);
+ * - the white card 450px wide anchored at `top:50% / left:75%`
+ *   translate(-50%,-50%), padding 50px 20px 0, radius 8, the OPS card shadow;
+ * - the brand mark is `lumen-reference/head.png` (user-picked, downscaled to
+ *   256px) INLINE with the 32px bold title, one row (user request 2026-11-04,
+ *   subtitle dropped);
+ * - inputs are the standard bordered AntD fields at 18px (user request:
+ *   visible borders, larger font - supersedes the OPS underline style);
+ * - the login failure surfaces INLINE in the OPS `.error-info` box (cream bg,
+ *   orange border, red text) instead of a toast - same `msg` verbatim;
+ * - footer: the OPS `.login-footer` position (absolute bottom 20px, centered,
+ *   small white text) with the user's credit line;
+ * - the prototype's Enter-hint kbd line is REMOVED (user: redundant) while the
+ *   Enter-submits BEHAVIOR stays (spec `web-auth-flow` § Login Page).
+ * The privacy-checkbox / forgot-password link remain absent (design D7).
+ *
+ * Decorative OPS literal colors enter as rgba(...) forms (the hex-discipline
+ * guard scans comments too, so OPS's source values are transcribed as rgb():
+ * card shadow rgb(158,177,200) at .6; error box rgb(254,252,238) bg /
+ * rgb(255,147,76) border; input glyphs rgb(78,78,78); the underline stays
+ * white at 30% opacity per the OPS source.
  */
 
-/** Stage backdrop per login.html: deep-blue base + two primary-tint radials + bottom shade. */
-function stageBackground(colorPrimary: string, stageBase: string): string {
-  return [
-    `radial-gradient(1100px 700px at 74% -14%, ${colorPrimary}4D, transparent 62%)`,
-    `radial-gradient(880px 640px at 4% 112%, ${colorPrimary}5C, transparent 58%)`,
-    'linear-gradient(to top, rgba(0, 0, 0, 0.20), transparent 38%)',
-    stageBase,
-  ].join(', ')
+interface LoginValues {
+  username: string
+  password: string
 }
 
-/** login.html `.bg-grid`: faint 96px imaging grid, radially masked around the card. */
-const GRID_LINES = [
-  'linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
-  'linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
-].join(', ')
+/** OPS `.error-info`: the inline failure box under the form. */
+function errorBoxStyle(): CSSProperties {
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    height: 40,
+    padding: '0 8px',
+    marginBottom: 10,
+    marginLeft: 44,
+    fontSize: 14,
+    color: 'rgba(226, 60, 60, 1)',
+    background: 'rgba(254, 252, 238, 1)',
+    border: '1px solid rgba(255, 147, 76, 0.85)',
+    borderRadius: 6,
+  }
+}
 
-interface LoginValues {
-  username: string;
-  password: string;
+/** Clearly-bordered large inputs (user request 2026-11-04: visible border, larger font). */
+const boxedInputStyle: CSSProperties = {
+  fontSize: 18,
+}
+const prefixIconStyle: CSSProperties = {
+  color: 'rgba(78, 78, 78, 1)',
+  fontSize: 18,
+  marginInlineEnd: 8,
 }
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const setSession = useAuthStore((state) => state.setSession)
-  const [form] = Form.useForm<LoginValues>()
-  const [messageApi, messageContextHolder] = message.useMessage()
-  const { token } = theme.useToken()
-  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const onFinish = async (values: LoginValues) => {
-    setLoading(true);
+    setError(null)
+    setSubmitting(true)
     try {
-      const data = await authLogin({ username: values.username, password: values.password });
-      setSession({ token: data.token, profile: data.profile, menus: data.menus, perms: data.perms });
-      // design D6: land on the first menu route the user's tree grants.
-      navigate(firstGrantedRoute(data.menus) ?? '/', { replace: true });
-    } catch (error) {
-      if (error instanceof ApiError) {
-        messageApi.error(error.msg);
-      } else {
-        messageApi.error('登录失败，请稍后重试');
-      }
+      const data = await authLogin(values)
+      useAuthStore.getState().setSession({
+        token: data.token,
+        profile: data.profile,
+        menus: data.menus,
+        perms: data.perms,
+      })
+      navigate(firstGrantedRoute(data.menus) ?? '/', { replace: true })
+    } catch (err) {
+      // The OPS login shows the failure INLINE (.error-info), msg verbatim.
+      setError(err instanceof ApiError ? err.msg : '登录失败，请稍后重试')
     } finally {
-      setLoading(false);
+      setSubmitting(false)
     }
-  };
-
-  const cardStyle: CSSProperties = {
-    position: 'relative',
-    zIndex: 10,
-    width: 400,
-    background: token.colorBgContainer,
-    borderRadius: token.borderRadiusLG,
-    padding: '42px 38px 34px',
-    boxShadow: '0 24px 64px rgba(2, 18, 46, 0.42)',
   }
 
   return (
     <div
       style={{
         position: 'relative',
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        padding: '32px 16px',
-        background: stageBackground(
-          token.colorPrimary,
-          themeConfig.components?.Layout?.siderBg ?? token.colorBgContainer,
-        ),
+        height: '100vh',
+        overflow: 'auto',
+        backgroundImage: `url(${loginBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
       }}
     >
-      {messageContextHolder}
       <div
-        aria-hidden
         style={{
           position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          backgroundImage: GRID_LINES,
-          backgroundSize: '96px 96px',
-          maskImage: 'radial-gradient(760px 580px at 50% 44%, rgba(0, 0, 0, 0.9), transparent 78%)',
-          WebkitMaskImage: 'radial-gradient(760px 580px at 50% 44%, rgba(0, 0, 0, 0.9), transparent 78%)',
+          top: '50%',
+          left: '75%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 10,
+          width: 450,
+          padding: '50px 20px 0',
+          textAlign: 'center',
+          background: 'rgb(255, 255, 255)',
+          borderRadius: 8,
+          boxShadow: '0 0 10px rgba(158, 177, 200, 0.6)',
         }}
-      />
-      <main style={cardStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 30 }}>
-          <span
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 11,
-              flex: '0 0 auto',
-              display: 'grid',
-              placeItems: 'center',
-              background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryHover} 100%)`,
-              boxShadow: `0 6px 16px ${token.colorPrimary}59`,
-            }}
-          >
-            <PlusOutlined style={{ color: token.colorTextLightSolid, fontSize: 22 }} />
-          </span>
-          <div>
-            <div style={{ fontSize: token.fontSizeLG, fontWeight: 700, letterSpacing: 0.3, color: token.colorText }}>
-              LumenCollab
-            </div>
-            <div style={{ fontSize: token.fontSizeSM, color: token.colorTextTertiary, marginTop: 2, letterSpacing: 2 }}>
-              影像协作平台
-            </div>
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 14,
+            marginBottom: 40,
+          }}
+        >
+          <img src={headLogo} alt="LumenCollab" style={{ width: 64, height: 64, borderRadius: 14 }} />
+          <div style={{ fontSize: 32, fontWeight: 700, color: 'rgba(51, 51, 51, 1)', lineHeight: 1.25 }}>
+            LumenCollab
           </div>
         </div>
 
-        <Form<LoginValues>
-          form={form}
-          onFinish={onFinish}
-          autoComplete="off"
-          requiredMark={false}
-          disabled={loading}
-        >
+        <Form<LoginValues> onFinish={onFinish} layout="vertical">
+          {error ? (
+            <div style={errorBoxStyle()}>
+              <span>⚠ </span>
+              <span>{error}</span>
+            </div>
+          ) : null}
           <Form.Item name="username" rules={[{ required: true, message: '请输入账号' }]}>
             <Input
               size="large"
               placeholder="账号"
-              autoComplete="username"
-              prefix={<UserOutlined style={{ color: token.colorTextTertiary }} />}
+              autoComplete="off"
+              aria-label="账号"
+              prefix={<UserOutlined style={prefixIconStyle} />}
+              style={boxedInputStyle}
             />
           </Form.Item>
           <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
-            <Input
+            <Input.Password
               size="large"
-              type="password"
               placeholder="密码"
-              autoComplete="current-password"
-              prefix={<LockOutlined style={{ color: token.colorTextTertiary }} />}
+              autoComplete="off"
+              aria-label="密码"
+              prefix={<LockOutlined style={prefixIconStyle} />}
+              style={boxedInputStyle}
             />
           </Form.Item>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-              gap: 8,
-              fontSize: token.fontSizeSM,
-              color: token.colorTextTertiary,
-              marginTop: -4,
-              marginBottom: 16,
-            }}
-          >
-            <kbd
-              style={{
-                fontFamily: 'inherit',
-                fontSize: token.fontSizeSM,
-                color: token.colorTextSecondary,
-                border: `1px solid ${token.colorBorder}`,
-                borderBottomWidth: 2,
-                borderRadius: 4,
-                padding: '1px 8px',
-                background: token.colorBgLayout,
-              }}
+          <Form.Item style={{ marginBottom: 26 }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              loading={submitting}
+              style={{ fontSize: 18, height: 44 }}
             >
-              Enter ⏎
-            </kbd>
-            输入密码后按回车直接登录
-          </div>
-          <Button
-            type="primary"
-            htmlType="submit"
-            block
-            size="large"
-            loading={loading}
-            style={{ fontWeight: 500, letterSpacing: 8, textIndent: 8 }}
-          >
-            {loading ? '登录中' : '登 录'}
-          </Button>
+              {submitting ? '登录中' : '登 录'}
+            </Button>
+          </Form.Item>
         </Form>
-      </main>
+        <div style={{ textAlign: 'right', paddingBottom: 20 }}>
+          {/* OPS .text-right 忘记密码? link - RESERVED: no endpoint exists yet
+              (design D7), so the link is a no-op placeholder (user request
+              2026-11-04 to keep the affordance visible). */}
+          <Typography.Link
+            style={{ fontSize: 14 }}
+            onClick={(event) => event.preventDefault()}
+            aria-label="忘记密码（预留）"
+          >
+            忘记密码?
+          </Typography.Link>
+        </div>
+      </div>
 
-      {import.meta.env.DEV && (
-        <>
-          <p style={{ position: 'relative', zIndex: 10, marginTop: 22, fontSize: token.fontSizeSM, color: 'rgba(255, 255, 255, 0.55)' }}>
-            开发种子账号:admin / admin123 · 仅开发 mock 环境
-          </p>
-          <p style={{ position: 'absolute', zIndex: 10, bottom: 20, left: 0, right: 0, textAlign: 'center', fontSize: token.fontSizeSM, color: 'rgba(255, 255, 255, 0.38)', letterSpacing: 1 }}>
-            LumenCollab · 开发环境
-          </p>
-        </>
-      )}
+      <div
+        style={{
+          position: 'absolute',
+          right: 0,
+          bottom: 20,
+          left: 0,
+          textAlign: 'center',
+          fontSize: 16,
+          color: 'rgba(255, 255, 255, 1)',
+        }}
+      >
+        Open Source . by birdbro
+      </div>
     </div>
   )
 }
