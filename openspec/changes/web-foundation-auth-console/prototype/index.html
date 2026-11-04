@@ -19,7 +19,7 @@
 
 /* ---------- tokens · mirror src/theme/tokens.ts ---------- */
 :root{
-  --colorPrimary:#0E7C86; --colorInfo:#0E7C86; --colorLink:#0E7C86; /* rev.5 duotone: teal action */
+  --colorPrimary:#3178fc; --colorInfo:#3178fc; --colorLink:#3178fc; /* rev.12: bright-blue action (teal retired) */
   --fontSize:18px; --fontSizeSM:16px; --fontSizeLG:20px;
   --fontFamily:'MiSans','PingFang SC','Microsoft YaHei',sans-serif;
   --colorText:#333; --colorTextSecondary:#666; --colorTextTertiary:#999;
@@ -29,7 +29,7 @@
   --Table-headerBg:#f0f3fa; --Table-rowHoverBg:#f6f6f6;
   --Header-height:60px; --Sider-width:160px;
   --borderRadius:6px; --borderRadiusLG:8px; --controlHeightLG:40px;
-  --colorPrimaryHover:#14A3B5; --colorPrimaryBg:rgba(14,124,134,.10);
+  --colorPrimaryHover:#5C97FD; --colorPrimaryBg:rgba(49,120,252,.08);
   --colorError:#ff4d4f; --colorSuccess:#52c41a;
   --navDeep:#003676;
   --row-line:rgba(215,219,226,.55);
@@ -206,20 +206,21 @@ a{text-decoration:none;color:inherit}
   </section>
 
   <section class="sec">
-    <h2>OPS 调色板(双色调:近黑导轨 + 内容区青色操作)</h2>
+    <h2>调色板(单蓝色系:近黑蓝壳 + 亮蓝操作)</h2>
     <p class="desc">
-      <b>双色调决策(修订 5,用户 2026-11-04 拍板)</b>:壳层深蓝体系;内容区动作色
-      全面换青 —— 主按钮 / 链接 / 文字选中 / 侧栏选中态用 <b>#0E7C86</b>(hover #14A3B5),
-      侧栏选中 =「青色左条 + 浅青底」;修订 1 的 #3c587d 白字方案弃用;表头/斑马/文本/
-      边框等中性色不变,红色仍永不做主色。
+      <b>修订 12(用户 2026-11-04 裁定)</b>:主操作色青色退场,回归亮蓝 <b>#3178fc</b>
+      (hover <b>#5C97FD</b>)—— 主按钮 / 链接 / 文字选中 / 侧栏选中;侧栏选中片 =
+      浅蓝底 <b>#EBF2FF</b> + #3178fc 蓝条。修订 5-11 的青色系(#0E7C86 / #14A3B5 /
+      #E6F6F7)自功能引用退位;修订 1 的 #3c587d 白字方案弃用。
       <b>修订 11(用户 2026-11-04 选定)</b>:导轨背景 #0f356a → <b>#0B2540</b>(近黑科技蓝)、
-      悬停 #32aef3 → <b>#12355C</b>、选中 #007bc2 → <b>#0E7C86</b>(品牌青,与主操作同色);
-      协调者同步 tokens.ts 与规格(#0f356a / #007bc2 / #32aef3 为 tokens.ts 现值,
-      规格同步后对齐),保持三方一致。
+      悬停 #32aef3 → <b>#12355C</b>(选中随修订 12 回归 #3178fc);协调者同步 tokens.ts
+      与规格(#0f356a / #007bc2 / #32aef3 为 tokens.ts 现值,规格同步后对齐),
+      保持三方一致;中性色与红色纪律不变。
     </p>
     <div class="sw">
-      <div class="chip"><span class="dot" style="background:#0E7C86"></span><span class="t"><b>#0E7C86</b>主操作色 / 导轨选中(青)</span></div>
-      <div class="chip"><span class="dot" style="background:#14A3B5"></span><span class="t"><b>#14A3B5</b>操作悬停(青)</span></div>
+      <div class="chip"><span class="dot" style="background:#3178fc"></span><span class="t"><b>#3178fc</b>colorPrimary 主操作色 / 导轨选中(亮蓝)</span></div>
+      <div class="chip"><span class="dot" style="background:#5C97FD"></span><span class="t"><b>#5C97FD</b>操作悬停(修订 12)</span></div>
+      <div class="chip"><span class="dot" style="background:#EBF2FF"></span><span class="t"><b>#EBF2FF</b>侧栏选中浅蓝底</span></div>
       <div class="chip"><span class="dot" style="background:#0B2540"></span><span class="t"><b>#0B2540</b>主导航轨(修订 11 近黑科技蓝)</span></div>
       <div class="chip"><span class="dot" style="background:#12355C"></span><span class="t"><b>#12355C</b>导轨悬停(修订 11)</span></div>
       <div class="chip"><span class="dot" style="background:#003676"></span><span class="t"><b>#003676</b>导航深蓝(点缀)</span></div>
@@ -253,7 +254,7 @@ a{text-decoration:none;color:inherit}
       三区结构(OPS layout/index.vue):左 68px 图标导轨(<b>#0B2540 近黑科技蓝,修订 11</b>)
       —— 一级菜单
       (系统管理 + 放射科/超声科/内镜科,图标 <b>26px</b> + 下方短标签 ~16px,
-      <b>图标与标签均为纯白 #fff</b>(OPS --mainnav-color),选中 #0E7C86 / 悬停 #12355C,
+      <b>图标与标签均为纯白 #fff</b>(OPS --mainnav-color),选中 #3178fc / 悬停 #12355C,
       logo 块与头部同高 60px);60px 白色头部横跨导轨右侧 —— 左产品标题
       (26px/600)+ 环境占位 + 右用户区(用户名/所属机构双行 + 50px 圆头像,悬停弹出
       基本信息与 plain 大按钮「退出登录」,无 caret;不含 OPS 的问题反馈/客服/聆听图标);
@@ -262,7 +263,7 @@ a{text-decoration:none;color:inherit}
       (16px 灰字 + <b>20px 组图标,保留图标</b>),三级页面 = 组内平铺行项
       (18px 字号 / 40px 行高,<b>纯文字、无图标</b> —— OPS SidebarItem 条件渲染,
       实际菜单数据无 icon),组间 1px 分隔线;一级永不进侧栏,只在导轨;选中态 =
-      青色左条 + 浅青底(修订 5)。
+      蓝色左条 + 浅蓝底 #EBF2FF(修订 12,回归亮蓝)。
       <b>折叠交互(修订 9,OPS 形态)</b>:展开态 = 24px Fold 图标绝对定位于侧栏右下角
       (right:4px / bottom:0 / padding:5px,无文字);收起态 = 40px 宽竖条
       (Expand 图标 + 竖排文字 18px/600,逐字换行),整条可点击展开。
@@ -270,8 +271,8 @@ a{text-decoration:none;color:inherit}
       查询组件(左)+ CirclePlus 新增钮(右);操作列 = 纯图标链接钮(tooltip 出文案),
       表头「操作」右侧带刷新图标;分页行水平居中(高 60px,OPS .hpage-pagination);
       内容区 padding <b>10px</b>(修订 8,用户指定)。
-      <b>侧栏配色(修订 10)</b>:青色底实验(修订 9)经用户裁定不采用,回退白色;
-      选中态保留青色系 —— 青色左条 + 浅青底 #E6F6F7 深青字。
+      <b>侧栏配色(修订 10/12)</b>:青色底实验(修订 9)经用户裁定不采用,回退白色;
+      选中态保留主色系 —— 蓝色左条 + 浅蓝底 #EBF2FF 深蓝字(修订 12 回归亮蓝)。
     </p>
     <div class="metrics">
       <span class="mt">主导航轨宽 <b>68px</b>(--mainnav-width)</span>
@@ -310,7 +311,7 @@ a{text-decoration:none;color:inherit}
           <tr><td>三级(平铺项)</td><td>机构管理 · 科室管理 | 用户管理 · 角色管理 · 菜单管理 | 字典管理 · 日志查询(18px / 40px 行高,纯文字无图标)</td></tr>
           <tr><td>科室一级(单页)</td><td>放射科 / 超声科 / 内镜科 激活 → 侧栏单个平铺项</td></tr>
           <tr><td>折叠交互(修订 9)</td><td>展开态:24px Fold 图标固定侧栏右下角;收起态:40px 竖条(Expand 图标 + 竖排文字 18px/600),整条点击展开</td></tr>
-          <tr><td>侧栏配色(修订 10)</td><td>青色底实验不采用,回退白;选中态 = 青色左条 + 浅青底 #E6F6F7 深青字</td></tr>
+          <tr><td>侧栏配色(修订 10/12)</td><td>青色底实验不采用,回退白;选中态 = 蓝色左条 + 浅蓝底 #EBF2FF(修订 12 回归亮蓝)</td></tr>
         </tbody>
       </table>
     </div>
@@ -324,7 +325,7 @@ a{text-decoration:none;color:inherit}
           <tr><th style="width:60px">色样</th><th>AntD token</th><th style="width:120px">值</th><th style="width:250px">原型 CSS 变量</th><th style="width:130px">tokens.ts</th><th>用途</th></tr>
         </thead>
         <tbody>
-          <tr><td><span class="swatch-inline" style="background:#0E7C86"></span></td><td class="mono">colorPrimary / colorInfo / colorLink</td><td class="mono">#0E7C86</td><td class="mono">--colorPrimary 等</td><td class="yes">✓ 一致(修订 5 双色调,协调者同步 tokens.ts)</td><td>主操作色(青):按钮/链接/选中态;原值 #3178fc 自内容区动作元素退位</td></tr>
+          <tr><td><span class="swatch-inline" style="background:#3178fc"></span></td><td class="mono">colorPrimary / colorInfo / colorLink</td><td class="mono">#3178fc</td><td class="mono">--colorPrimary 等</td><td class="yes">✓ 一致(修订 12 回归 tokens.ts 原值)</td><td>主操作色(亮蓝):按钮/链接/选中态;修订 5-11 曾为青 #0E7C86,已退位</td></tr>
           <tr><td><span class="swatch-inline" style="background:#333"></span></td><td class="mono">colorText</td><td class="mono">#333</td><td class="mono">--colorText</td><td class="yes">✓ 一致</td><td>主文本</td></tr>
           <tr><td><span class="swatch-inline" style="background:#666"></span></td><td class="mono">colorTextSecondary</td><td class="mono">#666</td><td class="mono">--colorTextSecondary</td><td class="yes">✓ 一致</td><td>次级文本</td></tr>
           <tr><td><span class="swatch-inline" style="background:#999"></span></td><td class="mono">colorTextTertiary</td><td class="mono">#999</td><td class="mono">--colorTextTertiary</td><td class="yes">✓ 一致</td><td>弱文本 / 占位</td></tr>
@@ -332,18 +333,18 @@ a{text-decoration:none;color:inherit}
           <tr><td><span class="swatch-inline" style="background:#f3f5f7"></span></td><td class="mono">colorBgLayout</td><td class="mono">#f3f5f7</td><td class="mono">--colorBgLayout</td><td class="yes">✓ 一致</td><td>布局底色</td></tr>
           <tr><td><span class="swatch-inline" style="background:#ffffff"></span></td><td class="mono">Layout.headerBg</td><td class="mono">#ffffff</td><td class="mono">--Layout-headerBg</td><td class="yes">✓ 一致</td><td>头部底色</td></tr>
           <tr><td><span class="swatch-inline" style="background:#0f356a"></span></td><td class="mono">Layout.siderBg = Menu.darkItemBg</td><td class="mono">#0f356a</td><td class="mono">--Layout-siderBg / --Menu-darkItemBg</td><td class="yes">✓ 一致</td><td>深蓝导航 token 镜像;修订 11 后导轨改用 #0B2540(见下)</td></tr>
-          <tr><td><span class="swatch-inline" style="background:#007bc2"></span></td><td class="mono">Menu.darkItemSelectedBg</td><td class="mono">#007bc2</td><td class="mono">--Menu-darkItemSelectedBg</td><td class="yes">✓ 一致</td><td>tokens.ts 现值;修订 11 后导轨选中改 #0E7C86(见下)</td></tr>
+          <tr><td><span class="swatch-inline" style="background:#007bc2"></span></td><td class="mono">Menu.darkItemSelectedBg</td><td class="mono">#007bc2</td><td class="mono">--Menu-darkItemSelectedBg</td><td class="yes">✓ 一致</td><td>tokens.ts 现值;修订 11/12 后导轨选中改 #3178fc(见下)</td></tr>
           <tr><td><span class="swatch-inline" style="background:#32aef3"></span></td><td class="mono">Menu.darkItemHoverBg</td><td class="mono">#32aef3</td><td class="mono">--Menu-darkItemHoverBg</td><td class="yes">✓ 一致</td><td>tokens.ts 现值;修订 11 后导轨悬停改 #12355C(见下)</td></tr>
-          <tr><td><span class="swatch-inline" style="background:#0B2540"></span><span class="swatch-inline" style="background:#12355C"></span><span class="swatch-inline" style="background:#0E7C86"></span></td><td class="mono extra">(修订 11 用户决定)</td><td class="mono">#0B2540 / #12355C / #0E7C86</td><td class="mono">--mainnav-background-color / --mainnav-item-hover / --mainnav-item-active</td><td class="mut">修订 11 · 协调者同步 tokens.ts</td><td>导轨背景(近黑科技蓝)/ 悬停 / 选中(品牌青,与主操作同色)</td></tr>
-          <tr><td><span class="swatch-inline" style="background:#3c587d;opacity:.4"></span></td><td class="mono extra">(修订 5 弃用)</td><td class="mono">#3c587d</td><td class="mono">--menu-background-active-color</td><td class="mut">弃用</td><td>修订 1 曾选用 OPS 白字方案;修订 5 改为青色左条 + 浅青底(下行)</td></tr>
-          <tr><td><span class="swatch-inline" style="background:rgba(14,124,134,.10)"></span></td><td class="mono extra">(修订 5)</td><td class="mono">#0E7C86 + rgba(14,124,134,.10)</td><td class="mono">--menu-active-bar / --menu-active-bg</td><td class="yes">✓ 修订 5 选用</td><td>二级侧栏菜单选中:青色左条 + 浅青底,文字转青</td></tr>
+          <tr><td><span class="swatch-inline" style="background:#0B2540"></span><span class="swatch-inline" style="background:#12355C"></span><span class="swatch-inline" style="background:#3178fc"></span></td><td class="mono extra">(修订 11/12 用户决定)</td><td class="mono">#0B2540 / #12355C / #3178fc</td><td class="mono">--mainnav-background-color / --mainnav-item-hover / --mainnav-item-active</td><td class="mut">修订 11/12 · 协调者同步 tokens.ts</td><td>导轨背景(近黑科技蓝)/ 悬停 / 选中(跟随主操作亮蓝)</td></tr>
+          <tr><td><span class="swatch-inline" style="background:#3c587d;opacity:.4"></span></td><td class="mono extra">(修订 5 弃用)</td><td class="mono">#3c587d</td><td class="mono">--menu-background-active-color</td><td class="mut">弃用</td><td>修订 1 曾选用 OPS 白字方案;后经修订 5-12 演进为主色左条 + 浅色底(下行)</td></tr>
+          <tr><td><span class="swatch-inline" style="background:rgba(49,120,252,.08)"></span><span class="swatch-inline" style="background:#EBF2FF"></span></td><td class="mono extra">(修订 12)</td><td class="mono">#3178fc + #EBF2FF</td><td class="mono">--menu-active-bar / --menu-active-bg</td><td class="yes">✓ 修订 12</td><td>二级侧栏菜单选中:蓝色左条 + 浅蓝底,文字转主色</td></tr>
           <tr><td><span class="swatch-inline" style="background:#6f6f6f"></span></td><td class="mono extra">(OPS var,非 AntD token)</td><td class="mono">#6f6f6f</td><td class="mono">--menu-text-color</td><td class="mut">OPS 事实</td><td>二级侧栏菜单文字色</td></tr>
           <tr><td class="mut">—</td><td class="mono">OPS var.scss 壳层度量</td><td class="mono">68 / 60 / 160 / 40px</td><td class="mono">--mainnav-width / --Header-height / --Sider-width / --hide-sidebar-width</td><td class="yes">✓ OPS/规格</td><td>三区壳层:导轨 / 头部 / 二级侧栏 / 折叠宽</td></tr>
           <tr><td><span class="swatch-inline" style="background:#f0f3fa"></span></td><td class="mono">Table.headerBg</td><td class="mono">#f0f3fa</td><td class="mono">--Table-headerBg</td><td class="yes">✓ 一致</td><td>表头</td></tr>
           <tr><td><span class="swatch-inline" style="background:#f6f6f6"></span></td><td class="mono">Table.rowHoverBg</td><td class="mono">#f6f6f6</td><td class="mono">--Table-rowHoverBg</td><td class="yes">✓ 一致</td><td>斑马行 / 行悬停(同值,按 tokens.ts)</td></tr>
           <tr><td><span class="swatch-inline" style="background:#003676"></span></td><td class="mono extra">(无对应 token)</td><td class="mono">#003676</td><td class="mono">--navDeep</td><td class="mut">规格调色板 · 仅点缀</td><td>登录页 / 导览页深蓝背景的渐变端</td></tr>
-          <tr><td><span class="swatch-inline" style="background:#14A3B5"></span></td><td class="mono extra">(修订 5 指定)</td><td class="mono">#14A3B5</td><td class="mono">--colorPrimaryHover</td><td class="mut">修订 5 指定 · 替换派生值</td><td>青色操作悬停(原 AntD 派生值 #4f95ff)</td></tr>
-          <tr><td><span class="swatch-inline" style="background:rgba(14,124,134,.10)"></span></td><td class="mono extra">(修订 5 指定)</td><td class="mono">rgba(14,124,134,.10)</td><td class="mono">--colorPrimaryBg</td><td class="mut">修订 5 指定</td><td>青色浅底(选中行 / 环境标签 / 提示条 / 侧栏选中底)</td></tr>
+          <tr><td><span class="swatch-inline" style="background:#5C97FD"></span></td><td class="mono extra">(修订 12 指定)</td><td class="mono">#5C97FD</td><td class="mono">--colorPrimaryHover</td><td class="mut">修订 12 指定</td><td>亮蓝操作悬停(历史:AntD 派生 #4f95ff → 修订 5-11 青 #14A3B5)</td></tr>
+          <tr><td><span class="swatch-inline" style="background:rgba(49,120,252,.08)"></span></td><td class="mono extra">(修订 12)</td><td class="mono">rgba(49,120,252,.08)</td><td class="mono">--colorPrimaryBg</td><td class="mut">修订 12(AntD 派生)</td><td>蓝色浅底(选中行 / 环境标签 / 提示条 / 侧栏选中底)</td></tr>
           <tr><td class="mut">—</td><td class="mono">fontSize / fontSizeSM / fontSizeLG</td><td class="mono">18 / 16 / 20</td><td class="mono">--fontSize(SM/LG)</td><td class="yes">✓ 一致</td><td>OPS 字号体系</td></tr>
           <tr><td class="mut">—</td><td class="mono">fontFamily</td><td class="mono">MiSans + 回退</td><td class="mono">--fontFamily</td><td class="yes">✓ 一致</td><td>唯一品牌字体,本地 @font-face</td></tr>
           <tr><td class="mut">—</td><td class="mono">Header 高度 / Sider 宽度</td><td class="mono">60px / 160px</td><td class="mono">--Header-height / --Sider-width</td><td class="yes">✓ 规格</td><td>OPS 布局度量(specs/web-design-system)</td></tr>
