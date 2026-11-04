@@ -3,6 +3,7 @@ package org.birdbro.framework.security;
 
 import com.alibaba.fastjson2.JSON;
 import eu.bitwalker.useragentutils.UserAgent;
+import org.birdbro.framework.utils.UserAgents;
 import io.jsonwebtoken.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -153,7 +154,10 @@ public class TokenService {
      * @param loginUser 登录信息
      */
     public void setUserAgent(UserLogin loginUser) {
-        UserAgent userAgent = UserAgent.parseUserAgentString(ServletUtils.getRequest().getHeader("User-Agent"));
+        // lumen adaptation (10): null-safe UA parse (hardening - no observed defect here,
+        // the shared entry point keeps all three call sites on one semantics)
+        UserAgent userAgent = UserAgents.fromHeader(
+                ServletUtils.getRequest().getHeader("User-Agent"));
 
         String ip = IpUtils.getIpAddr();
         AgentInfo agent = AgentInfo.builder()

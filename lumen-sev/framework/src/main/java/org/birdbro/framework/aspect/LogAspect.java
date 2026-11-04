@@ -2,6 +2,7 @@ package org.birdbro.framework.aspect;
 
 import com.alibaba.fastjson2.JSON;
 import eu.bitwalker.useragentutils.UserAgent;
+import org.birdbro.framework.utils.UserAgents;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -99,7 +100,10 @@ public class LogAspect {
             HttpServletRequest request = requestAttr.getRequest();
             //请求地址
             String ip = IpUtils.getIpAddr(request);
-            final UserAgent userAgent = UserAgent.parseUserAgentString(ServletUtils.getRequest().getHeader("User-Agent"));
+            // lumen adaptation (10): null-safe UA parse - unversioned or missing headers are
+            // the norm for API-first clients
+            final UserAgent userAgent = UserAgents.fromHeader(
+                    ServletUtils.getRequest().getHeader("User-Agent"));
 
             // 从切面织入点处通过反射机制获取织入点处的方法
             MethodSignature signature = (MethodSignature) joinPoint.getSignature();
@@ -117,7 +121,7 @@ public class LogAspect {
                     .ip(ip)
                     .os(userAgent.getOperatingSystem().getName())
                     .browser(userAgent.getBrowser().getName())
-                    .engine(userAgent.getBrowserVersion().getVersion())
+                    .engine(UserAgents.engine(userAgent))
                     .build();
             //记录操作用户信息
             UserLogin loginUser = SecurityUtils.getLoginUser();

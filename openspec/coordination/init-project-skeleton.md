@@ -113,6 +113,15 @@ those services assign them and update this table.
   each service overrides in its own application.yml (lumen-system: LumenCollab).
   Additive-first was not possible here - `ApiInfo` is built inline in the copied file,
   so configurability requires touching it. - 2026-11-04
+- **(10) null-safe User-Agent parsing** (3 copied call sites: `AsyncFactory.recordForSign`,
+  `LogAspect`, `TokenService.setUserAgent` + new `framework/utils/UserAgents.java`):
+  API-first clients send no UA or an unversioned one - the copied
+  `getBrowserVersion().getVersion()` chain NPE'd, silently dropping sign rows (async
+  pool) and breaking `@Log` endpoints (synchronous aspect). `UserAgents.fromHeader`
+  never throws (missing/blank UA -> UNKNOWN agent, engine null); RED/GREEN proven by
+  `AuthUserAgentResilienceTests` (missing-UA sign record + unversioned-UA regression
+  sentinel). bitwalker 1.21 contract verified via javap: 2-arg constructor, UNKNOWN
+  browser carries no Version. - 2026-11-04
 - **Package naming: dual root by code origin** - user decision 2026-10-29. groupId
   `org.birdbro` everywhere; copied modules keep `org.birdbro.{framework,common}`; new
   modules use `org.birdbro.lumen.*` (`org.birdbro.lumen.{auth,patient,radiology,us,endo,

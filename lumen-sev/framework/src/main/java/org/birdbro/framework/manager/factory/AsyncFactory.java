@@ -3,6 +3,7 @@ package org.birdbro.framework.manager.factory;
 
 import cn.hutool.core.util.ObjUtil;
 import eu.bitwalker.useragentutils.UserAgent;
+import org.birdbro.framework.utils.UserAgents;
 import lombok.extern.slf4j.Slf4j;
 import org.birdbro.common.core.pojo.LogInfo;
 import org.birdbro.common.core.pojo.LogSign;
@@ -39,7 +40,9 @@ public class AsyncFactory {
                                           final String message,
                                           final String descr,
                                           final Object... args) {
-        final UserAgent userAgent = UserAgent.parseUserAgentString(ServletUtils.getRequest().getHeader("User-Agent"));
+        // lumen adaptation (10): null-safe UA parse - API-first clients send no header
+        final UserAgent userAgent = UserAgents.fromHeader(
+                ServletUtils.getRequest().getHeader("User-Agent"));
         final String ip = IpUtils.getIpAddr();
         return new TimerTask() {
             @Override
@@ -74,7 +77,7 @@ public class AsyncFactory {
                         //.remark(IpUtils.getRealAddressByIP(ip))
                         .browser(browser)
                         .os(os)
-                        .engine(userAgent.getBrowserVersion().getVersion())
+                        .engine(UserAgents.engine(userAgent))
                         .actionTime(new Date())
                         .type(status)
                         .build();
