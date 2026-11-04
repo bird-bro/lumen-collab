@@ -5,14 +5,16 @@
 ### Requirement: User Management Endpoints
 `lumen-system` SHALL expose user management under `/api/v1/system/users`: `POST /api/v1/system/users`
 creates a user (duplicate live username rejected with an `A`-class code),
-`GET /api/v1/system/users/list` returns the paged user list,
+`GET /api/v1/system/users/list` returns the user list (implemented surface: a plain
+`List`, no page wrapper),
 `PUT /api/v1/system/users/{id}/password` resets a user's password, and
 `PUT /api/v1/system/users/{id}/enable` toggles the enable flag. All respond with the standard
 envelope. (Implemented surface - documentation sync of shipped `lumen-system` code.)
 
 #### Scenario: Paged user list
 - **WHEN** an authenticated client requests `GET /api/v1/system/users/list`
-- **THEN** it returns `code: "200"` with the paged user payload in `data`
+- **THEN** it returns `code: "200"` with the user payload in `data` (plain list, per the
+  implemented surface - a later backend change may add a page wrapper)
 
 #### Scenario: Create user
 - **WHEN** an authenticated client posts a fresh username to `POST /api/v1/system/users`
@@ -62,7 +64,7 @@ standard envelope. (Implemented surface - documentation sync.)
 
 ### Requirement: Role Management Endpoints
 `lumen-system` SHALL expose role management under `/api/v1/system/roles`: create, update, delete,
-the FULL-REPLACE menu grant (`PUT /{id}/menus`), and the paged list `GET /api/v1/system/roles/list`.
+the FULL-REPLACE menu grant (`PUT /{id}/menus`), and the list `GET /api/v1/system/roles/list`.
 The list endpoint is **NOT yet implemented** (gap surfaced 2026-11-03 by the web console need):
 the frontend mocks it per this contract, and a backend follow-up change implements it to this
 scenario. (The other verbs are the implemented surface - documentation sync.)
@@ -81,7 +83,7 @@ scenario. (The other verbs are the implemented surface - documentation sync.)
 
 #### Scenario: Role list (gap to implement)
 - **WHEN** an authenticated client requests `GET /api/v1/system/roles/list`
-- **THEN** it returns `code: "200"` with the paged role payload in `data`
+- **THEN** it returns `code: "200"` with the role payload in `data`
 - **AND** until the backend implements it, the dev mock serves this contract
 
 ### Requirement: Menu Tree Endpoint

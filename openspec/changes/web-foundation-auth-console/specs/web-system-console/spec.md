@@ -39,14 +39,15 @@ pattern).
 - **THEN** the documented endpoints are called and the list reflects the result
 
 ### Requirement: User Management
-The console SHALL provide a paged user list (`GET /api/v1/system/users/list`) with create
+The console SHALL provide a user list view (`GET /api/v1/system/users/list`, which returns
+a plain list - the view paginates client-side) with create
 (`POST /api/v1/system/users`), password reset (`PUT /api/v1/system/users/{id}/password`), and
 enable/disable (`PUT /api/v1/system/users/{id}/enable`). A duplicate-username rejection SHALL
 surface the backend's `A`-class `msg` on the form.
 
 #### Scenario: Paged user list
 - **WHEN** an administrator opens the user page
-- **THEN** users return paged and the list re-queries on filter/page change
+- **THEN** the user list renders and re-queries on filter/page change
 
 #### Scenario: Duplicate username feedback
 - **WHEN** a user is created with an existing username
