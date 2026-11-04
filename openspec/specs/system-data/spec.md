@@ -4,16 +4,17 @@
 
 Defines the platform-shared system data: dictionary catalogs/details (label↔value data
 for dropdowns and rendering) and operation-log storage/query - living in the shared
-`public` schema of the single `lumen` database, managed through lumen-auth, with the
+`public` schema of the single `lumen` database, managed through lumen-system, with the
 copied framework log machinery finally wired to real tables.
 
 <!-- synced from: system-data 2026-11-03 -->
 ## Requirements
 
+<!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Dict Catalog Management
 The service SHALL provide CRUD on `dict_catal` (dictionary catalog: `code` unique among
 live rows, `name`, `enable`, `sort`, `remark`, `cls`, `initial`) exposed under
-`/api/v1/auth/dicts/catal/**` and guarded by the copied security chain. The duplicate
+`/api/v1/system/dicts/catal/**` and guarded by the copied security chain. The duplicate
 `code` SHALL be rejected with an `A`-class code.
 
 #### Scenario: Create a catalog
@@ -25,10 +26,11 @@ live rows, `name`, `enable`, `sort`, `remark`, `cls`, `initial`) exposed under
 - **WHEN** a catalog is created with an existing live `code`
 - **THEN** the service rejects it with an `A`-class code
 
+<!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Dict Detail Management
 The service SHALL provide CRUD on `dict_detail` (dictionary detail: `caId` + `caCode`
 double anchor to its catalog, `code`, `value`, `label`, `color`, `css`, `sort`, `enable`,
-`back1`/`back2` extension slots) exposed under `/api/v1/auth/dicts/detail/**`.
+`back1`/`back2` extension slots) exposed under `/api/v1/system/dicts/detail/**`.
 
 #### Scenario: Create a detail under a catalog
 - **WHEN** a detail is created for a live catalog
@@ -78,17 +80,22 @@ machinery resolves real tables.
 - **WHEN** a fresh database receives the migrations
 - **THEN** `public.log_info` and `public.log_sign` exist in the `public` schema
 
+<!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Log Query Endpoint
-The service SHALL expose a paged log query under `/api/v1/auth/logs` (filters: `type`,
-`uid`, `dateYm`; ordered by `actionTime` descending) for administration screens.
+The service SHALL expose a paged log query under `/api/v1/system/logs` (filters: `type`,
+`uid`, `dateYm`; ordered by `actionTime` descending) for administration screens. The
+operation-log WRITE path (`LogAspect` + `AsyncFactory` + entities/mappers/service) stays in
+the shared `framework` library - every `@Log`-using service records through it; the
+`lumen-system` service hosts the admin query facade.
 
 #### Scenario: Query operation logs
 - **WHEN** an authenticated administrator queries the log endpoint
 - **THEN** `log_info` rows return newest-first with the requested filters applied
 
+<!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Shared Placement in the Public Schema
 The four system-data tables SHALL live in the `public` schema of the `lumen` database and
-SHALL be created by lumen-auth's Flyway migration with explicit `public.` qualification;
+SHALL be created by lumen-system's Flyway migration with explicit `public.` qualification;
 every service connection SHALL resolve the unqualified entity names via
 `search_path = <service-schema>, public` (the `ice.` prefix of the copied entities is
 removed - recorded adaptation (7)).

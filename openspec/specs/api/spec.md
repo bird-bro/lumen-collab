@@ -60,19 +60,19 @@ this change). IDs SHALL serialize as JSON numbers.
 - **WHEN** a response contains an entity ID (e.g. the seeded admin's `uid`)
 - **THEN** the JSON value is the Integer number `1`, never a string
 
-<!-- synced from: auth-rbac-foundation 2026-11-03 -->
+<!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Authentication Endpoints
-`lumen-auth` SHALL document and expose the auth endpoints as the platform's first concrete
-endpoints: `POST /api/v1/auth/login` (credentials → JWT + profile) and
-`GET /api/v1/auth/me` (valid token → profile + permission set). Both respond with the
+`lumen-system` SHALL document and expose the auth endpoints as the platform's first concrete
+endpoints: `POST /api/v1/system/login` (credentials → JWT + profile) and
+`GET /api/v1/system/me` (valid token → profile + permission set). Both respond with the
 standard envelope and the error-code scheme of `openspec/specs/errors/spec.md`.
 
 #### Scenario: Login endpoint documented and reachable
-- **WHEN** a client posts valid credentials to `POST /api/v1/auth/login`
+- **WHEN** a client posts valid credentials to `POST /api/v1/system/login`
 - **THEN** it returns `code: "200"` with the JWT and profile
 - **AND** this endpoint requires no token itself
 
 #### Scenario: Current-user endpoint
-- **WHEN** a client requests `GET /api/v1/auth/me` with a valid token
+- **WHEN** a client requests `GET /api/v1/system/me` with a valid token
 - **THEN** it returns `code: "200"` with the profile and permission set (menus + perms
   strings) of the authenticated user

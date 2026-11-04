@@ -180,6 +180,48 @@
 
 ---
 
+# Change: rename-auth-to-system
+## Execution Mode: SDD
+## Started: 2026-11-03
+## Base: bc1eae8 (branch: dev)
+
+### Preflight (2026-11-03)
+- DP-3 approved; contract hash 680cce0b; guard proposing->applying PASS;
+  workflow_mode: full
+- Blocking item resolved: parallel-session residue (15 files: entity builder combo,
+  hutool/BeanUtil adoption, explicit flyway schemas - all test-green, rulings recorded
+  in CLAUDE.md) snapshotted as its own commit 9839652 BEFORE the module rename, per
+  user approval (clean-tree git mv)
+
+### Batch 1: DB schema rename + config base (tasks 1.1-1.2)
+- Status: Complete + Approved (commit 8d73970, 17 files; review 0C/0I/3m)
+- Review: Approved - DB independently verified via JDBC (pg_namespace has system not
+  auth; system.flyway_schema_history 3 rows, checksums exact match V1/V2/V3; 7/7
+  business tables in system, 4/4 public tables; unqualified names resolve); sweep
+  zero schema-semantic auth residue; independent clean test 50/0/0/0 (15 classes)
+- Minors folded into Batch 2: (1) AUTH_SCHEMA constant/label/javadoc in bootstrap,
+  (2) pre-existing class/filename mismatch AuthUnitCrudTests/AuthDepartmentTests,
+  (3) frozen V3 comment stale - checksum discipline forbids edit, noted for
+  spec-hygiene (no action)
+
+### Batch 2: Atomic cascade (tasks 2.1-2.2, 3.1-3.3)
+- Status: Implementer DONE (commit 898382c, 111 files +357/-357 all git-mv; reviewer
+  dispatched)
+- Module/package/entry class renamed (SystemApplication, org.birdbro.lumen.system);
+  /api/v1/auth swept to /api/v1/system (9 controllers + permit-all + test URLs); 16
+  dict files relocated into the five-layer layout (log write path untouched, 4 javadoc
+  lines re-pinned + install protocol run); docs re-pinned (naming.md, CLAUDE.md,
+  AGENTS.md mirror, verify.config.yaml, coordination port table, zh proposal); gitignore
+  re-pinned + check-ignore verified
+- Batch 1 handover 3/3 done (SYSTEM_SCHEMA/[system-test-bootstrap], class-name alignment,
+  frozen migrations untouched)
+- Gates: L1 clean compile green, L3 full suite MVN_EXIT=0 50/50; residual sweep only 4
+  allowed hits (2 frozen migration comments + 2 provenance notes)
+- Incident (self-corrected): first commit ff671e1 captured pre-sweep staged content -
+  amended to 898382c; reviewer tasked with reflog + completeness verification
+
+---
+
 # Change: system-data
 ## Execution Mode: SDD
 ## Started: 2026-11-03
@@ -227,3 +269,27 @@
   adaptation); (2) /logs pageSize uncapped; (3) login try-width double-record edge
   (theoretical); (4) DetailQuery value-vs-label kept as copied
 - Parallel-session residue untouched (18 worktree paths intact; relicense f451962 noted)
+
+---
+
+## Change: web-foundation-auth-console
+## Execution Mode: SDD
+## Started: 2026-11-04
+## Base: 9839652 (branch: dev)
+
+> loop-state.yaml 单槽冲突说明:并行会话 rename-auth-to-system 正处于 verifying(10/10),
+> 状态槽归它;本变更进度以本台账为准,待 rename 归档后再接管 loop-state。
+> 规划完成时同步了并行更名(2026-11-03/04):模块 lumen-auth→lumen-system,端点前缀
+> /api/v1/auth/**→/api/v1/system/**(proposal/specs/design/tasks/contract/zh 文档已全部对齐,
+> artifacts_hash b0a081d7)。roles/list 缺口已声明(api delta),后端小变更跟进。
+
+### Batch 1: Dependencies & Tooling (task 1.1)
+- Status: Complete + Approved (docs commit 3244ccd; feat commit b02e5ca)
+- Review: Approved - coordinator independently re-ran test (2/2) + build (exit 0);
+  diff scope exactly matches brief; D3 selection: vite-plugin-mock-dev-server 2.7.1
+  (peer vite >=5.0.0 covers 7.3.7), no msw fallback; all deps exact-pinned, baseline
+  values untouched (pnpm key reorder only); notes: esbuild build-script warning is
+  pre-existing pnpm-10 behavior (build green proves working); vitest major 5 unpinned
+  in brief - peer evidence captured
+- Notes: progress.md shared with parallel rename session - ledger lines for this
+  change land in shared commits only when the tree is quiet

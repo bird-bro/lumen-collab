@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines lumen-auth's authentication and RBAC foundation: the JWT issuance/validation loop
+Defines lumen-system's authentication and RBAC foundation: the JWT issuance/validation loop
 (built on the copied framework security classes), the hierarchical org tree, users, roles,
 and the menu model with page-level and button-level permissions (pattern adopted from the
 随访 reference implementation), plus the `org_dep` department table that anchors medical
@@ -11,8 +11,9 @@ workflows to the org tree (lumen table naming per user decision 2026-11-03).
 <!-- synced from: auth-rbac-foundation 2026-11-03 -->
 ## Requirements
 
+<!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Login and Token Issuance
-`lumen-auth` SHALL expose `POST /api/v1/auth/login`: valid credentials (username +
+`lumen-system` SHALL expose `POST /api/v1/system/login`: valid credentials (username +
 password) SHALL return the standard envelope with a JWT issued by the copied `TokenService`
 (token state in Redis) and the authenticated user's profile; invalid credentials SHALL
 return an `A`-class error code with a descriptive `msg`. Passwords SHALL be stored hashed.
@@ -28,8 +29,9 @@ return an `A`-class error code with a descriptive `msg`. Passwords SHALL be stor
   `data` null
 - **AND** no token is issued
 
+<!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Token Validation on Every Request
-Every authenticated request to `lumen-auth` SHALL pass through the copied
+Every authenticated request to `lumen-system` SHALL pass through the copied
 `JwtAuthenticationTokenFilter`: a missing, expired, or invalid token SHALL be rejected by
 the copied `AuthenticationEntryPointImpl` with envelope code `"203"` (HTTP 200 - the copied
 machine's recorded transport-auth semantic, user ruling 2026-11-02) and SHALL NOT reach any

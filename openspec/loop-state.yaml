@@ -5,16 +5,16 @@
 # Module-A: artifacts_hash/contract_hash for execution-contract freshness.
 # Module-SDD: execution_mode/batches_completed for subagent-driven development.
 phase: archived
-change: system-data
+change: rename-auth-to-system
 current_task: null
-tasks_total: 16
-tasks_done: 16
+tasks_total: 10
+tasks_done: 10
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: 680cce0b7e2cad5fcf7d42d08b41d7629704ca9d0321cdef7a7ef9de01842d22
+artifacts_hash: b0a081d7eab995becd2a3ca14afbf57cdd0c8dd0cacbc1fd3363f4615a715d3f
 contract_hash: null
 execution_mode: SDD
-batches_completed: 6
-last_updated: 2026-11-02
+batches_completed: 0
+last_updated: 2026-11-03

@@ -21,16 +21,17 @@ NOT be a Maven project, and no `lumen-services/` grouping layer SHALL exist.
 - **THEN** the set of `pom.xml` files under `lumen-sev/` equals the declared `<module>` list
   plus the aggregator itself - no orphan module directory participates in the build
 
+<!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Foundation Module Set
 The backend SHALL provide the v1 foundation modules: `lumen-bom`, the OPS reference modules
-`framework` and `common` copied verbatim, and the `lumen-auth` service shell. Department and
+`framework` and `common` copied verbatim, and the `lumen-system` service. Department and
 workflow modules (`lumen-exam-core`, `lumen-api`, `lumen-patient`, `lumen-radiology`,
 `lumen-integration`, `lumen-us`, `lumen-endo`) SHALL NOT be created by this capability; the
 changes that give them behavior add them.
 
 #### Scenario: Foundation modules resolve
 - **WHEN** the aggregator build completes
-- **THEN** `framework`, `common`, and `lumen-auth` have each produced a jar
+- **THEN** `framework`, `common`, and `lumen-system` have each produced a jar
 - **AND** `lumen-bom` participates as a `pom` module (no jar - it emits only its resolved
   flattened POM as the version source)
 
@@ -129,9 +130,10 @@ belongs to that service: controllers live in the service module, never in a shar
 - **WHEN** a rule applies to only one department's workflow
 - **THEN** it belongs in that service, not in the shared modules
 
+<!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Service Identity
 Each service SHALL declare `spring.application.name` equal to its module name, and SHALL
-listen on a port reserved for it. `lumen-auth` MUST use port 8081; the unified entry nginx
+listen on a port reserved for it. `lumen-system` MUST use port 8081; the unified entry nginx
 listens on 80/443 and is not a backend module. Allocations live in
 `openspec/coordination/init-project-skeleton.md`.
 
@@ -148,7 +150,7 @@ listens on 80/443 and is not a backend module. Allocations live in
 <!-- synced from: auth-rbac-foundation 2026-11-03 -->
 ### Requirement: Context Load Without Infrastructure
 Each service SHALL load its Spring application context and run its tests without any
-**deployed production** infrastructure. `lumen-auth`'s data-layer tests SHALL run against
+**deployed production** infrastructure. `lumen-system`'s data-layer tests SHALL run against
 the team test server's PostgreSQL and Redis (externally provisioned), with connections
 read from a gitignored local env file - never committed. Unconfigured connections SHALL
 fail the tests explicitly (never silently skipped). Other modules (`framework`, `common`)

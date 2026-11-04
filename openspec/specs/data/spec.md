@@ -22,10 +22,10 @@ Each core entity MUST be documented with its fields, types, and constraints.
   carries no `FieldFill` on them, exactly as the OPS source)
 - **AND** `create_time` / `update_time` serialize as `yyyy-MM-dd HH:mm:ss` in GMT+8
 
-<!-- synced from: system-data 2026-11-03 -->
+<!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Schema-per-Service Isolation
 All services SHALL share one PostgreSQL database (`lumen`) with one schema per service
-(`auth`, `patient`, `radiology`, `us`, `endo`, `integration`). Each service SHALL connect
+(`system`, `patient`, `radiology`, `us`, `endo`, `integration`). Each service SHALL connect
 with its own database role whose GRANTs are confined to its own schema - with ONE
 design-level exception: the platform-shared system tables (dict/log) live in the `public`
 schema and every service role SHALL be granted them (user decision 2026-11-03), so their
@@ -34,7 +34,7 @@ cross-service data access remains denied at the database layer, and cross-servic
 access MUST go through API/events regardless.
 
 #### Scenario: Role isolation denies cross-schema access
-- **WHEN** the `lumen_auth_role` connection attempts to read a table in another service's
+- **WHEN** the `lumen_system_role` connection attempts to read a table in another service's
   schema
 - **THEN** PostgreSQL denies it (privilege error)
 

@@ -21,10 +21,10 @@ reserved for lumen application containers and the nginx entry (deployed by a lat
 - **AND** the six-database creation script exists as a DBA handoff artifact
   (`docs/deployment/pg-init.sql`)
 
-<!-- synced from: auth-rbac-foundation 2026-11-03 -->
+<!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Six Per-Service Databases
 The deployment environment's PostgreSQL instance SHALL contain **one database `lumen`**
-containing one schema per service (`auth`, `patient`, `radiology`, `us`, `endo`,
+containing one schema per service (`system`, `patient`, `radiology`, `us`, `endo`,
 `integration`), created once by the DBA or deployment engineer using the handoff script
 (`docs/deployment/pg-init.sql`). Each service connects with its own role confined to its
 schema.
