@@ -11,10 +11,10 @@ import { describe, expect, it } from 'vitest'
  * fails here before a page ever renders the wrong chrome.
  */
 describe('themeTokens - OPS global tokens (web-foundation-auth-console 2.2)', () => {
-  it('resolves primary/information/link colors to the OPS blue #3178fc', () => {
-    expect(themeTokens.colorPrimary).toBe('#3178fc')
-    expect(themeTokens.colorInfo).toBe('#3178fc')
-    expect(themeTokens.colorLink).toBe('#3178fc')
+  it('resolves primary/information/link colors to the clinical teal #0E7C86', () => {
+    expect(themeTokens.colorPrimary).toBe('#0E7C86')
+    expect(themeTokens.colorInfo).toBe('#0E7C86')
+    expect(themeTokens.colorLink).toBe('#0E7C86')
   })
 
   it('uses the OPS 18px base type scale', () => {

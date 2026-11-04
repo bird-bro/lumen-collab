@@ -11,13 +11,12 @@ type ThemeToken = NonNullable<ThemeConfig['token']>
 /**
  * Design tokens for the single AntD 5 `ConfigProvider` (design D1).
  *
- * Palette is the **OPS deep-blue family** (user decision 2026-11-03: the OPS
- * reference palette replaces the former teal D6 baseline): primary blue for
- * brand/information/link colors, navigation blues for the layout shell, and
- * OPS neutrals for text, borders, and table chrome. Red stays reserved for
- * clinical alarm semantics per `lumen-web/CLAUDE.md` - the avoid-red principle
- * is preserved; only the hue family changed (blue instead of teal), and blue
- * is equally far from the red family.
+ * Palette is the **duotone** decided by the user 2026-11-04 (revising the
+ * 2026-11-03 all-OPS-blue call after prototype review): the layout shell keeps
+ * the OPS deep-blue navigation family (tech anchor), while the ACTION primary -
+ * buttons, links, information, text selection, light-menu selection - is the
+ * clinical teal `#0E7C86` (hover states derive from AntD's ramp). Red stays
+ * reserved for clinical alarm semantics per `lumen-web/CLAUDE.md`.
  *
  * Light tints of the primary (`colorPrimaryBg` / `colorPrimaryBgHover` /
  * `colorPrimaryBorder`, the OPS `--primary-color-rgba1..3` equivalents) are
@@ -32,9 +31,9 @@ type ThemeToken = NonNullable<ThemeConfig['token']>
  * YaHei appears only as a fallback name, the font itself is never bundled.
  */
 export const themeTokens: ThemeToken = {
-  colorPrimary: '#3178fc',
-  colorInfo: '#3178fc',
-  colorLink: '#3178fc',
+  colorPrimary: '#0E7C86',
+  colorInfo: '#0E7C86',
+  colorLink: '#0E7C86',
   fontSize: 18,
   fontFamily: "'MiSans', 'PingFang SC', 'Microsoft YaHei', sans-serif",
   colorText: '#333',

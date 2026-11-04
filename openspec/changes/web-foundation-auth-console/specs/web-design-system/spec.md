@@ -36,16 +36,19 @@ outside AntD components SHALL use the same scale (token-derived, not ad-hoc px).
 - **AND** AntD components derive their sizes from the same scale rather than the 14px default
 
 ### Requirement: OPS Palette Tokens
-The design tokens SHALL adopt the OPS deep-blue palette: primary `#3178fc` (with its
-transparency tints), deep-blue navigation family `#003676`/`#007bc2`, and the OPS neutrals for
-text, borders, table headers, and striped rows. All color values SHALL live only in the theme
+The design tokens SHALL adopt the duotone palette (user decision 2026-11-04, revising the
+2026-11-03 all-OPS-blue call after prototype review): the ACTION primary - buttons, links,
+information, text and light-menu selection - is the clinical teal `#0E7C86` (with its tints),
+while the navigation shell keeps the OPS deep-blue family `#003676`/`#0f356a`/`#007bc2`; plus
+the OPS neutrals for text, borders, table headers, and striped rows. All color values SHALL live only in the theme
 token module - ad-hoc hex values in components remain forbidden. The primary color MUST NOT be
 red; red stays reserved for clinical alarm semantics.
 
 #### Scenario: Primary color resolves to OPS blue
 - **WHEN** the application shell renders
 - **THEN** the AntD `ConfigProvider` theme resolves primary/information/link colors to the
-  OPS `#3178fc` family
+  clinical teal `#0E7C86` family
+- **AND** the layout shell resolves to the OPS deep-blue navigation family
 - **AND** the resolved primary color is not red
 
 #### Scenario: Hex discipline holds
@@ -54,11 +57,40 @@ red; red stays reserved for clinical alarm semantics.
 - **AND** no inline hex literal appears outside the theme token module
 
 ### Requirement: OPS Layout Metrics
-The application shell SHALL adopt the OPS layout metrics: 60px header height and a 160px
-sidebar width, expressed through theme tokens or shared constants, not magic numbers scattered
-in pages.
+The application shell SHALL adopt the OPS three-region layout (user feedback 2026-11-04,
+read from the OPS layout sources): a 68px dark-blue icon main-nav rail carrying the level-1
+menus (icon + short label, logo on top), a 60px header spanning the remaining width (product
+title left, user area right), and below the header a 160px white secondary sidebar
+(collapsible to 40px) beside the content area. Sidebar navigation SHALL render as group
+titles (level-2 directories) with flat page items beneath them (level-3) - a level-1 section
+without sub-directories renders as a single flat item. Metrics, region colors, and the menu
+display pattern SHALL be expressed through theme tokens or shared constants, not magic
+numbers scattered in pages. List pages SHALL NOT render page-title header blocks; the page
+identity is carried by the active sidebar item (OPS compact-list style).
 
-#### Scenario: Shell metrics
+#### Scenario: Shell regions
 - **WHEN** the main layout renders
-- **THEN** the header is 60px tall and the navigation sidebar is 160px wide
+- **THEN** the icon rail is 68px wide and dark blue, the header is 60px tall, and the
+  secondary sidebar is 160px wide (40px collapsed) and white
 - **AND** the values trace to a single shared definition
+
+#### Scenario: Header composition
+- **WHEN** the shell header renders for a logged-in user
+- **THEN** the left side shows the product title and the right side shows the user area as
+  stacked username + org text with the avatar at the right edge and no caret indicator
+  (OPS header pattern, user feedback 2026-11-04)
+- **AND** activating the user area opens a popover holding the basic info and a plain
+  logout button
+
+#### Scenario: Menu hierarchy display
+- **WHEN** the logged-in user's menu tree carries a level-1 section
+- **THEN** the rail shows the section's icon entry, and the sidebar renders the section's
+  children: leaf entries as flat items, sub-directories as group titles with their children
+  as flat items beneath (user feedback 2026-11-04: the level-1 title never repeats in the
+  sidebar)
+- **AND** no accordion submenu nesting is introduced
+
+#### Scenario: Compact list pages
+- **WHEN** a console list page renders
+- **THEN** the content area opens with the search/tool row and table directly
+- **AND** no page-title header block is rendered
