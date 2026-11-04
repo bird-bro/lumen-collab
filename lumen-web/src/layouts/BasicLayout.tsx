@@ -171,35 +171,38 @@ export function BasicLayout() {
     </div>
   )
 
-  /** The ACTIVE L1's children: L2 directories become group titles, leaves flat rows. */
-  const sidebarItems = useMemo<MenuProps['items']>(() => {
-    const items: NonNullable<MenuProps['items']> = []
+  /**
+   * The ACTIVE L1's children as SEPARATE sections (batch 6b polish, following
+   * the Teamix reference structure the user supplied: a title ROW and the menu
+   * body are SIBLING blocks, so the group icon/text alignment is plain flex
+   * rather than AntD group-title padding interplay). L2 directories become
+   * titled sections; leaf children render as a label-less single-item menu.
+   */
+  interface SidebarSection {
+    key: string
+    icon: string | null
+    title: string | null
+    items: NonNullable<MenuProps['items']>
+  }
+  const sidebarSections = useMemo<SidebarSection[]>(() => {
+    const sections: SidebarSection[] = []
     for (const child of activeL1?.children ?? []) {
       if (child.type === 'F') continue
-      if (child.type === 'M') {
-        const leaves = (child.children ?? [])
-          .filter((leaf) => leaf.type !== 'F')
-          .map((leaf) => {
-            const route = resolveMenuRoute(leaf)
-            return { key: route ?? `#node-${leaf.mid}`, label: leaf.title }
-          })
-        items.push({
-          key: `group-${child.mid}`,
-          type: 'group',
-          label: (
-            <span className="lumen-side-group-label">
-              <MenuIcon name={child.icon} size={20} />
-              <span>{child.title}</span>
-            </span>
-          ),
-          children: leaves,
+      const leaves = (child.children ?? [])
+        .filter((leaf) => leaf.type !== 'F')
+        .map((leaf) => {
+          const route = resolveMenuRoute(leaf)
+          return { key: route ?? `#node-${leaf.mid}`, label: leaf.title }
         })
+      if (child.type === 'M') {
+        if (leaves.length === 0) continue
+        sections.push({ key: `group-${child.mid}`, icon: child.icon, title: child.title, items: leaves })
       } else {
         const route = resolveMenuRoute(child)
-        if (route) items.push({ key: route, label: child.title })
+        if (route) sections.push({ key: `leaf-${child.mid}`, icon: null, title: null, items: [{ key: route, label: child.title }] })
       }
     }
-    return items
+    return sections
   }, [activeL1])
 
   return (
@@ -321,26 +324,35 @@ export function BasicLayout() {
               } as CSSProperties
             }
           >
-            <ConfigProvider theme={SIDE_MENU_THEME}>
-              {!folded && (sidebarItems?.length ?? 0) > 0 && (
-                <Menu
-                  className="lumen-side-menu"
-                  mode="inline"
-                  items={sidebarItems}
-                  selectedKeys={[pathname]}
-                  onClick={({ key }) => {
-                    if (key.startsWith('/')) navigate(key)
-                  }}
-                  style={
-                    {
-                      borderInlineEnd: 0,
-                      background: 'transparent',
-                      '--lumen-menu-active-bar': token.colorPrimary,
-                    } as CSSProperties
-                  }
-                />
-              )}
-            </ConfigProvider>
+            {!folded &&
+              sidebarSections.map((section) => (
+                <div key={section.key} className="lumen-side-group">
+                  {section.title ? (
+                    <div className="lumen-side-group-label">
+                      <MenuIcon name={section.icon} size={20} />
+                      <span>{section.title}</span>
+                    </div>
+                  ) : null}
+                  <ConfigProvider theme={SIDE_MENU_THEME}>
+                    <Menu
+                      className="lumen-side-menu"
+                      mode="inline"
+                      items={section.items}
+                      selectedKeys={[pathname]}
+                      onClick={({ key }) => {
+                        if (key.startsWith('/')) navigate(key)
+                      }}
+                      style={
+                        {
+                          borderInlineEnd: 0,
+                          background: 'transparent',
+                          '--lumen-menu-active-bar': token.colorPrimary,
+                        } as CSSProperties
+                      }
+                    />
+                  </ConfigProvider>
+                </div>
+              ))}
             {folded ? (
               <button
                 type="button"

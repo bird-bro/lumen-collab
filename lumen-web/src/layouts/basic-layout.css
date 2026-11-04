@@ -115,17 +115,15 @@
 .lumen-side-menu.ant-menu-inline .ant-menu-item-selected {
   box-shadow: inset 3px 0 0 var(--lumen-menu-active-bar);
 }
-.lumen-side-menu.ant-menu-inline .ant-menu-item-divider {
-  display: none; /* dividers now come from the OPS group ::after rhythm */
-}
-/* OPS group container (sidebar.scss .el-menu-item-group): 33px bottom
-   padding with a 1px divider line at bottom:16px via ::after; the LAST group
-   renders no line. */
-.lumen-side-menu.ant-menu-inline .ant-menu-item-group {
+/* Section-based groups (Teamix reference structure the user supplied): the
+   title ROW and the menu body are sibling blocks - the icon/text alignment
+   is plain flex, no AntD group-title padding interplay. OPS rhythm kept:
+   33px bottom padding + 1px divider at bottom:16px, last section no line. */
+.lumen-side-group {
   position: relative;
   padding-bottom: 33px;
 }
-.lumen-side-menu.ant-menu-inline .ant-menu-item-group::after {
+.lumen-side-group::after {
   content: '';
   position: absolute;
   bottom: 16px;
@@ -133,22 +131,14 @@
   height: 1px;
   background: var(--lumen-group-separator);
 }
-.lumen-side-menu.ant-menu-inline .ant-menu-item-group:last-of-type::after {
+.lumen-side-group:last-of-type::after {
   display: none;
 }
-/* OPS group title: 16px NORMAL weight; the 20px icon is ABSOLUTE at
-   left:15px / vertically centered (sidebar.scss &__title). */
-.lumen-side-menu.ant-menu-inline .ant-menu-item-group-title {
-  padding: 7px 14px 7px 15px;
-  white-space: nowrap;
-  line-height: 1.4;
-}
 .lumen-side-group-label {
-  /* inline-flex centering; the group column reads: icon at 15px, text at
-     45px - and the leaf items align their text to that same 45px column. */
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 10px;
+  padding: 7px 14px 7px 15px;
   font-size: 16px;
   color: var(--lumen-group-color);
 }
