@@ -101,15 +101,21 @@ const DESIGN_TOKEN = theme.getDesignToken(themeConfig)
 const SIDE_MENU_THEME: ThemeConfig = {
   components: {
     Menu: {
-      itemColor: DESIGN_TOKEN.colorTextSecondary,
+      // OPS .el-menu-item verbatim: text = var(--menu-text-color) which OPS
+      // resolves to var(--text-color) (its dark neutral), base 18px, height
+      // 40, padding 0 20px.
+      itemColor: DESIGN_TOKEN.colorText,
+      itemFontSize: 18,
+      itemColorActive: DESIGN_TOKEN.colorPrimary,
       itemHoverColor: DESIGN_TOKEN.colorText,
       itemHoverBg: SIDE_ITEM_HOVER_BG,
       itemSelectedColor: DESIGN_TOKEN.colorPrimary,
       itemSelectedBg: DESIGN_TOKEN.colorPrimaryBg,
       itemHeight: 40,
-      itemMarginInline: 8,
-      itemMarginBlock: 2,
-      itemBorderRadius: DESIGN_TOKEN.borderRadius,
+      itemMarginInline: 0,
+      itemMarginBlock: 0,
+      itemPaddingInline: 20,
+      itemBorderRadius: 0,
       groupTitleColor: DESIGN_TOKEN.colorTextTertiary,
       groupTitleFontSize: 16,
       activeBarWidth: 0,
@@ -164,11 +170,9 @@ export function BasicLayout() {
   /** The ACTIVE L1's children: L2 directories become group titles, leaves flat rows. */
   const sidebarItems = useMemo<MenuProps['items']>(() => {
     const items: NonNullable<MenuProps['items']> = []
-    let previousWasGroup = false
     for (const child of activeL1?.children ?? []) {
       if (child.type === 'F') continue
       if (child.type === 'M') {
-        if (previousWasGroup && items.length > 0) items.push({ type: 'divider' })
         const leaves = (child.children ?? [])
           .filter((leaf) => leaf.type !== 'F')
           .map((leaf) => {
@@ -186,11 +190,9 @@ export function BasicLayout() {
           ),
           children: leaves,
         })
-        previousWasGroup = true
       } else {
         const route = resolveMenuRoute(child)
         if (route) items.push({ key: route, label: child.title })
-        previousWasGroup = false
       }
     }
     return items
@@ -211,6 +213,7 @@ export function BasicLayout() {
           '--lumen-avatar-from': token.colorPrimary,
           '--lumen-avatar-to': token.colorPrimaryHover,
           '--lumen-group-color': token.colorTextTertiary,
+          '--lumen-group-separator': token.colorBorder,
           '--lumen-fold-color': token.colorTextTertiary,
           '--lumen-fold-hover-bg': SIDE_ITEM_HOVER_BG,
           '--lumen-fold-hover-color': token.colorText,
