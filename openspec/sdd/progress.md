@@ -345,6 +345,54 @@
   brief), backend V2 seed menu restructure + roles/list (backend change), profile org field
 - Notes: prototype HTML committed as planning artifacts; 61/61 tests green throughout
 
+### Batch 7: Integration Verification (tasks 7.1-7.3)
+- Status: Complete + Approved (report: web-foundation-b7-report.md; commit follows)
+- 7.1: frozen-lockfile install + 155/155 + build green (rm -rf denied by safety gate -
+  equivalent frozen-lockfile verification used; full fresh-checkout re-check optional at verify)
+- 7.2: browser-level Playwright walkthrough (system Chrome channel) **10/10 PASS** -
+  auth flow, three-zone metrics (68/60/160 measured), every console page scenario,
+  logout + cleared storage; two script-side fixes only (dialog checkbox wait, 取 消
+  auto-space), zero product-code changes
+- 7.3: design-system scenarios green (unit assertions + browser metrics + fonts.css
+  static offline check)
+- **CHANGE IMPLEMENTATION COMPLETE: 19/19 tasks.** Next: /opsx:verify L2 -> archive
+  confirmation. Backlog handed off: roles/list backend change; V2 seed menu restructure;
+  profile org field; user edit/delete endpoints (if wanted); mock fake-token switch;
+  woff2 subsetting; dark theme
+
+### Batch 6b: Console Pages II (tasks 6.4-6.7 roles/menus/dicts/logs)
+- Status: Complete + Approved (commit follows; implemented in-session by the coordinator
+  after the 6a subagent model-resolution failure - TDD kept: 28 RED (missing modules) ->
+  GREEN)
+- Review: self-reviewed then independently re-verified - 155/155 (3 consecutive green
+  runs; one transient flake observed once and gone), build green, hex guard green,
+  API smoke on 5179 clean (A0714 x2 + A0400 verbatim, full-replace echo [1,13],
+  menus 3-level perms, dicts sort order, logs filters)
+- Real fixes landed during the batch: ConsoleTable now forwards onRow (dicts row-select
+  was dead); roles/dicts mount double-fetch killed (useRef skip-first); logs query/reset
+  explicit reload (page-state no-op); **AntD Tree replaced by nested AntD Checkbox grant
+  list** in the assignment dialog - Tree's key stringification + cascade conduction
+  broke the full-replace contract (minimal repro recorded, decision in component comment);
+  AntD two-char button auto-space assertions
+- Notes: role type column shows seed value 10 (prototype checklist item, user-confirmed
+  overall); roles/list still mock-served (gap endpoint - page consumes typed client, no
+  change needed when backend lands)
+
+### Batch 6a: Console Pages I (tasks 6.1-6.3 orgs/deps/users)
+- Status: Complete + Approved (commit follows; two-executor relay: implementer A died of
+  API quota mid-smoke, coordinator completed audit/smoke/report in-session after a
+  subagent model-resolution failure - work NOT rewritten, 127/127 green at handoff)
+- Review: Approved - coordinator audited coverage matrix (all brief items have tests:
+  orgs 9 / deps 10 / users 11 incl. multi-root, dup-code/name keep-dialog-open,
+  password reset echo, enable out-of-range restore, perms gating); API-level smoke on
+  5179 clean (org CRUD, A0712/A0111 verbatim, newPassword echo); one A0400 during smoke
+  was the smoke script's own field-name typo (password vs newPassword), frontend client
+  matches backend DTO - not a bug; hex guard green, build green, zero new deps
+- Notes: users page has NO edit/delete (backend endpoints don't exist - capability gap
+  recorded for a future backend change alongside roles/list); console-shell.tsx +
+  org-tree.tsx shared components documented for 6b reuse; browser-level walkthrough
+  deferred to Batch 7.2
+
 ### Batch 5b: Auth Flow UI (tasks 5.2-5.4 + mock fixture restructure)
 - Status: Complete + Approved (commit follows this line's next shared commit)
 - Review: Approved - coordinator independently re-ran test (91/91, 11 files) + build
