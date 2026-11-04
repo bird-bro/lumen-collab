@@ -1,0 +1,6 @@
+# Repo-local exception: the lineage seed snapshot MUST be versioned with the change
+# (dict-city-reference design D1 - data/rows.sql rides with the change for lineage
+# traceability). The developer machine's global gitignore excludes *.sql (a user
+# setting, not project policy); this negation re-includes ONLY this directory's
+# snapshot files.
+!*.sql
