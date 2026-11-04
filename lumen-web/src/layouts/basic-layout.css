@@ -139,15 +139,13 @@
 /* OPS group title: 16px NORMAL weight; the 20px icon is ABSOLUTE at
    left:15px / vertically centered (sidebar.scss &__title). */
 .lumen-side-menu.ant-menu-inline .ant-menu-item-group-title {
-  position: relative;
-  padding: 7px 14px 7px 45px;
+  padding: 7px 14px 7px 15px;
   white-space: nowrap;
   line-height: 1.4;
 }
 .lumen-side-group-label {
-  /* flex centering fixes the icon/text optical misalignment the absolute
-     placement had (user feedback 2026-11-04); geometry still OPS: 20px icon,
-     text cleared by the 45px title padding. */
+  /* inline-flex centering; the group column reads: icon at 15px, text at
+     45px - and the leaf items align their text to that same 45px column. */
   display: inline-flex;
   align-items: center;
   gap: 10px;

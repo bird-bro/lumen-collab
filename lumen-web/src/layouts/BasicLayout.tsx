@@ -113,12 +113,12 @@ const SIDE_MENU_THEME: ThemeConfig = {
       itemSelectedBg: DESIGN_TOKEN.colorPrimaryBg,
       itemHeight: 40,
       // Selected chip: 8px inline inset + 6px radius (user request 2026-11-04:
-      // the selected background/bar needs a gap from the sidebar edge - the
-      // user-confirmed prototype row form), while text keeps the OPS 0 20px
-      // rhythm inside it.
+      // the selected background/bar needs a gap from the sidebar edge).
+      // Leaf text aligns to the group-title text column: 8 margin + 37
+      // padding = 45px from the sidebar edge (group icon 15-35, text 45+).
       itemMarginInline: 8,
       itemMarginBlock: 0,
-      itemPaddingInline: 12,
+      itemPaddingInline: 37,
       itemBorderRadius: DESIGN_TOKEN.borderRadius,
       groupTitleColor: DESIGN_TOKEN.colorTextTertiary,
       groupTitleFontSize: 16,
