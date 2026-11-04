@@ -11,13 +11,14 @@ type ThemeToken = NonNullable<ThemeConfig['token']>
 /**
  * Design tokens for the single AntD 5 `ConfigProvider` (design D1).
  *
- * Palette is the **duotone** decided by the user 2026-11-04 (revising the
- * 2026-11-03 all-OPS-blue call after prototype review): the layout shell uses
- * the near-black tech blue `#0B2540` (user rail-color decision 2026-11-04,
- * hover `#12355C`, rail selection resolves to the brand teal) while the ACTION
- * primary - buttons, links, information, text selection, light-menu selection -
- * is the clinical teal `#0E7C86` (hover states derive from AntD's ramp). Red
- * stays reserved for clinical alarm semantics per `lumen-web/CLAUDE.md`.
+ * Palette is the **single blue-family system** settled by the user 2026-11-04
+ * after prototype review: the layout shell uses the near-black tech blue
+ * `#0B2540` (rail decision, hover `#12355C`, rail selection follows the action
+ * primary) and the ACTION primary - buttons, links, information, text
+ * selection, light-menu selection - is the bright blue `#3178fc` (the teal
+ * `#0E7C86` action call was reverted by the user: discordant against the
+ * near-black shell). Hover states derive from AntD's ramp. Red stays reserved
+ * for clinical alarm semantics per `lumen-web/CLAUDE.md`.
  *
  * Light tints of the primary (`colorPrimaryBg` / `colorPrimaryBgHover` /
  * `colorPrimaryBorder`, the OPS `--primary-color-rgba1..3` equivalents) are
@@ -32,9 +33,9 @@ type ThemeToken = NonNullable<ThemeConfig['token']>
  * YaHei appears only as a fallback name, the font itself is never bundled.
  */
 export const themeTokens: ThemeToken = {
-  colorPrimary: '#0E7C86',
-  colorInfo: '#0E7C86',
-  colorLink: '#0E7C86',
+  colorPrimary: '#3178fc',
+  colorInfo: '#3178fc',
+  colorLink: '#3178fc',
   fontSize: 18,
   fontFamily: "'MiSans', 'PingFang SC', 'Microsoft YaHei', sans-serif",
   colorText: '#333',
@@ -56,7 +57,7 @@ const themeComponents: ThemeConfig['components'] = {
   },
   Menu: {
     darkItemBg: '#0B2540',
-    darkItemSelectedBg: '#0E7C86',
+    darkItemSelectedBg: '#3178fc',
     darkItemHoverBg: '#12355C',
   },
   Table: {

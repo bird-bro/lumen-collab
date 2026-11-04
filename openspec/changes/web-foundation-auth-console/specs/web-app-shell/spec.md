@@ -3,12 +3,10 @@
 ## MODIFIED Requirements
 
 ### Requirement: Design Token Theming
-Visual styling SHALL be driven by Ant Design 5 theme tokens carrying the duotone visual
-language (user decision 2026-11-04, revising the 2026-11-03 all-OPS-blue call): the action
-primary color is clinical teal `#0E7C86` while the navigation shell keeps the OPS deep-blue
-family (near-black tech blue `#0B2540`, rail decision 2026-11-04), and the base font size
-is 18px per the OPS type
-scale. The primary color MUST NOT be red, because red is
+Visual styling SHALL be driven by Ant Design 5 theme tokens carrying the single
+blue-family visual language (user decisions 2026-11-04): the action primary color is bright
+blue `#3178fc` and the navigation shell is near-black tech blue `#0B2540` (rail decision),
+and the base font size is 18px per the OPS type scale. The primary color MUST NOT be red, because red is
 reserved for clinical alarm semantics. Ad-hoc hex values MUST NOT be used in place of tokens;
 hex literals live only in the theme token module. The bundled MiSans family is the
 application font (fonts owned by the `web-design-system` capability).
@@ -16,8 +14,8 @@ application font (fonts owned by the `web-design-system` capability).
 #### Scenario: Theme is applied
 - **WHEN** the application shell renders
 - **THEN** the AntD `ConfigProvider` theme supplies the design tokens
-- **AND** the resolved primary color is the teal `#0E7C86` family and is not red, with the
-  shell resolving to the OPS deep-blue navigation family
+- **AND** the resolved primary color is the bright blue `#3178fc` family and is not red,
+  with the shell resolving to the near-black tech blue navigation family
 - **AND** the resolved base font size is 18px
 
 #### Scenario: A component needs a color

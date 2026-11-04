@@ -11,10 +11,10 @@ import { describe, expect, it } from 'vitest'
  * fails here before a page ever renders the wrong chrome.
  */
 describe('themeTokens - OPS global tokens (web-foundation-auth-console 2.2)', () => {
-  it('resolves primary/information/link colors to the clinical teal #0E7C86', () => {
-    expect(themeTokens.colorPrimary).toBe('#0E7C86')
-    expect(themeTokens.colorInfo).toBe('#0E7C86')
-    expect(themeTokens.colorLink).toBe('#0E7C86')
+  it('resolves primary/information/link colors to the bright blue #3178fc', () => {
+    expect(themeTokens.colorPrimary).toBe('#3178fc')
+    expect(themeTokens.colorInfo).toBe('#3178fc')
+    expect(themeTokens.colorLink).toBe('#3178fc')
   })
 
   it('uses the OPS 18px base type scale', () => {
@@ -57,7 +57,7 @@ describe('themeConfig - OPS component tokens (design D1 mapping)', () => {
     expect(themeExports).toHaveProperty('themeConfig.components.Menu.darkItemBg', '#0B2540')
     expect(themeExports).toHaveProperty(
       'themeConfig.components.Menu.darkItemSelectedBg',
-      '#0E7C86',
+      '#3178fc',
     )
     expect(themeExports).toHaveProperty('themeConfig.components.Menu.darkItemHoverBg', '#12355C')
   })

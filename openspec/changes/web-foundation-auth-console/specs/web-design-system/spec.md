@@ -36,20 +36,20 @@ outside AntD components SHALL use the same scale (token-derived, not ad-hoc px).
 - **AND** AntD components derive their sizes from the same scale rather than the 14px default
 
 ### Requirement: OPS Palette Tokens
-The design tokens SHALL adopt the duotone palette (user decision 2026-11-04, revising the
-2026-11-03 all-OPS-blue call after prototype review): the ACTION primary - buttons, links,
-information, text and light-menu selection - is the clinical teal `#0E7C86` (with its tints),
-while the navigation shell uses the near-black tech blue `#0B2540` (rail decision
-2026-11-04, hover `#12355C`, rail selection = the brand teal); plus
-the OPS neutrals for text, borders, table headers, and striped rows. All color values SHALL live only in the theme
+The design tokens SHALL adopt the single blue-family palette settled by the user 2026-11-04
+(revising both the 2026-11-03 all-OPS-blue call and the 2026-11-04 teal-action call): the
+ACTION primary - buttons, links, information, text and light-menu selection - is the bright
+blue `#3178fc` (with its tints), while the navigation shell uses the near-black tech blue
+`#0B2540` (rail decision 2026-11-04, hover `#12355C`, rail selection follows the action
+primary); plus the OPS neutrals for text, borders, table headers, and striped rows. All color values SHALL live only in the theme
 token module - ad-hoc hex values in components remain forbidden. The primary color MUST NOT be
 red; red stays reserved for clinical alarm semantics.
 
 #### Scenario: Primary color resolves to OPS blue
 - **WHEN** the application shell renders
 - **THEN** the AntD `ConfigProvider` theme resolves primary/information/link colors to the
-  clinical teal `#0E7C86` family
-- **AND** the layout shell resolves to the OPS deep-blue navigation family
+  bright blue `#3178fc` family
+- **AND** the layout shell resolves to the near-black tech blue navigation family
 - **AND** the resolved primary color is not red
 
 #### Scenario: Hex discipline holds
