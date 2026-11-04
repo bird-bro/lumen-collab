@@ -1,5 +1,5 @@
 import {
-  BankOutlined,
+  ApartmentOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   RadarChartOutlined,
@@ -66,7 +66,10 @@ type IconComponent = ComponentType<{ style?: CSSProperties }>
 /** Menu fixture `icon` column names -> AntD icon components (group titles + rail). */
 const MENU_ICON_BY_NAME: Record<string, IconComponent> = {
   setting: SettingOutlined,
-  bank: BankOutlined,
+  // BankOutlined's glyph rides high in its viewBox (optically misaligned with
+  // the title text - user feedback 2026-11-04); ApartmentOutlined is the
+  // org-tree metaphor AND optically centered.
+  bank: ApartmentOutlined,
   safety: SafetyCertificateOutlined,
   sliders: SlidersOutlined,
 }
