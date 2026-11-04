@@ -14,4 +14,4 @@ stacks:
   lumen-web:
     dir: lumen-web
     build: pnpm build
-    test: null                 # no test runner -> L3 SKIP (set to pnpm test if Vitest exists)
+    test: pnpm test            # Vitest (batch 1 wired it; 155 cases as of batch 7)
