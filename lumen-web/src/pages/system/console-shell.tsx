@@ -45,6 +45,8 @@ export function ConsolePanel({ children }: { children: ReactNode }) {
     <section
       style={{
         height: '100%',
+        flex: 1,
+        minWidth: 0,
         background: token.colorBgContainer,
         border: `1px solid ${token.colorSplit}`,
         borderRadius: token.borderRadiusLG,
@@ -211,6 +213,7 @@ export function ConsoleTable<RowType extends object>({
   onRefresh?: () => void
   onRow?: (row: RowType) => React.HTMLAttributes<HTMLTableRowElement>
 }) {
+  const { token } = theme.useToken()
   const actionColumns: TableColumnsType<RowType> = actions
     ? [
         {
@@ -222,7 +225,7 @@ export function ConsoleTable<RowType extends object>({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                justifyContent: 'center',
                 gap: 8,
               }}
             >
@@ -233,7 +236,7 @@ export function ConsoleTable<RowType extends object>({
                     type="text"
                     size="small"
                     aria-label="刷新列表"
-                    icon={<ReloadOutlined />}
+                    icon={<ReloadOutlined style={{ color: token.colorPrimary }} />}
                     onClick={onRefresh}
                   />
                 </Tooltip>
