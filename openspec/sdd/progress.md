@@ -235,14 +235,15 @@
   mirroring the db/migration precedent - global gitignore excludes *.sql)
 
 ### Batch 1: All tasks (1.1-3.1)
-- Status: Implementer DONE (commit 032221c, 17 files); reviewer dispatched
-- TDD both gates: migration checksum RED (relation missing) -> V4 -> 6/0/0; endpoint RED
-  (compile) -> 6/0/0; full suite 65/0/0 (baseline 53 + 12 new)
-- Real defects caught during GREEN: snapshot trailing-comma terminator (V4 last tuple
-  closes with ; - interior boundaries verbatim); manual sequence needed OWNED BY for
-  pg_get_serial_sequence/setval to resolve
-- Deviations recorded: entity upId Long (TreeUtils key-type; DDL stays integer);
-  Long id lineage-fidelity (per contract)
+- Status: Complete + Approved (commit 032221c, 17 files; review 0C/0I/3m, coordinator-
+  persisted copy); verify.md PASS 3/3; ARCHIVED (2026-11-04-dict-city-reference)
+- Review: Approved - seed integrity SEED_IDENTICAL (V4 tuples byte-identical to
+  data/rows.sql after terminator normalization, independently diffed); read-only proven
+  (2 GETs only, no write path); deviations verified sound (Long id/upId for TreeUtils
+  same-key-type; DDL stays integer); independent re-run 65/0/0
+- Minor queue carried: lineage-data oddities verbatim (id 820103 pinyin mojibake,
+  id 712925 zip/city_code swap - V5+ revision candidates); BaseMapper inherited write
+  methods (no HTTP path - spec holds)
 
 ### Batch 2: Atomic cascade (tasks 2.1-2.2, 3.1-3.3)
 - Status: Implementer DONE (commit 898382c, 111 files +357/-357 all git-mv; reviewer
@@ -343,6 +344,28 @@
 - Pending follow-ups recorded: mock menu fixtures restructure to 3-level (batches 5.2-5.4
   brief), backend V2 seed menu restructure + roles/list (backend change), profile org field
 - Notes: prototype HTML committed as planning artifacts; 61/61 tests green throughout
+
+### Batch 5b: Auth Flow UI (tasks 5.2-5.4 + mock fixture restructure)
+- Status: Complete + Approved (commit follows this line's next shared commit)
+- Review: Approved - coordinator independently re-ran test (91/91, 11 files) + build
+  (exit 0); report includes full prototype-vs-implementation visual table; mock smoke
+  = HTTP-level curl + browser-level Playwright 33/33 (login -> three-zone shell ->
+  groups/flat rows/selection -> fold/expand -> leaf nav -> logout -> cleared-token reload)
+- Accepted deviations (all reasoned in report): avatar first char from profile.name
+  (generic) vs static demo char; sidebar text #666 (token) vs OPS #6f6f6f (hex discipline
+  wins); selection bg = derived colorPrimaryBg vs prototype literal #EBF2FF; login stage
+  follows rev-12 tokens vs prototype's embedded pre-rev-12 values; @ant-design/icons
+  5.6.1 in dependencies (production import + pnpm strict - brief said dev, implementer's
+  correction is right); FoldOutlined/ExpandOutlined don't exist in 5.6.1 ->
+  MenuFold/MenuUnfoldOutlined (caught by tests)
+- Honest limitation: browser-level fake-token 203 unconstructible (mock /me falls back to
+  seeded admin for any Bearer - b3 mock-only fallback); 203 chain evidenced at unit +
+  HTTP level; optional mock switch recorded as follow-up
+- Real bugs caught by tests mid-batch: wrong Result import, missing CSS var injections
+  (4 of 17), icons undefined at runtime
+- Menu fixture restructure: groups 13/14/15 with path null (groups never navigate),
+  pages keep ids/paths/perms, seedRoleMenus [1..15]; page title kept as 日志查询 per
+  confirmed prototype (brief said 操作日志 - prototype wins)
 
 ### Batch 4: Transport Client & Auth Session (tasks 4.1-4.3)
 - Status: Complete + Approved (commit with review fixes)
