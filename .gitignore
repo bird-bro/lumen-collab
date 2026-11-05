@@ -24,3 +24,9 @@ lumen-sev/lumen-system/src/main/resources/application-dev.yml
 # (docs/deployment/pg-init.sql is referenced by the environment-contract spec; a
 # directory-scoped negation already covers Flyway migrations under lumen-sev).
 !docs/deployment/*.sql
+
+# Backend run-log dirs (test-context output). The machine-global bare `logs` ignore
+# was removed 2026-11-05 (it had silently untracked lumen-web/src/pages/system/logs/),
+# so runtime logs need this explicit repo rule instead.
+lumen-sev/logs/
+lumen-sev/*/logs/
