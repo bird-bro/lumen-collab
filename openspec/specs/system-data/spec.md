@@ -2,20 +2,24 @@
 
 ## Purpose
 
-Defines the platform-shared system data: dictionary catalogs/details (label↔value data
-for dropdowns and rendering) and operation-log storage/query - living in the shared
-`public` schema of the single `lumen` database, managed through lumen-system, with the
-copied framework log machinery finally wired to real tables.
+Defines the platform-shared system data: dictionary catalogs/details (single-text
+`value` entries for dropdowns and rendering; the catalog anchors its details by `caId`)
+and operation-log storage/query - living in the shared `public` schema of the single
+`lumen` database, managed through lumen-system, with the copied framework log machinery
+finally wired to real tables.
 
 <!-- synced from: system-data 2026-11-03 -->
+
 ## Requirements
 
 <!-- synced from: rename-auth-to-system 2026-11-04 -->
+
 ### Requirement: Dict Catalog Management
 The service SHALL provide CRUD on `dict_catal` (dictionary catalog: `code` unique among
-live rows, `name`, `enable`, `sort`, `remark`, `cls`, `initial`) exposed under
+live rows, `name`, `enable`, `sort`, `remark`, `cls`) exposed under
 `/api/v1/system/dicts/catal/**` and guarded by the copied security chain. The duplicate
-`code` SHALL be rejected with an `A`-class code.
+`code` SHALL be rejected with an `A`-class code. (V9 dropped the pinyin `initial` column
+- catalogs are no longer field-extensible with search helpers.)
 
 #### Scenario: Create a catalog
 - **WHEN** an authenticated administrator creates a catalog with a fresh `code`
@@ -26,29 +30,48 @@ live rows, `name`, `enable`, `sort`, `remark`, `cls`, `initial`) exposed under
 - **WHEN** a catalog is created with an existing live `code`
 - **THEN** the service rejects it with an `A`-class code
 
-<!-- synced from: rename-auth-to-system 2026-11-04 -->
 ### Requirement: Dict Detail Management
-The service SHALL provide CRUD on `dict_detail` (dictionary detail: `caId` + `caCode`
-double anchor to its catalog, `code`, `value`, `label`, `color`, `css`, `sort`, `enable`,
-`back1`/`back2` extension slots) exposed under `/api/v1/system/dicts/detail/**`.
+The service SHALL provide CRUD on `dict_detail` (dictionary detail: `caId` anchor to its
+live catalog, `code` machine key, `value` as THE single text field carrying both the
+display and the stored text, `tag`/`flag` spare slots, `color`, `css`, `sort`, `enable`,
+`remark`) exposed under `/api/v1/system/dicts/detail/**`. The detail-level uniqueness is
+the live `(caId, value)` pair, enforced service-side with an `A`-class rejection and
+backstopped by the partial unique index `uk_dict_detail_ca_id_value WHERE deleted = 0`.
+The by-code list endpoint keeps its `?caCode=` query parameter and resolves the catalog
+code to its `caId` internally (V9 removed the denormalized `caCode` column and the
+duplicated `label` column; V9 also carried the seeded display text into `value`).
 
 #### Scenario: Create a detail under a catalog
-- **WHEN** a detail is created for a live catalog
-- **THEN** it persists with both `caId` and the catalog's `code` denormalized
+- **WHEN** a detail is created for a live catalog with `caId` and a fresh `value`
+- **THEN** it persists anchored by `caId` with `value` as its text
+- **AND** `create_by` is filled from the audit bridge
+
+#### Scenario: Duplicate detail value under a catalog rejected
+- **WHEN** a detail is created with a `value` that already exists as a live detail under
+  the same catalog
+- **THEN** the service rejects it with an `A`-class code
 
 #### Scenario: List details by catalog code
 - **WHEN** a client requests the details of a catalog `code`
 - **THEN** only live details of that catalog return, ordered by `sort`
 
 ### Requirement: Dict Seed Data
-The V3 migration SHALL seed a minimal starter catalog set (explicit ids + `setval`
-sequence advance, the V2 discipline) - `common_status` (启用/停用) as the first entry -
-extensible through the management endpoints without hand-inserted rows.
+The Flyway migrations SHALL seed the starter dictionary set with explicit ids and
+guarded statements (idempotent under re-run): `common_status` (启用/停用, its two
+details carrying the display text in `value`, catalog re-based to id 1000) plus six real
+person/org dictionaries curated from the rcp reference database - `bloodType`, `marital`,
+`gender`, `jobTitle`, `idType`, `orgType` (catalog ids 1001-1007, detail ids offset by
+100000). The set stays extensible through the management endpoints without hand-inserted
+rows.
 
 #### Scenario: Fresh database carries the starter dictionary
 - **WHEN** a fresh database receives the migrations
-- **THEN** `public.dict_catal` holds `common_status` and its details are listed through
-  the detail query endpoint
+- **THEN** `public.dict_catal` holds 7 live catalogs - `common_status` at id 1000 and
+  the six real dictionaries in the 1001-1007 range
+- **AND** `public.dict_detail` holds 30 live details resolving through the detail query
+  endpoint by catalog `code` (e.g. `gender` → 男/女/未知)
+- **AND** `common_status`'s details expose 启用/停用 as their `value` texts with machine
+  keys 1/0 in `code`
 
 ### Requirement: Operation Log Recording
 The `public.log_info` table (append-only operation log of the copied `LogInfoEntity`
@@ -81,6 +104,7 @@ machinery resolves real tables.
 - **THEN** `public.log_info` and `public.log_sign` exist in the `public` schema
 
 <!-- synced from: rename-auth-to-system 2026-11-04 -->
+
 ### Requirement: Log Query Endpoint
 The service SHALL expose a paged log query under `/api/v1/system/logs` (filters: `type`,
 `uid`, `dateYm`; ordered by `actionTime` descending) for administration screens. The
@@ -93,6 +117,7 @@ the shared `framework` library - every `@Log`-using service records through it; 
 - **THEN** `log_info` rows return newest-first with the requested filters applied
 
 <!-- synced from: rename-auth-to-system 2026-11-04 -->
+
 ### Requirement: Shared Placement in the Public Schema
 The four system-data tables SHALL live in the `public` schema of the `lumen` database and
 SHALL be created by lumen-system's Flyway migration with explicit `public.` qualification;
@@ -106,6 +131,7 @@ removed - recorded adaptation (7)).
 - **THEN** the rows resolve from the `public` schema without schema qualification
 
 <!-- synced from: dict-city-reference 2026-11-04 -->
+
 ### Requirement: City Reference Table
 The service SHALL provide the administrative-divisions reference table `public.dict_city`
 in the 随访 lineage shape - 13 columns including `pinyin`/`lng`/`lat`/`initial`, no audit
