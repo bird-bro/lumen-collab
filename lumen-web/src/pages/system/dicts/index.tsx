@@ -1,5 +1,5 @@
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
-import { Button, Form, Input, InputNumber, Modal, Popconfirm, Tooltip, message } from 'antd'
+import { Button, Form, Input, InputNumber, Modal, Popconfirm, Space, Tooltip, Typography, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -43,14 +43,20 @@ interface CatalValues {
 }
 
 interface DetailValues {
-  label: string
+  code?: number | null
   value?: string
+  back1?: string
+  back2?: string
   sort?: number
+  label: string
+  color?: string
+  css?: string
   remark?: string
 }
 
 export default function DictsPage() {
   const hasPerm = usePerm()
+  const { token } = theme.useToken()
   const canManage = hasPerm('system:dict:list')
 
   const [catals, setCatals] = useState<DictCatal[]>([])
@@ -138,10 +144,10 @@ export default function DictsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
 
-  const DETAIL_PAGE_SIZE = 10
+  const [detailPageSize, setDetailPageSize] = useState(10)
   const detailRows = details
     .filter((row) => !detailQuery || row.label.toLowerCase().includes(detailQuery.toLowerCase()))
-    .slice((detailPage - 1) * DETAIL_PAGE_SIZE, detailPage * DETAIL_PAGE_SIZE)
+    .slice((detailPage - 1) * detailPageSize, detailPage * detailPageSize)
 
   const closeCatal = useCallback(() => {
     setCatalOpen(false)
@@ -224,10 +230,38 @@ export default function DictsPage() {
     },
   ]
 
+  // OPS dict detail columns verbatim (ops_web system/dict): 编码/数据值/备用值1/
+  // 备用值2/排序/标签/颜色/样式/备注. 颜色 renders a chip when set.
   const detailColumns: TableColumnsType<DictDetail> = [
-    { title: '标签', dataIndex: 'label', width: 160 },
-    { title: '值', dataIndex: 'value', width: 140, render: (v: string | null) => v ?? '—' },
-    { title: '排序', dataIndex: 'sort', width: 90 },
+    { title: '编码', dataIndex: 'code', width: 90, render: (v: number | null) => v ?? '—' },
+    { title: '数据值', dataIndex: 'value', width: 110, render: (v: string | null) => v ?? '—' },
+    { title: '备用值1', dataIndex: 'back1', width: 110, render: (v: string | null) => v ?? '—' },
+    { title: '备用值2', dataIndex: 'back2', width: 110, render: (v: string | null) => v ?? '—' },
+    { title: '排序', dataIndex: 'sort', width: 80 },
+    { title: '标签', dataIndex: 'label', width: 100, render: (v: string) => <span style={{ fontWeight: 500 }}>{v}</span> },
+    {
+      title: '颜色',
+      dataIndex: 'color',
+      width: 110,
+      render: (v: string | null) =>
+        v ? (
+          <Space size={6}>
+            <span
+              style={{ width: 14, height: 14, borderRadius: 3, display: 'inline-block', border: `1px solid ${token.colorBorder}`, background: v }}
+              title={v}
+            />
+            <Typography.Text style={{ fontSize: 12 }}>{v}</Typography.Text>
+          </Space>
+        ) : (
+          '—'
+        ),
+    },
+    {
+      title: '样式',
+      dataIndex: 'css',
+      render: (v: string | null) =>
+        v ? <Typography.Text code style={{ fontSize: 12 }}>{v}</Typography.Text> : '—',
+    },
     { title: '备注', dataIndex: 'remark', render: (remark: string | null) => remark ?? '—' },
   ]
 
@@ -369,7 +403,7 @@ export default function DictsPage() {
           <Input
             allowClear
             style={{ width: 200, minWidth: 0 }}
-            placeholder={selected ? `字典标签（${selected.name}）` : '字典标签'}
+            placeholder="字典标签"
             aria-label="标签"
             value={detailQueryDraft}
             onChange={(event) => setDetailQueryDraft(event.target.value)}
@@ -437,9 +471,15 @@ export default function DictsPage() {
         <ConsolePagination
           total={details.length}
           current={detailPage}
-          pageSize={DETAIL_PAGE_SIZE}
-          showSizeChanger={false}
-          onChange={(next) => setDetailPage(next)}
+          pageSize={detailPageSize}
+          onChange={(next, nextSize) => {
+            setDetailPage(next)
+            setDetailPageSize(nextSize)
+          }}
+          onShowSizeChange={(_current, size) => {
+            setDetailPage(1)
+            setDetailPageSize(size)
+          }}
         />
       </ConsolePanel>
       </div>
@@ -488,14 +528,29 @@ export default function DictsPage() {
         width={520}
       >
         <Form<DetailValues> form={detailForm} layout="vertical" disabled={saving}>
+          <Form.Item name="code" label="字典编码">
+            <InputNumber min={0} style={{ width: '100%' }} placeholder="数字编码,选填" />
+          </Form.Item>
+          <Form.Item name="value" label="数据值">
+            <Input placeholder="如 1" autoComplete="off" />
+          </Form.Item>
+          <Form.Item name="back1" label="备用值1">
+            <Input autoComplete="off" />
+          </Form.Item>
+          <Form.Item name="back2" label="备用值2">
+            <Input autoComplete="off" />
+          </Form.Item>
+          <Form.Item name="sort" label="排序" initialValue={10}>
+            <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
           <Form.Item name="label" label="标签" rules={[{ required: true, message: '请输入标签' }]}>
             <Input placeholder="如 启用" autoComplete="off" />
           </Form.Item>
-          <Form.Item name="value" label="值">
-            <Input placeholder="如 1" autoComplete="off" />
+          <Form.Item name="color" label="颜色" extra="六位十六进制色值,列表中以色块预览">
+            <Input autoComplete="off" placeholder="如 52c41a" />
           </Form.Item>
-          <Form.Item name="sort" label="排序">
-            <InputNumber min={0} style={{ width: '100%' }} />
+          <Form.Item name="css" label="样式" extra="应用于标签的自定义 CSS,如 color:rgb(82,196,26);">
+            <Input placeholder="color:rgb(82,196,26);" autoComplete="off" />
           </Form.Item>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={2} />

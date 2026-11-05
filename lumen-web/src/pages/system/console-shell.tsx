@@ -167,19 +167,22 @@ export function ConsoleAction({
   disabled?: boolean
   onClick: () => void
 }) {
+  // Native `title` hover hint instead of an AntD Tooltip: action glyphs sit
+  // under Popconfirm confirmations (delete), and the floating tooltip +
+  // floating confirm on one anchor occluded each other (user feedback
+  // 2026-11-04). The aria-label keeps the verb announceable.
   const Icon = ACTION_ICONS[icon]
   return (
-    <Tooltip title={label}>
-      <Button
-        type="text"
-        size="small"
-        danger={danger}
-        disabled={disabled}
-        aria-label={label}
-        icon={<Icon />}
-        onClick={onClick}
-      />
-    </Tooltip>
+    <Button
+      type="text"
+      size="small"
+      danger={danger}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+      icon={<Icon />}
+      onClick={onClick}
+    />
   )
 }
 
