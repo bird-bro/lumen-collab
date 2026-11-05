@@ -6,7 +6,11 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), mockDevServerPlugin()],
+  // Dev-only mock switch (design D3): mocks ON by default; VITE_USE_MOCK=false
+  // disables them so /api/v1 falls through the proxy to the real unified entry
+  // (nginx :80) and pages render REAL database data. Pages never branch on
+  // this - the switch is dev-server-level only.
+  plugins: [react(), ...(process.env.VITE_USE_MOCK === 'false' ? [] : [mockDevServerPlugin()])],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
