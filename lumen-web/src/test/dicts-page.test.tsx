@@ -90,12 +90,12 @@ beforeEach(() => {
 })
 
 describe('dicts page - catalog (spec: Catalog list and duplicate feedback)', () => {
-  it('renders the IPage catalog records with the ID sub-line', async () => {
+  it('renders the IPage catalog records with separate name and ID columns', async () => {
     renderPage()
     expect(await screen.findByText('通用状态')).toBeInTheDocument()
-    // The sub-line shows the catalog ID (user request 2026-11-04; DB
+    // The ID renders in its own column (user request 2026-11-05; DB
     // auto-increment starts at 1000 - backend Flyway follow-up).
-    expect(screen.getByText('ID 1')).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: '1' })).toBeInTheDocument()
   })
 
   it('creates a catalog and re-lists', async () => {

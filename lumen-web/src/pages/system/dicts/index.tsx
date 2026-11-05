@@ -80,11 +80,7 @@ export default function DictsPage() {
         const data = await listCatal(nextPage, nextSize)
         setCatals(
           query.trim()
-            ? data.records.filter(
-                (row) =>
-                  row.code.toLowerCase().includes(query.trim().toLowerCase()) ||
-                  row.name.toLowerCase().includes(query.trim().toLowerCase()),
-              )
+            ? data.records.filter((row) => row.name.toLowerCase().includes(query.trim().toLowerCase()))
             : data.records,
         )
         setCatalTotal(data.total)
@@ -199,22 +195,20 @@ export default function DictsPage() {
     }
   }, [closeDetail, detailEditTarget, detailForm, messageApi, reloadDetails, selected])
 
-  // 随访 columns-lf cell: 名称 over 编码 in one two-line cell (the OPS
-  // user-cell pattern), plus the 排序 column.
+  // 目录 + ID as two columns, ID first and CENTERED (user request 2026-11-05).
   const catalColumns: TableColumnsType<DictCatal> = [
     {
-      title: '目录/编码',
-      dataIndex: 'name',
-      render: (_: unknown, row: DictCatal) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontWeight: 500 }}>{row.name}</span>
-          <Typography.Text type="secondary" style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-            {row.code}
-          </Typography.Text>
-        </div>
+      title: 'ID',
+      dataIndex: 'id',
+      width: 90,
+      align: 'center',
+      render: (id: number) => (
+        <Typography.Text type="secondary" style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+          {id}
+        </Typography.Text>
       ),
     },
-    { title: '排序', dataIndex: 'sort', width: 70 },
+    { title: '目录', dataIndex: 'name', render: (name: string) => <span style={{ fontWeight: 500 }}>{name}</span> },
   ]
 
   const detailColumns: TableColumnsType<DictDetail> = [
@@ -228,7 +222,7 @@ export default function DictsPage() {
     // 左右双列(随访 EIS 字典页布局,用户 2026-11-04):左 = 目录表,右 = 选中目录的明细表。
     <div style={{ height: '100%', display: 'flex', gap: 16 }}>
       {messageHolder}
-      <div style={{ flex: '0 0 460px', width: 460, minWidth: 0, display: 'flex' }}>
+      <div style={{ flex: '0 0 420px', width: 420, minWidth: 0, display: 'flex' }}>
       <ConsolePanel>
         <ConsoleToolRow
           trailing={
@@ -245,9 +239,9 @@ export default function DictsPage() {
         >
           <Input
             allowClear
-            style={{ width: 120, minWidth: 0 }}
-            placeholder="编码 / 名称"
-            aria-label="编码 / 名称"
+            style={{ width: 200, minWidth: 0 }}
+            placeholder="目录名称"
+            aria-label="目录名称"
             value={queryDraft}
             onChange={(event) => setQueryDraft(event.target.value)}
             onPressEnter={() => {
