@@ -1,5 +1,5 @@
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
-import { Button, Form, Input, InputNumber, Modal, Popconfirm, Tooltip, Typography, message } from 'antd'
+import { Button, Form, Input, InputNumber, Modal, Popconfirm, Tooltip, message } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -20,6 +20,7 @@ import {
   ConsoleAddButton,
   ConsolePanel,
   ConsolePagination,
+  ConsoleQueryButton,
   ConsoleTable,
   ConsoleToolRow,
   readForm,
@@ -60,6 +61,9 @@ export default function DictsPage() {
   const [queryDraft, setQueryDraft] = useState('')
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<DictCatal | null>(null)
+  const selectedRef = useRef<DictCatal | null>(null)
+  const [detailQueryDraft, setDetailQueryDraft] = useState('')
+  const [detailQuery, setDetailQuery] = useState('')
   const [details, setDetails] = useState<DictDetail[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailPage, setDetailPage] = useState(1)
@@ -73,17 +77,42 @@ export default function DictsPage() {
   const [catalForm] = Form.useForm<CatalValues>()
   const [detailForm] = Form.useForm<DetailValues>()
 
+  const reloadDetails = useCallback(
+    async (caCode: string) => {
+      setDetailLoading(true)
+      try {
+        setDetails(await listDetails(caCode))
+      } catch (error) {
+        messageApi.error(error instanceof ApiError ? error.msg : '字典明细加载失败')
+      } finally {
+        setDetailLoading(false)
+      }
+    },
+    [messageApi],
+  )
+
+  const selectCatal = useCallback(
+    (row: DictCatal) => {
+      selectedRef.current = row
+      setSelected(row)
+      setDetailPage(1)
+      void reloadDetails(row.code)
+    },
+    [reloadDetails],
+  )
+
   const reloadCatal = useCallback(
     async (nextPage = catalPage, nextSize = catalPageSize) => {
       setCatalLoading(true)
       try {
         const data = await listCatal(nextPage, nextSize)
-        setCatals(
-          query.trim()
-            ? data.records.filter((row) => row.name.toLowerCase().includes(query.trim().toLowerCase()))
-            : data.records,
-        )
+        const rows = query.trim()
+          ? data.records.filter((row) => row.name.toLowerCase().includes(query.trim().toLowerCase()))
+          : data.records
+        setCatals(rows)
         setCatalTotal(data.total)
+        // 打开页面/查询后默认选中第一条目录(随访行为,用户 2026-11-04)
+        if (rows.length > 0 && !selectedRef.current) selectCatal(rows[0])
       } catch (error) {
         messageApi.error(error instanceof ApiError ? error.msg : '字典目录加载失败')
       } finally {
@@ -109,30 +138,10 @@ export default function DictsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
 
-  const reloadDetails = useCallback(
-    async (caCode: string) => {
-      setDetailLoading(true)
-      try {
-        setDetails(await listDetails(caCode))
-      } catch (error) {
-        messageApi.error(error instanceof ApiError ? error.msg : '字典明细加载失败')
-      } finally {
-        setDetailLoading(false)
-      }
-    },
-    [messageApi],
-  )
-
-  const selectCatal = useCallback(
-    (row: DictCatal) => {
-      setSelected(row)
-      setDetailPage(1)
-      void reloadDetails(row.code)
-    },
-    [reloadDetails],
-  )
   const DETAIL_PAGE_SIZE = 10
-  const detailRows = details.slice((detailPage - 1) * DETAIL_PAGE_SIZE, detailPage * DETAIL_PAGE_SIZE)
+  const detailRows = details
+    .filter((row) => !detailQuery || row.label.toLowerCase().includes(detailQuery.toLowerCase()))
+    .slice((detailPage - 1) * DETAIL_PAGE_SIZE, detailPage * DETAIL_PAGE_SIZE)
 
   const closeCatal = useCallback(() => {
     setCatalOpen(false)
@@ -357,15 +366,24 @@ export default function DictsPage() {
             ) : undefined
           }
         >
-          <Typography.Text style={{ color: 'inherit' }}>
-            {selected ? (
-              <>
-                明细于目录 <Typography.Text code>{selected.code}</Typography.Text>
-              </>
-            ) : (
-              '点击左侧目录行以加载其明细(sort 升序)'
-            )}
-          </Typography.Text>
+          <Input
+            allowClear
+            style={{ width: 200, minWidth: 0 }}
+            placeholder={selected ? `字典标签（${selected.name}）` : '字典标签'}
+            aria-label="标签"
+            value={detailQueryDraft}
+            onChange={(event) => setDetailQueryDraft(event.target.value)}
+            onPressEnter={() => {
+              setDetailQuery(detailQueryDraft)
+              setDetailPage(1)
+            }}
+          />
+          <ConsoleQueryButton
+            onClick={() => {
+              setDetailQuery(detailQueryDraft)
+              setDetailPage(1)
+            }}
+          />
         </ConsoleToolRow>
 
         <ConsoleTable<DictDetail>

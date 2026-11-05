@@ -95,7 +95,10 @@ describe('dicts page - catalog (spec: Catalog list and duplicate feedback)', () 
     expect(await screen.findByText('通用状态')).toBeInTheDocument()
     // The ID renders in its own column (user request 2026-11-05; DB
     // auto-increment starts at 1000 - backend Flyway follow-up).
-    expect(screen.getByRole('cell', { name: '1' })).toBeInTheDocument()
+    const nameCell = screen.getByText('通用状态').closest('td')
+    const row = nameCell?.closest('tr')
+    expect(row).not.toBeNull()
+    expect(within(row as HTMLElement).getByRole('cell', { name: '1' })).toBeInTheDocument()
   })
 
   it('creates a catalog and re-lists', async () => {
@@ -138,14 +141,14 @@ describe('dicts page - details (spec: Details ordered by sort)', () => {
     expect(first).toHaveTextContent('启用')
   })
 
-  it('creates a detail under the selected catalog and re-lists', async () => {
+  it('creates a detail under the auto-selected catalog and re-lists', async () => {
     const user = userEvent.setup()
     renderPage()
-    await screen.findByText('通用状态')
-    await user.click(screen.getByText('通用状态'))
+    // Auto-select loads the first catalog's details on mount (user 2026-11-04).
     await screen.findByText('启用')
+    const callsAfterAutoSelect = vi.mocked(dictsApi.listDetails).mock.calls.length
     await user.click(screen.getByRole('button', { name: /新建明细/ }))
-    await user.type(screen.getByLabelText('标签'), '维护中')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText('标签'), '维护中')
     await user.type(screen.getByLabelText('值'), '2')
     await user.click(screen.getByRole('button', { name: '保 存' }))
     await waitFor(() =>
@@ -153,7 +156,7 @@ describe('dicts page - details (spec: Details ordered by sort)', () => {
         expect.objectContaining({ caId: 1, label: '维护中' }),
       ),
     )
-    await waitFor(() => expect(dictsApi.listDetails).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(vi.mocked(dictsApi.listDetails)).toHaveBeenCalledTimes(callsAfterAutoSelect + 1))
   })
 
   it('lands a duplicate-value A0714 msg on the form and keeps the dialog open', async () => {
@@ -166,17 +169,32 @@ describe('dicts page - details (spec: Details ordered by sort)', () => {
     await user.click(screen.getByText('通用状态'))
     await screen.findByText('启用')
     await user.click(screen.getByRole('button', { name: /新建明细/ }))
-    await user.type(screen.getByLabelText('标签'), '重复')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText('标签'), '重复')
     await user.type(screen.getByLabelText('值'), '1')
     await user.click(screen.getByRole('button', { name: '保 存' }))
     await waitFor(() => expect(screen.getByText(/dict detail value already exists/)).toBeInTheDocument())
     expect(screen.getByRole('dialog')).not.toHaveClass(DIALOG_LEAVING)
   })
 
-  it('disables 新建明细 until a catalog row is selected (no caCode - A0410 guard)', async () => {
-    renderPage()
-    await screen.findByText('通用状态')
-    expect(screen.getByRole('button', { name: /新建明细/ })).toBeDisabled()
+  it('auto-selects the first catalog on mount (新建明细 enabled); an empty list keeps it disabled', async () => {
+    const first = renderPage()
+    // With data: the first row auto-selects, so the add action is available.
+    await screen.findByText('启用')
+    expect(screen.getByRole('button', { name: /新建明细/ })).toBeEnabled()
+    first.unmount()
+    // With an empty catalog list there is nothing to select - the guard holds.
+    vi.mocked(dictsApi.listCatal).mockResolvedValue({
+      records: [],
+      total: 0,
+      size: 20,
+      current: 1,
+      pages: 0,
+    } as Page<DictCatal>)
+    vi.mocked(dictsApi.listDetails).mockClear()
+    const second = renderPage()
+    await second.findByPlaceholderText('目录名称')
+    expect(second.getByRole('button', { name: /新建明细/ })).toBeDisabled()
+    second.unmount()
   })
 })
 
