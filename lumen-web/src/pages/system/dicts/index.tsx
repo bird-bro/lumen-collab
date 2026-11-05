@@ -202,13 +202,10 @@ export default function DictsPage() {
       dataIndex: 'id',
       width: 90,
       align: 'center',
-      render: (id: number) => (
-        <Typography.Text type="secondary" style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
-          {id}
-        </Typography.Text>
-      ),
+      // Same type treatment as the 目录 column (user request 2026-11-05).
+      render: (id: number) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{id}</span>,
     },
-    { title: '目录', dataIndex: 'name', render: (name: string) => <span style={{ fontWeight: 500 }}>{name}</span> },
+    { title: '目录', dataIndex: 'name', align: 'center', render: (name: string) => <span style={{ fontWeight: 500 }}>{name}</span> },
   ]
 
   const detailColumns: TableColumnsType<DictDetail> = [
@@ -222,7 +219,7 @@ export default function DictsPage() {
     // 左右双列(随访 EIS 字典页布局,用户 2026-11-04):左 = 目录表,右 = 选中目录的明细表。
     <div style={{ height: '100%', display: 'flex', gap: 16 }}>
       {messageHolder}
-      <div style={{ flex: '0 0 420px', width: 420, minWidth: 0, display: 'flex' }}>
+      <div style={{ flex: '0 0 460px', width: 460, minWidth: 0, display: 'flex' }}>
       <ConsolePanel>
         <ConsoleToolRow
           trailing={
