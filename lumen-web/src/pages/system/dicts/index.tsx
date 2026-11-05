@@ -228,7 +228,7 @@ export default function DictsPage() {
     // 左右双列(随访 EIS 字典页布局,用户 2026-11-04):左 = 目录表,右 = 选中目录的明细表。
     <div style={{ height: '100%', display: 'flex', gap: 16 }}>
       {messageHolder}
-      <div style={{ flex: '0 0 380px', width: 380, minWidth: 0, display: 'flex' }}>
+      <div style={{ flex: '0 0 460px', width: 460, minWidth: 0, display: 'flex' }}>
       <ConsolePanel>
         <ConsoleToolRow
           trailing={
