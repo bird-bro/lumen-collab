@@ -100,11 +100,17 @@ class AuthSeedMigrationTests extends AuthIntegrationTestBase {
 
     @Test
     void menuSetAndRoleMenuSeeded() {
-        // Six seed menus with their expected node types (M directory / C menu / F button)
-        // and parent links: menu 2 nests under 1, menu 6 (audit button) nests under 3.
+        // The live menu set with node types (M directory / C menu / F button) and
+        // parent links after the console-IA migrations: V5 three-level structure,
+        // V8 安全 group, and V10 parking the department placeholders (3/4/5 and the
+        // audit button 6 are logically deleted - asserted absent below). 用户管理 (2)
+        // nests under the 用户权限 group (14); the six console pages hang off groups
+        // 13/14/15/16.
         Object[][] expectedMenus = {
-                {1, "M", 0}, {2, "C", 1}, {3, "C", 0},
-                {4, "C", 0}, {5, "C", 0}, {6, "F", 3}};
+                {1, "M", 0},
+                {13, "M", 1}, {14, "M", 1}, {15, "M", 1}, {16, "M", 1},
+                {7, "C", 13}, {8, "C", 13}, {2, "C", 14}, {9, "C", 14},
+                {10, "C", 15}, {11, "C", 15}, {12, "C", 16}};
         for (Object[] expected : expectedMenus) {
             int menuId = (Integer) expected[0];
             Map<String, Object> menu = jdbcTemplate.queryForMap(
@@ -117,18 +123,16 @@ class AuthSeedMigrationTests extends AuthIntegrationTestBase {
             assertNotNull(menu.get("title"), "menu " + menuId + " title");
         }
 
+        Integer parkedCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system.menu_info "
+                + "WHERE id IN (3, 4, 5, 6) AND deleted = 0", Integer.class);
+        assertEquals(Integer.valueOf(0), parkedCount,
+                "the department placeholder menus (3/4/5/6) must stay parked (V10)");
+
         Integer ownedMenus = jdbcTemplate.queryForObject(
                 "SELECT COUNT(DISTINCT menu_id) FROM system.role_menu "
                 + "WHERE role_id = 1 AND deleted = 0", Integer.class);
-        assertTrue(ownedMenus >= 6,
-                "role 1 must own at least the six seed menus (CONTAINS-style lower bound)");
-
-        Integer auditBinding = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM system.role_menu rm "
-                + "JOIN system.menu_info m ON m.id = rm.menu_id "
-                + "WHERE rm.role_id = 1 AND rm.deleted = 0 "
-                + "AND m.perms = 'radiology:report:audit'", Integer.class);
-        assertTrue(auditBinding >= 1,
-                "role 1 must own the radiology report-audit button example");
+        assertTrue(ownedMenus >= 12,
+                "role 1 must own at least the twelve live seeded menus (CONTAINS-style lower bound)");
     }
 }

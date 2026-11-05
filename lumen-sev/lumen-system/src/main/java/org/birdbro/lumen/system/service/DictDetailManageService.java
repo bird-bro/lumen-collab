@@ -16,8 +16,8 @@ public interface DictDetailManageService {
 
     /**
      * Creates a detail under a live catalog (unknown catalog rejected {@code A0400}, a
-     * duplicate live (caCode, value) pair rejected {@code A0714}); the {@code ca_code}
-     * anchor is SERVER-RESOLVED from the catalog (double-anchor consistency, scenario 3);
+     * duplicate live (caId, value) pair rejected {@code A0714}); anchored by {@code ca_id}
+     * alone (V9 dropped the denormalized ca_code);
      * returns the new id.
      */
     Integer create(DetailCreate request);
@@ -29,8 +29,9 @@ public interface DictDetailManageService {
     Boolean delete(Integer id);
 
     /**
-     * The catalog's LIVE details ordered by {@code sort} (the by-code list endpoint, the
-     * copied service's additive {@code listByCaCode}).
+     * The catalog's LIVE details ordered by {@code sort} (the by-id list endpoint; V12
+     * re-anchored the former by-code {@code listByCaCode} onto {@code caId} - the
+     * catalog {@code code} column is gone).
      */
-    List<DictDetailEntity> listByCaCode(String caCode);
+    List<DictDetailEntity> listByCaId(Integer caId);
 }

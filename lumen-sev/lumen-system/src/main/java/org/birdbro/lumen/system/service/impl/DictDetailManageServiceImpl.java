@@ -23,11 +23,11 @@ import org.springframework.stereotype.Service;
  * lumen-side rules:
  *
  * <ul>
- *   <li>the ca_code anchor is SERVER-RESOLVED from the live catalog on every
- *       create/re-anchor (spec scenario 3's double anchor): a stale or mismatched
- *       {@code caCode} in the request body can never land;</li>
- *   <li>the detail-level uniqueness is the (caCode, value) pair - the DDL's partial
- *       unique index {@code uk_dict_detail_ca_code_value WHERE deleted = 0} - rejected
+ *   <li>the detail anchors to its catalog by {@code ca_id} alone (V9 dropped the
+ *       denormalized {@code ca_code} column); the referenced catalog must be live on
+ *       every create/re-anchor;</li>
+ *   <li>the detail-level uniqueness is the (caId, value) pair - the DDL's partial
+ *       unique index {@code uk_dict_detail_ca_id_value WHERE deleted = 0} - rejected
  *       with {@code A0714} at the service level, live rows only;</li>
  *   <li>the enable field flows Integer end to end here ({@code DetailCreate.enable} is
  *       already Integer - the Byte quirk is catal-side only, see
@@ -49,16 +49,15 @@ public class DictDetailManageServiceImpl implements DictDetailManageService {
 
     @Override
     public Integer create(DetailCreate request) {
-        if (request.getCaId() == null || StrUtil.isBlank(request.getLabel())) {
+        if (request.getCaId() == null || StrUtil.isBlank(request.getValue())) {
             throw new BusinessException(ExceptionEnum.ERROR_A0400,
-                    "dict detail caId and label are required");
+                    "dict detail caId and value are required");
         }
         DictCatalEntity catal = liveCatal(request.getCaId());
-        rejectDuplicateValue(catal.getCode(), request.getValue(), null);
+        rejectDuplicateValue(catal.getId(), request.getValue(), null);
 
         DictDetailEntity entity = new DictDetailEntity();
         BeanUtil.copyProperties(request, entity, true); // OPS house idiom - ignore nulls
-        entity.setCaCode(catal.getCode()); // server-resolved anchor (double-anchor consistency)
         dictDetailService.save(entity);
         return entity.getId();
     }
@@ -70,16 +69,15 @@ public class DictDetailManageServiceImpl implements DictDetailManageService {
             throw new BusinessException(ExceptionEnum.ERROR_B0031,
                     "dict detail id " + id + " does not exist");
         }
-        // A re-anchor must resolve to a live catalog; the ca_code follows it.
+        // A re-anchor must resolve to a live catalog.
         Integer targetCaId = request.getCaId() != null ? request.getCaId() : existing.getCaId();
         DictCatalEntity catal = liveCatal(targetCaId);
         String targetValue = request.getValue() != null ? request.getValue() : existing.getValue();
-        rejectDuplicateValue(catal.getCode(), targetValue, id);
+        rejectDuplicateValue(catal.getId(), targetValue, id);
 
         DictDetailEntity patch = new DictDetailEntity();
         BeanUtil.copyProperties(request, patch, true);
         patch.setId(id); // the path param wins over the body
-        patch.setCaCode(catal.getCode()); // server-resolved anchor follows the (possibly new) catalog
         dictDetailService.updateById(patch);
         return Boolean.TRUE;
     }
@@ -91,8 +89,8 @@ public class DictDetailManageServiceImpl implements DictDetailManageService {
     }
 
     @Override
-    public List<DictDetailEntity> listByCaCode(String caCode) {
-        return dictDetailService.listByCaCode(caCode);
+    public List<DictDetailEntity> listByCaId(Integer caId) {
+        return dictDetailService.listByCaId(caId);
     }
 
     /** Resolves the LIVE catalog behind a caId ({@code @TableLogic} hides deleted ones). */
@@ -106,23 +104,23 @@ public class DictDetailManageServiceImpl implements DictDetailManageService {
     }
 
     /**
-     * The (caCode, value) pair is unique among live rows (the partial unique index shape);
+     * The (caId, value) pair is unique among live rows (the partial unique index shape);
      * a blank value is skipped - NULL values stay distinct in the index, so the check
      * mirrors the DDL exactly. {@code excludeId} spares the updated row.
      */
-    private void rejectDuplicateValue(String caCode, String value, Integer excludeId) {
+    private void rejectDuplicateValue(Integer caId, String value, Integer excludeId) {
         if (StrUtil.isBlank(value)) {
             return;
         }
         LambdaQueryWrapper<DictDetailEntity> wrapper = new LambdaQueryWrapper<DictDetailEntity>()
-                .eq(DictDetailEntity::getCaCode, caCode)
+                .eq(DictDetailEntity::getCaId, caId)
                 .eq(DictDetailEntity::getValue, value);
         if (excludeId != null) {
             wrapper.ne(DictDetailEntity::getId, excludeId);
         }
         if (dictDetailService.count(wrapper) > 0) {
             throw new BusinessException(ExceptionEnum.ERROR_A0714,
-                    "dict detail value already exists under caCode " + caCode + ": " + value);
+                    "dict detail value already exists under caId " + caId + ": " + value);
         }
     }
 }

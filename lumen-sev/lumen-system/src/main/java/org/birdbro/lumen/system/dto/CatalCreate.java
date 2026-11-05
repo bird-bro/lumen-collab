@@ -15,9 +15,6 @@ public class CatalCreate {
     @ApiModelProperty("启用 1(def)  禁用 0 ")
     private Byte enable;
 
-    @ApiModelProperty("编码")
-    private String code;
-
     @ApiModelProperty("索引名称")
     private String name;
 
@@ -29,8 +26,5 @@ public class CatalCreate {
 
     @ApiModelProperty("分类")
     private Integer cls;
-
-    @ApiModelProperty("首字母")
-    private String initial;
 
 }

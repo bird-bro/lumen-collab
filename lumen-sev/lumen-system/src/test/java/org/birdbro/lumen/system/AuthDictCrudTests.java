@@ -28,18 +28,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <ol>
  *   <li>catalog create lands in {@code public.dict_catal} with {@code create_by} = the
- *       operator (scenario 1), and a duplicate live code is rejected with the
- *       {@code A0714} envelope, data null (scenario 2);</li>
- *   <li>detail create under a live catalog anchors BOTH {@code ca_id} and {@code ca_code}
- *       (scenario 3) - the ca_code is server-resolved from the catalog, so a stale request
- *       value can never land;</li>
- *   <li>{@code GET detail/list?caCode=} returns ONLY that catalog's live details ordered by
+ *       operator (scenario 1), and a duplicate live NAME is rejected with the
+ *       {@code A0714} envelope, data null (scenario 2) - V12 dropped the catalog
+ *       {@code code} column, so the request body carries no catalog-code field at
+ *       all and the display name carries the uniqueness;</li>
+ *   <li>detail create under a live catalog anchors {@code ca_id} (scenario 3) - V9
+ *       dropped the denormalized {@code ca_code} column and {@code value} is the
+ *       single text field;</li>
+ *   <li>{@code GET detail/list?caId=} returns ONLY that catalog's live details ordered by
  *       {@code sort} (scenario 4), and a logical delete removes it from the list;</li>
- *   <li>the partial unique index discipline: a logically deleted catalog's code is
- *       reusable (the dead row never blocks re-creating the value).</li>
+ *   <li>the partial unique index discipline: a logically deleted catalog's name is
+ *       reusable (the dead row never blocks re-creating the name).</li>
  * </ol>
  *
- * <p>Shared long-lived database: every code/value carries a timestamp suffix and created
+ * <p>Shared long-lived database: every name/value carries a timestamp suffix and created
  * rows are logically deleted afterwards.</p>
  *
  * @author birdbro
@@ -60,13 +62,12 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void catalCreateLandsRowWithOperatorAuditAndRejectsDuplicateCode() throws Exception {
+    void catalCreateLandsRowWithOperatorAuditAndRejectsDuplicateName() throws Exception {
         String token = adminToken();
-        String code = "b2.cat." + System.currentTimeMillis(); // unique - shared DB
-        String name = "批量二目录_" + code;
+        String name = "批量二目录_" + System.currentTimeMillis(); // unique - shared DB
 
         ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, CATAL_URL,
-                "{\"code\":\"" + code + "\",\"name\":\"" + name + "\"}", token);
+                "{\"name\":\"" + name + "\"}", token);
         assertEquals(200, createResponse.getStatusCodeValue(),
                 "dict endpoints answer over HTTP 200 (envelope transport)");
         JsonNode createBody = parse(createResponse);
@@ -78,9 +79,8 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
         // Scenario 1 verdict against the real table: the row is in public.dict_catal with
         // the operator audit (create_by = admin 1) and the enable column default 1.
         Map<String, Object> row = jdbcTemplate.queryForMap(
-                "SELECT code, name, enable, deleted, create_by FROM public.dict_catal WHERE id = ?",
+                "SELECT name, enable, deleted, create_by FROM public.dict_catal WHERE id = ?",
                 createdId);
-        assertEquals(code, row.get("code"), "the catalog code anchor");
         assertEquals(name, row.get("name"), "the catalog display name");
         assertEquals(1, ((Number) row.get("enable")).intValue(),
                 "an omitted enable must fall to the lumen 1/0 live default");
@@ -88,12 +88,12 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
         assertEquals(1, ((Number) row.get("create_by")).intValue(),
                 "create_by must be the admin id 1 (MetaObjectConfig fill via the bridge filter)");
 
-        // Scenario 2: the same live code is rejected as a duplicate (A0714, data null).
+        // Scenario 2: the same live name is rejected as a duplicate (A0714, data null).
         ResponseEntity<String> duplicateResponse = exchangeJson(HttpMethod.POST, CATAL_URL,
-                "{\"code\":\"" + code + "\",\"name\":\"重复目录_" + code + "\"}", token);
+                "{\"name\":\"" + name + "\"}", token);
         JsonNode duplicateBody = parse(duplicateResponse);
         assertEquals("A0714", duplicateBody.path("code").asText(),
-                "a duplicate live catalog code must map to the A0714 envelope: " + duplicateBody);
+                "a duplicate live catalog name must map to the A0714 envelope: " + duplicateBody);
         assertFalse(duplicateBody.hasNonNull("data"),
                 "the A-class rejection carries data null (fastjson2 omits the null field)");
 
@@ -106,7 +106,7 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
                 "the paginated catalog list must carry a records array");
         boolean found = false;
         for (JsonNode item : listBody.path("data").path("records")) {
-            found = found || code.equals(item.path("code").asText());
+            found = found || name.equals(item.path("name").asText());
         }
         assertTrue(found, "the created catalog must appear in the name-filtered list");
 
@@ -114,57 +114,52 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
     }
 
     @Test
-    void detailCreateAnchorsBothCaIdAndCaCodeAndListsByCaCodeSorted() throws Exception {
+    void detailCreateAnchorsCaIdAndListsByCaIdSorted() throws Exception {
         String token = adminToken();
         long ts = System.currentTimeMillis();
-        String code = "b2.det." + ts;
 
-        int catalId = createCatal(token, code, "明细目录_" + ts);
+        int catalId = createCatal(token, "明细目录_" + ts);
 
-        // Two details under the fresh catalog: the first carries a WRONG ca_code on purpose -
-        // the anchor is server-resolved from the live catalog (double-anchor consistency).
+        // Two details under the fresh catalog; value is the single text field (V9 -
+        // label dropped), and the body has no catalog-code field to misuse.
         ResponseEntity<String> firstResponse = exchangeJson(HttpMethod.POST, DETAIL_URL,
-                "{\"caId\":" + catalId + ",\"caCode\":\"WRONG." + ts + "\",\"value\":\"v2\","
-                        + "\"label\":\"乙_" + ts + "\",\"sort\":2}", token);
+                "{\"caId\":" + catalId + ",\"value\":\"乙_" + ts + "\",\"sort\":2}", token);
         JsonNode firstBody = parse(firstResponse);
         assertEquals("200", firstBody.path("code").asText(), "the first detail create must succeed: " + firstBody);
         int firstId = firstBody.path("data").asInt(-1);
         assertTrue(firstId > 2, "the created detail id must come back past the seeded ids 1/2");
 
         ResponseEntity<String> secondResponse = exchangeJson(HttpMethod.POST, DETAIL_URL,
-                "{\"caId\":" + catalId + ",\"value\":\"v1\",\"label\":\"甲_" + ts + "\",\"sort\":1}", token);
+                "{\"caId\":" + catalId + ",\"value\":\"甲_" + ts + "\",\"sort\":1}", token);
         JsonNode secondBody = parse(secondResponse);
         assertEquals("200", secondBody.path("code").asText(), "the second detail create must succeed: " + secondBody);
         int secondId = secondBody.path("data").asInt(-1);
 
-        // Scenario 3: both anchors persisted, and the request's stale ca_code never landed.
-        assertEquals(code, jdbcTemplate.queryForObject(
-                "SELECT ca_code FROM public.dict_detail WHERE id = ?", String.class, firstId),
-                "ca_code must be server-resolved from the live catalog (the WRONG request value must not land)");
+        // Scenario 3: the ca_id anchor persisted.
         assertEquals(catalId, ((Number) jdbcTemplate.queryForObject(
                 "SELECT ca_id FROM public.dict_detail WHERE id = ?", Number.class, firstId)).intValue(),
                 "ca_id must anchor the created detail to the catalog");
 
-        // Scenario 4: the by-code list returns ONLY this catalog's live details, sorted by sort.
+        // Scenario 4: the by-id list returns ONLY this catalog's live details, sorted by sort.
         ResponseEntity<String> listResponse = exchangeJson(HttpMethod.GET,
-                DETAIL_URL + "/list?caCode=" + code, null, token);
+                DETAIL_URL + "/list?caId=" + catalId, null, token);
         JsonNode listBody = parse(listResponse);
-        assertEquals("200", listBody.path("code").asText(), "the by-code detail list must succeed: " + listBody);
-        List<String> orderedLabels = new ArrayList<>();
-        listBody.path("data").forEach(item -> orderedLabels.add(item.path("label").asText()));
-        assertEquals(java.util.Arrays.asList("甲_" + ts, "乙_" + ts), orderedLabels,
-                "the list must be the catalog's live details ordered by sort (1 then 2): " + orderedLabels);
+        assertEquals("200", listBody.path("code").asText(), "the by-id detail list must succeed: " + listBody);
+        List<String> orderedValues = new ArrayList<>();
+        listBody.path("data").forEach(item -> orderedValues.add(item.path("value").asText()));
+        assertEquals(java.util.Arrays.asList("甲_" + ts, "乙_" + ts), orderedValues,
+                "the list must be the catalog's live details ordered by sort (1 then 2): " + orderedValues);
 
-        // The (ca_code, value) duplicate is the detail-level uniqueness - rejected A0714.
+        // The (ca_id, value) duplicate is the detail-level uniqueness - rejected A0714.
         ResponseEntity<String> duplicateResponse = exchangeJson(HttpMethod.POST, DETAIL_URL,
-                "{\"caId\":" + catalId + ",\"value\":\"v1\",\"label\":\"重复甲_" + ts + "\"}", token);
+                "{\"caId\":" + catalId + ",\"value\":\"甲_" + ts + "\"}", token);
         JsonNode duplicateBody = parse(duplicateResponse);
         assertEquals("A0714", duplicateBody.path("code").asText(),
-                "a duplicate (ca_code, value) detail must map to the A0714 envelope: " + duplicateBody);
+                "a duplicate (ca_id, value) detail must map to the A0714 envelope: " + duplicateBody);
 
         // A detail under an unknown catalog is a request-parameter error.
         ResponseEntity<String> orphanResponse = exchangeJson(HttpMethod.POST, DETAIL_URL,
-                "{\"caId\":987654321,\"label\":\"孤儿明细_" + ts + "\"}", token);
+                "{\"caId\":987654321,\"value\":\"孤儿明细_" + ts + "\"}", token);
         assertEquals("A0400", parse(orphanResponse).path("code").asText(),
                 "a detail without a live catalog must be rejected service-side");
 
@@ -174,11 +169,11 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
         assertEquals("200", parse(deleteResponse).path("code").asText(),
                 "the detail delete must succeed: " + parse(deleteResponse));
         ResponseEntity<String> afterDelete = exchangeJson(HttpMethod.GET,
-                DETAIL_URL + "/list?caCode=" + code, null, token);
+                DETAIL_URL + "/list?caId=" + catalId, null, token);
         List<String> remaining = new ArrayList<>();
-        parse(afterDelete).path("data").forEach(item -> remaining.add(item.path("label").asText()));
+        parse(afterDelete).path("data").forEach(item -> remaining.add(item.path("value").asText()));
         assertEquals(java.util.Collections.singletonList("乙_" + ts), remaining,
-                "the logically deleted detail must vanish from the live by-code list");
+                "the logically deleted detail must vanish from the live by-id list");
 
         jdbcTemplate.update("UPDATE public.dict_detail SET deleted = 1 WHERE id IN (?, ?)",
                 firstId, secondId);
@@ -186,25 +181,25 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
     }
 
     @Test
-    void deletedCatalogCodeIsReusable() throws Exception {
+    void deletedCatalogNameIsReusable() throws Exception {
         String token = adminToken();
         long ts = System.currentTimeMillis();
-        String code = "b2.reuse." + ts;
+        String name = "复用目录_" + ts;
 
-        int firstId = createCatal(token, code, "复用目录一_" + ts);
+        int firstId = createCatal(token, name);
         ResponseEntity<String> deleteResponse = exchangeJson(HttpMethod.DELETE,
                 CATAL_URL + "/" + firstId, null, token);
         assertEquals("200", parse(deleteResponse).path("code").asText(),
                 "the catalog delete must succeed: " + parse(deleteResponse));
 
-        // Partial unique index discipline: uk_dict_catal_code is partial on deleted = 0, so
-        // the dead row never blocks re-creating the code - and the service-level duplicate
+        // Partial unique index discipline: uk_dict_catal_name is partial on deleted = 0, so
+        // the dead row never blocks re-creating the name - and the service-level duplicate
         // check counts live rows only.
         ResponseEntity<String> reCreateResponse = exchangeJson(HttpMethod.POST, CATAL_URL,
-                "{\"code\":\"" + code + "\",\"name\":\"复用目录二_" + ts + "\"}", token);
+                "{\"name\":\"" + name + "\"}", token);
         JsonNode reCreateBody = parse(reCreateResponse);
         assertEquals("200", reCreateBody.path("code").asText(),
-                "a deleted catalog's code must be reusable: " + reCreateBody);
+                "a deleted catalog's name must be reusable: " + reCreateBody);
         int secondId = reCreateBody.path("data").asInt(-1);
         assertTrue(secondId > 0 && secondId != firstId, "the re-created catalog gets a fresh id");
 
@@ -213,9 +208,9 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
     }
 
     /** Creates a catalog through the endpoint and returns its id (no cleanup here). */
-    private int createCatal(String token, String code, String name) throws Exception {
+    private int createCatal(String token, String name) throws Exception {
         ResponseEntity<String> response = exchangeJson(HttpMethod.POST, CATAL_URL,
-                "{\"code\":\"" + code + "\",\"name\":\"" + name + "\"}", token);
+                "{\"name\":\"" + name + "\"}", token);
         JsonNode body = parse(response);
         assertEquals("200", body.path("code").asText(), "the catalog create must succeed: " + body);
         int id = body.path("data").asInt(-1);

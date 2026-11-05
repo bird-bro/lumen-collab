@@ -47,16 +47,16 @@ public class DictCatalController {
         this.dictCatalManageService = dictCatalManageService;
     }
 
-    /** Creates a catalog (duplicate live code rejected {@code A0714}); returns the new id. */
-    @ApiOperation("创建字典目录（code 唯一，A0714 拒绝重复）")
+    /** Creates a catalog (duplicate live name rejected {@code A0714}; V12 dropped the code column); returns the new id. */
+    @ApiOperation("创建字典目录（名称唯一，A0714 拒绝重复）")
     @Log(title = "字典目录", type = "新增")
     @PostMapping
     public Integer create(@Valid @RequestBody CatalCreate request) {
         return dictCatalManageService.create(request);
     }
 
-    /** Partial update: rename / re-code / sort / enable (null fields skipped). */
-    @ApiOperation("字典目录部分更新（改名/改码/排序/启停）")
+    /** Partial update: rename / sort / enable (null fields skipped). */
+    @ApiOperation("字典目录部分更新（改名/排序/启停）")
     @Log(title = "字典目录", type = "修改")
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id, @Valid @RequestBody CatalModify request) {

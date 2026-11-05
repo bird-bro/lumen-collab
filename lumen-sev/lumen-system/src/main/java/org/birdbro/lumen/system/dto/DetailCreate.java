@@ -19,22 +19,17 @@ public class DetailCreate {
     @ApiModelProperty("目录ID")
     private Integer caId;
 
-    private String caCode;
-
     @ApiModelProperty("编码")
     private Integer code;
 
-    @ApiModelProperty("值")
+    @ApiModelProperty("值（显示与存储文本）")
     private String value;
 
-    @ApiModelProperty("标签")
-    private String label;
+    @ApiModelProperty("标签值1")
+    private String tag;
 
-    @ApiModelProperty("备用值1")
-    private String back1;
-
-    @ApiModelProperty("备用值2")
-    private String back2;
+    @ApiModelProperty("标记值2")
+    private String flag;
 
     @ApiModelProperty("排序")
     private Integer sort;

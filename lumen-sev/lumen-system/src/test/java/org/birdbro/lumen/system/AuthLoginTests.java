@@ -128,27 +128,30 @@ class AuthLoginTests extends AuthIntegrationTestBase {
                         && body.path("data").path("profile").path("roles").size() > 0,
                 "the seeded admin owns role 1 系统管理员");
 
-        // The seeded menu tree: roots 1/3/4/5, user management (2) nests under the system
-        // directory (1), the audit button (6) nests under the radiology page (3).
+        // The live menu tree after the console-IA migrations: the 系统管理 directory is
+        // the only root (V10 parked the department placeholders 3/4/5), 用户管理 (2)
+        // nests under the 用户权限 group (14), 日志查询 (12) under 安全 (16).
         JsonNode menus = body.path("data").path("menus");
-        assertTrue(menus.isArray() && menus.size() >= 4, "the seeded tree has four roots");
+        assertTrue(menus.isArray() && menus.size() >= 1, "the live tree has the 系统管理 root");
         JsonNode systemDirectory = menuWithMid(menus, 1);
         assertNotNull(systemDirectory, "menu 1 系统管理 must be a tree root");
         assertEquals("系统管理", systemDirectory.path("title").asText());
-        assertNotNull(menuWithMid(systemDirectory.path("children"), 2),
-                "user management (menu 2) nests under the system directory");
-        JsonNode radiologyPage = menuWithMid(menus, 3);
-        assertNotNull(radiologyPage, "menu 3 放射科 must be a tree root");
-        assertNotNull(menuWithMid(radiologyPage.path("children"), 6),
-                "the audit button (menu 6) nests under the radiology page");
+        JsonNode userPermGroup = menuWithMid(systemDirectory.path("children"), 14);
+        assertNotNull(userPermGroup, "the 用户权限 group (14) nests under the system directory");
+        assertNotNull(menuWithMid(userPermGroup.path("children"), 2),
+                "user management (menu 2) nests under the 用户权限 group");
+        JsonNode securityGroup = menuWithMid(systemDirectory.path("children"), 16);
+        assertNotNull(securityGroup, "the 安全 group (16) nests under the system directory");
+        assertNotNull(menuWithMid(securityGroup.path("children"), 12),
+                "log query (menu 12) nests under the 安全 group");
 
         JsonNode perms = body.path("data").path("perms");
         assertTrue(perms.isArray() && perms.size() > 0, "the perms set must be present");
         List<String> permStrings = new ArrayList<>();
         perms.forEach(perm -> permStrings.add(perm.asText()));
         assertTrue(permStrings.contains("system:user:list"), "perms must carry the user-management string");
-        assertTrue(permStrings.contains("radiology:report:audit"),
-                "perms must carry the seeded audit-button string: " + permStrings);
+        assertTrue(permStrings.contains("system:log:list"),
+                "perms must carry the log-query string: " + permStrings);
     }
 
     private ResponseEntity<String> postJson(String url, String json) {

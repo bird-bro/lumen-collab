@@ -24,6 +24,9 @@ public interface MenuInfoMapper extends BaseMapper<MenuInfo> {
      * {@code user_role -> role_menu -> menu_info} walk as the perms query
      * (auth-rbac-foundation task 3.1), feeding {@code MenuTreeService#build}. {@code
      * deleted = 0} is enforced on EVERY joined table (Batch-2 review handoff).
+     * Ordered by {@code sort, id}: {@code TreeUtils#buildTree} preserves input
+     * order, so without the ORDER BY the sidebar renders siblings in
+     * primary-key order and the {@code sort} column never takes effect.
      *
      * @param userId the user to collect menus for
      * @return the distinct live menus granted through the user's roles
@@ -31,6 +34,7 @@ public interface MenuInfoMapper extends BaseMapper<MenuInfo> {
     @Select("SELECT DISTINCT m.* FROM user_role ur "
             + "JOIN role_menu rm ON rm.role_id = ur.role_id AND rm.deleted = 0 "
             + "JOIN menu_info m ON m.id = rm.menu_id AND m.deleted = 0 "
-            + "WHERE ur.user_id = #{userId} AND ur.deleted = 0")
+            + "WHERE ur.user_id = #{userId} AND ur.deleted = 0 "
+            + "ORDER BY m.sort ASC, m.id ASC")
     List<MenuInfo> selectMenusByUserId(@Param("userId") Integer userId);
 }

@@ -12,7 +12,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 字典标签→码 反查（导入用）
+ * 字典文案→码 反查（导入用）
+ *
+ * <p>V9 起字典明细的展示文本就是 {@code value}（label 列已删）；V12 起
+ * dict_catal 不再携带 code——目录锚点统一为 ca_id（种子目录 id 固定：
+ * 1000 common_status、1001-1007 六套真实字典），方法直接按 caId 反查。
+ * 方法名保持 codeOf/codesOf/labelMap（调用方语义不变：文案↔码）。</p>
  *
  * @author birdbro
  * @date 2026-10-29
@@ -23,9 +28,9 @@ public class DictReverseHelper {
 
     private final DictDetailMapper dictDetailMapper;
 
-    /** 标签 → 码（支持直接传码串；查不到返回 null） */
-    public Integer codeOf(String caCode, String labelOrCode) {
-        if (StrUtil.isBlank(labelOrCode)) {
+    /** 文案 → 码（支持直接传码串；查不到返回 null） */
+    public Integer codeOf(Integer caId, String labelOrCode) {
+        if (caId == null || StrUtil.isBlank(labelOrCode)) {
             return null;
         }
         String s = labelOrCode.trim();
@@ -34,15 +39,15 @@ public class DictReverseHelper {
             return Integer.valueOf(s);
         }
         DictDetailEntity detail = dictDetailMapper.selectOne(new LambdaQueryWrapper<DictDetailEntity>()
-                .eq(DictDetailEntity::getCaCode, caCode)
-                .eq(DictDetailEntity::getLabel, s)
+                .eq(DictDetailEntity::getCaId, caId)
+                .eq(DictDetailEntity::getValue, s)
                 .last("LIMIT 1"));
         return detail == null ? null : detail.getCode();
     }
 
-    /** 多标签 csv（"涂阳,初治"）→ 码 csv；任一失败返回 null 并把错误写入 errMsg */
-    public String codesOf(String caCode, String labelCsv, StringBuilder errMsg) {
-        if (StrUtil.isBlank(labelCsv)) {
+    /** 多文案 csv（"涂阳,初治"）→ 码 csv；任一失败返回 null 并把错误写入 errMsg */
+    public String codesOf(Integer caId, String labelCsv, StringBuilder errMsg) {
+        if (caId == null || StrUtil.isBlank(labelCsv)) {
             return null;
         }
         List<Integer> codes = new java.util.ArrayList<>();
@@ -50,9 +55,9 @@ public class DictReverseHelper {
             if (StrUtil.isBlank(label)) {
                 continue;
             }
-            Integer code = codeOf(caCode, label);
+            Integer code = codeOf(caId, label);
             if (code == null) {
-                errMsg.append("字典[").append(caCode).append("]无该项: ").append(label.trim());
+                errMsg.append("字典[").append(caId).append("]无该项: ").append(label.trim());
                 return null;
             }
             codes.add(code);
@@ -60,11 +65,14 @@ public class DictReverseHelper {
         return codes.isEmpty() ? null : codes.stream().map(String::valueOf).collect(Collectors.joining(","));
     }
 
-    /** 目录下全部 明细label→明细 实体映射（导出用码转标签） */
-    public Map<Integer, String> labelMap(String caCode) {
+    /** 目录下全部 明细文案→码 映射（导出用码转文案） */
+    public Map<Integer, String> labelMap(Integer caId) {
+        if (caId == null) {
+            return Map.of();
+        }
         return dictDetailMapper.selectList(new LambdaQueryWrapper<DictDetailEntity>()
-                        .eq(DictDetailEntity::getCaCode, caCode))
+                        .eq(DictDetailEntity::getCaId, caId))
                 .stream().collect(Collectors.toMap(DictDetailEntity::getCode,
-                        DictDetailEntity::getLabel, (a, b) -> a));
+                        DictDetailEntity::getValue, (a, b) -> a));
     }
 }

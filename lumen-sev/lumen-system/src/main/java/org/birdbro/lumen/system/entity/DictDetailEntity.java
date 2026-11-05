@@ -38,28 +38,21 @@ public class DictDetailEntity extends EntityBase {
     @TableField("ca_id")
     private Integer caId;
 
-    @TableField("ca_code")
-    private String caCode;
-
     @ApiModelProperty("编码")
     @TableField("code")
     private Integer code;
 
-    @ApiModelProperty("值")
+    @ApiModelProperty("值（显示与存储文本）")
     @TableField("value")
     private String value;
 
-    @ApiModelProperty("标签")
-    @TableField("label")
-    private String label;
+    @ApiModelProperty("标签值1")
+    @TableField("tag")
+    private String tag;
 
-    @ApiModelProperty("备用值1")
-    @TableField("back_1")
-    private String back1;
-
-    @ApiModelProperty("备用值2")
-    @TableField("back_2")
-    private String back2;
+    @ApiModelProperty("标记值2")
+    @TableField("flag")
+    private String flag;
 
     @ApiModelProperty("排序")
     @TableField("sort")
@@ -76,8 +69,4 @@ public class DictDetailEntity extends EntityBase {
     @ApiModelProperty("备注")
     @TableField("remark")
     private String remark;
-
-    @ApiModelProperty("首字母")
-    @TableField("initial")
-    private String initial;
 }

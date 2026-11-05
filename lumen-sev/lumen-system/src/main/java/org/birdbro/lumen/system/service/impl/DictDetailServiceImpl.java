@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.birdbro.common.core.pojo.IdList;
 import org.birdbro.common.utils.GadgetUtils;
@@ -31,11 +32,9 @@ import static org.birdbro.framework.config.RedisConfig.CACHE_DICT;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 @CacheConfig(cacheNames = CACHE_DICT)
 public class DictDetailServiceImpl extends ServiceImpl<DictDetailMapper, DictDetailEntity> implements IDictDetailService {
-
-
-
 
     @Override
     @CacheEvict(key = "'listByCatalId' + #id")
@@ -100,13 +99,14 @@ public class DictDetailServiceImpl extends ServiceImpl<DictDetailMapper, DictDet
 
 
     /**
-     * lumen 1/0 启用语义（与 mapByCatalIds/valueMapByCatalId 同款适配）；加法式新方法，
-     * 既有 getPage（按 caId 过滤）不动。
+     * lumen 1/0 启用语义（与 mapByCatalIds/valueMapByCatalId 同款适配）；既有
+     * getPage（按 caId 分页过滤）不动。V9 起 dict_detail 不再冗余 ca_code、V12 起
+     * dict_catal 也不再携带 code：目录锚点统一为 ca_id，直接过滤。
      */
     @Override
-    public List<DictDetailEntity> listByCaCode(String caCode) {
+    public List<DictDetailEntity> listByCaId(Integer caId) {
         return list(Wrappers.<DictDetailEntity>lambdaQuery()
-                .eq(DictDetailEntity::getCaCode, caCode)
+                .eq(DictDetailEntity::getCaId, caId)
                 .eq(DictDetailEntity::getEnable, 1)
                 .orderByAsc(DictDetailEntity::getSort)
                 .orderByAsc(DictDetailEntity::getId)

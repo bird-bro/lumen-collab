@@ -48,16 +48,16 @@ public class DictDetailController {
         this.dictDetailManageService = dictDetailManageService;
     }
 
-    /** Creates a detail under a live catalog (ca_code server-resolved); returns the new id. */
-    @ApiOperation("创建字典明细（ca_code 服务端锚定，(caCode,value) 重复 A0714 拒绝）")
+    /** Creates a detail under a live catalog (anchored by caId, value required); returns the new id. */
+    @ApiOperation("创建字典明细（caId 锚定，(caId,value) 重复 A0714 拒绝）")
     @Log(title = "字典明细", type = "新增")
     @PostMapping
     public Integer create(@Valid @RequestBody DetailCreate request) {
         return dictDetailManageService.create(request);
     }
 
-    /** Partial update: re-anchor / value / label / sort / enable (null fields skipped). */
-    @ApiOperation("字典明细部分更新（改挂目录/值/标签/排序/启停）")
+    /** Partial update: re-anchor / value / sort / enable (null fields skipped). */
+    @ApiOperation("字典明细部分更新（改挂目录/值/排序/启停）")
     @Log(title = "字典明细", type = "修改")
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id, @Valid @RequestBody DetailModify request) {
@@ -72,10 +72,10 @@ public class DictDetailController {
         return dictDetailManageService.delete(id);
     }
 
-    /** The catalog's LIVE details ordered by sort ({@code ?caCode=}). */
-    @ApiOperation("按目录编码列启用明细（仅 live，sort 升序）")
+    /** The catalog's LIVE details ordered by sort ({@code ?caId=}; V12 - the catalog code column is gone). */
+    @ApiOperation("按目录ID列启用明细（仅 live，sort 升序）")
     @GetMapping("/list")
-    public List<DictDetailEntity> list(@RequestParam("caCode") String caCode) {
-        return dictDetailManageService.listByCaCode(caCode);
+    public List<DictDetailEntity> list(@RequestParam("caId") Integer caId) {
+        return dictDetailManageService.listByCaId(caId);
     }
 }

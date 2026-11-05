@@ -25,14 +25,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <ul>
  *   <li>{@code dict_catal} / {@code dict_detail} carry the EntityBase audit block as
- *       their exact tail (V1 style); the {@code back_1}/{@code back_2} column names
- *       follow the copied entity's explicit {@code @TableField} mapping;</li>
+ *       their exact tail (V1 style); V9 slimmed the copied entity shape - the
+ *       denormalized {@code ca_code}, the duplicated {@code label} and the pinyin
+ *       {@code initial} columns are dropped, and the spare {@code back_1}/{@code back_2}
+ *       pair is renamed to {@code tag}/{@code flag};</li>
  *   <li>{@code log_info} / {@code log_sign} are append-write tables with NO audit
  *       block (no create_by/update_by) - columns map the copied LogInfoEntity /
  *       LogSignEntity fields 1:1 camelCase to snake_case;</li>
  *   <li>logical-delete unique values live in PARTIAL unique indexes
- *       ({@code WHERE deleted = 0});</li>
- *   <li>the {@code common_status} seed catalog with its 启用/停用 details is queryable.</li>
+ *       ({@code WHERE deleted = 0}) - the detail uniqueness anchors on
+ *       {@code (ca_id, value)} after V9;</li>
+ *   <li>the {@code common_status} seed catalog with its 启用/停用 details is queryable
+ *       (V7 re-based the seed id to 1000; V9 carried the display text into
+ *       {@code value}).</li>
  * </ul>
  *
  * <p>Shared long-lived database: every assertion is keyed/CONTAINS-style, never an
@@ -65,10 +70,10 @@ class AuthSystemDataMigrationTests extends AuthIntegrationTestBase {
     static {
         Map<String, List<String>> columns = new LinkedHashMap<>();
         columns.put("dict_catal", Arrays.asList(
-                "code", "name", "enable", "sort", "remark", "cls", "initial"));
+                "name", "enable", "sort", "remark", "cls"));
         columns.put("dict_detail", Arrays.asList(
-                "ca_id", "ca_code", "code", "value", "label", "color", "css",
-                "sort", "enable", "back_1", "back_2", "remark", "initial"));
+                "ca_id", "code", "value", "tag", "flag", "color", "css",
+                "sort", "enable", "remark"));
         columns.put("log_info", Arrays.asList(
                 "date_ym", "title", "descr", "type", "uid", "account", "action_time",
                 "spent", "method", "name", "pack", "url", "session", "mobile", "ip",
@@ -81,8 +86,8 @@ class AuthSystemDataMigrationTests extends AuthIntegrationTestBase {
         REQUIRED_COLUMNS = Collections.unmodifiableMap(columns);
 
         Map<String, String> unique = new LinkedHashMap<>();
-        unique.put("uk_dict_catal_code", "code");
-        unique.put("uk_dict_detail_ca_code_value", "ca_code, value");
+        unique.put("uk_dict_catal_name", "name");
+        unique.put("uk_dict_detail_ca_id_value", "ca_id, value");
         PARTIAL_UNIQUE_INDEXES = Collections.unmodifiableMap(unique);
 
         Map<String, String> lookup = new LinkedHashMap<>();
@@ -193,9 +198,11 @@ class AuthSystemDataMigrationTests extends AuthIntegrationTestBase {
 
     @Test
     void commonStatusSeedCatalogQueryable() {
+        // V12 dropped dict_catal.code - the seed anchors by its V7-rebased id 1000
+        // (the documented head of the platform-dictionary id range).
         Map<String, Object> catal = jdbcTemplate.queryForMap(
                 "SELECT name, enable, sort, deleted FROM public.dict_catal "
-                + "WHERE code = 'common_status' AND deleted = 0");
+                + "WHERE id = 1000 AND deleted = 0");
         assertEquals("通用状态", catal.get("name"),
                 "the common_status catalog display name");
         assertEquals(1, ((Number) catal.get("enable")).intValue(),
@@ -204,21 +211,22 @@ class AuthSystemDataMigrationTests extends AuthIntegrationTestBase {
 
     @Test
     void commonStatusSeedDetailsQueryable() {
-        // The 启用/停用 pair: keyed by label, each with its code/value anchor. Keyed
-        // assertions (not counts) - the shared database may grow more statuses later.
+        // The 启用/停用 pair: after V9 the display text lives in value (label dropped),
+        // and V7 re-based the seed catalog id to 1000 (V12 killed the code column, so
+        // the join anchors by that id). Keyed assertions (not counts) - the shared
+        // database may grow more statuses later.
         Object[][] expectedDetails = {
-                {"启用", 1, "1"},
-                {"停用", 0, "0"}};
+                {"启用", 1},
+                {"停用", 0}};
         for (Object[] expected : expectedDetails) {
             Map<String, Object> detail = jdbcTemplate.queryForMap(
-                    "SELECT code, value, enable, deleted FROM public.dict_detail "
-                    + "WHERE ca_code = 'common_status' AND label = ? AND deleted = 0",
+                    "SELECT d.code, d.enable, d.deleted FROM public.dict_detail d "
+                    + "JOIN public.dict_catal c ON c.id = d.ca_id "
+                    + "WHERE c.id = 1000 AND d.value = ? AND d.deleted = 0",
                     expected[0]);
             assertEquals(((Number) expected[1]).intValue(),
                     ((Number) detail.get("code")).intValue(),
-                    "detail '" + expected[0] + "' numeric code");
-            assertEquals(expected[2], detail.get("value"),
-                    "detail '" + expected[0] + "' string value anchor");
+                    "detail '" + expected[0] + "' numeric code (the machine key)");
             assertEquals(1, ((Number) detail.get("enable")).intValue(),
                     "both seeded details are themselves live dropdown options");
         }

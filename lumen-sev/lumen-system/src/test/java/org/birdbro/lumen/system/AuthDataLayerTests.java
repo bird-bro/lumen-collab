@@ -73,10 +73,11 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
         // system-data task 4.1 (spec scenario 8 at the data layer): the copied entity's
         // UNQUALIFIED @TableName must resolve through currentSchema=system,public to the
         // shared public table - the insert lands there and selects back.
-        String code = "ut.dictcatal." + System.currentTimeMillis(); // unique - shared DB
+        // V12 dropped dict_catal.code - the entity carries no code field and the name
+        // carries a timestamp suffix (unique among live rows on the shared DB).
+        String name = "数据层往返目录_" + System.currentTimeMillis();
         DictCatalEntity catal = DictCatalEntity.builder()
-                .code(code)
-                .name("数据层往返目录")
+                .name(name)
                 .enable(1)
                 .sort(0)
                 .build();
@@ -87,8 +88,7 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
 
         DictCatalEntity loaded = dictCatalService.getById(catal.getId());
         assertNotNull(loaded, "the inserted catalog must select back");
-        assertEquals(code, loaded.getCode());
-        assertEquals("数据层往返目录", loaded.getName());
+        assertEquals(name, loaded.getName());
         assertEquals(Integer.valueOf(1), loaded.getEnable());
 
         // The unqualified write landed in PUBLIC: found via the explicitly qualified read.
@@ -112,17 +112,19 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
 
     @Test
     void dictDetailServiceCollectsSeededLiveDetails() {
-        // lumen enable semantics: 1 = live. The V3 seed carries two enable=1 details under
-        // catalog 1 (common_status). The copied OPS filter used EnableConstants.TRUE = 11 -
-        // the red run proved the seeded rows were invisible until the copy adaptation.
+        // lumen enable semantics: 1 = live. The seed carries two enable=1 details under
+        // the common_status catalog - re-based to id 1000 by V7 (one contiguous 1000
+        // range with the V6 real dictionaries). The copied OPS filter used
+        // EnableConstants.TRUE = 11 - the red run proved the seeded rows were invisible
+        // until the copy adaptation. V9: the display text lives in value (label dropped).
         Map<Integer, List<DictDetailEntity>> map =
-                dictDetailService.mapByCatalIds(idListOf(1));
-        assertNotNull(map.get(1), "catalog 1 (common_status) must expose its live details");
-        assertEquals(2, map.get(1).size(), "the two seeded status details must be live");
-        Set<String> labels = new HashSet<>();
-        map.get(1).forEach(item -> labels.add(item.getLabel()));
-        assertTrue(labels.contains("启用") && labels.contains("停用"),
-                "the seeded 启用/停用 details must be the live set: " + labels);
+                dictDetailService.mapByCatalIds(idListOf(1000));
+        assertNotNull(map.get(1000), "catalog 1000 (common_status) must expose its live details");
+        assertEquals(2, map.get(1000).size(), "the two seeded status details must be live");
+        Set<String> values = new HashSet<>();
+        map.get(1000).forEach(item -> values.add(item.getValue()));
+        assertTrue(values.contains("启用") && values.contains("停用"),
+                "the seeded 启用/停用 details must be the live set: " + values);
     }
 
     private static IdList idListOf(Integer... ids) {
@@ -204,10 +206,14 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
         for (MenuTree node : tree) {
             rootIds.add(node.getMid());
         }
-        assertTrue(rootIds.containsAll(Arrays.asList(1, 3, 4, 5)),
-                "seed menus 1/3/4/5 (up_id = 0) must be tree roots; roots were " + rootIds);
-        assertFalse(rootIds.contains(2), "menu 2 (up_id = 1) must nest under menu 1");
-        assertFalse(rootIds.contains(6), "menu 6 (up_id = 3) must nest under menu 3");
+        // V10 parked the department placeholders (3/4/5 + their audit button 6): the
+        // only live root is the 系统管理 directory.
+        assertTrue(rootIds.contains(1),
+                "the 系统管理 directory must be a tree root; roots were " + rootIds);
+        assertFalse(rootIds.contains(2), "menu 2 (up_id = 14) must nest under the 用户权限 group");
+        assertFalse(rootIds.contains(3), "the radiology placeholder is parked (V10)");
+        assertFalse(rootIds.contains(4), "the ultrasound placeholder is parked (V10)");
+        assertFalse(rootIds.contains(5), "the endoscopy placeholder is parked (V10)");
 
         MenuTree systemDirectory = nodeWithMid(tree, 1);
         assertNotNull(systemDirectory);
@@ -216,29 +222,31 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
         assertTrue(Boolean.TRUE.equals(systemDirectory.getVisible()),
                 "visible integer 1 must map to Boolean true on MenuTree");
         assertTrue(systemDirectory.getChildren().stream()
+                        .anyMatch(menu -> Integer.valueOf(14).equals(menu.getMid())),
+                "the 用户权限 group (14) must nest under the system directory (V5 IA)");
+        MenuTree userPermGroup = nodeWithMid(tree, 14);
+        assertNotNull(userPermGroup);
+        assertTrue(userPermGroup.getChildren().stream()
                         .anyMatch(menu -> Integer.valueOf(2).equals(menu.getMid())),
-                "user management must nest under the system directory");
-
-        MenuTree radiologyPage = nodeWithMid(tree, 3);
-        assertNotNull(radiologyPage);
-        assertTrue(radiologyPage.getChildren().stream()
-                        .anyMatch(menu -> Integer.valueOf(6).equals(menu.getMid())),
-                "the audit button must nest under the radiology page");
+                "user management must nest under the 用户权限 group (V5 IA)");
+        MenuTree securityGroup = nodeWithMid(tree, 16);
+        assertNotNull(securityGroup);
+        assertTrue(securityGroup.getChildren().stream()
+                        .anyMatch(menu -> Integer.valueOf(12).equals(menu.getMid())),
+                "log query must nest under the 安全 group (V8 IA)");
 
         Set<String> allPerms = new HashSet<>();
         collectPerms(tree, allPerms);
         assertTrue(allPerms.contains("system:user:list"),
                 "the assembled tree must carry the user-management perms string");
-        assertTrue(allPerms.contains("radiology:report:audit"),
-                "the assembled tree must carry the audit-button perms string");
     }
 
     @Test
     void permsSetCollectsPermsOfTheGivenMenuIds() {
-        Set<String> perms = menuTreeService.permsSet(Arrays.asList(2, 6));
+        Set<String> perms = menuTreeService.permsSet(Arrays.asList(2, 9));
         assertTrue(perms.containsAll(Arrays.asList("system:user:list",
-                        "radiology:report:audit")),
-                "permsSet must collect the perms of the given seed menu ids: " + perms);
+                        "system:role:list")),
+                "permsSet must collect the perms of the given live menu ids: " + perms);
         assertTrue(menuTreeService.permsSet(Collections.emptyList()).isEmpty(),
                 "an empty menu-id collection must produce an empty perms set");
     }

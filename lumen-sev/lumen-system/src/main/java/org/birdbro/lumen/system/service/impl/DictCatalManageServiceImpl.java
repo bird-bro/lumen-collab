@@ -21,10 +21,12 @@ import org.springframework.stereotype.Service;
  * lumen-side rules:
  *
  * <ul>
- *   <li>the duplicate-code rejection ({@code A0714}) mirrors
+ *   <li>the duplicate-name rejection ({@code A0714}) mirrors
  *       {@code RoleServiceImpl.rejectDuplicateName} - live rows only, so the partial
- *       unique index {@code uk_dict_catal_code (code) WHERE deleted = 0} never fights
- *       the logical delete;</li>
+ *       unique index {@code uk_dict_catal_name (name) WHERE deleted = 0} never fights
+ *       the logical delete. The catalog {@code code} column (and its
+ *       {@code uk_dict_catal_code} index) was dropped by V12 - the display name is the
+ *       only human-facing key a catalog has left, so it carries the uniqueness;</li>
  *   <li>the {@code Byte}→{@code Integer} enable adaptation: the OPS-blood
  *       {@code CatalCreate.enable} is a {@code Byte} while the copied entity (and every
  *       lumen table) is Integer end to end - converted EXPLICITLY here and reported in
@@ -47,11 +49,11 @@ public class DictCatalManageServiceImpl implements DictCatalManageService {
 
     @Override
     public Integer create(CatalCreate request) {
-        if (StrUtil.isBlank(request.getCode()) || StrUtil.isBlank(request.getName())) {
+        if (StrUtil.isBlank(request.getName())) {
             throw new BusinessException(ExceptionEnum.ERROR_A0400,
-                    "dict catalog code and name are required");
+                    "dict catalog name is required");
         }
-        rejectDuplicateCode(request.getCode(), null);
+        rejectDuplicateName(request.getName(), null);
 
         DictCatalEntity entity = new DictCatalEntity();
         BeanUtil.copyProperties(request, entity, true); // OPS house idiom - ignore nulls
@@ -69,8 +71,8 @@ public class DictCatalManageServiceImpl implements DictCatalManageService {
             throw new BusinessException(ExceptionEnum.ERROR_B0031,
                     "dict catalog id " + id + " does not exist");
         }
-        if (request.getCode() != null) {
-            rejectDuplicateCode(request.getCode(), id);
+        if (request.getName() != null) {
+            rejectDuplicateName(request.getName(), id);
         }
 
         DictCatalEntity patch = new DictCatalEntity();
@@ -94,16 +96,16 @@ public class DictCatalManageServiceImpl implements DictCatalManageService {
         return dictCatalService.getPage(query);
     }
 
-    /** The catalog code is unique among live rows; {@code excludeId} spares the updated row. */
-    private void rejectDuplicateCode(String code, Integer excludeId) {
+    /** The catalog name is unique among live rows; {@code excludeId} spares the updated row. */
+    private void rejectDuplicateName(String name, Integer excludeId) {
         LambdaQueryWrapper<DictCatalEntity> wrapper =
-                new LambdaQueryWrapper<DictCatalEntity>().eq(DictCatalEntity::getCode, code);
+                new LambdaQueryWrapper<DictCatalEntity>().eq(DictCatalEntity::getName, name);
         if (excludeId != null) {
             wrapper.ne(DictCatalEntity::getId, excludeId);
         }
         if (dictCatalService.count(wrapper) > 0) {
             throw new BusinessException(ExceptionEnum.ERROR_A0714,
-                    "dict catalog code already exists: " + code);
+                    "dict catalog name already exists: " + name);
         }
     }
 }

@@ -10,6 +10,7 @@ import java.util.Set;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.birdbro.common.core.pojo.user.MenuTree;
 import org.birdbro.common.utils.TreeUtils;
 import org.birdbro.lumen.system.entity.MenuInfo;
@@ -42,12 +43,18 @@ public class MenuTreeService {
 
     /**
      * Loads every live menu ({@code deleted = 0} is applied by the copied EntityBase
-     * {@code @TableLogic}) and assembles the menu tree.
+     * {@code @TableLogic}) and assembles the menu tree. The flat load is ordered by
+     * {@code sort, id} because {@link TreeUtils#buildTree} preserves input order -
+     * without the ORDER BY siblings would render in primary-key order and the
+     * {@code sort} column would never take effect (defect surfaced by the V8 IA:
+     * 菜单管理 id 10 rendered above 字典管理 id 11 despite sort 1 vs 2).
      *
      * @return the top-level menus with their nested children
      */
     public List<MenuTree> menuTree() {
-        return build(menuInfoMapper.selectList(null));
+        return build(menuInfoMapper.selectList(new LambdaQueryWrapper<MenuInfo>()
+                .orderByAsc(MenuInfo::getSort)
+                .orderByAsc(MenuInfo::getId)));
     }
 
     /**

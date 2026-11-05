@@ -34,10 +34,6 @@ public class DictCatalEntity extends EntityBase {
     @TableField("enable")
     private Integer enable;
 
-    @ApiModelProperty("编码")
-    @TableField("code")
-    private String code;
-
     @ApiModelProperty("名称")
     @TableField("name")
     private String name;
@@ -52,8 +48,4 @@ public class DictCatalEntity extends EntityBase {
     @ApiModelProperty("分类")
     @TableField("cls")
     private Integer cls;
-
-    @ApiModelProperty("首字母")
-    @TableField("initial")
-    private String initial;
 }
