@@ -1,17 +1,17 @@
 /**
  * Role-management typed clients (task 4.3). Paths verbatim from the api
  * delta section "Role Management Endpoints" - the list is the declared GAP
- * endpoint (mock-only until the backend follow-up change), and the menu
- * assignment is a FULL REPLACE of the role's grant.
+ * endpoint (unimplemented in the backend until the follow-up change), and
+ * the menu assignment is a FULL REPLACE of the role's grant.
  */
 import { apiRequest } from './client';
 import type { CreateRoleBody, Page, RoleItem, UpdateRoleBody } from './types';
 
 /**
  * GET /system/roles/list - the IPage-wrapped role list (pageNum/pageSize per
- * the copied PageSizeConfig convention). Records carry the mock-only
- * `menuIds` grant echo (see RoleItem) served by the dev mock; the backend
- * list endpoint is not implemented yet (api delta gap, 2026-11-03).
+ * the copied PageSizeConfig convention). Records may carry the `menuIds`
+ * grant echo (see RoleItem) pending the backend; the list endpoint is not
+ * implemented yet (api delta gap, 2026-11-03).
  */
 export function listRoles(pageNum: number = 1, pageSize: number = 20): Promise<Page<RoleItem>> {
   return apiRequest<Page<RoleItem>>('/system/roles/list', {

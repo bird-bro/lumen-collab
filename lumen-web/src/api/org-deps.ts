@@ -8,7 +8,7 @@ import type { CreateDepBody, OrgDep, UpdateDepBody } from './types';
 
 /**
  * GET /system/org-deps/list?orgId= - that org's departments (orgId filter
- * optional, mirroring the mock/implemented surface; id-asc order).
+ * optional, per the implemented backend surface; id-asc order).
  */
 export function listDeps(orgId?: number): Promise<OrgDep[]> {
   return apiRequest<OrgDep[]>('/system/org-deps/list', { method: 'GET', query: { orgId } });

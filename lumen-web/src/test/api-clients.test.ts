@@ -22,7 +22,8 @@ import { listLogs } from '@/api/logs'
  * 4.3). Fetch is stubbed at the transport seam; each client is asserted on
  * method + path + query/body (paths verbatim against the api delta / main
  * spec) AND on the unwrapped payload shape (plain arrays vs IPage `Page<T>`,
- * JSON-number ids). DTO truth = `mock/_fixtures.ts` (seed parity).
+ * JSON-number ids). DTO truth = the backend seed migrations (the former dev
+ * mock fixtures mirrored them verbatim).
  */
 
 const PROFILE = {
@@ -259,7 +260,7 @@ describe('org-deps client (task 4.3)', () => {
 })
 
 describe('roles client (task 4.3)', () => {
-  it('listRoles GETs /system/roles/list?pageNum=&pageSize= and unwraps the IPage shape with the mock-only menuIds echo', async () => {
+  it('listRoles GETs /system/roles/list?pageNum=&pageSize= and unwraps the IPage shape with the optional menuIds echo', async () => {
     const fetchMock = stubOk({
       records: [
         {

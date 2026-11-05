@@ -149,7 +149,7 @@ describe('dicts page - details (spec: Details ordered by sort)', () => {
     const callsAfterAutoSelect = vi.mocked(dictsApi.listDetails).mock.calls.length
     await user.click(screen.getByRole('button', { name: /新建明细/ }))
     await user.type(within(screen.getByRole('dialog')).getByLabelText('标签'), '维护中')
-    await user.type(screen.getByLabelText('值'), '2')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText('数据值'), '2')
     await user.click(screen.getByRole('button', { name: '保 存' }))
     await waitFor(() =>
       expect(dictsApi.createDetail).toHaveBeenCalledWith(
@@ -170,7 +170,7 @@ describe('dicts page - details (spec: Details ordered by sort)', () => {
     await screen.findByText('启用')
     await user.click(screen.getByRole('button', { name: /新建明细/ }))
     await user.type(within(screen.getByRole('dialog')).getByLabelText('标签'), '重复')
-    await user.type(screen.getByLabelText('值'), '1')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText('数据值'), '1')
     await user.click(screen.getByRole('button', { name: '保 存' }))
     await waitFor(() => expect(screen.getByText(/dict detail value already exists/)).toBeInTheDocument())
     expect(screen.getByRole('dialog')).not.toHaveClass(DIALOG_LEAVING)

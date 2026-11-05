@@ -69,24 +69,25 @@ synced by rename-auth-to-system). No endpoint path MAY be declared until it exis
 
 ## ADDED Requirements
 
-### Requirement: Dev Mock Server
-The dev server SHALL serve mock responses for every endpoint documented in
-`openspec/specs/api/spec.md` so the SPA runs without the backend. Mocks SHALL live behind the
-`src/api/` client seam and the `/api/v1` proxy boundary - pages MUST NOT branch on mock
-versus real backend.
+### Requirement: Dev Server Serves Only Real Backend
+The dev server SHALL have NO mock layer (user ruling 2026-11-05, backend-first): every
+`/api/v1` request SHALL fall through the proxy to the real unified entry
+(`VITE_API_ENTRY_URL` override, default nginx :80), and the SPA SHALL render real database
+data. When the entry is unreachable the failure SHALL surface as-is (the transport's
+B-class error) - the SPA MUST NOT fake or stub data at any layer.
 
-#### Scenario: Console runs without backend
-- **WHEN** `pnpm --dir lumen-web dev` runs with no backend process available
-- **THEN** login and the system console pages function against mock responses in the standard
-  envelope shape
-- **AND** every mocked path is one the api capability documents
+#### Scenario: Pages render real database data
+- **WHEN** the backend is running and a console page loads
+- **THEN** every list/detail payload comes from the real backend through the proxy
+- **AND** no request is served by an in-process fake
 
-#### Scenario: Undocumented endpoint refused
-- **WHEN** a mock is needed for a path absent from `openspec/specs/api/spec.md`
-- **THEN** the mock is not written
-- **AND** the missing contract is raised through a proposal instead
+#### Scenario: Unreachable entry fails loudly
+- **WHEN** the unified entry is down and a page issues a request
+- **THEN** the transport's B-class error surfaces to the operator
+- **AND** no canned substitute data renders
 
-#### Scenario: Seed parity
-- **WHEN** the mock fixtures are compared with the backend's seed migrations
-- **THEN** the default administrator, the hospital root, the three departments, and the
-  starter dictionary resolve equivalently on both sides
+#### Scenario: Direct-service preview override
+- **WHEN** a developer previews against a single service started outside nginx
+  (e.g. lumen-system on :8081)
+- **THEN** `VITE_API_ENTRY_URL=http://localhost:8081` retargets the proxy without any
+  source change

@@ -6,10 +6,10 @@
  * Endpoints - a gap in the API spec is raised via a proposal, never filled by a
  * guessed path). The seam is populated per resource: `client.ts` carries the
  * transport (envelope unwrap, Bearer injection, the "203" semantic), each
- * `*.ts` sibling is that resource's typed client, `types.ts` holds the shared
- * DTOs (entity IDs are JSON numbers per ID Serialization), and the dev mock
- * layer (`mock/`, vite-plugin-mock-dev-server) serves the same contract in
- * front of the proxy.
+ * `*.ts` sibling is that resource's typed client, and `types.ts` holds the
+ * shared DTOs (entity IDs are JSON numbers per ID Serialization). There is
+ * no mock layer: every request goes through the proxy to the real backend
+ * (`specs/web-app-shell` § Dev Server Serves Only Real Backend).
  */
 export type { ApiEnvelope } from './envelope';
 export type { EntityId } from './entity-id';

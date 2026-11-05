@@ -357,7 +357,13 @@
   static offline check)
 - **CHANGE IMPLEMENTATION COMPLETE: 19/19 tasks.** Next: /opsx:verify L2 -> archive
   confirmation. Backlog handed off: roles/list backend change; V2 seed menu restructure;
-  profile org field; user edit/delete endpoints (if wanted); dict_catal_id_seq
+  MOCK LAYER REMOVED (user ruling 2026-11-05, frontend-backend-first): mock/ deleted,
+  vite plugin unwired, web-app-shell delta requirement rewritten to Dev Server Serves Only
+  Real Backend; real-mode preview verified against lumen-system :8081.
+  REAL-DATA FINDING: the shared dev DB carries unit-test pollution (ut.dictcatal.*
+  数据层往返目录 row id 2 from data-layer round-trip tests) - backend follow-up: tests
+  must not pollute the dev database (transactional rollback or dedicated test schema).
+profile org field; user edit/delete endpoints (if wanted); dict_catal_id_seq
   RESTART WITH 1000 (Flyway, user 2026-11-04 - mock already id 1000); mock fake-token switch;
   woff2 subsetting; dark theme
 

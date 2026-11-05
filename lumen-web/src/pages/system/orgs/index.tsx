@@ -24,8 +24,8 @@ import { OrgTree } from '../org-tree'
  * traffic goes through the typed `@/api/orgs` client.
  *
  * Permission gating: the page's own documented perms string `system:org:list`
- * (mock/_fixtures.ts SEED_MENUS id 7, also the backend `@PreAuthorize` on the
- * list endpoint) gates the whole mutation surface - create-child, edit, delete
+ * (seed menu id 7 in the backend `V2__seed.sql`, also the backend
+ * `@PreAuthorize` on the list endpoint) gates the whole mutation surface - create-child, edit, delete
  * and 新建根机构. No new perms code is invented (brief § 权限门控).
  */
 

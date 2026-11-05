@@ -43,9 +43,9 @@ import {
  * whose checkable tree full-replaces the grant and whose reopen shows exactly
  * the saved set.
  *
- * Data: `roles/list` is the api-delta GAP endpoint (IPage, mock-served until
- * the backend follow-up); its rows carry the mock-only `menuIds` grant echo
- * that drives the assignment dialog's initial checked keys (recorded in
+ * Data: `roles/list` is the api-delta GAP endpoint (IPage, unimplemented in
+ * the backend until the follow-up); its rows may carry the `menuIds` grant
+ * echo that drives the assignment dialog's initial checked keys (recorded in
  * `RoleItem.menuIds`).
  *
  * Assignment strategy (recorded per the brief): every node is checkable -

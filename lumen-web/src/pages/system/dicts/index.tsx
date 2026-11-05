@@ -425,6 +425,7 @@ export default function DictsPage() {
           columns={detailColumns}
           dataSource={detailRows}
           loading={detailLoading}
+          onRefresh={selected ? () => void reloadDetails(selected.code) : undefined}
           actions={
             canManage
               ? {

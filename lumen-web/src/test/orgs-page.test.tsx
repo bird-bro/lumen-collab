@@ -88,7 +88,7 @@ async function hoverNode(user: ReturnType<typeof userEvent.setup>, name: string)
 
 beforeEach(() => {
   vi.clearAllMocks()
-  // The documented perms string of this page (mock/_fixtures.ts SEED_MENUS id 7);
+  // The documented perms string of this page (seed menu id 7 in V2__seed.sql);
   // no new perms code is invented - the mutation surface rides on it (brief § 权限门控).
   useAuthStore.getState().setSession({ perms: ['system:org:list'] })
   vi.mocked(orgsApi.createOrg).mockResolvedValue(9)

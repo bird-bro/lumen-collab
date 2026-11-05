@@ -197,3 +197,9 @@
   word-break: break-all;
   text-align: center;
 }
+
+/* Console tables (batch 6): headers CENTERED (user request 2026-11-05);
+   body cells keep their own alignment. */
+.lumen-console-table .ant-table-thead > tr > th {
+  text-align: center;
+}

@@ -232,7 +232,6 @@ export function ConsoleTable<RowType extends object>({
                 gap: 8,
               }}
             >
-              操作
               {onRefresh ? (
                 <Tooltip title="刷新列表">
                   <Button
@@ -244,6 +243,7 @@ export function ConsoleTable<RowType extends object>({
                   />
                 </Tooltip>
               ) : null}
+              操作
             </span>
           ),
           render: (_, row) => (
@@ -258,6 +258,7 @@ export function ConsoleTable<RowType extends object>({
   return (
     <Table<RowType>
       rowKey={rowKey}
+      className="lumen-console-table"
       columns={[...columns, ...actionColumns]}
       dataSource={dataSource}
       loading={loading}

@@ -1,16 +1,16 @@
 /// <reference types="vitest/config" />
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
-import { mockDevServerPlugin } from 'vite-plugin-mock-dev-server'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // Dev-only mock switch (design D3): mocks ON by default; VITE_USE_MOCK=false
-  // disables them so /api/v1 falls through the proxy to the real unified entry
-  // (nginx :80) and pages render REAL database data. Pages never branch on
-  // this - the switch is dev-server-level only.
-  plugins: [react(), ...(process.env.VITE_USE_MOCK === 'false' ? [] : [mockDevServerPlugin()])],
+  // Backend-first (change frontend-backend-first, user ruling 2026-11-05):
+  // no dev-server mock layer exists - /api/v1 always falls through the proxy
+  // to the real unified entry (nginx :80) and pages render REAL backend data,
+  // failing as-is (transport B0001) when the entry is unreachable. The former
+  // VITE_USE_MOCK switch died with the mock plugin it gated.
+  plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

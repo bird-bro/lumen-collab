@@ -6,8 +6,8 @@ import type { MenuNode } from '@/api/types'
  * Menu-tree -> route resolution (batch 5b of web-foundation-auth-console,
  * tasks 5.2/5.3): the login page and the `/` index route land on the FIRST
  * route the user's menu tree grants, and the shell rail navigates an L1 to
- * its first leaf. The fixture below mirrors `mock/_fixtures.ts` SEED_MENUS
- * after the batch-5b restructure (three group directories 13/14/15 under
+ * its first leaf. The fixture below mirrors the backend seed menu tree
+ * (V2__seed.sql) after the batch-5b restructure (three group directories 13/14/15 under
  * 系统管理, seven console pages hung off the groups) in the copied MenuTree
  * JSON shape (`mid` id column, leaf `children` null).
  */

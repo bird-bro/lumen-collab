@@ -3,8 +3,10 @@
  * web-foundation-auth-console, task 4.3). Centralized here so every typed
  * client imports from one module.
  *
- * Source of truth = the mock fixtures (`mock/_fixtures.ts`, seed-parity with
- * the backend migrations) plus `openspec/specs/api/spec.md`: IDs are Integer
+ * Source of truth = the backend seed migrations (e.g.
+ * `lumen-sev/lumen-system/src/main/resources/db/migration/V2__seed.sql`, which
+ * the former dev mock fixtures mirrored verbatim) plus
+ * `openspec/specs/api/spec.md`: IDs are Integer
  * auto-increment and serialize as JSON numbers (spec section "ID
  * Serialization", user decision 2026-11-02 which withdrew the former
  * snowflake/string clause - `src/api/entity-id.ts` predates that amendment
@@ -20,7 +22,7 @@ export interface Page<T> {
   pages: number;
 }
 
-/** Profile payload of the auth endpoints (auth.mock.ts `profileOf`). */
+/** Profile payload of the auth endpoints (the backend `/me` profile shape). */
 export interface UserProfile {
   uid: number;
   username: string;
@@ -32,7 +34,7 @@ export interface UserProfile {
 
 /**
  * Menu tree node - mirror of the copied MenuTree POJO JSON shape
- * (`mock/_fixtures.ts` MockMenuTree): the id column serializes as `mid`,
+ * (framework/common): the id column serializes as `mid`,
  * the Integer visible 1/0 becomes Boolean, trimmed columns stay null and
  * leaf `children` is null (TreeUtils semantics).
  */
@@ -79,7 +81,7 @@ export interface LoginBody {
 }
 
 /**
- * UserItemDto JSON (users.mock.ts list rows - a plain array, no page
+ * UserItemDto JSON (backend user list rows - a plain array, no page
  * wrapper, per the implemented surface in the api delta; the BCrypt hash
  * never serializes so there is no password field).
  */
@@ -99,7 +101,7 @@ export interface CreateUserBody {
   roleIds?: number[];
 }
 
-/** Org tree node (orgs.mock.ts): the org row plus upId-assembled children (leaf children null). */
+/** Org tree node (backend org tree): the org row plus upId-assembled children (leaf children null). */
 export interface OrgNode {
   id: number;
   upId: number;
@@ -124,7 +126,7 @@ export interface CreateOrgBody {
 /** PUT /system/orgs/{id} accepts a partial update (null fields are skipped server-side). */
 export type UpdateOrgBody = Partial<Pick<OrgNode, 'upId' | 'level' | 'type' | 'name'>>;
 
-/** Department row (org-deps.mock.ts). */
+/** Department row (backend org_dep table shape). */
 export interface OrgDep {
   id: number;
   orgId: number;
@@ -145,10 +147,11 @@ export interface CreateDepBody {
 export type UpdateDepBody = Partial<Pick<OrgDep, 'orgId' | 'code' | 'name'>>;
 
 /**
- * Role row plus the role's granted menu ids. `menuIds` is mock-only: the dev
- * mock echoes it (roles.mock.ts) so the full-replace assignment dialog can
- * reopen with the current grant; the api delta's backend `roles/list` is the
- * declared gap and does not promise the field, so it is optional.
+ * Role row plus the role's granted menu ids. `menuIds` is not yet promised by
+ * the backend `roles/list` (the api delta's declared gap): the former dev mock
+ * echoed it so the full-replace assignment dialog could reopen with the
+ * current grant; the field stays optional until the backend follow-up change
+ * supplies it.
  */
 export interface RoleItem {
   id: number;
@@ -159,7 +162,7 @@ export interface RoleItem {
   createTime: string;
   updateBy: number | null;
   updateTime: string;
-  /** mock-only grant echo - see the interface note above. */
+  /** Grant echo pending the backend follow-up - see the interface note above. */
   menuIds?: number[];
 }
 
@@ -171,7 +174,7 @@ export interface CreateRoleBody {
 
 export type UpdateRoleBody = Partial<Pick<RoleItem, 'name' | 'type' | 'remark'>>;
 
-/** Dict catalog row (dicts.mock.ts, V3 seed shape). */
+/** Dict catalog row (V3 seed shape). */
 export interface DictCatal {
   id: number;
   enable: number;
@@ -199,7 +202,7 @@ export interface CreateDictCatalBody {
 
 export type UpdateDictCatalBody = Partial<CreateDictCatalBody>;
 
-/** Dict detail row (dicts.mock.ts, V3 seed shape). */
+/** Dict detail row (V3 seed shape). */
 export interface DictDetail {
   id: number;
   enable: number;
@@ -238,7 +241,7 @@ export interface CreateDictDetailBody {
 
 export type UpdateDictDetailBody = Partial<CreateDictDetailBody>;
 
-/** Operation-log row (logs.mock.ts, the LogInfoEntity JSON field set; mock-only data). */
+/** Operation-log row (the LogInfoEntity JSON field set). */
 export interface LogItem {
   id: number;
   dateYm: number;

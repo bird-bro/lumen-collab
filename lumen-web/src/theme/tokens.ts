@@ -61,7 +61,12 @@ const themeComponents: ThemeConfig['components'] = {
     darkItemHoverBg: '#12355C',
   },
   Table: {
-    headerBg: '#f0f3fa',
+    // Header: clean white + dark text + hairline (user feedback 2026-11-05:
+    // the OPS gray-blue #f0f3fa-as-rgb fill read dull on the white cards).
+    // The thead separates by border, not fill.
+    headerBg: '#ffffff',
+    headerColor: '#333333',
+    headerSplitColor: 'transparent',
     rowHoverBg: '#f6f6f6',
   },
 }
