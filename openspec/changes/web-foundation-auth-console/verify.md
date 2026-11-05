@@ -130,4 +130,4 @@ verify:
 
 - **PASS** → `/opsx:archive web-foundation-auth-console`
 - 挂账移交(独立后续变更):后端 `roles/list` 实现;V2 种子菜单三级重构;profile org 字段;
-  用户编辑/删除端点(如需);mock 假-token 开关;woff2 子集化;暗色主题
+  用户编辑/删除端点(如需);woff2 子集化;暗色主题
