@@ -324,9 +324,19 @@ class AuthSignLogQueryTests extends AuthIntegrationTestBase {
         }
     }
 
+    /**
+     * HARD-delete cleanup (b2-review Important #1, batch 3): the probe menu is removed
+     * outright - role_menu rows first (the FK on V1's role_menu.menu_id), then the
+     * menu_info row. The former logical delete left the soft-deleted row occupying its
+     * sequence id forever, and after enough suite runs a probe landed on id 17 - the
+     * explicit id the V14 menu seed inserts - where a DO NOTHING seed would have
+     * silently no-oped. Sequence advancement past 17 stays (harmless: V14 uses the
+     * explicit id and per-run probes keep drawing fresh ids above it).
+     */
     private void cleanupMenu(int menuId) {
         if (menuId > 0) {
-            jdbcTemplate.update("UPDATE system.menu_info SET deleted = 1 WHERE id = ?", menuId);
+            jdbcTemplate.update("DELETE FROM system.role_menu WHERE menu_id = ?", menuId);
+            jdbcTemplate.update("DELETE FROM system.menu_info WHERE id = ?", menuId);
         }
     }
 
