@@ -1,6 +1,12 @@
 # 实施证据（frontend-backend-first，2026-11-05）
 
 > 会话内采集的验证记录，供 /opsx:verify 与 archive 引用。时间线均为本地 2026-11-05 上午。
+>
+> **Delta 演变备注**：本 change 原含 ADDED "Dev Server Serves Only Real Backend"；并行会话
+> 归档 web-foundation-auth-console 时（80c03c9/f09d3c8）把同主题 requirement（其三场景：
+> 渲染真数据/故障外露/VITE_API_ENTRY_URL 重定向，与本 change 语义等价）同步进了主 spec。
+> 本 delta 据此收敛为剩余独有贡献：Module Layout 去 "mock seam" 措辞（MODIFIED，含主 spec
+> 全部三场景）+ Stub and Demo Data Boundaries（ADDED）。原三场景的实证仍有效，见下文双态实证。
 
 ## TDD 循环（Batch 1）
 

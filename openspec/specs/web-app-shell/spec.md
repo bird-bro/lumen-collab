@@ -38,9 +38,10 @@ new use - it is composed or extended instead.
 - **AND** its existing behavior is left unchanged for current consumers
 
 <!-- synced from: web-foundation-auth-console 2026-11-05 -->
+<!-- synced from: frontend-backend-first 2026-11-05 -->
 
 ### Requirement: Module Layout
-Source SHALL be organized into `src/api/` (typed API clients and the mock seam),
+Source SHALL be organized into `src/api/` (typed API clients),
 `src/pages/` (route modules per department plus platform-level pages such as the login page
 and the system console), `src/components/` (shared components), `src/stores/` (state),
 `src/layouts/` (shell and navigation), and `src/theme/` (design tokens and fonts). The route
@@ -151,3 +152,23 @@ B-class error) - the SPA MUST NOT fake or stub data at any layer.
   (e.g. lumen-system on :8081)
 - **THEN** `VITE_API_ENTRY_URL=http://localhost:8081` retargets the proxy without any
   source change
+
+<!-- synced from: frontend-backend-first 2026-11-05 -->
+
+### Requirement: Stub and Demo Data Boundaries
+Unit tests MAY stub API client modules internally; such stubs SHALL NOT serve
+page data at runtime. Static demo pages with hard-coded data MAY exist for
+visual preview, but their data SHALL NOT route through `src/api/` clients or
+the network layer, and the page SHALL be identifiable as a demo.
+
+#### Scenario: Test stubs stay at the module seam
+- **WHEN** the unit-test suite runs
+- **THEN** API client modules are stubbed via the module seam
+  (`vi.mock('@/api/...')`)
+- **AND** the stubs have no effect on the dev-server request path
+
+#### Scenario: Static demo page boundary
+- **WHEN** a static demo page with hard-coded data is added for visual preview
+- **THEN** its data does not pass through `src/api/` clients or the network
+  layer
+- **AND** it is identifiable as a demo (not presented as backend-backed data)

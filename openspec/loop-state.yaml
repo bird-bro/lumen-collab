@@ -7,8 +7,9 @@
 # rename-auth-to-system archived (slot released); web-foundation-auth-console apply in
 # progress via SDD (ledger: openspec/sdd/progress.md). Artifacts swept to
 # /api/v1/system/** + lumen-system and re-verified 2026-11-04 (hash b0a081d7 unchanged).
-# dict-city-reference archived 2026-11-04 (slot released). Slot now held by
-# frontend-backend-first (Batch Inline; contract 94d19958) since 2026-11-05.
+# dict-city-reference archived 2026-11-04 (slot released). frontend-backend-first
+# archived 2026-11-05 (slot released; verify PASS 5/5, sync done). Next queued:
+# workstation-context (backend /me first) -> patient-domain.
 phase: archived
 change: frontend-backend-first
 current_task: null
@@ -18,7 +19,7 @@ retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: df5265337b725057901ea0035c262ec64e88a45d328845a9453f17c4537d6d40
+artifacts_hash: 460125a3c9b27e05e1de9530574373bef6daab266c766a9d527392c876ef6506
 contract_hash: null
 execution_mode: Batch Inline
 batches_completed: 4
