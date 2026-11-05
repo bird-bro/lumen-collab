@@ -37,13 +37,16 @@ new use - it is composed or extended instead.
 - **THEN** it is wrapped or extended
 - **AND** its existing behavior is left unchanged for current consumers
 
+<!-- synced from: web-foundation-auth-console 2026-11-05 -->
+
 ### Requirement: Module Layout
 Source SHALL be organized into `src/api/` (typed API clients and the mock seam),
-`src/pages/` (route modules per department), `src/components/` (shared components),
-`src/stores/` (state), `src/layouts/` (shell and navigation), and `src/theme/` (design
-tokens). The route table lives in `src/router.tsx`; the application entry in `src/main.tsx`
-and `src/App.tsx`. The application SHALL be a
-single SPA - department features are lazy-loaded route modules, not micro-frontends.
+`src/pages/` (route modules per department plus platform-level pages such as the login page
+and the system console), `src/components/` (shared components), `src/stores/` (state),
+`src/layouts/` (shell and navigation), and `src/theme/` (design tokens and fonts). The route
+table lives in `src/router.tsx`; the application entry in `src/main.tsx` and `src/App.tsx`.
+The application SHALL be a single SPA - department features are lazy-loaded route modules,
+not micro-frontends.
 
 #### Scenario: Adding a new department
 - **WHEN** a department such as ultrasound is added later
@@ -54,6 +57,11 @@ single SPA - department features are lazy-loaded route modules, not micro-fronte
 - **WHEN** a page needs to call the backend
 - **THEN** the typed client lives in `src/api/`
 - **AND** the page does not embed the transport logic itself
+
+#### Scenario: Locating a platform page
+- **WHEN** the login page or a system console page is looked for
+- **THEN** it lives under `src/pages/` alongside the department route modules
+- **AND** it uses the same typed client seam and theme tokens as the rest of the app
 
 ### Requirement: API Client Seam Without Invented Endpoints
 `src/api/` SHALL expose the response envelope `{ timestamp, code, msg, data }` as a typed
@@ -87,15 +95,23 @@ an individual service host or port.
 - **THEN** the unified-entry boundary is violated
 - **AND** the call must be routed through the `/api/v1` base path instead
 
+<!-- synced from: web-foundation-auth-console 2026-11-05 -->
+
 ### Requirement: Design Token Theming
-Visual styling SHALL be driven by Ant Design 5 theme tokens. The primary color MUST NOT be
-red, because red is reserved for clinical alarm semantics. Ad-hoc hex values MUST NOT be used
-in place of tokens.
+Visual styling SHALL be driven by Ant Design 5 theme tokens carrying the single
+blue-family visual language (user decisions 2026-11-04): the action primary color is bright
+blue `#3178fc` and the navigation shell is near-black tech blue `#0B2540` (rail decision),
+and the base font size is 18px per the OPS type scale. The primary color MUST NOT be red, because red is
+reserved for clinical alarm semantics. Ad-hoc hex values MUST NOT be used in place of tokens;
+hex literals live only in the theme token module. The bundled MiSans family is the
+application font (fonts owned by the `web-design-system` capability).
 
 #### Scenario: Theme is applied
 - **WHEN** the application shell renders
 - **THEN** the AntD `ConfigProvider` theme supplies the design tokens
-- **AND** the resolved primary color is not red
+- **AND** the resolved primary color is the bright blue `#3178fc` family and is not red,
+  with the shell resolving to the near-black tech blue navigation family
+- **AND** the resolved base font size is 18px
 
 #### Scenario: A component needs a color
 - **WHEN** styling requires a specific color
@@ -110,3 +126,28 @@ MUST NOT fetch data or imply a delivered capability.
 - **WHEN** the radiology placeholder route is visited
 - **THEN** it renders an explicit "not yet implemented" state
 - **AND** it issues no API request
+
+<!-- synced from: web-foundation-auth-console 2026-11-05 -->
+
+### Requirement: Dev Server Serves Only Real Backend
+The dev server SHALL have NO mock layer (user ruling 2026-11-05, backend-first): every
+`/api/v1` request SHALL fall through the proxy to the real unified entry
+(`VITE_API_ENTRY_URL` override, default nginx :80), and the SPA SHALL render real database
+data. When the entry is unreachable the failure SHALL surface as-is (the transport's
+B-class error) - the SPA MUST NOT fake or stub data at any layer.
+
+#### Scenario: Pages render real database data
+- **WHEN** the backend is running and a console page loads
+- **THEN** every list/detail payload comes from the real backend through the proxy
+- **AND** no request is served by an in-process fake
+
+#### Scenario: Unreachable entry fails loudly
+- **WHEN** the unified entry is down and a page issues a request
+- **THEN** the transport's B-class error surfaces to the operator
+- **AND** no canned substitute data renders
+
+#### Scenario: Direct-service preview override
+- **WHEN** a developer previews against a single service started outside nginx
+  (e.g. lumen-system on :8081)
+- **THEN** `VITE_API_ENTRY_URL=http://localhost:8081` retargets the proxy without any
+  source change
