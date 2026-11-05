@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.*;
 
@@ -74,6 +75,12 @@ public class LogSignEntity implements Serializable {
     @TableField("session")
     private String session;
 
+    /**
+     * 会话凭证锚点（拷贝件沿袭）。sign-log-query 设计 D7：登录日志查询路径不 select 此列，
+     * 未选列的 null 由 {@code NON_NULL} 从响应 JSON 中整体略去（凭证材料零出现在管理端
+     * 响应里）；拷贝 XML 路径的非空 token 值照常序列化，行为不变。
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @TableField("token")
     private String token;
 
