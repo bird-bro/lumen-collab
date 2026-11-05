@@ -17,8 +17,9 @@ import { useAuthStore } from '@/stores/auth'
  *   and `SessionBoot` (boot `/me` refresh; "203" clears the session and the
  *   guard redirects), whose index child redirects to the FIRST route the
  *   user's menu tree grants;
- * - `/system/**` - seven lazily-loaded console placeholder routes (design D8;
- *   batch 6 replaces the page modules in place);
+ * - `/system/**` - the lazily-loaded console routes (design D8; batch 6
+ *   replaced the placeholder modules in place; sign-log-query b4 adds the
+ *   `/system/logs/sign` sibling of the operation-log page);
  * - the three department routes, lazily loaded, unchanged.
  *
  * Department route modules are lazily loaded so each department ships as its
@@ -33,6 +34,7 @@ const RolesPage = lazy(() => import('@/pages/system/roles'))
 const MenusPage = lazy(() => import('@/pages/system/menus'))
 const DictsPage = lazy(() => import('@/pages/system/dicts'))
 const LogsPage = lazy(() => import('@/pages/system/logs'))
+const SignLogsPage = lazy(() => import('@/pages/system/logs/sign'))
 const RadiologyPage = lazy(() => import('@/pages/radiology'))
 const UltrasoundPage = lazy(() => import('@/pages/ultrasound'))
 const EndoscopyPage = lazy(() => import('@/pages/endoscopy'))
@@ -80,6 +82,7 @@ export const appRoutes: RouteObject[] = [
       { path: 'system/menus', element: <MenusPage /> },
       { path: 'system/dicts', element: <DictsPage /> },
       { path: 'system/logs', element: <LogsPage /> },
+      { path: 'system/logs/sign', element: <SignLogsPage /> },
       { path: 'radiology', element: <RadiologyPage /> },
       { path: 'ultrasound', element: <UltrasoundPage /> },
       { path: 'endoscopy', element: <EndoscopyPage /> },

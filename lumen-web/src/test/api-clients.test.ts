@@ -15,7 +15,7 @@ import {
   updateCatal,
   updateDetail,
 } from '@/api/dicts'
-import { listLogs } from '@/api/logs'
+import { listLogs, listSignLogs } from '@/api/logs'
 
 /**
  * Typed per-resource clients (batch 4 of web-foundation-auth-console, task
@@ -451,5 +451,35 @@ describe('logs client (task 4.3)', () => {
     await listLogs({ page: 1, pageSize: 20 })
     const { url } = lastCall(fetchMock)
     expect(url).toBe('/api/v1/system/logs?page=1&pageSize=20')
+  })
+})
+
+describe('sign-logs client (sign-log-query b4, task 4.1)', () => {
+  it('listSignLogs GETs /system/logs/sign with the page/pageSize/account/uid/dateYm query and unwraps the IPage shape', async () => {
+    const fetchMock = stubOk({
+      records: [
+        { id: 1, dateYm: 202611, msg: '登录成功', descr: '登录成功', type: 1, uid: 1, account: 'admin', actionTime: '2026-11-04 10:00:00', mobile: false, ip: '127.0.0.1', os: 'Mac OS X', browser: 'Chrome', engine: 'Blink', session: null, app: 'lumen-system', deleted: 0, createTime: '2026-11-04 10:00:02' },
+      ],
+      total: 1,
+      size: 20,
+      current: 1,
+      pages: 1,
+    })
+    const page = await listSignLogs({ page: 1, pageSize: 20, account: 'admin', uid: 1, dateYm: 202611 })
+    const { url, init } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/logs/sign?page=1&pageSize=20&account=admin&uid=1&dateYm=202611')
+    expect(init.method).toBe('GET')
+    expect(page.records).toHaveLength(1)
+    expect(page.records[0].actionTime).toBe('2026-11-04 10:00:00')
+    // Design D7: credential material never serializes to the console.
+    expect(page.records[0]).not.toHaveProperty('token')
+    expect(page.total).toBe(1)
+  })
+
+  it('listSignLogs sends only the paging keys when the optional filters are omitted', async () => {
+    const fetchMock = stubOk({ records: [], total: 0, size: 20, current: 1, pages: 0 })
+    await listSignLogs({ page: 1, pageSize: 20 })
+    const { url } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/logs/sign?page=1&pageSize=20')
   })
 })

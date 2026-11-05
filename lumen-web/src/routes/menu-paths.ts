@@ -7,7 +7,8 @@
  * shell (`BasicLayout` rail activation + L1 click) all consume this module.
  *
  * Route semantics (design D6): console routes are the plural
- * `/system/orgs|deps|users|roles|menus|dicts|logs`, while the menu fixture
+ * `/system/orgs|deps|users|roles|menus|dicts|logs` plus the sign-log sibling
+ * `/system/logs/sign` (sign-log-query b4), while the menu fixture
  * keeps the backend seed's singular relative `path` column (`org`, `user`, ...)
  * with the `component` column (`system/org/index`, ...). The component column
  * is therefore the stable key that maps a console leaf onto its registered
@@ -28,6 +29,7 @@ const CONSOLE_ROUTE_BY_COMPONENT: Record<string, string> = {
   'system/menu/index': '/system/menus',
   'system/dict/index': '/system/dicts',
   'system/log/index': '/system/logs',
+  'system/log/sign': '/system/logs/sign',
 };
 
 /**

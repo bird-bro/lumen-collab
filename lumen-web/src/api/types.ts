@@ -282,3 +282,46 @@ export type ListLogsQuery = {
   uid?: number;
   dateYm?: number;
 };
+
+/**
+ * Sign-log row (the copied LogSignEntity JSON field set MINUS `token` - design
+ * D7 of sign-log-query: credential material never leaves the service, so no
+ * token field exists on this type either). `type`/`deleted`/`createTime` are
+ * the entity's remaining copied columns (modeled optional alongside the audit
+ * list per the batch brief); `type` is the copied login/logout success/failure
+ * integer the UI deliberately does not interpret (design D5 - `msg` carries
+ * the outcome in prose).
+ */
+export interface LogSignItem {
+  id: number;
+  dateYm: number;
+  msg: string;
+  descr: string;
+  uid: number;
+  account: string;
+  actionTime: string;
+  mobile: boolean;
+  ip: string;
+  os: string;
+  browser: string;
+  engine: string;
+  session: string | null;
+  app: string;
+  type?: number | null;
+  deleted?: number;
+  createTime?: string;
+}
+
+/**
+ * GET /system/logs/sign query - the same `page`/`pageSize` convention as
+ * `ListLogsQuery` (the logs endpoints' own keys), with the documented filters.
+ * A type ALIAS (not an interface) so the bag stays assignable to the transport
+ * client's Record-typed query option (same reasoning as `ListLogsQuery`).
+ */
+export type ListSignLogsQuery = {
+  page: number;
+  pageSize: number;
+  account?: string;
+  uid?: number;
+  dateYm?: number;
+};
