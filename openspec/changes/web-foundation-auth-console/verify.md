@@ -22,7 +22,7 @@ verify:
 
 > 生成时间: 2026-11-04 · 总体: **PASS**(L1 ✓ · L2 55/55 · L3 ✓)
 > 范围: 仅 lumen-web 栈(本变更零后端代码,跨域禁令);api 增量为契约文档同步,
-> 其场景同时以 lumen-system 既有实现面 + dev mock 为证据。
+> 其场景同时以 lumen-system 既有实现面为证据;2026-11-05 起为真实数据模式(mock 层已按用户裁决移除)。
 
 ## lumen-web
 
@@ -37,7 +37,7 @@ verify:
 | 层级 | 状态 | 详情 |
 |:---|:---|:---|
 | L1 构建 | SKIP | 本变更未触碰 lumen-sev(前端 + 规格文档) |
-| L2 规格对齐 | n/a | api 增量场景以下方双栏证据核验(前端 client + mock;后端为已归档实现面) |
+| L2 规格对齐 | n/a | api 增量场景以下方双栏证据核验(前端 client + lumen-system 实现面 + 真实模式走查) |
 | L3 测试 | SKIP | 同上 |
 
 ## 场景对齐详情(55/55)
@@ -53,7 +53,7 @@ verify:
 | Hex discipline holds | ✓ 已实现 | `hex-scan.test.ts:59`(src 全扫描,金丝雀变异已证明会咬人) |
 | Shell regions | ✓ 已实现 | `BasicLayout.tsx:51-55`(RAIL 68/HEADER 60/SIDER 160/PADDING 10)+ `layout.test.tsx:130` + b7 走查实测 |
 | Header composition | ✓ 已实现 | `BasicLayout.tsx`(双行名/机构 + 50px 头像,无 caret,Popover 退出)+ layout.test |
-| Menu hierarchy display | ✓ 已实现 | `BasicLayout.tsx:181`(Menu type:'group' 分组标题)+ 叶子平铺;mock 分组 path null(`_fixtures.ts:213-226`) |
+| Menu hierarchy display | ✓ 已实现 | `BasicLayout.tsx:181`(Menu type:'group' 分组标题)+ 叶子平铺;分组不导航语义(`routes/menu-paths.ts:108` 目录拒绝导航) |
 | Compact list pages | ✓ 已实现 | `console-shell.tsx`(ConsolePanel/ToolRow 无标题块)+ 四页消费 |
 
 ### web-auth-flow(8/8)
@@ -88,23 +88,23 @@ verify:
 | Filtered log query | ✓ 已实现 | `logs/index.tsx:51-56`(type/uid/dateYm)+ `logs-page.test.tsx:83` |
 | Read-only surface | ✓ 已实现 | `logs-page.test.tsx`(无操作列)+ `menus-page.test.tsx`(只读断言) |
 
-### api(14/14 — 契约同步:前端 client/mock + lumen-system 已归档实现面)
+### api(14/14 — 契约同步:前端 client + lumen-system 实现面,真实模式实测)
 
 | 场景 | 状态 | 证据 |
 |:---|:---|:---|
-| Paged user list(裸数组) | ✓ 已实现 | `api/users.ts:10` + 后端 `UserInfoController.java:45` + mock/users.mock |
+| Paged user list(裸数组) | ✓ 已实现 | `api/users.ts:10` + 后端 `UserInfoController.java:45` + 真实模式实测 |
 | Create user | ✓ 已实现 | `api/users.ts:15` + 冒烟 `data:2` + 后端 POST |
-| Duplicate username | ✓ 已实现 | mock A0111 逐字(`users-page.test.tsx:208`)+ 后端异常文案 |
+| Duplicate username | ✓ 已实现 | A0111 逐字(`users-page.test.tsx:208` + lumen-system 实现面) |
 | Password reset and enable toggle | ✓ 已实现 | `api/users.ts:20-28`(newPassword 字段对齐 `ResetPasswordRequest.java:21`)|
 | Org tree query | ✓ 已实现 | `api/orgs.ts:10` + 后端 `OrgController.java:44` + 冒烟种子根 |
 | Org mutation verbs | ✓ 已实现 | `api/orgs.ts:15-25` + 冒烟 200/true |
 | Org tree query(deps)| ✓ 已实现 | `api/org-deps.ts:13` + 后端 `OrgDepController.java:46` |
 | Org mutation verbs(deps)| ✓ 已实现 | `api/org-deps.ts:18-28` + 冒烟 A0712 逐字 |
 | Department list by org | ✓ 已实现 | 冒烟 `?orgId=1` 三种子科室 |
-| Duplicate role name rejected | ✓ 已实现 | mock `roles.mock.ts:57` A0714 逐字 + 后端 `RoleController.java:40` |
+| Duplicate role name rejected | ✓ 已实现 | A0714 逐字(`roles-page.test.tsx` + lumen-system `RoleController.java:40`) |
 | Delete cascades unbind | ✓ 已实现 | 后端 RoleServiceImpl 级联(已归档 auth-rbac)+ `api/roles.ts:30-33` |
 | Role-menu full-replace assignment | ✓ 已实现 | `api/roles.ts:39-44` + 冒烟 echo [1,13] + `roles-page.test.tsx:179-196` |
-| Role list (gap to implement) | ✓ 已实现 | 按 scenario 自身条款:dev mock 供数(`roles.mock.ts` IPage + menuIds 回显);后端缺口已挂账跟进变更 |
+| Role list (gap to implement) | ✓ 已实现 | scenario 条款:后端未实现(已挂账跟进变更);前端 typed client 就绪,落地即通 |
 | Menu tree query | ✓ 已实现 | `api/menus.ts:9` + 后端 `MenuController.java:27` + 冒烟三级 perms |
 
 ### web-app-shell(10/10)
@@ -118,9 +118,9 @@ verify:
 | Locating a platform page | ✓ 已实现 | `src/pages/login/` + `src/pages/system/**` |
 | Envelope type is consumed | ✓ 已实现 | `api/envelope.ts` + `entity-id.ts`(number,ID Serialization) |
 | An endpoint is not yet specified | ✓ 已实现 | b3 路径门:24/24 mock URL 全部文档化(逐条对照表) |
-| Console runs without backend | ✓ 已实现 | b7 走查 10/10 全程仅 mock(无后端进程) |
-| Undocumented endpoint refused | ✓ 已实现 | 同上 b3 门(未文档化路径零存在) |
-| Seed parity | ✓ 已实现 | `mock/_fixtures.ts:137,283-330`(admin/admin123 uid 1、示例医院、三科室、common_status,b3 种子对照表) |
+| Pages render real database data | ✓ 已实现 | 2026-11-05 真实模式走查:入口 8081,目录列表渲染真实 DB 行(id 2/id 1),7 次代理响应 |
+| Unreachable entry fails loudly | ✓ 已实现 | client.ts B0001 单测 + b3 死端口变体(ECONNREFUSED 显式失败) |
+| Direct-service preview override | ✓ 已实现 | VITE_API_ENTRY_URL=http://localhost:8081 直连单服务,零源码改动(实测) |
 
 ## 发现的问题
 
