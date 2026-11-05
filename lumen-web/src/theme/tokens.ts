@@ -61,11 +61,14 @@ const themeComponents: ThemeConfig['components'] = {
     darkItemHoverBg: '#12355C',
   },
   Table: {
-    // Header: clean white + dark text + hairline (user feedback 2026-11-05:
-    // the OPS gray-blue #f0f3fa-as-rgb fill read dull on the white cards).
-    // The thead separates by border, not fill.
-    headerBg: '#ffffff',
-    headerColor: '#333333',
+    // Header: the follow-up system's Element-UI el-table chrome (user ruling
+    // 2026-11-05: every list header mirrors the el-table thead, background
+    // first). theme-chalk defaults: gray-blue fill #f5f7fa, secondary-gray
+    // text #909399, vertical splits off (el-table separates by the bottom
+    // hairline only). Supersedes the earlier same-day white-header call -
+    // that call rejected the OPS #f0f3fa tint, not a neutral gray fill.
+    headerBg: '#f5f7fa',
+    headerColor: '#909399',
     headerSplitColor: 'transparent',
     rowHoverBg: '#f6f6f6',
   },

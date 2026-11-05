@@ -71,14 +71,13 @@ async function waitForTree(name: string) {
  * The library's own signal is used instead: rc-motion puts the `*-leave` class
  * on the dialog element the moment `open` flips to false. So
  * 「成功关闭」 = the dialog entered its leave motion AND the form was reset,
- * 「弹窗不关闭」 = no leave class and the typed value still stands.
+ * 「弹窗不关闭」 = the drawer keeps `ant-drawer-open` and the typed value still stands.
  */
-const DIALOG_LEAVING = 'ant-zoom-leave'
-
 async function expectDialogClosed() {
-  const dialog = screen.getByRole('dialog')
-  await waitFor(() => expect(dialog).toHaveClass(DIALOG_LEAVING))
-  expect(within(dialog).getByLabelText('机构名称')).toHaveValue('')
+  // jsdom starts no CSS animation: the observable close signal is the drawer
+  // root dropping `ant-drawer-open`; destroyOnHidden then tears the form down.
+  await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 }
 
 /** Opens a node's row action (the glyphs only mount while the row is hovered). */

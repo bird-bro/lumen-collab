@@ -86,8 +86,6 @@ function renderPage() {
   )
 }
 
-const DIALOG_LEAVING = 'ant-zoom-leave'
-
 beforeEach(() => {
   vi.clearAllMocks()
   useAuthStore.getState().setSession({ perms: ['system:role:list'] })
@@ -140,8 +138,8 @@ describe('roles page - CRUD (spec: Role CRUD round-trip)', () => {
     await waitFor(() =>
       expect(screen.getByText(/role name already exists/)).toBeInTheDocument(),
     )
-    const dialog = screen.getByRole('dialog')
-    expect(dialog).not.toHaveClass(DIALOG_LEAVING)
+    // drawer did NOT close: `ant-drawer-open` still stands on the drawer root
+    expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
   })
 
   it('deletes behind a Popconfirm and re-lists', async () => {

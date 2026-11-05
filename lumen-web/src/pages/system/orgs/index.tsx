@@ -1,4 +1,4 @@
-import { Form, Input, Modal, message, theme } from 'antd'
+import { Button, Drawer, Form, Input, message, theme } from 'antd'
 import { useCallback, useEffect, useState } from 'react'
 import { createOrg, deleteOrg, orgTree, updateOrg } from '@/api/orgs'
 import type { OrgNode } from '@/api/types'
@@ -95,7 +95,7 @@ export default function OrgsPage() {
 
   const submitDialog = useCallback(async () => {
     if (!dialog) return
-    // A rejected validateFields() must never escape the Modal onOk handler.
+    // A rejected validateFields() must never escape the drawer footer submit handler.
     const values = await readForm(form)
     if (!values) return
     setSaving(true)
@@ -152,16 +152,22 @@ export default function OrgsPage() {
         />
       </ConsolePanel>
 
-      <Modal
+      <Drawer
         open={!!dialog}
         title={copy?.title}
-        okText="保存"
-        cancelText="取消"
-        confirmLoading={saving}
-        onOk={() => void submitDialog()}
-        onCancel={closeDialog}
-        destroyOnClose
-        width={520}
+        width={500}
+        onClose={closeDialog}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
+        destroyOnHidden
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={closeDialog}>取消</Button>
+            <Button type="primary" loading={saving} onClick={() => void submitDialog()}>
+              保存
+            </Button>
+          </div>
+        }
       >
         {copy?.context ? (
           <p style={{ margin: '0 0 16px', fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
@@ -177,7 +183,7 @@ export default function OrgsPage() {
             <Input placeholder="如 示例医院 / 华东分院" autoComplete="off" />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
     </div>
   )
 }

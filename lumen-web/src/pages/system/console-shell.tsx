@@ -171,6 +171,11 @@ export function ConsoleAction({
   // under Popconfirm confirmations (delete), and the floating tooltip +
   // floating confirm on one anchor occluded each other (user feedback
   // 2026-11-04). The aria-label keeps the verb announceable.
+  //
+  // Glyph color (user feedback 2026-11-05): the verb icon carries the action
+  // primary - the same blue as the primary buttons' background - instead of
+  // the plain text black; `danger` verbs keep AntD's danger red.
+  const { token } = theme.useToken()
   const Icon = ACTION_ICONS[icon]
   return (
     <Button
@@ -180,7 +185,7 @@ export function ConsoleAction({
       disabled={disabled}
       title={label}
       aria-label={label}
-      icon={<Icon />}
+      icon={<Icon style={danger ? undefined : { color: token.colorPrimary }} />}
       onClick={onClick}
     />
   )
@@ -194,10 +199,12 @@ export interface ConsoleActionColumn<RowType> {
 
 /**
  * Console table (prototype `.tbl`): the 操作 header carries the small refresh
- * glyph (`.th-act` + `.th-refresh`), its cells hold icon-only actions, and
- * omitting `actions` renders a purely read-only table - no 操作 header at all.
- * Pagination is NOT owned here: pages render `ConsolePagination` beneath.
- * Zebra/header colors come from the existing Table component tokens.
+ * glyph pinned to the cell's right edge - the label itself stays centered with
+ * the other headers (user request 2026-11-05: refresh sits right of the 操作
+ * header). Its cells hold icon-only actions, and omitting `actions` renders a
+ * purely read-only table - no 操作 header at all. Pagination is NOT owned
+ * here: pages render `ConsolePagination` beneath. Zebra/header colors come
+ * from the existing Table component tokens.
  */
 export function ConsoleTable<RowType extends object>({
   rowKey,
@@ -207,6 +214,7 @@ export function ConsoleTable<RowType extends object>({
   actions,
   onRefresh,
   onRow,
+  selectedRowKey,
 }: {
   rowKey: (row: RowType) => number | string
   columns: TableColumnsType<RowType>
@@ -215,6 +223,10 @@ export function ConsoleTable<RowType extends object>({
   actions?: ConsoleActionColumn<RowType>
   onRefresh?: () => void
   onRow?: (row: RowType) => React.HTMLAttributes<HTMLTableRowElement>
+  /** OPS dict-page `highlight-current-row` (2026-11-05): the row matching this
+   * key gets the `lumen-console-row-current` chrome (basic-layout.css) - the
+   * master-side selection marker on master-detail pages. */
+  selectedRowKey?: number | string | null
 }) {
   const { token } = theme.useToken()
   const actionColumns: TableColumnsType<RowType> = actions
@@ -226,28 +238,34 @@ export function ConsoleTable<RowType extends object>({
           title: (
             <span
               style={{
+                position: 'relative',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 8,
               }}
             >
+              操作
               {onRefresh ? (
                 <Tooltip title="刷新列表">
                   <Button
                     type="text"
                     size="small"
                     aria-label="刷新列表"
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                    }}
                     icon={<ReloadOutlined style={{ color: token.colorPrimary }} />}
                     onClick={onRefresh}
                   />
                 </Tooltip>
               ) : null}
-              操作
             </span>
           ),
           render: (_, row) => (
-            <Space size={4} key={`actions-${String(rowKey(row))}`}>
+            <Space size={6} key={`actions-${String(rowKey(row))}`}>
               {actions.render(row)}
             </Space>
           ),
@@ -265,6 +283,11 @@ export function ConsoleTable<RowType extends object>({
       pagination={false}
       size="middle"
       onRow={onRow}
+      rowClassName={
+        selectedRowKey == null
+          ? undefined
+          : (row) => (rowKey(row) === selectedRowKey ? 'lumen-console-row-current' : '')
+      }
     />
   )
 }
@@ -321,7 +344,7 @@ export function ConsolePagination({
 
 /**
  * Reads a dialog form, swallowing AntD's validation rejection: a rejected
- * `validateFields()` inside a Modal `onOk` would leave an unhandled promise
+ * `validateFields()` inside a drawer footer submit would leave an unhandled promise
  * (AntD renders the field errors itself). `null` means "invalid - stay open,
  * do nothing". Shared by the 6a console dialogs (orgs / deps / users).
  */

@@ -80,13 +80,10 @@ function rowOf(name: string): HTMLElement {
   return row
 }
 
-/** jsdom starts no CSS animation, so a closed AntD modal lingers mid-leave;
- *  the observable close signal is the `*-leave` motion class (see orgs tests). */
-const DIALOG_LEAVING = 'ant-zoom-leave'
-
+/** jsdom starts no CSS animation: the observable close signal for an AntD
+ *  drawer is its root dropping `ant-drawer-open` (role=dialog sits inside). */
 async function expectDialogClosed() {
-  const dialog = screen.getByRole('dialog')
-  await waitFor(() => expect(dialog).toHaveClass(DIALOG_LEAVING))
+  await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
 }
 
 beforeEach(() => {
@@ -250,8 +247,8 @@ describe('deps page - duplicate code feedback (brief 6.2: A0712 于表单,弹窗
       'department code already exists: radiology',
     )
     expect(fieldError).toBeInTheDocument()
-    // dialog did NOT close (no leave motion class) and the input keeps its value
-    expect(dialog).not.toHaveClass(DIALOG_LEAVING)
+    // drawer did NOT close (`ant-drawer-open` still stands) and the input keeps its value
+    expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
     expect(within(dialog).getByLabelText('科室编码')).toHaveValue('radiology')
   })
 })

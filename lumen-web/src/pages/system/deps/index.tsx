@@ -1,4 +1,4 @@
-import { Input, Form, Modal, Popconfirm, Typography, message, theme } from 'antd'
+import { Button, Drawer, Form, Input, Popconfirm, Typography, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createDep, deleteDep, listDeps, updateDep } from '@/api/org-deps'
@@ -48,9 +48,6 @@ import { OrgTree } from '../org-tree'
 
 /** Prototype `.tbl` column widths (220 / 200 / auto / 130). */
 const COLUMN_WIDTHS = { name: 220, code: 200, actions: 130 } as const
-
-/** Prototype code-field helper line (org-deps.html `.f-extra`). */
-const CODE_HINT = '编码用于 DICOM / HL7 报文路由,对应种子值:radiology · us · endo'
 
 const PAGE_SIZE = 10
 
@@ -172,7 +169,7 @@ export default function DepsPage() {
 
   const submitDialog = useCallback(async () => {
     if (!dialog || selectedOrgId === null) return
-    // A rejected validateFields() must never escape the Modal onOk handler
+    // A rejected validateFields() must never escape the drawer footer submit handler
     // (an unhandled rejection would also swallow the dialog's field errors).
     const values = await readForm(form)
     if (!values) return
@@ -324,16 +321,22 @@ export default function DepsPage() {
         </ConsolePanel>
       </ConsoleWorkArea>
 
-      <Modal
+      <Drawer
         open={!!dialog}
         title={dialog?.kind === 'edit' ? '编辑科室' : '新建科室'}
-        okText="保存"
-        cancelText="取消"
-        confirmLoading={saving}
-        onOk={() => void submitDialog()}
-        onCancel={closeDialog}
-        destroyOnClose
-        width={520}
+        width={500}
+        onClose={closeDialog}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
+        destroyOnHidden
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={closeDialog}>取消</Button>
+            <Button type="primary" loading={saving} onClick={() => void submitDialog()}>
+              保存
+            </Button>
+          </div>
+        }
       >
         <div style={{ marginBottom: 16 }}>
           <Typography.Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
@@ -345,7 +348,6 @@ export default function DepsPage() {
           <Form.Item
             name="code"
             label="科室编码"
-            extra={CODE_HINT}
             rules={[{ required: true, message: '请输入科室编码' }]}
           >
             {/* The code routes DICOM/HL7 traffic and never changes after creation. */}
@@ -359,7 +361,7 @@ export default function DepsPage() {
             <Input placeholder="如 病理科" autoComplete="off" />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
 
     </div>
   )

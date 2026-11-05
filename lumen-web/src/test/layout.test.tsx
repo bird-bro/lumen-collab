@@ -70,7 +70,7 @@ function adminMenus(): MenuNode[] {
           ],
         }),
         menuNode({
-          mid: 14, title: '用户权限', upId: 1, type: 'M', icon: 'safety',
+          mid: 14, title: '用户权限', upId: 1, type: 'M', icon: 'team',
           children: [
             menuNode({ mid: 2, title: '用户管理', upId: 14, type: 'C', path: 'user', component: 'system/user/index' }),
             menuNode({ mid: 9, title: '角色管理', upId: 14, type: 'C', path: 'role', component: 'system/role/index' }),

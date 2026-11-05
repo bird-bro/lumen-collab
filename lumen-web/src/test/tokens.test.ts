@@ -62,9 +62,9 @@ describe('themeConfig - OPS component tokens (design D1 mapping)', () => {
     expect(themeExports).toHaveProperty('themeConfig.components.Menu.darkItemHoverBg', '#12355C')
   })
 
-  it('styles the table chrome with the OPS header/row neutrals', () => {
-        expect(themeExports).toHaveProperty('themeConfig.components.Table.headerBg', '#ffffff')
-    expect(themeExports).toHaveProperty('themeConfig.components.Table.headerColor', '#333333')
+  it('styles the table chrome with the follow-up-system el-table header neutrals', () => {
+    expect(themeExports).toHaveProperty('themeConfig.components.Table.headerBg', '#f5f7fa')
+    expect(themeExports).toHaveProperty('themeConfig.components.Table.headerColor', '#909399')
     expect(themeExports).toHaveProperty('themeConfig.components.Table.headerSplitColor', 'transparent')
     expect(themeExports).toHaveProperty('themeConfig.components.Table.rowHoverBg', '#f6f6f6')
   })

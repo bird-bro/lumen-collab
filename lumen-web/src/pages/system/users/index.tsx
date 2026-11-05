@@ -1,4 +1,4 @@
-import { Form, Input, Modal, Select, Space, Switch, Tag, Tooltip, Typography, message, theme } from 'antd'
+import { Button, Drawer, Form, Input, Select, Space, Switch, Tag, Tooltip, Typography, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createUser, enableUser, listUsers, resetPassword } from '@/api/users'
@@ -165,7 +165,7 @@ export default function UsersPage() {
   }, [form])
 
   const submitCreate = useCallback(async () => {
-    // A rejected validateFields() must never escape the Modal onOk handler
+    // A rejected validateFields() must never escape the drawer footer submit handler
     // (an unhandled rejection would also swallow the dialog's field errors).
     const values = await readForm(form)
     if (!values) return
@@ -199,7 +199,7 @@ export default function UsersPage() {
 
   const submitReset = useCallback(async () => {
     if (!resetTarget) return
-    // A rejected validateFields() must never escape the Modal onOk handler
+    // A rejected validateFields() must never escape the drawer footer submit handler
     // (an unhandled rejection would also swallow the dialog's field errors).
     const values = await readForm(resetForm)
     if (!values) return
@@ -366,22 +366,27 @@ export default function UsersPage() {
         />
       </ConsolePanel>
 
-      <Modal
+      <Drawer
         open={createOpen}
         title="新建用户"
-        okText="保存"
-        cancelText="取消"
-        confirmLoading={saving}
-        onOk={() => void submitCreate()}
-        onCancel={closeCreate}
-        destroyOnClose
-        width={520}
+        width={500}
+        onClose={closeCreate}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
+        destroyOnHidden
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={closeCreate}>取消</Button>
+            <Button type="primary" loading={saving} onClick={() => void submitCreate()}>
+              保存
+            </Button>
+          </div>
+        }
       >
         <Form<CreateUserValues> form={form} layout="vertical" disabled={saving}>
           <Form.Item
             name="username"
             label="用户名"
-            extra="用户名重复时,后端 A 类错误 msg 将显示于此表单,弹窗保持打开"
             rules={[{ required: true, message: '请输入用户名' }]}
           >
             <Input placeholder="登录账号,创建后不可修改" autoComplete="off" />
@@ -406,18 +411,24 @@ export default function UsersPage() {
             <Input.Password placeholder="首次登录时将要求修改密码" autoComplete="new-password" />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
 
-      <Modal
+      <Drawer
         open={!!resetTarget}
         title="重置密码"
-        okText="保存"
-        cancelText="取消"
-        confirmLoading={saving}
-        onOk={() => void submitReset()}
-        onCancel={closeReset}
-        destroyOnClose
-        width={520}
+        width={500}
+        onClose={closeReset}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
+        destroyOnHidden
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={closeReset}>取消</Button>
+            <Button type="primary" loading={saving} onClick={() => void submitReset()}>
+              保存
+            </Button>
+          </div>
+        }
       >
         {resetTarget ? (
           <p style={{ margin: '0 0 16px', fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
@@ -429,7 +440,7 @@ export default function UsersPage() {
             <Input.Password placeholder="新密码" autoComplete="new-password" />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
     </div>
   )
 }

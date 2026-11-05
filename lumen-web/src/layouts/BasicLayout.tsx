@@ -1,5 +1,6 @@
 import {
   ApartmentOutlined,
+  LockOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   RadarChartOutlined,
@@ -8,11 +9,12 @@ import {
   SlidersOutlined,
 } from '@ant-design/icons'
 import { Button, ConfigProvider, Layout, Menu, Popover, Spin, theme } from 'antd'
-import type { MenuProps, ThemeConfig } from 'antd'
+import type { ThemeConfig } from 'antd'
 import type { ComponentType, CSSProperties } from 'react'
 import { Suspense, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { activeTopLevelNode, firstLeafRouteOf, resolveMenuRoute } from '@/routes/menu-paths'
+import { OrgBuildingIcon, ShieldCheckIcon, SystemToolIcon, UserAccountIcon } from '@/components/ops-icons'
 import headLogo from '@/assets/head.png'
 import { useAuthStore } from '@/stores/auth'
 import { themeConfig } from '@/theme'
@@ -35,7 +37,9 @@ import './basic-layout.css'
  *   退出登录 button (store.clear() + navigate /login).
  * - zone 3: a 160px white collapsible secondary sidebar rendering the ACTIVE
  *   L1's children as group titles (AntD Menu `type: 'group'`, 16px text +
- *   20px icon) and flat text-only 40px leaf rows; selection = light-blue chip
+ *   24px icon; the OPS glyphs run optically smaller than AntD's, so the group
+ *   icon size is bumped 20 -> 24 per user ruling 2026-11-05) and flat
+ *   text-only 40px leaf rows; selection = light-blue chip
  *   + 3px primary left bar (token-injected variable). Fold control per OPS:
  *   a 24px Fold icon absolute at the sidebar bottom-right; collapsed = a
  *   40px strip with the Expand icon + vertical active-L1 text.
@@ -72,6 +76,16 @@ const MENU_ICON_BY_NAME: Record<string, IconComponent> = {
   bank: ApartmentOutlined,
   safety: SafetyCertificateOutlined,
   sliders: SlidersOutlined,
+  // V5/V8 seed names stay mapped for DBs not yet migrated (V11 re-points all
+  // four level-2 groups).
+  lock: LockOutlined,
+  // V11 group icons: glyphs ported VERBATIM from the OPS iconfont, monochrome
+  // via currentColor (user ruling 2026-11-05; the source symbol per name is
+  // documented in ops-icons.tsx / V11__menu_group_icons.sql).
+  org: OrgBuildingIcon,
+  team: UserAccountIcon,
+  config: SystemToolIcon,
+  shield: ShieldCheckIcon,
 }
 
 /**
@@ -184,7 +198,7 @@ export function BasicLayout() {
     key: string
     icon: string | null
     title: string | null
-    items: NonNullable<MenuProps['items']>
+    items: Array<{ key: string; label: string }>
   }
   const sidebarSections = useMemo<SidebarSection[]>(() => {
     const sections: SidebarSection[] = []
@@ -226,6 +240,9 @@ export function BasicLayout() {
           '--lumen-fold-color': token.colorTextTertiary,
           '--lumen-fold-hover-bg': SIDE_ITEM_HOVER_BG,
           '--lumen-fold-hover-color': token.colorText,
+          // Console-table current-row chrome (OPS dict-page highlight-current-row).
+          '--lumen-row-current-bar': token.colorPrimary,
+          '--lumen-row-current-bg': token.colorBgContainer,
         } as CSSProperties
       }
     >
@@ -331,7 +348,7 @@ export function BasicLayout() {
                 <div key={section.key} className="lumen-side-group">
                   {section.title ? (
                     <div className="lumen-side-group-label">
-                      <MenuIcon name={section.icon} size={20} />
+                      <MenuIcon name={section.icon} size={24} />
                       <span>{section.title}</span>
                     </div>
                   ) : null}
@@ -356,15 +373,70 @@ export function BasicLayout() {
                 </div>
               ))}
             {folded ? (
-              <button
-                type="button"
-                className="lumen-side-expand"
-                onClick={() => setFolded(false)}
-                title="展开侧栏"
-              >
-                <MenuUnfoldOutlined style={{ fontSize: 24 }} />
-                <span className="lumen-side-expand-text">{activeL1?.title}</span>
-              </button>
+              <div className="lumen-side-mini">
+                {sidebarSections.map((section) => {
+                  const firstLabel = section.items[0]?.label ?? ''
+                  const active = section.items.some((entry) => entry.key === pathname)
+                  return (
+                    <Popover
+                      key={section.key}
+                      trigger="click"
+                      placement="rightTop"
+                      content={
+                        <div className="lumen-side-mini-pop">
+                          {section.title ? (
+                            <div className="lumen-side-mini-pop-title">{section.title}</div>
+                          ) : null}
+                          {section.items.map((entry) => (
+                            <button
+                              key={entry.key}
+                              type="button"
+                              className={
+                                entry.key === pathname
+                                  ? 'lumen-side-mini-item lumen-side-mini-item-active'
+                                  : 'lumen-side-mini-item'
+                              }
+                              onClick={() => {
+                                if (entry.key.startsWith('/')) {
+                                  navigate(entry.key)
+                                  setFolded(false)
+                                }
+                              }}
+                            >
+                              {String(entry.label)}
+                            </button>
+                          ))}
+                        </div>
+                      }
+                    >
+                      <button
+                        type="button"
+                        className={
+                          active
+                            ? 'lumen-side-mini-btn lumen-side-mini-btn-active'
+                            : 'lumen-side-mini-btn'
+                        }
+                        title={section.title ?? firstLabel}
+                      >
+                        {section.icon ? (
+                          <MenuIcon name={section.icon} size={18} />
+                        ) : (
+                          <span className="lumen-side-mini-char">{firstLabel.slice(0, 1) || '·'}</span>
+                        )}
+                      </button>
+                    </Popover>
+                  )
+                })}
+                <button
+                  type="button"
+                  className="lumen-side-expand"
+                  onClick={() => setFolded(false)}
+                  title="展开侧栏"
+                >
+                  <MenuUnfoldOutlined style={{ fontSize: 24 }} />
+                  <span className="lumen-side-expand-text">{activeL1?.title}</span>
+                </button>
+              </div>
             ) : (
               <button
                 type="button"

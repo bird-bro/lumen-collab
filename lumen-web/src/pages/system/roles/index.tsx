@@ -1,9 +1,10 @@
 import { TeamOutlined } from '@ant-design/icons'
 import {
+  Button,
   Checkbox,
+  Drawer,
   Form,
   Input,
-  Modal,
   Popconfirm,
   Space,
   Spin,
@@ -406,22 +407,27 @@ export default function RolesPage() {
         />
       </ConsolePanel>
 
-      <Modal
+      <Drawer
         open={createOpen}
         title="新建角色"
-        okText="保 存"
-        cancelText="取消"
-        confirmLoading={saving}
-        onOk={() => void submitCreate()}
-        onCancel={closeCreate}
-        destroyOnClose
-        width={520}
+        width={500}
+        onClose={closeCreate}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
+        destroyOnHidden
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={closeCreate}>取消</Button>
+            <Button type="primary" loading={saving} onClick={() => void submitCreate()}>
+              保 存
+            </Button>
+          </div>
+        }
       >
         <Form<CreateValues> form={createForm} layout="vertical" disabled={saving}>
           <Form.Item
             name="name"
             label="角色名称"
-            extra="角色名重复时,后端 A 类错误 msg 将显示于此表单,弹窗保持打开"
             rules={[{ required: true, message: '请输入角色名称' }]}
           >
             <Input placeholder="角色名称" autoComplete="off" />
@@ -433,18 +439,24 @@ export default function RolesPage() {
             <Input.TextArea rows={2} placeholder="选填" />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
 
-      <Modal
+      <Drawer
         open={!!editTarget}
         title="编辑角色"
-        okText="保 存"
-        cancelText="取消"
-        confirmLoading={saving}
-        onOk={() => void submitEdit()}
-        onCancel={closeEdit}
-        destroyOnClose
-        width={520}
+        width={500}
+        onClose={closeEdit}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
+        destroyOnHidden
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={closeEdit}>取消</Button>
+            <Button type="primary" loading={saving} onClick={() => void submitEdit()}>
+              保 存
+            </Button>
+          </div>
+        }
       >
         <Form<EditValues> form={editForm} layout="vertical" disabled={saving}>
           <Form.Item name="name" label="角色名称" rules={[{ required: true, message: '请输入角色名称' }]}>
@@ -457,18 +469,23 @@ export default function RolesPage() {
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
-      </Modal>
+      </Drawer>
 
-      <Modal
+      <Drawer
         open={!!assignTarget}
         title={assignTarget ? `菜单授权 - ${assignTarget.name}` : '菜单授权'}
-        okText="保存授权"
-        cancelText="取消"
-        confirmLoading={saving}
-        onOk={() => void submitAssign()}
-        onCancel={closeAssign}
-        width={560}
-        styles={{ body: { maxHeight: 420, overflow: 'auto' } }}
+        width={500}
+        onClose={closeAssign}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={closeAssign}>取消</Button>
+            <Button type="primary" loading={saving} onClick={() => void submitAssign()}>
+              保存授权
+            </Button>
+          </div>
+        }
       >
         <p style={{ margin: '0 0 12px', fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
           勾选集即该角色的<b>全量授权</b>(保存为全量替换);保存后重开弹窗将回显服务器保存的授权集。
@@ -491,7 +508,7 @@ export default function RolesPage() {
             }
           />
         )}
-      </Modal>
+      </Drawer>
     </div>
   )
 }

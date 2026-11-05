@@ -357,8 +357,8 @@ describe('menus client (task 4.3)', () => {
 
 describe('dicts client (task 4.3)', () => {
   const CATAL = {
-    id: 1, enable: 1, code: 'common_status', name: '通用状态', sort: 0, remark: null,
-    cls: null, initial: null, createBy: null, createTime: '2026-11-04 09:00:00', updateBy: null, updateTime: '2026-11-04 09:00:00',
+    id: 1, enable: 1, name: '通用状态', sort: 0, remark: null,
+    cls: null, createBy: null, createTime: '2026-11-04 09:00:00', updateBy: null, updateTime: '2026-11-04 09:00:00',
   }
 
   it('listCatal GETs /system/dicts/catal/list?pageNum=&pageSize= and unwraps the IPage shape', async () => {
@@ -368,13 +368,13 @@ describe('dicts client (task 4.3)', () => {
     expect(url).toBe('/api/v1/system/dicts/catal/list?pageNum=1&pageSize=20')
     expect(init.method).toBe('GET')
     expect(page.records).toHaveLength(1)
-    expect(page.records[0].code).toBe('common_status')
+    expect(page.records[0].name).toBe('通用状态')
     expect(page.size).toBe(20)
   })
 
   it('createCatal posts /system/dicts/catal and unwraps the new id', async () => {
     const fetchMock = stubOk(2)
-    const body = { code: 'us_exam_status', name: '超声检查状态' }
+    const body = { name: '超声检查状态' }
     const data = await createCatal(body)
     const { url, init } = lastCall(fetchMock)
     expect(url).toBe('/api/v1/system/dicts/catal')
@@ -393,28 +393,29 @@ describe('dicts client (task 4.3)', () => {
     expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe('DELETE')
   })
 
-  it('listDetails GETs /system/dicts/detail/list?caCode= and unwraps a plain sort-asc array', async () => {
+  it('listDetails GETs /system/dicts/detail/list?caId= and unwraps a plain sort-asc array', async () => {
     const fetchMock = stubOk([
-      { id: 1, enable: 1, caId: 1, caCode: 'common_status', code: 1, value: '1', label: '启用', color: null, css: null, sort: 1, back1: null, back2: null, remark: null, initial: null, createBy: null, createTime: '2026-11-04 09:00:00', updateBy: null, updateTime: '2026-11-04 09:00:00' },
-      { id: 2, enable: 1, caId: 1, caCode: 'common_status', code: 0, value: '0', label: '停用', color: null, css: null, sort: 2, back1: null, back2: null, remark: null, initial: null, createBy: null, createTime: '2026-11-04 09:00:00', updateBy: null, updateTime: '2026-11-04 09:00:00' },
+      { id: 1, enable: 1, caId: 1000, code: 1, value: '启用', tag: null, flag: null, color: null, css: null, sort: 1, remark: null, createBy: null, createTime: '2026-11-04 09:00:00', updateBy: null, updateTime: '2026-11-04 09:00:00' },
+      { id: 2, enable: 1, caId: 1000, code: 0, value: '停用', tag: null, flag: null, color: null, css: null, sort: 2, remark: null, createBy: null, createTime: '2026-11-04 09:00:00', updateBy: null, updateTime: '2026-11-04 09:00:00' },
     ])
-    const data = await listDetails('common_status')
+    const data = await listDetails(1000)
     const { url, init } = lastCall(fetchMock)
-    expect(url).toBe('/api/v1/system/dicts/detail/list?caCode=common_status')
+    expect(url).toBe('/api/v1/system/dicts/detail/list?caId=1000')
     expect(init.method).toBe('GET')
     expect(Array.isArray(data)).toBe(true)
-    expect(data.map((detail) => detail.label)).toEqual(['启用', '停用'])
+    // V9: value is the single text field (label dropped).
+    expect(data.map((detail) => detail.value)).toEqual(['启用', '停用'])
   })
 
   it('createDetail posts /system/dicts/detail and updateDetail/deleteDetail round-trip', async () => {
     const fetchMock = stubOkSequence([3, true, true])
-    const body = { caId: 1, label: '维护中', value: '2', sort: 3 }
+    const body = { caId: 1000, value: '维护中', sort: 3 }
     expect(await createDetail(body)).toBe(3)
     const { url, init } = lastCall(fetchMock)
     expect(url).toBe('/api/v1/system/dicts/detail')
     expect(init.method).toBe('POST')
     expect(init.body).toBe(JSON.stringify(body))
-    expect(await updateDetail(3, { label: '维护中2' })).toBe(true)
+    expect(await updateDetail(3, { value: '维护中2' })).toBe(true)
     expect(fetchMock.mock.calls[1][0]).toBe('/api/v1/system/dicts/detail/3')
     expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe('PUT')
     expect(await deleteDetail(3)).toBe(true)

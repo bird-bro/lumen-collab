@@ -26,7 +26,7 @@ export function listCatal(pageNum: number = 1, pageSize: number = 20): Promise<P
   });
 }
 
-/** POST /system/dicts/catal - returns the new catalog id (duplicate code rejects with an A-class code). */
+/** POST /system/dicts/catal - returns the new catalog id (duplicate name rejects with an A-class code). */
 export function createCatal(body: CreateDictCatalBody): Promise<number> {
   return apiRequest<number>('/system/dicts/catal', { method: 'POST', body });
 }
@@ -42,13 +42,14 @@ export function deleteCatal(id: number): Promise<boolean> {
 }
 
 /**
- * GET /system/dicts/detail/list?caCode= - that catalog's details as a plain
- * array ordered by `sort` ascending (verified against the dev mock).
+ * GET /system/dicts/detail/list?caId= - that catalog's details as a plain
+ * array ordered by `sort` ascending (V12: the query anchors by the catalog id -
+ * the former `caCode=` parameter died with the dict_catal.code column).
  */
-export function listDetails(caCode: string): Promise<DictDetail[]> {
+export function listDetails(caId: number): Promise<DictDetail[]> {
   return apiRequest<DictDetail[]>('/system/dicts/detail/list', {
     method: 'GET',
-    query: { caCode },
+    query: { caId },
   });
 }
 

@@ -144,7 +144,7 @@
 .lumen-side-group-label {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   padding: 7px 14px 7px 15px;
   font-size: 16px;
   color: var(--lumen-group-color);
@@ -169,6 +169,73 @@
 .lumen-side-fold:hover {
   background: var(--lumen-fold-hover-bg);
   color: var(--lumen-fold-hover-color);
+}
+/* Collapsed mini rail (user request 2026-11-05): one 40px icon button per
+   L2 section; click opens a right flyout with that section's L3 items. */
+.lumen-side-mini {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 0 52px;
+}
+.lumen-side-mini-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--lumen-fold-color);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.lumen-side-mini-btn:hover {
+  background: var(--lumen-fold-hover-bg);
+  color: var(--lumen-fold-hover-color);
+}
+.lumen-side-mini-btn-active {
+  background: var(--lumen-fold-hover-bg);
+  color: var(--lumen-menu-active-bar);
+}
+.lumen-side-mini-char {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+.lumen-side-mini-pop {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+}
+.lumen-side-mini-pop-title {
+  padding: 4px 10px 6px;
+  font-size: 12px;
+  color: var(--lumen-group-color);
+}
+.lumen-side-mini-item {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--lumen-title-color, inherit);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.lumen-side-mini-item:hover {
+  background: var(--lumen-fold-hover-bg);
+}
+.lumen-side-mini-item-active {
+  color: var(--lumen-menu-active-bar);
+  background: color-mix(in srgb, var(--lumen-menu-active-bar) 10%, transparent);
 }
 .lumen-side-expand {
   display: flex;
@@ -202,4 +269,28 @@
    body cells keep their own alignment. */
 .lumen-console-table .ant-table-thead > tr > th {
   text-align: center;
+}
+
+/* Selected (current) row - the OPS dict-page highlight-current-row chrome
+   (ops_web table.scss tr.current-row): the action primary frames the row with
+   a 5px left accent bar on the first cell and a 1px right line on the last.
+   The top line is an inset shadow - AntD tds carry no border-top and a real
+   one would shift the row 1px - while the bottom line REPLACES the gray split
+   border (border-bottom-color). The cleared background also out-specifies the
+   AntD hover fill, so the selected row stays flat under the cursor, as in OPS. */
+.lumen-console-table .ant-table-tbody > tr.lumen-console-row-current > td {
+  background: var(--lumen-row-current-bg);
+  border-bottom-color: var(--lumen-row-current-bar);
+  box-shadow: inset 0 1px 0 var(--lumen-row-current-bar);
+}
+.lumen-console-table .ant-table-tbody > tr.lumen-console-row-current > td:first-child {
+  border-radius: 5px 0 0 5px;
+  box-shadow:
+    inset 5px 0 0 var(--lumen-row-current-bar),
+    inset 0 1px 0 var(--lumen-row-current-bar);
+}
+.lumen-console-table .ant-table-tbody > tr.lumen-console-row-current > td:last-child {
+  box-shadow:
+    inset -1px 0 0 var(--lumen-row-current-bar),
+    inset 0 1px 0 var(--lumen-row-current-bar);
 }

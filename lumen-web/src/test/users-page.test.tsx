@@ -67,13 +67,10 @@ function renderPage() {
   )
 }
 
-/** jsdom starts no CSS animation: a closed AntD modal lingers mid-leave, so the
- *  observable close signal is the `*-leave` motion class (see the orgs tests). */
-const DIALOG_LEAVING = 'ant-zoom-leave'
-
+/** jsdom starts no CSS animation: the observable close signal for an AntD
+ *  drawer is its root dropping `ant-drawer-open` (role=dialog sits inside). */
 async function expectDialogClosed() {
-  const dialog = screen.getByRole('dialog')
-  await waitFor(() => expect(dialog).toHaveClass(DIALOG_LEAVING))
+  await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
 }
 
 /**
@@ -221,7 +218,7 @@ describe('users page - create (spec: Duplicate username feedback)', () => {
     // form-level feedback (the prototype's helper line promises exactly this)
     const fieldError = await within(dialog).findByText('用户名已存在')
     expect(fieldError).toBeInTheDocument()
-    expect(dialog).not.toHaveClass(DIALOG_LEAVING)
+    expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
     expect(within(dialog).getByLabelText('用户名')).toHaveValue('admin')
     // and the list was NOT re-queried (nothing was created)
     expect(usersApi.listUsers).toHaveBeenCalledTimes(1)
@@ -269,7 +266,7 @@ describe('users page - password reset (spec: Password and enable actions)', () =
     await user_.click(within(dialog).getByRole('button', { name: '保 存' }))
     // A-class failure: the msg floats (brief: A 类错误 message.error), dialog stays open
     expect(await screen.findByText('newPassword must not be blank')).toBeInTheDocument()
-    expect(dialog).not.toHaveClass(DIALOG_LEAVING)
+    expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
   })
 })
 

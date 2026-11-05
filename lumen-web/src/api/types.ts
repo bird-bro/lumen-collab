@@ -174,16 +174,18 @@ export interface CreateRoleBody {
 
 export type UpdateRoleBody = Partial<Pick<RoleItem, 'name' | 'type' | 'remark'>>;
 
-/** Dict catalog row (V3 seed shape). */
+/**
+ * Dict catalog row (V3 seed shape, slimmed by backend V9 - initial dropped; V12
+ * dropped the `code` column - the catalog anchors by id, the name carries the
+ * uniqueness).
+ */
 export interface DictCatal {
   id: number;
   enable: number;
-  code: string;
   name: string;
   sort: number;
   remark: string | null;
   cls: number | null;
-  initial: string | null;
   createBy: number | null;
   createTime: string;
   updateBy: number | null;
@@ -191,33 +193,33 @@ export interface DictCatal {
 }
 
 export interface CreateDictCatalBody {
-  code: string;
   name: string;
   enable?: number;
   sort?: number;
   remark?: string | null;
   cls?: number | null;
-  initial?: string | null;
 }
 
 export type UpdateDictCatalBody = Partial<CreateDictCatalBody>;
 
-/** Dict detail row (V3 seed shape). */
+/**
+ * Dict detail row (backend V9 shape): `value` is the single text field (display +
+ * stored text; the duplicated `label` was dropped), the catalog anchors by `caId`
+ * alone (denormalized `caCode` dropped), and the spare pair is `tag`/`flag`
+ * (renamed from `back1`/`back2`). `initial` (pinyin search) was dropped.
+ */
 export interface DictDetail {
   id: number;
   enable: number;
   caId: number;
-  caCode: string;
   code: number | null;
   value: string | null;
-  label: string;
+  tag: string | null;
+  flag: string | null;
   color: string | null;
   css: string | null;
   sort: number;
-  back1: string | null;
-  back2: string | null;
   remark: string | null;
-  initial: string | null;
   createBy: number | null;
   createTime: string;
   updateBy: number | null;
@@ -226,17 +228,15 @@ export interface DictDetail {
 
 export interface CreateDictDetailBody {
   caId: number;
-  label: string;
+  value: string;
   code?: number | null;
-  value?: string | null;
   enable?: number;
   color?: string | null;
   css?: string | null;
   sort?: number;
-  back1?: string | null;
-  back2?: string | null;
+  tag?: string | null;
+  flag?: string | null;
   remark?: string | null;
-  initial?: string | null;
 }
 
 export type UpdateDictDetailBody = Partial<CreateDictDetailBody>;
