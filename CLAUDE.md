@@ -42,13 +42,13 @@ Open-source medical imaging collaboration platform (brand: LumenCollab) that pai
 ### New Feature
 1. Write spec: `/opsx:propose <change>` (auto-triggers Superpowers brainstorm)
 2. Backend Agent: `cd lumen-sev` → launch AI (claude/codex) → implement to spec (TDD)
-3. Frontend Agent (parallel): `cd lumen-web` → mock from spec → `frontend-design` skill → UI prototype (new pages only; existing-page edits skip) → **user confirms** → `/opsx:apply`
+3. Frontend Agent (after the backend API is user-verified): `cd lumen-web` → build against the REAL backend (`pnpm dev` proxies `VITE_API_ENTRY_URL`; no mock layer - user ruling 2026-11-05) → `frontend-design` skill → UI prototype (new pages only; static hard-coded demo data allowed, never via `src/api/`; existing-page edits skip) → **user confirms** → `/opsx:apply`
 4. Verify against WHEN/THEN; `/opsx:archive` when done
 
 ### Cross-Stack Feature (>=2 stacks - one coordination doc tracks all per-stack changes)
 1. Parent: create `openspec/coordination/<feature>.md` (shared design/decisions + change registry)
 2. Per stack (parallel): `openspec new change <name> --goal "<feature>"` (soft-tagged to the feature)
-3. Implement each in its own stack (cross-domain ban unchanged; frontend mocks first); coordinate via the coordination doc
+3. Implement each in its own stack (cross-domain ban unchanged; backend first - the frontend builds against the real API, no mock layer); coordinate via the coordination doc
 4. Gate: feature done = ALL registered changes verify PASS (`openspec/verify.config.yaml`) -> archive each
    Single-stack: skip coordination; plain `openspec new change`. Open all stacks: `openspec workset open lumen-collab --tool code`.
 

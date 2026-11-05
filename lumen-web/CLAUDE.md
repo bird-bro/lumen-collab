@@ -11,18 +11,25 @@ You are a **Frontend Web Agent**. Your scope: UI, components, state, API integra
 - **Stack**: React 18 + TypeScript + Vite + Ant Design 5 (pnpm, single SPA; departments are lazy-loaded route modules - no micro-frontend)
 
 ## Before You Code
-1. Read `../openspec/specs/api/spec.md` - mock from it (any mock tool), do not invent endpoints
+1. Read `../openspec/specs/api/spec.md` - type clients from it, do not invent endpoints
 2. Read `../openspec/specs/errors/spec.md` - handle every error code
 3. Check `../openspec/changes/` for active proposals
 4. If no spec exists, run `/opsx:propose` first - never code without a spec
 
-## Mock-First
-- Mock APIs from `../openspec/specs/api/spec.md` (any mock tool: MSW / mockjs / vite-plugin-mock-dev-server / etc.)
+## Backend-First
+- No mock layer (user ruling 2026-11-05, change `frontend-backend-first`): every page
+  request goes through the vite proxy to the REAL backend
+  (`VITE_API_ENTRY_URL ?? http://localhost:80`, nginx unified entry); when the entry is
+  unreachable requests fail as-is - never fabricate or stub page data
+- `pnpm dev` precondition = the backend entry is reachable; unit tests stub API client
+  modules at the seam (`vi.mock('@/api/...')`), which never serves page data at runtime
+- Static demo pages with hard-coded data are allowed for visual preview (new pages only;
+  data must not route through `src/api/` and the page must be identifiable as a demo)
 - UI prototype via `frontend-design` skill (new pages only; existing-page edits skip) → **user confirms** → then `/opsx:apply`
 - UI note: avoid red as a primary color (product decision - keeps alarm semantics for clinical warnings)
 
 ## Module Structure (planned)
-- `src/api/` - typed API clients generated/written from `openspec/specs/api/spec.md` (+ mock layer)
+- `src/api/` - typed API clients generated/written from `openspec/specs/api/spec.md` (no mock layer - real backend only)
 - `src/pages/` - route modules per department (`radiology/` first; `ultrasound/`, `endoscopy/` later)
 - `src/components/` - shared components; `src/stores/` - state; `src/layouts/` - shell & navigation
 
@@ -46,7 +53,7 @@ You are a **Frontend Web Agent**. Your scope: UI, components, state, API integra
 
 ## Build Commands
 ```
-pnpm dev        # dev server (with mock)
+pnpm dev        # dev server (REAL backend required via VITE_API_ENTRY_URL)
 pnpm test       # unit tests (Vitest, once wired)
 pnpm build      # production build
 ```
