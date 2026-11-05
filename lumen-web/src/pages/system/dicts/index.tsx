@@ -205,7 +205,14 @@ export default function DictsPage() {
       // Same type treatment as the 目录 column (user request 2026-11-05).
       render: (id: number) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{id}</span>,
     },
-    { title: '目录', dataIndex: 'name', align: 'center', render: (name: string) => <span style={{ fontWeight: 500 }}>{name}</span> },
+    {
+      // 表头居中、内容居左 (user request 2026-11-05) - AntD column `align`
+      // applies to both th and td, so the split uses per-cell overrides.
+      title: '目录',
+      dataIndex: 'name',
+      onHeaderCell: () => ({ style: { textAlign: 'center' } }),
+      render: (name: string) => <span style={{ fontWeight: 500 }}>{name}</span>,
+    },
   ]
 
   const detailColumns: TableColumnsType<DictDetail> = [
