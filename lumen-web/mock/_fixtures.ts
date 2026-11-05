@@ -298,7 +298,7 @@ export interface MockDictCatal {
 
 export function seedDictCatal(): MockDictCatal[] {
   return clone<MockDictCatal[]>([
-    { id: 1, enable: 1, code: 'common_status', name: '通用状态', sort: 0, remark: null, cls: null, initial: null, createBy: null, createTime: SEED_STAMP, updateBy: null, updateTime: SEED_STAMP },
+    { id: 1000, enable: 1, code: 'common_status', name: '通用状态', sort: 0, remark: null, cls: null, initial: null, createBy: null, createTime: SEED_STAMP, updateBy: null, updateTime: SEED_STAMP }, // id 1000: DB auto-increment start (user 2026-11-04; backend Flyway follow-up)
   ])
 }
 
@@ -326,8 +326,8 @@ export interface MockDictDetail {
 
 export function seedDictDetails(): MockDictDetail[] {
   return clone<MockDictDetail[]>([
-    { id: 1, enable: 1, caId: 1, caCode: 'common_status', code: 1, value: '1', label: '启用', color: null, css: null, sort: 1, back1: null, back2: null, remark: null, initial: null, createBy: null, createTime: SEED_STAMP, updateBy: null, updateTime: SEED_STAMP },
-    { id: 2, enable: 1, caId: 1, caCode: 'common_status', code: 0, value: '0', label: '停用', color: null, css: null, sort: 2, back1: null, back2: null, remark: null, initial: null, createBy: null, createTime: SEED_STAMP, updateBy: null, updateTime: SEED_STAMP },
+    { id: 1, enable: 1, caId: 1000, caCode: 'common_status', code: 1, value: '1', label: '启用', color: null, css: null, sort: 1, back1: null, back2: null, remark: null, initial: null, createBy: null, createTime: SEED_STAMP, updateBy: null, updateTime: SEED_STAMP },
+    { id: 2, enable: 1, caId: 1000, caCode: 'common_status', code: 0, value: '0', label: '停用', color: null, css: null, sort: 2, back1: null, back2: null, remark: null, initial: null, createBy: null, createTime: SEED_STAMP, updateBy: null, updateTime: SEED_STAMP },
   ])
 }
 

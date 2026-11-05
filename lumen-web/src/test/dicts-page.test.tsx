@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ConfigProvider } from 'antd'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -90,10 +90,12 @@ beforeEach(() => {
 })
 
 describe('dicts page - catalog (spec: Catalog list and duplicate feedback)', () => {
-  it('renders the IPage catalog records', async () => {
+  it('renders the IPage catalog records with the ID sub-line', async () => {
     renderPage()
     expect(await screen.findByText('通用状态')).toBeInTheDocument()
-    expect(screen.getByText('common_status')).toBeInTheDocument()
+    // The sub-line shows the catalog ID (user request 2026-11-04; DB
+    // auto-increment starts at 1000 - backend Flyway follow-up).
+    expect(screen.getByText('ID 1')).toBeInTheDocument()
   })
 
   it('creates a catalog and re-lists', async () => {
@@ -101,7 +103,7 @@ describe('dicts page - catalog (spec: Catalog list and duplicate feedback)', () 
     renderPage()
     await user.click(await screen.findByRole('button', { name: /新建目录/ }))
     await user.type(screen.getByLabelText('目录编码'), 'exam_type')
-    await user.type(screen.getByLabelText('目录名称'), '检查类型')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText('目录名称'), '检查类型')
     await user.click(screen.getByRole('button', { name: '保 存' }))
     await waitFor(() => expect(dictsApi.createCatal).toHaveBeenCalled())
     await waitFor(() => expect(dictsApi.listCatal).toHaveBeenCalledTimes(2))
@@ -115,7 +117,7 @@ describe('dicts page - catalog (spec: Catalog list and duplicate feedback)', () 
     renderPage()
     await user.click(await screen.findByRole('button', { name: /新建目录/ }))
     await user.type(screen.getByLabelText('目录编码'), 'common_status')
-    await user.type(screen.getByLabelText('目录名称'), '重复')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText('目录名称'), '重复')
     await user.click(screen.getByRole('button', { name: '保 存' }))
     await waitFor(() => expect(screen.getByText(/dict catalog code already exists/)).toBeInTheDocument())
     expect(screen.getByRole('dialog')).not.toHaveClass(DIALOG_LEAVING)

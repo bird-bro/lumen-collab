@@ -1,4 +1,5 @@
 import { ConfigProvider } from 'antd'
+import zhCN from 'antd/locale/zh_CN'
 import { RouterProvider } from 'react-router-dom'
 import { router } from '@/router'
 import { themeConfig } from '@/theme'
@@ -16,7 +17,7 @@ import { themeConfig } from '@/theme'
  */
 function App() {
   return (
-    <ConfigProvider theme={themeConfig}>
+    <ConfigProvider theme={themeConfig} locale={zhCN}>
       <RouterProvider router={router} />
     </ConfigProvider>
   )

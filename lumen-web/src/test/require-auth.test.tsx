@@ -168,7 +168,7 @@ describe('/system/** console routes (batch 6 replaces the 5.3 placeholders)', ()
     })
     renderRoutes('/system/dicts')
 
-    expect(await screen.findByPlaceholderText('编码 / 名称')).toBeInTheDocument()
+    expect(await screen.findByPlaceholderText('目录名称')).toBeInTheDocument()
     // The boot /me refresh ran AND the dict page issued its documented read.
     const urls = fetchMock.mock.calls.map(([input]) => String(input))
     expect(urls).toContain('/api/v1/system/me')
