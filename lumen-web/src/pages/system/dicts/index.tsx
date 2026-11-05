@@ -200,7 +200,7 @@ export default function DictsPage() {
     {
       title: 'ID',
       dataIndex: 'id',
-      width: 90,
+      width: 140,
       align: 'center',
       // Same type treatment as the 目录 column (user request 2026-11-05).
       render: (id: number) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{id}</span>,
