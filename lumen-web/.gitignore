@@ -1,1 +1,9 @@
 *.tsbuildinfo
+
+# The console logs PAGE directory (operation/sign log pages) must not be
+# swallowed by the machine-level global gitignore `logs` entry - batch 6b's
+# index.tsx was silently left untracked by it (repo built only on machines
+# where the file happened to exist). Same rescue pattern as the root
+# .gitignore's !docs/deployment/*.sql negation.
+!src/pages/system/logs/
+!src/pages/system/logs/**
