@@ -357,7 +357,8 @@
   static offline check)
 - **CHANGE IMPLEMENTATION COMPLETE: 19/19 tasks.** Next: /opsx:verify L2 -> archive
   confirmation. Backlog handed off: roles/list backend change; V2 seed menu restructure;
-  profile org field; user edit/delete endpoints (if wanted); mock fake-token switch;
+  profile org field; user edit/delete endpoints (if wanted); dict_catal_id_seq
+  RESTART WITH 1000 (Flyway, user 2026-11-04 - mock already id 1000); mock fake-token switch;
   woff2 subsetting; dark theme
 
 ### Batch 6b: Console Pages II (tasks 6.4-6.7 roles/menus/dicts/logs)
