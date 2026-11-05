@@ -33,18 +33,24 @@ See proposal.md - Why.
   NPE Spring internals). That is the ONE copied-line edit; recorded as coordination
   adaptation (8). Alternative rejected: building authorities in the filter (another
   copied-file edit for no gain).
-- **D2 — Method security via a lumen-owned config, annotations on controllers.** New
-  `org.birdbro.lumen.system.config.MethodSecurityConfig` with `@EnableMethodSecurity`
-  (no SecurityConfig edit), then `@PreAuthorize("hasAuthority('system:user:list')")`
-  class-level on the seven controller families. Class-level (not per-method) matches the
-  page-perm granularity; city controller stays un-annotated. Alternatives rejected:
-  URL-pattern rules in SecurityConfig (copied-file edit + regex drift) and a custom
-  interceptor (duplicates what Spring already evaluates).
-- **D3 — Deny handler mirrors the entry-point transport.** Lumen-owned
-  `AccessDeniedHandler` bean writing the unified envelope with `A0301` over HTTP 200,
-  mirroring the `"203"` entry-point ruling (frontend treats envelope-code errors
-  uniformly); registered for method-security denials. Alternative (raw HTTP 403) noted
-  but rejected for frontend uniformity.
+- **D2 — Method security: already enabled by the copied chain; annotate only.**
+  CORRECTED during apply: the copied `SecurityConfig` ALREADY carries
+  `@EnableGlobalMethodSecurity(prePostEnabled = true, securedEnabled = true)` - method
+  security was never the missing piece (only the authorities were, D1). So NO new
+  config class: class-level `@PreAuthorize("hasAuthority('...')")` on the seven
+  controller families is the whole wiring. Class-level (not per-method) matches the
+  page-perm granularity; city controller stays un-annotated. (A first implementation
+  added a lumen-owned `MethodSecurityConfig`, which double-registered
+  `metaDataSourceAdvisor` and broke the context - removed; recorded here so the
+  correction is auditable.)
+- **D3 — Deny advice mirrors the entry-point transport.** Lumen-owned
+  `AuthDenyAdvice` (`@RestControllerAdvice`, `@Order(HIGHEST_PRECEDENCE)`) catching
+  `AccessDeniedException` from the method-security AOP layer and writing the unified
+  envelope with `A0301` over HTTP 200, mirroring the `"203"` entry-point ruling. The
+  order matters: the copied `GlobalExceptionHandler` (unordered) carries an
+  `Exception.class` catch-all that would otherwise win the advice race and mask the
+  denial as a 500. Filter-level denials are impossible here (method security throws
+  inside the DispatcherServlet), so no `SecurityConfig` handler registration is needed.
 - **D4 — Stale sessions deny by default.** Sessions cached before this change lack
   `permissions` → empty authorities → deny. Short-lived test-server sessions make this
   a non-event; re-login fixes. No migration/back-compat shim.

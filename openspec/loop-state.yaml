@@ -14,17 +14,18 @@
 # Archived 2026-11-05 (verify PASS, 3 requirements + Purpose synced; slot released).
 # 2026-11-05: server-side-perm-enforcement took the slot (user ruling: #2 权限路线,
 # page-level backend enforcement now; button-level deferred to workstation-context).
-phase: proposing
+# Archived 2026-11-05 (verify PASS 8/8, 71/71; auth-rbac 3 reqs + errors A0301 synced; slot released).
+phase: archived
 change: server-side-perm-enforcement
 current_task: null
 execution_mode: Batch Inline
 tasks_total: 9
-tasks_done: 0
+tasks_done: 9
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: 166b06dd71daf13d49e43dc5011f5340b41181a6367207aa0a92b91947c6eeaa
+artifacts_hash: 9a0a06a6884dc42b61af1e2dd5fbb1b90fa11183e60243117cd02f5c9922d520
 contract_hash: null
 batches_completed: 0
 last_updated: 2026-11-05

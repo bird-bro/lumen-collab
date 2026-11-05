@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * Role management endpoints (auth-rbac-foundation task 4.4): CRUD plus the role-menu
@@ -35,6 +36,9 @@ import org.springframework.web.bind.annotation.RestController;
  * @author birdbro
  */
 @Api(tags = "角色管理")
+// Page-level server-side gate (server-side-perm-enforcement): the whole
+// family requires the page perm string; login/me and city stay ungated.
+@PreAuthorize("hasAuthority('system:role:list')")
 @RestController
 @RequestMapping("/api/v1/system/roles")
 public class RoleController {

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * Org-tree management endpoints (auth-rbac-foundation task 4.1): CRUD on the
@@ -39,6 +40,9 @@ import org.springframework.web.bind.annotation.RestController;
  * @author birdbro
  */
 @Api(tags = "机构管理")
+// Page-level server-side gate (server-side-perm-enforcement): the whole
+// family requires the page perm string; login/me and city stay ungated.
+@PreAuthorize("hasAuthority('system:org:list')")
 @RestController
 @RequestMapping("/api/v1/system/orgs")
 public class OrgController {

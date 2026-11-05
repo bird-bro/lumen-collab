@@ -9,6 +9,7 @@ import org.birdbro.lumen.system.service.MenuTreeService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * Menu query endpoints (auth-rbac-foundation task 4.4): the full menu tree (the
@@ -22,6 +23,9 @@ import org.springframework.web.bind.annotation.RestController;
  * @author birdbro
  */
 @Api(tags = "菜单管理")
+// Page-level server-side gate (server-side-perm-enforcement): the whole
+// family requires the page perm string; login/me and city stay ungated.
+@PreAuthorize("hasAuthority('system:menu:list')")
 @RestController
 @RequestMapping("/api/v1/system/menus")
 public class MenuController {

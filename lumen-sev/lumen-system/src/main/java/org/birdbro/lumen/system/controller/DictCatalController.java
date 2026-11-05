@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * Dictionary-catalog endpoints (system-data task 3.1): CRUD on the dropdown directories
@@ -37,6 +38,9 @@ import org.springframework.web.bind.annotation.RestController;
  * @author birdbro
  */
 @Api(tags = "字典目录")
+// Page-level server-side gate (server-side-perm-enforcement): the whole
+// family requires the page perm string; login/me and city stay ungated.
+@PreAuthorize("hasAuthority('system:dict:list')")
 @RestController
 @RequestMapping("/api/v1/system/dicts/catal")
 public class DictCatalController {

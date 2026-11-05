@@ -122,6 +122,16 @@ those services assign them and update this table.
   `AuthUserAgentResilienceTests` (missing-UA sign record + unversioned-UA regression
   sentinel). bitwalker 1.21 contract verified via javap: 2-arg constructor, UNKNOWN
   browser carries no Version. - 2026-11-04
+- **(11) session authorities from the permission set** (1 copied method body:
+  `common/core/pojo/user/UserLogin.getAuthorities()`, server-side-perm-enforcement
+  change): the copied method returned null - the copied `JwtAuthenticationTokenFilter`
+  puts that value straight into the `UsernamePasswordAuthenticationToken`, so the
+  security context never carried authorities and no method security could evaluate.
+  Now maps the session's `permissions` set to `SimpleGrantedAuthority`s (empty list
+  when null/empty - a stale pre-change session naturally degrades to "no permissions"
+  = deny). Login-side population ALREADY existed (the 3-arg constructor receives
+  `permissionSet(userId)`); this was the only missing link. RED/GREEN proven by
+  `AuthPermEnforcementTests`. - 2026-11-05
 - **Package naming: dual root by code origin** - user decision 2026-10-29. groupId
   `org.birdbro` everywhere; copied modules keep `org.birdbro.{framework,common}`; new
   modules use `org.birdbro.lumen.*` (`org.birdbro.lumen.{auth,patient,radiology,us,endo,

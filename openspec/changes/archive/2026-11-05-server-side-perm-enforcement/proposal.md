@@ -24,11 +24,12 @@ same gap; lumen deliberately goes one step beyond it.
   users→`system:user:list`, roles→`system:role:list`, menus→`system:menu:list`,
   orgs→`system:org:list`, deps→`system:dep:list`, dicts→`system:dict:list`,
   logs→`system:log:list`. City reference queries stay authenticated-only (reference
-  data any future role may read). Method-security enablement lives in a lumen-owned
-  configuration class (no framework file edits beyond the one-line `getAuthorities`
-  body fix, recorded in the coordination adaptation list).
-- **Denied-response contract**: a lumen-owned `AccessDeniedHandler` renders the unified
-  envelope with a dedicated permission-denied code, added to the errors spec.
+  data any future role may read). Method security needed NO new enablement — the copied
+  `SecurityConfig` already carried `@EnableGlobalMethodSecurity` (a draft config class
+  double-registered the advisor and was removed; see design D2 correction).
+- **Denied-response contract**: a lumen-owned `AuthDenyAdvice` (`@RestControllerAdvice`,
+  highest precedence) renders the unified envelope with the copied `A0301` 访问未授权
+  constant over the HTTP-200 transport, added to the errors spec.
 - **Button-level roadmap (documented, NOT implemented)**: per-button F-node gating
   (the 随访 recipe — F nodes + per-button perms + directive-level hiding) is recorded
   as the follow-up when workstation job roles land; this change deliberately stays at
@@ -56,11 +57,11 @@ string. Existing seeds are unaffected (the administrator role owns all menus).
 - `lumen-sev/common` — one method body (`UserLogin.getAuthorities()`), recorded as a
   coordination-doc adaptation (additive-first deviation, user ruling 2026-11-03 allows
   recorded OPS-lineage adjustments).
-- `lumen-sev/lumen-system` — login service populates session perms; a new
-  method-security config + access-denied handler (lumen-owned files); `@PreAuthorize`
-  on the seven controller families; new TDD test class (deny/pass-through matrix).
+- `lumen-sev/lumen-system` — a new deny advice (lumen-owned file; session perms were
+  already populated at login — corrected during apply); `@PreAuthorize` on the seven
+  controller families; new TDD test class (deny/pass-through matrix).
 - Frontend: none (it already gates on the same strings).
-- Specs: auth-rbac + errors deltas; coordination doc gains adaptation (8).
+- Specs: auth-rbac + errors deltas; coordination doc gains adaptation (11).
 - Deployment: Redis-cached sessions created BEFORE this change lack the `permissions`
   field — after deploy, existing sessions degrade to empty perms (deny) until re-login;
   acceptable on the test server (sessions are short-lived), noted in design.

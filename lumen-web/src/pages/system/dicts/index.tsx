@@ -1,5 +1,5 @@
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
-import { Button, Drawer, Form, Input, InputNumber, Popconfirm, Space, Tooltip, Typography, message, theme } from 'antd'
+import { Button, ColorPicker, Drawer, Form, Input, InputNumber, Popconfirm, Space, Tooltip, Typography, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -246,7 +246,7 @@ export default function DictsPage() {
         v ? (
           <Space size={6}>
             <span
-              style={{ width: 14, height: 14, borderRadius: 3, display: 'inline-block', border: `1px solid ${token.colorBorder}`, background: v }}
+              style={{ width: 26, height: 26, borderRadius: 4, display: 'inline-block', border: `1px solid ${token.colorBorder}`, background: v }}
               title={v}
             />
             <Typography.Text>{v}</Typography.Text>
@@ -258,6 +258,7 @@ export default function DictsPage() {
     {
       title: '样式',
       dataIndex: 'css',
+      width: 200,
       onCell: () => ({ style: { textAlign: 'center' } }),
       render: (v: string | null) =>
         v ? <Typography.Text code>{v}</Typography.Text> : '',
@@ -568,8 +569,12 @@ export default function DictsPage() {
           <Form.Item name="sort" label="排序" initialValue={10}>
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="color" label="颜色">
-            <Input autoComplete="off" placeholder="如 52c41a" />
+          <Form.Item
+            name="color"
+            label="颜色"
+            getValueFromEvent={(color) => (color ? `#${color.toHex()}` : '')}
+          >
+            <ColorPicker showText allowClear disabledAlpha style={{ width: '100%', height: 32, justifyContent: 'space-between' }} />
           </Form.Item>
           <Form.Item name="css" label="样式">
             <Input placeholder="color:rgb(82,196,26);" autoComplete="off" />

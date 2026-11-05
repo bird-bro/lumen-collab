@@ -4,10 +4,13 @@ import com.alibaba.fastjson2.annotation.JSONField;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 登录用户身份权限
@@ -141,9 +144,23 @@ public class UserLogin implements UserDetails {
     }
 
 
+    /**
+     * 会话权限集 → Spring Security authorities（server-side-perm-enforcement D1）。
+     * 空集/缺失一律返回空列表而非 null——过滤器把本值直接放进
+     * {@code UsernamePasswordAuthenticationToken}，null 会在 Spring 内部引发 NPE；
+     * 缺 permissions 字段的旧会话因此自然降级为"无任何权限"（默认拒绝）。
+     *
+     * @author birdbro
+     */
+    @JSONField(serialize = false)
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return null;
+        if (permissions == null || permissions.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return permissions.stream()
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
     }
 
 

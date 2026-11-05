@@ -13,21 +13,23 @@ finally wired to real tables.
 ## Requirements
 
 <!-- synced from: rename-auth-to-system 2026-11-04 -->
+<!-- V12 dict_catal_code_drop synced DIRECTLY (user ruling 2026-11-05: no change needed) -->
 
 ### Requirement: Dict Catalog Management
-The service SHALL provide CRUD on `dict_catal` (dictionary catalog: `code` unique among
-live rows, `name`, `enable`, `sort`, `remark`, `cls`) exposed under
+The service SHALL provide CRUD on `dict_catal` (dictionary catalog: `name` unique among
+live rows - V12 dropped the `code` column outright, making the display name the only
+human-facing key - plus `enable`, `sort`, `remark`, `cls`) exposed under
 `/api/v1/system/dicts/catal/**` and guarded by the copied security chain. The duplicate
-`code` SHALL be rejected with an `A`-class code. (V9 dropped the pinyin `initial` column
-- catalogs are no longer field-extensible with search helpers.)
+`name` SHALL be rejected with an `A`-class code (partial unique index
+`uk_dict_catal_name WHERE deleted = 0`; V9 dropped the pinyin `initial` column).
 
 #### Scenario: Create a catalog
-- **WHEN** an authenticated administrator creates a catalog with a fresh `code`
+- **WHEN** an authenticated administrator creates a catalog with a fresh `name`
 - **THEN** it persists in `public.dict_catal` with `create_by` filled from the audit
   bridge
 
-#### Scenario: Duplicate catalog code rejected
-- **WHEN** a catalog is created with an existing live `code`
+#### Scenario: Duplicate catalog name rejected
+- **WHEN** a catalog is created with an existing live `name`
 - **THEN** the service rejects it with an `A`-class code
 
 ### Requirement: Dict Detail Management
@@ -37,9 +39,11 @@ display and the stored text, `tag`/`flag` spare slots, `color`, `css`, `sort`, `
 `remark`) exposed under `/api/v1/system/dicts/detail/**`. The detail-level uniqueness is
 the live `(caId, value)` pair, enforced service-side with an `A`-class rejection and
 backstopped by the partial unique index `uk_dict_detail_ca_id_value WHERE deleted = 0`.
-The by-code list endpoint keeps its `?caCode=` query parameter and resolves the catalog
-code to its `caId` internally (V9 removed the denormalized `caCode` column and the
-duplicated `label` column; V9 also carried the seeded display text into `value`).
+The by-id list endpoint takes a `?caId=` query parameter (V12 dropped the catalog
+`code` column outright, so every anchor is `caId` - the seed catalog ids are stable:
+1000 common_status, 1001-1007 the six real dictionaries; V9 had already removed the
+denormalized `caCode` column and the duplicated `label` column, carrying the seeded
+display text into `value`).
 
 #### Scenario: Create a detail under a catalog
 - **WHEN** a detail is created for a live catalog with `caId` and a fresh `value`
@@ -51,8 +55,8 @@ duplicated `label` column; V9 also carried the seeded display text into `value`)
   the same catalog
 - **THEN** the service rejects it with an `A`-class code
 
-#### Scenario: List details by catalog code
-- **WHEN** a client requests the details of a catalog `code`
+#### Scenario: List details by catalog id
+- **WHEN** a client requests the details of a catalog `caId`
 - **THEN** only live details of that catalog return, ordered by `sort`
 
 ### Requirement: Dict Seed Data
@@ -69,7 +73,7 @@ rows.
 - **THEN** `public.dict_catal` holds 7 live catalogs - `common_status` at id 1000 and
   the six real dictionaries in the 1001-1007 range
 - **AND** `public.dict_detail` holds 30 live details resolving through the detail query
-  endpoint by catalog `code` (e.g. `gender` → 男/女/未知)
+  endpoint by catalog id (seed ids fixed: `gender` = 1004 → 男/女/未知)
 - **AND** `common_status`'s details expose 启用/停用 as their `value` texts with machine
   keys 1/0 in `code`
 

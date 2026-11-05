@@ -294,3 +294,10 @@
     inset -1px 0 0 var(--lumen-row-current-bar),
     inset 0 1px 0 var(--lumen-row-current-bar);
 }
+
+/* Dict-form ColorPicker (user request 2026-11-05): enlarge the swatch block
+   inside the full-width trigger so the preview reads at the input's scale. */
+.ant-color-picker-color-block {
+  width: 26px;
+  height: 26px;
+}

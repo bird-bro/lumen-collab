@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * Operation-log query endpoint (system-data task 3.2): paginated {@code public.log_info}
@@ -24,6 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
  * @author birdbro
  */
 @Api(tags = "操作日志")
+// Page-level server-side gate (server-side-perm-enforcement): the whole
+// family requires the page perm string; login/me and city stay ungated.
+@PreAuthorize("hasAuthority('system:log:list')")
 @RestController
 @RequestMapping("/api/v1/system/logs")
 public class LogController {
