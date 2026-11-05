@@ -15,17 +15,20 @@
 # 2026-11-05: server-side-perm-enforcement took the slot (user ruling: #2 权限路线,
 # page-level backend enforcement now; button-level deferred to workstation-context).
 # Archived 2026-11-05 (verify PASS 8/8, 71/71; auth-rbac 3 reqs + errors A0301 synced; slot released).
+# 2026-11-05: sign-log-query took the slot (user-ruled scope: V13 partitioned log tables
+# with log_info_def/log_sign_def default net, sign-log endpoint + 登录日志 page, two pages
+# not tabs; SDD mode, 10 tasks).
 phase: archived
-change: server-side-perm-enforcement
+change: sign-log-query
 current_task: null
-execution_mode: Batch Inline
-tasks_total: 9
-tasks_done: 9
+execution_mode: SDD
+tasks_total: 12
+tasks_done: 12
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: 9a0a06a6884dc42b61af1e2dd5fbb1b90fa11183e60243117cd02f5c9922d520
+artifacts_hash: d6ac214f3883218683e2ceb8b4e09b1aaaa57d79242d14ccb47365c2e8d35555
 contract_hash: null
 batches_completed: 0
 last_updated: 2026-11-05

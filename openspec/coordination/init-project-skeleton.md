@@ -132,6 +132,15 @@ those services assign them and update this table.
   = deny). Login-side population ALREADY existed (the 3-arg constructor receives
   `permissionSet(userId)`); this was the only missing link. RED/GREEN proven by
   `AuthPermEnforcementTests`. - 2026-11-05
+- **(12) sign-log token stays out of console responses** (1 copied field annotation:
+  `framework/log/entity/LogSignEntity.token` gains field-level `@JsonInclude(NON_NULL)`,
+  sign-log-query change): the new console query select-excludes the `token` column, but
+  plain Jackson still emitted `"token": null`; NON_NULL omits the key when unselected
+  while PRESERVING the copied XML query path's token serialization (D7 carve-out) -
+  `@JsonIgnore` was rejected because it would suppress the property everywhere. Entity
+  already carried Jackson annotations (`@JsonIgnore` on `deleted`, `@JsonFormat`); no
+  mapping/Lombok change. RED/GREEN proven by `AuthSignLogQueryTests` (per-row key
+  absence). - 2026-11-05
 - **Package naming: dual root by code origin** - user decision 2026-10-29. groupId
   `org.birdbro` everywhere; copied modules keep `org.birdbro.{framework,common}`; new
   modules use `org.birdbro.lumen.*` (`org.birdbro.lumen.{auth,patient,radiology,us,endo,

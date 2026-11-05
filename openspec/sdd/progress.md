@@ -479,3 +479,67 @@ profile org field; user edit/delete endpoints (if wanted); dict_catal_id_seq
   in brief - peer evidence captured
 - Notes: progress.md shared with parallel rename session - ledger lines for this
   change land in shared commits only when the tree is quiet
+
+## Change: sign-log-query
+## Execution Mode: SDD
+## Started: 2026-11-05
+## Base: d98e5b9 (branch: dev)
+
+### Batch 1: V13 partitioned log tables (tasks 1.1-1.2)
+- Status: Complete + Approved (commit b24895a; reviewer independently re-ran suite 71/71,
+  live layout + checksum + scope verified). All 3 deviations proven correct: id-first per
+  AuthSystemDataMigrationTests:154; flyway_schema_history delete = sanctioned repair
+  (standing ruling) with convergent two-branch preamble; partitions-before-INSERT mandatory
+  (empty partitioned parent rejects INSERT), Flyway 7.7.3 file-wide tx strictly safer.
+  Minor (non-gating, ledger-only): setval COALESCE skips id=1 on empty table; DROP CASCADE
+  in already-partitioned branch latent for future dependents; design D1 amended with the
+  file-wide-tx note (artifacts hash refreshed).
+
+### Batch 2: sign-log endpoint TDD (tasks 2.1-2.3)
+- Status: Complete + Approved (d48bf29; reviewer re-ran 74/74, verified 5-file additive
+  scope, strict key-absence token assertion with REAL token values seeded). Deviations
+  endorsed: @JsonInclude(NON_NULL) = technically optimal D7 solution (@JsonIgnore would kill
+  the copied-XML carve-out) - recorded as coordination adaptation (12); fixture-user design
+  correct + hygiene exceeds reference suite.
+  Important #1 (probe rows occupy menu id 17 on test DB - V14 DO NOTHING would silently
+  no-op there): folded into batch 3 as task 3.2 + revive-semantics conflict clause.
+  Important #2 (field injection vs reviewer's overloaded-ctor suggestion): reviewer's
+  mechanism cannot compile (final field unassigned in kept 1-arg ctor) - implementer's
+  rationale held; house decision recorded instead: additive DI = @Autowired field when the
+  existing ctor stays byte-identical (lumen-sev/CLAUDE.md Coding Standards).
+  Minor ledger-only: per-run menu-sequence consumption (stopped by 3.2 hard-delete); uid
+  collision ~27.7h window (accepted trade-off, same as reference suites); colon-form javadoc
+  tags mirror the sibling ILogInfoService.getPage pattern (kept).
+
+### Batch 3: V14 menu seed + probe cleanup (tasks 3.1 + 3.2)
+- Status: Complete + Approved (2f39880; reviewer verified 2-file scope, V14 verbatim tuple,
+  revive deviation documented IN the migration header, cleanupMenu FK-ordered hard-delete with
+  assertions untouched, live DB checks, suite 74/74 x2 on reviewer's own runs; the reviewer
+  additionally live-exercised the revive branch in a ROLLED-BACK transaction - pollution ->
+  V14 verbatim -> convergence -> rollback, zero trace - closing the implementer's only open
+  verification gap with positive evidence). Minor ledger-only: design D8 supersession note
+  added (applied); revive SET list omits `visible` - benign (default 1, nothing writes 0),
+  V14 already applied so unfixable without a rewrite - recorded, accepted.
+openspec/changes/sign-log-query/verify-evidence.md written (task 5.1, 8-scenario evidence
+map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 tasks.
+
+### Batch 4: web sign-in log page TDD (tasks 4.1-4.4)
+- Status: Complete + Approved (afa3a50 feature + f04f29f gitignore rescue; reviewer re-ran
+  167/167 + build exit 0; proved index.tsx was never tracked on ANY branch pre-rescue - real
+  fresh-clone breakage fixed). 0 Critical / 0 Important. Minor ledger-only: token-absence
+  runtime pin is fixture-weak (backend select-exclusion is the real guard - b2 pins it);
+  global-gitignore line now removed by user authorization (backup .gitignore_global.bak-20261105);
+  month filter mirrors logs page exactly (no client yyyyMM validation - by design).
+
+### Batch 5: WHEN/THEN walkthrough (task 5.1)
+- Status: Queued (verify stage)
+
+### Archive (2026-11-05)
+- Status: ARCHIVED to openspec/changes/archive/2026-11-05-sign-log-query (verify PASS 8/8;
+  guard PASS; specs synced inline BEFORE the move - system-data MODIFIED System Log Tables
+  + ADDED Sign Log Query Endpoint, web-system-console ADDED Sign-in Log Query; validate
+  confirms ADDED headers already exist in main specs = sync proven). Slot released.
+- Acceptance addendum: user-browser pass done; test-fixture log pollution swept from the
+  shared DB per user order (816 log_sign + 839 log_info + 5 fixture users soft-deleted,
+  V5-precedent style; suites re-pollute on every ./mvnw test run - standing cleanup left
+  as an open user decision).

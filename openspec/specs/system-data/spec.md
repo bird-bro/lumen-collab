@@ -99,15 +99,32 @@ is already wired by the copied `LogoutSuccessHandlerImpl` - the V3 tables make b
 - **THEN** a `public.log_sign` row appears with the account, event type, and action time
 
 ### Requirement: System Log Tables
-The V3 migration SHALL create `public.log_info` and `public.log_sign` as append-only
-tables (no audit block; the `dateYm` key supports monthly archival) so the copied log
-machinery resolves real tables.
+The `public.log_info` and `public.log_sign` tables SHALL be declaratively partitioned by
+`RANGE (date_ym)` (the int yyyymm key column) with yearly child partitions
+(`log_info_2026`/`log_info_2027`/..., bounds `FROM (YYYY00) TO (YYYY99)`) mirroring the OPS
+reference database layout, PLUS a default partition `log_info_def` / `log_sign_def` as the
+write safety net for years without a pre-created child (user decision 2026-11-05 - a
+deliberate deviation from the reference, which has none). The primary keys SHALL become
+composite `(id, date_ym)` (PostgreSQL requires the partition key in every unique
+constraint); `id` remains the global identity sequence so entity-level reads and the
+append-write path are unchanged. Existing rows SHALL be carried into the partitioned layout
+by the conversion migration. The tables stay append-only.
 
 #### Scenario: Log table exists on fresh database
 - **WHEN** a fresh database receives the migrations
-- **THEN** `public.log_info` and `public.log_sign` exist in the `public` schema
+- **THEN** `public.log_info` and `public.log_sign` exist in the `public` schema as
+  partitioned tables keyed `RANGE (date_ym)`
+- **AND** yearly partitions for 2026 and 2027 exist plus one default partition per table
 
-<!-- synced from: rename-auth-to-system 2026-11-04 -->
+#### Scenario: Rows survive the conversion
+- **WHEN** the partition conversion migration runs on a database that already has log rows
+- **THEN** every previously visible row remains readable through the parent table
+
+#### Scenario: Write into an unpartitioned year lands in the default partition
+- **WHEN** a sign or operation event writes a row whose `date_ym` year has no child partition
+- **THEN** the row lands in that table's default partition instead of the write failing
+
+<!-- synced from: sign-log-query 2026-11-05 (supersedes the rename-auth-to-system wording) -->
 
 ### Requirement: Log Query Endpoint
 The service SHALL expose a paged log query under `/api/v1/system/logs` (filters: `type`,
@@ -121,6 +138,26 @@ the shared `framework` library - every `@Log`-using service records through it; 
 - **THEN** `log_info` rows return newest-first with the requested filters applied
 
 <!-- synced from: rename-auth-to-system 2026-11-04 -->
+
+### Requirement: Sign Log Query Endpoint
+The service SHALL expose a paged sign-log query under `/api/v1/system/logs/sign` (filters:
+`account`, `uid`, `dateYm`; ordered by `actionTime` descending) reading `public.log_sign`,
+gated server-side by the page permission `system:signlog:list` - independent of the
+operation-log permission (a role may hold one without the other). Responses SHALL NOT
+include the `token` column (credential material never reaches admin screens). The change is
+additive: the existing `GET /api/v1/system/logs` contract is unchanged, and there is
+deliberately no mutation endpoint for either log table.
+
+#### Scenario: Query sign logs
+- **WHEN** an administrator holding `system:signlog:list` queries the sign-log endpoint
+- **THEN** `log_sign` rows return newest-first with the requested filters applied
+- **AND** no row carries a `token` field
+
+#### Scenario: Sign-log permission is enforced server-side
+- **WHEN** a request without the `system:signlog:list` authority reaches the sign-log endpoint
+- **THEN** the service rejects it (forbidden) even when the caller holds `system:log:list`
+
+<!-- synced from: sign-log-query 2026-11-05 -->
 
 ### Requirement: Shared Placement in the Public Schema
 The four system-data tables SHALL live in the `public` schema of the `lumen` database and

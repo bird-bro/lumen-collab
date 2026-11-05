@@ -37,6 +37,7 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 
 ## Coding Standards
 - Layering: controller → service → mapper; DTOs never leak into domain entities
+- Additive DI: when an existing constructor must stay byte-identical (never-modify rule), add the new dependency as an `@Autowired` field - documented precedent `LogController` (sign-log-query b2 review, 2026-11-05)
 - Unified response + global exception handler from the copied `framework` (`GlobalResponseAdvice` / `GlobalExceptionHandler`); error codes per `../openspec/specs/errors/spec.md`
 - Every table: `id` + the OPS `EntityBase` audit fields (`deleted`, `create_by`, `create_time`, `update_by`, `update_time`) via the copied `framework`'s `MetaObjectConfig`
 - Entity classes carry the OPS Lombok combo `@Data @Builder @AllArgsConstructor @NoArgsConstructor` (user decision 2026-11-03) - `@Builder` alone removes the no-arg constructor MyBatis-Plus row mapping needs. Entity assignment: `BeanUtil.copyProperties(request, entity, true)` (OPS house idiom, ignore-null) when fields match 1:1; `Xxx.builder()...build()` for computed/no-source patches; renamed or semantic-converting fields stay explicit
