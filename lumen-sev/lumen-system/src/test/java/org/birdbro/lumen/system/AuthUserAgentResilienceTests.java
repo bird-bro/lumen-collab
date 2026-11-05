@@ -97,8 +97,8 @@ class AuthUserAgentResilienceTests extends AuthIntegrationTestBase {
         int createdId = createBody.path("data").asInt(-1);
         assertTrue(createdId > 0, "the created org id must come back");
         Integer logRows = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM public.log_info WHERE uid = 1 AND name = 'create'",
-                Integer.class);
+                "SELECT COUNT(*) FROM public.log_info WHERE uid = ? AND name = 'create'",
+                Integer.class, runUserId());
         assertTrue(logRows != null && logRows >= 1,
                 "the @Log row must land even with an unversioned UA");
         jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE id = ?", createdId);
@@ -106,7 +106,7 @@ class AuthUserAgentResilienceTests extends AuthIntegrationTestBase {
 
     private String adminToken() throws Exception {
         ResponseEntity<String> loginResponse = postJson("/api/v1/system/login",
-                "{\"username\":\"admin\",\"password\":\"admin123\"}", null);
+                runAdminLoginBody(), null);
         JsonNode loginBody = parse(loginResponse);
         assertEquals("200", loginBody.path("code").asText(),
                 "admin login must hand out the token");

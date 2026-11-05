@@ -162,8 +162,7 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
     }
 
     private String adminToken() throws Exception {
-        ResponseEntity<String> loginResponse = postJsonWithUa(LOGIN_URL,
-                "{\"username\":\"admin\",\"password\":\"admin123\"}");
+        ResponseEntity<String> loginResponse = postJsonWithUa(LOGIN_URL, runAdminLoginBody());
         JsonNode loginBody = parse(loginResponse);
         assertEquals("200", loginBody.path("code").asText(), "admin login must hand out the token");
         String token = loginBody.path("data").path("token").asText("");

@@ -77,7 +77,7 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
         assertTrue(createdId > 2, "the created catalog id must come back past the seeded ids 1/2 (V3 setval)");
 
         // Scenario 1 verdict against the real table: the row is in public.dict_catal with
-        // the operator audit (create_by = admin 1) and the enable column default 1.
+        // the operator audit (create_by = the run admin's id) and the enable column default 1.
         Map<String, Object> row = jdbcTemplate.queryForMap(
                 "SELECT name, enable, deleted, create_by FROM public.dict_catal WHERE id = ?",
                 createdId);
@@ -85,8 +85,8 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
         assertEquals(1, ((Number) row.get("enable")).intValue(),
                 "an omitted enable must fall to the lumen 1/0 live default");
         assertEquals(0, ((Number) row.get("deleted")).intValue(), "the new row must be live");
-        assertEquals(1, ((Number) row.get("create_by")).intValue(),
-                "create_by must be the admin id 1 (MetaObjectConfig fill via the bridge filter)");
+        assertEquals(runUserId().intValue(), ((Number) row.get("create_by")).intValue(),
+                "create_by must be the run admin's id (MetaObjectConfig fill via the bridge filter)");
 
         // Scenario 2: the same live name is rejected as a duplicate (A0714, data null).
         ResponseEntity<String> duplicateResponse = exchangeJson(HttpMethod.POST, CATAL_URL,
@@ -223,8 +223,7 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
     }
 
     private String adminToken() throws Exception {
-        ResponseEntity<String> loginResponse = postJson(LOGIN_URL,
-                "{\"username\":\"admin\",\"password\":\"admin123\"}");
+        ResponseEntity<String> loginResponse = postJson(LOGIN_URL, runAdminLoginBody());
         JsonNode loginBody = parse(loginResponse);
         assertEquals("200", loginBody.path("code").asText(), "admin login must hand out the token");
         String token = loginBody.path("data").path("token").asText("");

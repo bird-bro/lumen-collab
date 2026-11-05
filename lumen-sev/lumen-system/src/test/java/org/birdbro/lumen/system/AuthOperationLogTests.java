@@ -25,8 +25,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@code AsyncManager} machinery - asynchronously, so the assertion POLLS (see
  * {@link AuthAsyncPoll}).
  *
- * <p>The row must carry the operator identity (uid = admin 1, account admin - the JWT
- * principal the aspect reads), the annotation's title/type, and the correct method/url.
+ * <p>The row must carry the operator identity (uid = the run-scoped admin's id, account
+ * the run-scoped admin username - the JWT principal the aspect reads), the annotation's
+ * title/type, and the correct method/url.
  * The request sends a real-browser User-Agent on purpose: the copied aspect parses the
  * agent string (browser/os/engine columns) and the TestRestTemplate default
  * {@code Java/...} agent has no parseable browser version.</p>
@@ -67,27 +68,26 @@ class AuthOperationLogTests extends AuthIntegrationTestBase {
         AtomicBoolean rowPresent = new AtomicBoolean(false);
         AuthAsyncPoll.until(() -> {
             Integer count = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM public.log_info WHERE uid = 1 AND url = ? "
+                    "SELECT COUNT(*) FROM public.log_info WHERE uid = ? AND url = ? "
                     + "AND method = 'POST' AND title = '机构管理' AND param LIKE ?",
-                    Integer.class, ORGS_URL, "%" + orgName + "%");
+                    Integer.class, runUserId(), ORGS_URL, "%" + orgName + "%");
             rowPresent.set(count != null && count > 0);
             return rowPresent.get();
-        }, "the @Log write for POST /api/v1/system/orgs (uid 1, title 机构管理, param "
+        }, "the @Log write for POST /api/v1/system/orgs (run-admin uid, title 机构管理, param "
                 + orgName + ") never landed in public.log_info");
 
         // The matching row also carries the success record flag (0 INFO) and the account.
         Integer record = jdbcTemplate.queryForObject(
-                "SELECT record FROM public.log_info WHERE uid = 1 AND url = ? "
+                "SELECT record FROM public.log_info WHERE uid = ? AND url = ? "
                 + "AND method = 'POST' AND title = '机构管理' AND param LIKE ?",
-                Integer.class, ORGS_URL, "%" + orgName + "%");
+                Integer.class, runUserId(), ORGS_URL, "%" + orgName + "%");
         assertEquals(Integer.valueOf(0), record, "a successful call must be logged as record 0 (INFO)");
 
         jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE id = ?", createdId);
     }
 
     private String adminToken() throws Exception {
-        ResponseEntity<String> loginResponse = postJson(LOGIN_URL,
-                "{\"username\":\"admin\",\"password\":\"admin123\"}");
+        ResponseEntity<String> loginResponse = postJson(LOGIN_URL, runAdminLoginBody());
         JsonNode loginBody = parse(loginResponse);
         assertEquals("200", loginBody.path("code").asText(), "admin login must hand out the token");
         String token = loginBody.path("data").path("token").asText("");

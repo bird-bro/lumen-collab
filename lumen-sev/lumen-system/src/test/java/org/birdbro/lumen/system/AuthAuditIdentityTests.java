@@ -18,9 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Audit identity proof (auth-rbac-foundation task 3.3): with the admin token, a write
- * through {@code POST /api/v1/system/users} must persist {@code create_by} = the admin id
- * (1) - the copied {@code MetaObjectConfig} insert fill fed by the lumen
+ * Audit identity proof (auth-rbac-foundation task 3.3): with the run-scoped admin token
+ * (the shared-DB cleanup hook's {@code runAdminLoginBody()} identity), a write through
+ * {@code POST /api/v1/system/users} must persist {@code create_by} = the run admin's id -
+ * the copied {@code MetaObjectConfig} insert fill fed by the lumen
  * {@code UserHeaderBridgeFilter}, which derives the OPS-style USER-HEADER request header
  * from the JWT-authenticated principal. Proven against the real database (team test
  * server), not a mock.
@@ -46,8 +47,7 @@ class AuthAuditIdentityTests extends AuthIntegrationTestBase {
 
     @Test
     void createUserWithAdminTokenFillsCreateByWithAdminId() throws Exception {
-        ResponseEntity<String> loginResponse = postJson(LOGIN_URL,
-                "{\"username\":\"admin\",\"password\":\"admin123\"}");
+        ResponseEntity<String> loginResponse = postJson(LOGIN_URL, runAdminLoginBody());
         JsonNode loginBody = parse(loginResponse);
         assertEquals("200", loginBody.path("code").asText(), "login must succeed to hand out the token");
         String token = loginBody.path("data").path("token").asText("");
@@ -63,7 +63,7 @@ class AuthAuditIdentityTests extends AuthIntegrationTestBase {
         Integer createdId = createBody.path("data").asInt(-1);
         assertTrue(createdId > 1, "the created row's id must come back (past the seeded ids)");
 
-        // The real database verdict: create_by must be the admin's id (1) - MetaObjectConfig
+        // The real database verdict: create_by must be the run admin's id - MetaObjectConfig
         // fill proven end-to-end - and create_time non-null (DB default).
         Integer createBy = jdbcTemplate.queryForObject(
                 "SELECT create_by FROM system.user_info WHERE id = ?", Integer.class, createdId);
@@ -73,8 +73,8 @@ class AuthAuditIdentityTests extends AuthIntegrationTestBase {
                 "SELECT create_time FROM system.user_info WHERE id = ?", java.sql.Date.class, createdId);
         assertNotNull(createTime, "create_time must be non-null");
         assertEquals(Integer.valueOf(0), deleted, "the new row must be live (deleted = 0)");
-        assertEquals(Integer.valueOf(1), createBy,
-                "create_by must be the admin id 1 - the JWT principal must reach MetaObjectConfig"
+        assertEquals(runUserId().intValue(), createBy.intValue(),
+                "create_by must be the run admin's id - the JWT principal must reach MetaObjectConfig"
                         + " (bridge filter) and fill the audit column; actual: " + createBy);
 
         // Logical cleanup (shared DB): hide the row after the evidence is captured.

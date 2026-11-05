@@ -196,13 +196,13 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
     // ---------- helpers (house style, mirroring AuthRoleMenuTests) ----------
 
     private String adminToken() throws Exception {
-        return loginToken("admin");
+        return loginToken(RUN_ACCOUNT);
     }
 
     private String loginToken(String username) throws Exception {
         ResponseEntity<String> loginResponse = postJson(LOGIN_URL,
                 "{\"username\":\"" + username + "\",\"password\":\""
-                        + ("admin".equals(username) ? "admin123" : "audit-pass-123") + "\"}");
+                        + (RUN_ACCOUNT.equals(username) ? ADMIN_TEST_PASSWORD : "audit-pass-123") + "\"}");
         JsonNode loginBody = parse(loginResponse);
         assertEquals("200", loginBody.path("code").asText(), "login must hand out the token");
         String token = loginBody.path("data").path("token").asText("");

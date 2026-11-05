@@ -267,7 +267,7 @@ class AuthSignLogQueryTests extends AuthIntegrationTestBase {
     // ---------- helpers (house style, mirroring AuthLogQueryTests/AuthPermEnforcementTests) ----------
 
     private String adminToken() throws Exception {
-        return loginToken("admin", "admin123");
+        return loginToken(RUN_ACCOUNT, ADMIN_TEST_PASSWORD);
     }
 
     private String loginToken(String username, String password) throws Exception {

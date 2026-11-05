@@ -229,8 +229,7 @@ class AuthDictCityTests extends AuthIntegrationTestBase {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         ResponseEntity<String> loginResponse = restTemplate.exchange(LOGIN_URL,
-                HttpMethod.POST, new HttpEntity<>("{\"username\":\"admin\","
-                        + "\"password\":\"admin123\"}", headers), String.class);
+                HttpMethod.POST, new HttpEntity<>(runAdminLoginBody(), headers), String.class);
         JsonNode loginBody = parse(loginResponse);
         assertEquals("200", loginBody.path("code").asText(), "admin login must hand out the token");
         String token = loginBody.path("data").path("token").asText("");
