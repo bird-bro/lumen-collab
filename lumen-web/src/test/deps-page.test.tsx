@@ -140,7 +140,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   // The documented perms string of this page (seed menu id 8); no new perms
   // code is invented - the mutation surface rides on it (design D6).
-  useAuthStore.getState().setSession({ perms: ['system:dep:list'] })
+  useAuthStore.getState().setSession({ perms: ['system:dep:list', 'system:dep:create', 'system:dep:update', 'system:dep:delete'] })
   vi.mocked(orgsApi.orgTree).mockResolvedValue(ORG_TREE)
   vi.mocked(orgDepsApi.createDep).mockResolvedValue(13)
   vi.mocked(orgDepsApi.updateDep).mockResolvedValue(true)
@@ -347,5 +347,25 @@ describe('dep page - delete and perms (delta: mutation affordances follow system
     expect(screen.queryByTitle('删除科室')).toBeNull()
     expect(screen.getAllByText('radiology').length).toBeGreaterThan(0)
     expect(within(tree()).getByText('总院区')).toBeInTheDocument()
+  })
+})
+
+describe('deps page - button-level gating (button-perm-enforcement-web)', () => {
+  it('hides ungranted affordances when only the page perm is held', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:dep:list'] })
+    renderPage()
+    await screen.findAllByText('radiology')
+    expect(screen.queryByRole('button', { name: /新建科室/ })).not.toBeInTheDocument()
+    expect(screen.queryByTitle('编辑科室')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('删除科室')).not.toBeInTheDocument()
+  })
+
+  it('reveals the three affordances when their button perms are granted', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:dep:list', 'system:dep:create', 'system:dep:update', 'system:dep:delete'] })
+    renderPage()
+    await screen.findAllByText('radiology')
+    expect(screen.getByRole('button', { name: /新建科室/ })).toBeInTheDocument()
+    expect(screen.getAllByTitle('编辑科室').length).toBeGreaterThan(0)
+    expect(screen.getAllByTitle('删除科室').length).toBeGreaterThan(0)
   })
 })

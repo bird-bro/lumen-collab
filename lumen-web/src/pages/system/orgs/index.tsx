@@ -1,6 +1,27 @@
-import { Alert, Button, Drawer, Form, Input, InputNumber, Popconfirm, Select, Tag, message, theme } from 'antd'
+import {
+  Alert,
+  Avatar,
+  Button,
+  Drawer,
+  Form,
+  Input,
+  InputNumber,
+  Popconfirm,
+  Select,
+  Tag,
+  message,
+  theme,
+} from 'antd'
+import {
+  BankOutlined,
+  EnvironmentOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  TagOutlined,
+  UserOutlined,
+} from '@ant-design/icons'
 import type { TableColumnsType } from 'antd'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createOrg, deleteOrg, orgTree, updateOrg } from '@/api/orgs'
 import { ApiError } from '@/api/client'
 import type { OrgNode } from '@/api/types'
@@ -30,8 +51,8 @@ import {
  * server-derived.
  *
  * Option B first-run (D7): while the seeded root is still the bootstrap
- * placeholder (`未命名医院` + code `HOSPITAL`), a completion hint shows above
- * the table; administrators complete the real profile through the normal
+ * placeholder (`未命名医院` + code `HOSPITAL`), a completion hint shows in the
+ * hospital aside; administrators complete the real profile through the normal
  * hospital edit form - no initialization-specific control is invented.
  *
  * Data flow: one orgTree() on mount; every successful mutation re-queries and
@@ -51,6 +72,183 @@ const ACTION_COLUMN_WIDTH = 150
 /** Option B bootstrap detection: V16 normalizes the seed to exactly this pair. */
 function isFirstRunBootstrap(hospital: OrgNode | null): boolean {
   return hospital !== null && hospital.code === 'HOSPITAL' && hospital.name === '未命名医院'
+}
+
+/** One compact profile fact; missing facts are hidden instead of leaving noise in the aside. */
+function ProfileFact({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode
+  label: string
+  value: string
+}) {
+  const { token } = theme.useToken()
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '20px 66px minmax(0, 1fr)',
+        alignItems: 'flex-start',
+        gap: 8,
+        padding: '9px 0',
+        borderBottom: `1px dashed ${token.colorBorderSecondary}`,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: 22,
+          color: token.colorPrimary,
+          opacity: 0.72,
+        }}
+      >
+        {icon}
+      </span>
+      <span
+        style={{
+          fontSize: token.fontSizeSM,
+          lineHeight: '22px',
+          color: token.colorTextSecondary,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          lineHeight: '22px',
+          overflowWrap: 'anywhere',
+          color: token.colorText,
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  )
+}
+
+/** The refined root-organization identity card for the fixed console aside. */
+function HospitalProfileCard({
+  hospital,
+  canManage,
+  showFirstRunHint,
+  onEdit,
+}: {
+  hospital: OrgNode
+  canManage: boolean
+  showFirstRunHint: boolean
+  onEdit: () => void
+}) {
+  const { token } = theme.useToken()
+
+  return (
+    <div style={{ display: 'flex', flex: 1, minHeight: 0, flexDirection: 'column', padding: '14px 14px 16px' }}>
+      <div
+        style={{
+          position: 'relative',
+          padding: 12,
+          borderRadius: token.borderRadiusLG,
+          border: `1px solid ${token.colorPrimaryBorder}`,
+          background: `linear-gradient(135deg, ${token.colorPrimaryBg}, ${token.colorBgContainer})`,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <Avatar
+            size={42}
+            shape="square"
+            src={hospital.logoUrl || undefined}
+            icon={<BankOutlined />}
+            style={{
+              flex: '0 0 auto',
+              color: token.colorPrimary,
+              background: token.colorBgContainer,
+              border: `1px solid ${token.colorPrimaryBorder}`,
+              boxShadow: `0 4px 12px ${token.colorPrimaryBg}`,
+            }}
+          />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                fontSize: token.fontSizeLG,
+                lineHeight: 1.3,
+                fontWeight: 600,
+                color: token.colorText,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={hospital.name}
+            >
+              {hospital.name}
+            </div>
+            <div
+              style={{
+                marginTop: 4,
+                fontSize: token.fontSizeSM,
+                lineHeight: '20px',
+                color: token.colorTextSecondary,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {hospital.code}
+            </div>
+          </div>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <Tag
+            bordered={false}
+            color={hospital.status === 1 ? 'blue' : undefined}
+            style={{ marginInlineEnd: 0 }}
+          >
+            {hospital.status === 1 ? '启用' : '停用'}
+          </Tag>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, minHeight: 0, marginTop: 6, overflowY: 'auto' }}>
+        {hospital.shortName ? (
+          <ProfileFact icon={<TagOutlined />} label="简称" value={hospital.shortName} />
+        ) : null}
+        {hospital.address ? (
+          <ProfileFact icon={<EnvironmentOutlined />} label="地址" value={hospital.address} />
+        ) : null}
+        {hospital.contact ? (
+          <ProfileFact icon={<UserOutlined />} label="联系人" value={hospital.contact} />
+        ) : null}
+        {hospital.phone ? (
+          <ProfileFact icon={<PhoneOutlined />} label="电话" value={hospital.phone} />
+        ) : null}
+        {hospital.email ? (
+          <ProfileFact icon={<MailOutlined />} label="邮箱" value={hospital.email} />
+        ) : null}
+      </div>
+
+      <div style={{ flex: '0 0 auto' }}>
+        {canManage ? (
+          <Button block style={{ marginTop: 12 }} aria-label="编辑医院" onClick={onEdit}>
+            编辑医院
+          </Button>
+        ) : null}
+        {showFirstRunHint ? (
+          <Alert
+            style={{
+              marginTop: canManage ? 12 : 0,
+              fontSize: 12,
+              lineHeight: '18px',
+            }}
+            type="info"
+            showIcon
+            message="首次部署:请通过「编辑医院」完善医院信息,并核对默认院区。"
+          />
+        ) : null}
+      </div>
+    </div>
+  )
 }
 
 type OrgDialog =
@@ -90,6 +288,12 @@ interface OrgFormValues {
 export default function OrgsPage() {
   const hasPerm = usePerm()
   const canManage = hasPerm('system:org:list')
+  // button-level gating (button-perm-enforcement-web): campus affordances answer to
+  // their own perms strings (the V15 seeded F nodes pinned server-side). 设为默认
+  // has no dedicated F node in the V15 inventory - it stays under the page gate.
+  const canCreateCampus = canManage && hasPerm('system:org:create')
+  const canUpdateOrg = canManage && hasPerm('system:org:update')
+  const canDeleteCampus = canManage && hasPerm('system:org:delete')
   const { token } = theme.useToken()
 
   const [nodes, setNodes] = useState<OrgNode[]>([])
@@ -245,12 +449,25 @@ export default function OrgsPage() {
   )
 
   const columns: TableColumnsType<OrgNode> = [
-    { title: '院区', dataIndex: 'name', width: 180 },
     {
-      title: '代码',
-      dataIndex: 'code',
-      width: 160,
-      render: (code: string) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{code}</span>,
+      title: '院区 / 代码',
+      dataIndex: 'name',
+      width: 220,
+      render: (_: unknown, row: OrgNode) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <span>{row.name}</span>
+          <span
+            style={{
+              fontSize: token.fontSizeSM,
+              lineHeight: '18px',
+              color: token.colorTextTertiary,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {row.code}
+          </span>
+        </div>
+      ),
     },
     {
       title: '默认',
@@ -263,14 +480,57 @@ export default function OrgsPage() {
       title: '状态',
       dataIndex: 'status',
       width: 80,
-      render: (status: number) => (status === 1 ? '启用' : '停用'),
+      align: 'center',
+      render: (status: number) =>
+        status === 1 ? (
+          <Tag bordered={false} color="blue" style={{ marginInlineEnd: 0 }}>
+            启用
+          </Tag>
+        ) : (
+          <Tag
+            bordered={false}
+            style={{
+              marginInlineEnd: 0,
+              color: token.colorTextSecondary,
+              background: token.colorBgContainer,
+              borderColor: token.colorBorder,
+            }}
+          >
+            停用
+          </Tag>
+        ),
     },
     {
       title: '地址',
       dataIndex: 'address',
+      width: 220,
       ellipsis: true,
       render: (address: string | null) =>
         address ? <span style={{ color: token.colorTextSecondary }}>{address}</span> : '—',
+    },
+    {
+      // The org API currently exposes the audit creator as a numeric UID; the
+      // stacked cell keeps that provenance visible without inventing a join.
+      title: '创建人 / 创建时间',
+      dataIndex: 'createTime',
+      width: 170,
+      render: (_: unknown, row: OrgNode) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {row.createBy === null ? '—' : `UID ${row.createBy}`}
+          </span>
+          <span
+            style={{
+              fontSize: token.fontSizeSM,
+              lineHeight: '18px',
+              color: token.colorTextTertiary,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {row.createTime}
+          </span>
+        </div>
+      ),
     },
   ]
 
@@ -295,52 +555,20 @@ export default function OrgsPage() {
         aside={
           <ConsolePanel>
             {hospital ? (
-              <div style={{ padding: '12px 14px' }}>
-                <div style={{ fontSize: token.fontSizeLG, fontWeight: 600 }}>{hospital.name}</div>
-                <div style={{ marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{hospital.code}</div>
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ color: token.colorTextSecondary }}>
-                    状态:{hospital.status === 1 ? '启用' : '停用'}
-                  </div>
-                  {hospital.shortName ? (
-                    <div style={{ color: token.colorTextSecondary }}>简称:{hospital.shortName}</div>
-                  ) : null}
-                  {hospital.address ? (
-                    <div style={{ color: token.colorTextSecondary, marginTop: 4 }}>{hospital.address}</div>
-                  ) : null}
-                  {hospital.contact ? (
-                    <div style={{ color: token.colorTextSecondary }}>联系人:{hospital.contact}</div>
-                  ) : null}
-                  {hospital.phone ? (
-                    <div style={{ color: token.colorTextSecondary }}>{hospital.phone}</div>
-                  ) : null}
-                </div>
-                {canManage ? (
-                  <Button
-                    style={{ marginTop: 12 }}
-                    aria-label="编辑医院"
-                    onClick={() => openDialog({ kind: 'edit-hospital', hospital })}
-                  >
-                    编辑医院
-                  </Button>
-                ) : null}
-              </div>
+              <HospitalProfileCard
+                hospital={hospital}
+                canManage={canUpdateOrg}
+                showFirstRunHint={isFirstRunBootstrap(hospital)}
+                onEdit={() => openDialog({ kind: 'edit-hospital', hospital })}
+              />
             ) : null}
           </ConsolePanel>
         }
       >
         <ConsolePanel>
-          {isFirstRunBootstrap(hospital) ? (
-            <Alert
-              style={{ marginBottom: 12 }}
-              type="info"
-              showIcon
-              message="首次部署:请通过「编辑医院」完善医院信息,并核对默认院区。"
-            />
-          ) : null}
           <ConsoleToolRow
             trailing={
-              canManage && hospital ? (
+              canCreateCampus && hospital ? (
                 <ConsoleAddButton
                   label="新增院区"
                   onClick={() => openDialog({ kind: 'create-campus', hospital })}
@@ -383,28 +611,32 @@ export default function OrgsPage() {
                     width: ACTION_COLUMN_WIDTH,
                     render: (campus) => [
                       <ConsoleAction
-                        key="edit"
-                        label="编辑院区"
-                        onClick={() => openDialog({ kind: 'edit-campus', campus })}
-                      />,
-                      <ConsoleAction
                         key="default"
                         label="设为默认"
-                        icon="assign"
+                        icon="star"
                         disabled={campus.isDefault === 1}
                         onClick={() => void setDefaultCampus(campus)}
                       />,
-                      <Popconfirm
-                        key="remove"
-                        title="删除院区"
-                        description={`确定删除「${campus.name}」吗?`}
-                        okText="删除"
-                        cancelText="取消"
-                        okButtonProps={{ danger: true }}
-                        onConfirm={() => void removeCampus(campus)}
-                      >
-                        <ConsoleAction label="删除院区" icon="remove" danger onClick={() => undefined} />
-                      </Popconfirm>,
+                      canUpdateOrg ? (
+                        <ConsoleAction
+                          key="edit"
+                          label="编辑院区"
+                          onClick={() => openDialog({ kind: 'edit-campus', campus })}
+                        />
+                      ) : null,
+                      canDeleteCampus ? (
+                        <Popconfirm
+                          key="remove"
+                          title="删除院区"
+                          description={`确定删除「${campus.name}」吗?`}
+                          okText="删除"
+                          cancelText="取消"
+                          okButtonProps={{ danger: true }}
+                          onConfirm={() => void removeCampus(campus)}
+                        >
+                          <ConsoleAction label="删除院区" icon="remove" danger onClick={() => undefined} />
+                        </Popconfirm>
+                      ) : null,
                     ],
                   }
                 : undefined

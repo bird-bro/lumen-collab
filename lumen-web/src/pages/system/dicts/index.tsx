@@ -56,6 +56,14 @@ export default function DictsPage() {
   const hasPerm = usePerm()
   const { token } = theme.useToken()
   const canManage = hasPerm('system:dict:list')
+  // button-level gating (button-perm-enforcement-web): the two panels answer to
+  // their own perms strings (the V15 seeded F nodes pinned server-side)
+  const canCatalCreate = canManage && hasPerm('system:dict-catal:create')
+  const canCatalUpdate = canManage && hasPerm('system:dict-catal:update')
+  const canCatalDelete = canManage && hasPerm('system:dict-catal:delete')
+  const canDetailCreate = canManage && hasPerm('system:dict-detail:create')
+  const canDetailUpdate = canManage && hasPerm('system:dict-detail:update')
+  const canDetailDelete = canManage && hasPerm('system:dict-detail:delete')
 
   const [catals, setCatals] = useState<DictCatal[]>([])
   const [catalTotal, setCatalTotal] = useState(0)
@@ -275,7 +283,7 @@ export default function DictsPage() {
       <ConsolePanel>
         <ConsoleToolRow
           trailing={
-            canManage ? (
+            canCatalCreate ? (
               <ConsoleAddButton
                 label="新建目录"
                 onClick={() => {
@@ -327,39 +335,43 @@ export default function DictsPage() {
               ? {
                   width: 120,
                   render: (row) => [
-                    <ConsoleAction
-                      key="edit"
-                      label="编辑目录"
-                      onClick={() => {
-                        setCatalEditTarget(row)
-                        catalForm.setFieldsValue({
-                          name: row.name,
-                          sort: row.sort,
-                          remark: row.remark ?? '',
-                        })
-                        setCatalOpen(true)
-                      }}
-                    />,
-                    <Popconfirm
-                      key="delete"
-                      title="删除目录"
-                      description="同时删除该目录下全部明细的引用关系,确认删除?"
-                      okText="删除"
-                      cancelText="取消"
-                      onConfirm={() => {
-                        void (async () => {
-                          try {
-                            await deleteCatal(row.id)
-                            if (selected?.id === row.id) setSelected(null)
-                            await reloadCatal()
-                          } catch (error) {
-                            messageApi.error(error instanceof ApiError ? error.msg : '删除目录失败')
-                          }
-                        })()
-                      }}
-                    >
-                      <ConsoleAction label="删除目录" icon="remove" danger onClick={() => undefined} />
-                    </Popconfirm>,
+                    canCatalUpdate ? (
+                      <ConsoleAction
+                        key="edit"
+                        label="编辑目录"
+                        onClick={() => {
+                          setCatalEditTarget(row)
+                          catalForm.setFieldsValue({
+                            name: row.name,
+                            sort: row.sort,
+                            remark: row.remark ?? '',
+                          })
+                          setCatalOpen(true)
+                        }}
+                      />
+                    ) : null,
+                    canCatalDelete ? (
+                      <Popconfirm
+                        key="delete"
+                        title="删除目录"
+                        description="同时删除该目录下全部明细的引用关系,确认删除?"
+                        okText="删除"
+                        cancelText="取消"
+                        onConfirm={() => {
+                          void (async () => {
+                            try {
+                              await deleteCatal(row.id)
+                              if (selected?.id === row.id) setSelected(null)
+                              await reloadCatal()
+                            } catch (error) {
+                              messageApi.error(error instanceof ApiError ? error.msg : '删除目录失败')
+                            }
+                          })()
+                        }}
+                      >
+                        <ConsoleAction label="删除目录" icon="remove" danger onClick={() => undefined} />
+                      </Popconfirm>
+                    ) : null,
                   ],
                 }
               : undefined
@@ -388,7 +400,7 @@ export default function DictsPage() {
       <ConsolePanel>
         <ConsoleToolRow
           trailing={
-            canManage ? (
+            canDetailCreate ? (
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
@@ -438,42 +450,46 @@ export default function DictsPage() {
               ? {
                   width: 120,
                   render: (row) => [
-                    <ConsoleAction
-                      key="edit"
-                      label="编辑明细"
-                      onClick={() => {
-                        setDetailEditTarget(row)
-                        detailForm.setFieldsValue({
-                          code: row.code ?? undefined,
-                          value: row.value ?? '',
-                          tag: row.tag ?? '',
-                          flag: row.flag ?? '',
-                          sort: row.sort,
-                          color: row.color ?? '',
-                          css: row.css ?? '',
-                          remark: row.remark ?? '',
-                        })
-                        setDetailOpen(true)
-                      }}
-                    />,
-                    <Popconfirm
-                      key="delete"
-                      title="删除明细"
-                      okText="删除"
-                      cancelText="取消"
-                      onConfirm={() => {
-                        void (async () => {
-                          try {
-                            await deleteDetail(row.id)
-                            if (selected) await reloadDetails(selected.id)
-                          } catch (error) {
-                            messageApi.error(error instanceof ApiError ? error.msg : '删除明细失败')
-                          }
-                        })()
-                      }}
-                    >
-                      <ConsoleAction label="删除明细" icon="remove" danger onClick={() => undefined} />
-                    </Popconfirm>,
+                    canDetailUpdate ? (
+                      <ConsoleAction
+                        key="edit"
+                        label="编辑明细"
+                        onClick={() => {
+                          setDetailEditTarget(row)
+                          detailForm.setFieldsValue({
+                            code: row.code ?? undefined,
+                            value: row.value ?? '',
+                            tag: row.tag ?? '',
+                            flag: row.flag ?? '',
+                            sort: row.sort,
+                            color: row.color ?? '',
+                            css: row.css ?? '',
+                            remark: row.remark ?? '',
+                          })
+                          setDetailOpen(true)
+                        }}
+                      />
+                    ) : null,
+                    canDetailDelete ? (
+                      <Popconfirm
+                        key="delete"
+                        title="删除明细"
+                        okText="删除"
+                        cancelText="取消"
+                        onConfirm={() => {
+                          void (async () => {
+                            try {
+                              await deleteDetail(row.id)
+                              if (selected) await reloadDetails(selected.id)
+                            } catch (error) {
+                              messageApi.error(error instanceof ApiError ? error.msg : '删除明细失败')
+                            }
+                          })()
+                        }}
+                      >
+                        <ConsoleAction label="删除明细" icon="remove" danger onClick={() => undefined} />
+                      </Popconfirm>
+                    ) : null,
                   ],
                 }
               : undefined

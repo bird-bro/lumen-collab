@@ -129,6 +129,12 @@ function GrantTree({
 export default function RolesPage() {
   const hasPerm = usePerm()
   const canManage = hasPerm('system:role:list')
+  // button-level gating (button-perm-enforcement-web): each affordance answers to
+  // its own perms string (the V15 seeded F nodes pinned server-side)
+  const canCreate = canManage && hasPerm('system:role:create')
+  const canUpdate = canManage && hasPerm('system:role:update')
+  const canDelete = canManage && hasPerm('system:role:delete')
+  const canAssign = canManage && hasPerm('system:role:assign')
   const { token } = theme.useToken()
 
   const [page, setPage] = useState(1)
@@ -321,7 +327,7 @@ export default function RolesPage() {
       <ConsolePanel>
         <ConsoleToolRow
           trailing={
-            canManage ? (
+            canCreate ? (
               <ConsoleAddButton label="新建角色" onClick={() => setCreateOpen(true)} />
             ) : undefined
           }
@@ -348,43 +354,49 @@ export default function RolesPage() {
               ? {
                   width: 150,
                   render: (row) => [
-                    <ConsoleAction
-                      key="assign"
-                      label="菜单授权"
-                      icon="assign"
-                      onClick={() => void openAssign(row)}
-                    />,
-                    <ConsoleAction
-                      key="edit"
-                      label="编辑角色"
-                      onClick={() => {
-                        setEditTarget(row)
-                        editForm.setFieldsValue({
-                          name: row.name,
-                          type: row.type,
-                          remark: row.remark ?? '',
-                        })
-                      }}
-                    />,
-                    <Popconfirm
-                      key="delete"
-                      title="删除角色"
-                      description="将级联解绑该角色的用户与菜单绑定,确认删除?"
-                      okText="删除"
-                      cancelText="取消"
-                      onConfirm={() => {
-                        void (async () => {
-                          try {
-                            await deleteRole(row.id)
-                            await reload()
-                          } catch (error) {
-                            messageApi.error(error instanceof ApiError ? error.msg : '删除角色失败')
-                          }
-                        })()
-                      }}
-                    >
-                      <ConsoleAction label="删除角色" icon="remove" danger onClick={() => undefined} />
-                    </Popconfirm>,
+                    canAssign ? (
+                      <ConsoleAction
+                        key="assign"
+                        label="菜单授权"
+                        icon="assign"
+                        onClick={() => void openAssign(row)}
+                      />
+                    ) : null,
+                    canUpdate ? (
+                      <ConsoleAction
+                        key="edit"
+                        label="编辑角色"
+                        onClick={() => {
+                          setEditTarget(row)
+                          editForm.setFieldsValue({
+                            name: row.name,
+                            type: row.type,
+                            remark: row.remark ?? '',
+                          })
+                        }}
+                      />
+                    ) : null,
+                    canDelete ? (
+                      <Popconfirm
+                        key="delete"
+                        title="删除角色"
+                        description="将级联解绑该角色的用户与菜单绑定,确认删除?"
+                        okText="删除"
+                        cancelText="取消"
+                        onConfirm={() => {
+                          void (async () => {
+                            try {
+                              await deleteRole(row.id)
+                              await reload()
+                            } catch (error) {
+                              messageApi.error(error instanceof ApiError ? error.msg : '删除角色失败')
+                            }
+                          })()
+                        }}
+                      >
+                        <ConsoleAction label="删除角色" icon="remove" danger onClick={() => undefined} />
+                      </Popconfirm>
+                    ) : null,
                   ],
                 }
               : undefined

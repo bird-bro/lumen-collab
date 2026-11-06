@@ -88,7 +88,7 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  useAuthStore.getState().setSession({ perms: ['system:role:list'] })
+  useAuthStore.getState().setSession({ perms: ['system:role:list', 'system:role:create', 'system:role:update', 'system:role:delete', 'system:role:assign'] })
   vi.mocked(rolesApi.listRoles).mockResolvedValue(pageFixture([ROLE_A]))
   vi.mocked(menusApi.menuTree).mockResolvedValue(TREE)
   vi.mocked(rolesApi.createRole).mockResolvedValue(2)
@@ -219,5 +219,27 @@ describe('roles page - perms gating', () => {
     expect(await screen.findByText('系统管理员')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /新建角色/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '菜单授权' })).not.toBeInTheDocument()
+  })
+})
+
+describe('roles page - button-level gating (button-perm-enforcement-web)', () => {
+  it('hides ungranted affordances when only the page perm is held', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:role:list'] })
+    renderPage()
+    await screen.findByText('系统管理员')
+    expect(screen.queryByRole('button', { name: /新建角色/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑角色' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '删除角色' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '菜单授权' })).not.toBeInTheDocument()
+  })
+
+  it('reveals the four affordances when their button perms are granted', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:role:list', 'system:role:create', 'system:role:update', 'system:role:delete', 'system:role:assign'] })
+    renderPage()
+    await screen.findByText('系统管理员')
+    expect(screen.getByRole('button', { name: /新建角色/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '编辑角色' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '删除角色' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '菜单授权' })).toBeInTheDocument()
   })
 })

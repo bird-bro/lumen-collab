@@ -90,7 +90,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   // The documented perms string of this page (SEED_MENUS id 2 = the V2 seed row,
   // also the backend @PreAuthorize on the user list). No new perms code.
-  useAuthStore.getState().setSession({ perms: ['system:user:list'] })
+  useAuthStore.getState().setSession({ perms: ['system:user:list', 'system:user:create', 'system:user:reset-pwd', 'system:user:enable'] })
   vi.mocked(usersApi.listUsers).mockResolvedValue([ADMIN, WANG, LI])
   vi.mocked(rolesApi.listRoles).mockResolvedValue({
     records: [role({ id: 1, name: '系统管理员', type: 10 })],
@@ -309,5 +309,25 @@ describe('users page - perms gating', () => {
     expect(within(rowOf('admin')).queryByRole('button', { name: '重置密码' })).not.toBeInTheDocument()
     expect(within(rowOf('admin')).getByRole('switch')).toBeDisabled()
     expect(usersApi.listUsers).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('users page - button-level gating (button-perm-enforcement-web)', () => {
+  it('hides ungranted affordances when only the page perm is held', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:user:list'] })
+    renderPage()
+    await screen.findByText('admin')
+    expect(screen.queryByRole('button', { name: /新建用户/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '重置密码' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('启用 admin')).toBeDisabled()
+  })
+
+  it('reveals each affordance as its button perm is granted', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:user:list', 'system:user:create', 'system:user:reset-pwd', 'system:user:enable'] })
+    renderPage()
+    await screen.findByText('admin')
+    expect(screen.getByRole('button', { name: /新建用户/ })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: '重置密码' }).length).toBeGreaterThan(0)
+    expect(screen.getByLabelText('启用 admin')).toBeEnabled()
   })
 })

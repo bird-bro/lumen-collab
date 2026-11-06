@@ -69,7 +69,7 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  useAuthStore.getState().setSession({ perms: ['system:dict:list'] })
+  useAuthStore.getState().setSession({ perms: ['system:dict:list', 'system:dict-catal:create', 'system:dict-catal:update', 'system:dict-catal:delete', 'system:dict-detail:create', 'system:dict-detail:update', 'system:dict-detail:delete'] })
   vi.mocked(dictsApi.listCatal).mockResolvedValue({
     records: CATALS,
     total: 1,
@@ -227,5 +227,31 @@ describe('dicts page - perms gating', () => {
     expect(await screen.findByText('通用状态')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /新建目录/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /新建明细/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('dicts page - button-level gating (button-perm-enforcement-web)', () => {
+  it('hides ungranted affordances when only the page perm is held', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:dict:list'] })
+    renderPage()
+    await screen.findByText('通用状态')
+    expect(screen.queryByRole('button', { name: /新建目录/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑目录' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '删除目录' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /新建明细/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑明细' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '删除明细' })).not.toBeInTheDocument()
+  })
+
+  it('reveals the two panels affordances when their button perms are granted', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:dict:list', 'system:dict-catal:create', 'system:dict-catal:update', 'system:dict-catal:delete', 'system:dict-detail:create', 'system:dict-detail:update', 'system:dict-detail:delete'] })
+    renderPage()
+    await screen.findByText('通用状态')
+    expect(screen.getByRole('button', { name: /新建目录/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '编辑目录' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '删除目录' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /新建明细/ })).toBeEnabled()
+    expect(screen.getAllByRole('button', { name: '编辑明细' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: '删除明细' }).length).toBeGreaterThan(0)
   })
 })

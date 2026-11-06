@@ -145,7 +145,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   // The documented perms string of this page (seed menu id 7); no new perms
   // code is invented - the mutation surface rides on it (design D6).
-  useAuthStore.getState().setSession({ perms: ['system:org:list'] })
+  useAuthStore.getState().setSession({ perms: ['system:org:list', 'system:org:create', 'system:org:update', 'system:org:delete'] })
   vi.mocked(orgsApi.createOrg).mockResolvedValue(9)
   vi.mocked(orgsApi.updateOrg).mockResolvedValue(true)
   vi.mocked(orgsApi.deleteOrg).mockResolvedValue(true)
@@ -410,5 +410,25 @@ describe('org page - perms gating (design D6)', () => {
     // Read-only stays: card + rows still render.
     expect(screen.getByText('示例医院')).toBeInTheDocument()
     expect(screen.getByText('总院区')).toBeInTheDocument()
+  })
+})
+
+describe('orgs page - button-level gating (button-perm-enforcement-web)', () => {
+  it('hides ungranted affordances when only the page perm is held', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:org:list'] })
+    renderPage()
+    await screen.findByText('示例医院')
+    expect(screen.queryByRole('button', { name: /新增院区/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑医院' })).not.toBeInTheDocument()
+    expect(screen.queryByTitle('删除院区')).not.toBeInTheDocument()
+  })
+
+  it('reveals the campus affordances when their button perms are granted', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:org:list', 'system:org:create', 'system:org:update', 'system:org:delete'] })
+    renderPage()
+    await screen.findByText('示例医院')
+    expect(screen.getByRole('button', { name: /新增院区/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '编辑医院' })).toBeInTheDocument()
+    expect(screen.getAllByTitle('删除院区').length).toBeGreaterThan(0)
   })
 })

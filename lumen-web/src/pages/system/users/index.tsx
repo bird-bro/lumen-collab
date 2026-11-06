@@ -80,6 +80,11 @@ interface ResetValues {
 export default function UsersPage() {
   const hasPerm = usePerm()
   const canManage = hasPerm('system:user:list')
+  // button-level gating (button-perm-enforcement-web): each affordance answers to
+  // its own perms string (the V15 seeded F nodes pinned server-side)
+  const canCreate = canManage && hasPerm('system:user:create')
+  const canResetPwd = canManage && hasPerm('system:user:reset-pwd')
+  const canEnable = canManage && hasPerm('system:user:enable')
   const profile = useAuthStore((state) => state.profile)
   const { token } = theme.useToken()
 
@@ -275,7 +280,7 @@ export default function UsersPage() {
       render: (enable: number, row: UserItem) => (
         <Switch
           checked={enable === 1}
-          disabled={!canManage}
+          disabled={!canEnable}
           aria-label={`启用 ${row.username}`}
           checkedChildren="启"
           unCheckedChildren="停"
@@ -303,7 +308,7 @@ export default function UsersPage() {
       <ConsolePanel>
         <ConsoleToolRow
           trailing={
-            canManage ? (
+            canCreate ? (
               <ConsoleAddButton label="新建用户" onClick={() => setCreateOpen(true)} />
             ) : undefined
           }
@@ -340,17 +345,20 @@ export default function UsersPage() {
             canManage
               ? {
                   width: COLUMN_WIDTHS.actions,
-                  render: (row) => [
-                    <ConsoleAction
-                      key="reset"
-                      label="重置密码"
-                      icon="key"
-                      onClick={() => {
-                        setResetTarget(row)
-                        resetForm.setFieldsValue({ password: '' })
-                      }}
-                    />,
-                  ],
+                  render: (row) =>
+                    canResetPwd
+                      ? [
+                          <ConsoleAction
+                            key="reset"
+                            label="重置密码"
+                            icon="key"
+                            onClick={() => {
+                              setResetTarget(row)
+                              resetForm.setFieldsValue({ password: '' })
+                            }}
+                          />,
+                        ]
+                      : [],
                 }
               : undefined
           }

@@ -60,6 +60,11 @@ type DepDialog = { kind: 'create' } | { kind: 'edit'; dep: OrgDep }
 export default function DepsPage() {
   const hasPerm = usePerm()
   const canManage = hasPerm('system:dep:list')
+  // button-level gating (button-perm-enforcement-web): each affordance answers to
+  // its own perms string (the V15 seeded F nodes pinned server-side)
+  const canCreate = canManage && hasPerm('system:dep:create')
+  const canUpdate = canManage && hasPerm('system:dep:update')
+  const canDelete = canManage && hasPerm('system:dep:delete')
   const { token } = theme.useToken()
 
   const [orgs, setOrgs] = useState<OrgNode[]>([])
@@ -309,7 +314,7 @@ export default function DepsPage() {
         <ConsolePanel>
           <ConsoleToolRow
             trailing={
-              canManage ? (
+              canCreate ? (
                 <ConsoleAddButton label="新建科室" onClick={() => openDialog({ kind: 'create' })} />
               ) : undefined
             }
@@ -351,22 +356,26 @@ export default function DepsPage() {
                 ? {
                     width: COLUMN_WIDTHS.actions,
                     render: (row) => [
-                      <ConsoleAction
-                        key="edit"
-                        label="编辑科室"
-                        onClick={() => openDialog({ kind: 'edit', dep: row })}
-                      />,
-                      <Popconfirm
-                        key="remove"
-                        title="删除科室"
-                        description={`确定删除「${row.name}」吗?`}
-                        okText="删除"
-                        cancelText="取消"
-                        okButtonProps={{ danger: true }}
-                        onConfirm={() => void removeDep(row)}
-                      >
-                        <ConsoleAction label="删除科室" icon="remove" danger onClick={() => undefined} />
-                      </Popconfirm>,
+                      canUpdate ? (
+                        <ConsoleAction
+                          key="edit"
+                          label="编辑科室"
+                          onClick={() => openDialog({ kind: 'edit', dep: row })}
+                        />
+                      ) : null,
+                      canDelete ? (
+                        <Popconfirm
+                          key="remove"
+                          title="删除科室"
+                          description={`确定删除「${row.name}」吗?`}
+                          okText="删除"
+                          cancelText="取消"
+                          okButtonProps={{ danger: true }}
+                          onConfirm={() => void removeDep(row)}
+                        >
+                          <ConsoleAction label="删除科室" icon="remove" danger onClick={() => undefined} />
+                        </Popconfirm>
+                      ) : null,
                     ],
                   }
                 : undefined

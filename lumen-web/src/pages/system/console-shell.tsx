@@ -6,6 +6,7 @@ import {
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
+  StarOutlined,
 } from '@ant-design/icons'
 import { Button, Pagination, Space, Table, Tooltip, Typography, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
@@ -146,6 +147,8 @@ const ACTION_ICONS = {
   key: KeyOutlined,
   /** 菜单授权 - the role-assignment tree glyph (role-menus.html `.act title="菜单授权"`). */
   assign: ApartmentOutlined,
+  /** 设为默认 - the star reads as the canonical/default marker. */
+  star: StarOutlined,
 } as const
 
 /**

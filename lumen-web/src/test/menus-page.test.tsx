@@ -10,12 +10,13 @@ import { useAuthStore } from '@/stores/auth'
 import { themeConfig } from '@/theme'
 
 /**
- * 菜单管理 page (menu-management-web, tasks 2.1-2.5; spec
- * `specs/web-system-console` § Menu Management: the management table-tree
- * with per-node 新增下级/编辑/删除, the type-aware create/edit dialog
- * authoring button `perms` strings, backend rejection surfacing, and the
- * parent-choice guards). API clients are stubbed at the `vi.mock('@/api/menus')`
- * seam (no mock layer - runtime rides the vite proxy to the real backend).
+ * 菜单管理 page (button-perm-enforcement-web tasks 2.2 + 3.1/3.2; spec
+ * `specs/web-system-console` § Menu Management + user instruction 2026-11-06:
+ * visual alignment with the 随访 reference `fu_web/src/views/system/menu/index.vue`
+ * - 菜单名/类型/路径/组件/权限标识/排序/可见 columns, a menu-name filter tool row,
+ * icon actions with per-action perms, and the reference drawer wording). API
+ * clients stub at the `vi.mock('@/api/menus')` seam (no mock layer - runtime
+ * rides the vite proxy to the real backend).
  */
 vi.mock('@/api/menus')
 
@@ -47,6 +48,7 @@ const TREE: MenuNode[] = [
     title: '系统管理',
     upId: 0,
     type: 'M',
+    icon: 'setting',
     children: [
       menu({
         mid: 14,
@@ -62,7 +64,7 @@ const TREE: MenuNode[] = [
             path: 'user',
             component: 'system/user/index',
           }),
-          menu({ mid: 6, title: '报告审核', upId: 14, type: 'F', perms: 'system:report:audit' }),
+          menu({ mid: 6, title: '报告审核', upId: 14, type: 'F', perms: 'system:report:audit', visible: true }),
         ],
       }),
     ],
@@ -84,7 +86,7 @@ function rowOf(title: string): HTMLElement {
 }
 
 async function openParentDropdown(user: ReturnType<typeof userEvent.setup>): Promise<HTMLElement> {
-  await user.click(screen.getByRole('combobox', { name: '上级节点' }))
+  await user.click(screen.getByRole('combobox', { name: '上级菜单' }))
   await waitFor(() => {
     expect(document.querySelector('.ant-select-dropdown')).not.toBeNull()
   })
@@ -96,36 +98,66 @@ async function openParentDropdown(user: ReturnType<typeof userEvent.setup>): Pro
 
 beforeEach(() => {
   vi.clearAllMocks()
-  useAuthStore.getState().setSession({ perms: ['system:menu:list'] })
+  useAuthStore.getState().setSession({
+    perms: [
+      'system:menu:list',
+      'system:menu:create',
+      'system:menu:update',
+      'system:menu:delete',
+    ],
+  })
   vi.mocked(menusApi.menuTree).mockResolvedValue(TREE)
 })
 
 describe('menus page - management (spec: Menu Management)', () => {
-  it('renders the directory/menu/button hierarchy with type tags and perms strings', async () => {
+  it('renders the 随访-style column set with type tags, perms, and paths', async () => {
     renderPage()
     expect(await screen.findByText('系统管理')).toBeInTheDocument()
-    expect(screen.getByText('用户权限')).toBeInTheDocument()
-    expect(screen.getByText('用户管理')).toBeInTheDocument()
-    expect(screen.getByText('报告审核')).toBeInTheDocument()
-    await waitFor(() => {
-      expect(screen.getByText('system:user:list')).toBeInTheDocument()
-      expect(screen.getByText('system:report:audit')).toBeInTheDocument()
-    })
+    for (const header of ['菜单名', '类型', '路径', '组件', '权限标识', '排序', '可见']) {
+      expect(screen.getByText(header)).toBeInTheDocument()
+    }
+    // cell values: path / component / perms render from the row data
+    expect(screen.getByText('user')).toBeInTheDocument()
+    expect(screen.getByText('system/user/index')).toBeInTheDocument()
+    expect(screen.getByText('system:user:list')).toBeInTheDocument()
+    expect(screen.getByText('system:report:audit')).toBeInTheDocument()
+    // type tags: 目录 / 页面 / 按钮
     expect(screen.getAllByText('目录').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('菜单').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('页面').length).toBeGreaterThan(0)
     expect(screen.getAllByText('按钮').length).toBeGreaterThan(0)
   })
 
-  it('creates a button node via 新增下级 and refreshes the tree', async () => {
+  it('renders the visible column as a tag and shows "-" for button rows', async () => {
+    renderPage()
+    await screen.findByText('系统管理')
+    expect(screen.getAllByText('显示').length).toBeGreaterThan(0)
+    const buttonRow = rowOf('报告审核')
+    expect(within(buttonRow).getByText('-')).toBeInTheDocument()
+  })
+
+  it('filters the tree by 菜单名 on 查询 (subtree keeps, ancestor chain kept)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('系统管理')
+
+    await user.type(screen.getByPlaceholderText('菜单名'), '报告')
+    await user.click(screen.getByRole('button', { name: /查询/ }))
+
+    expect(screen.getByText('报告审核')).toBeInTheDocument()
+    expect(screen.getByText('用户权限')).toBeInTheDocument() // ancestor chain kept
+    expect(screen.queryByText('用户管理')).not.toBeInTheDocument() // sibling pruned
+  })
+
+  it('creates a button node via 添加子菜单 and refreshes the tree', async () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('用户管理')
 
-    await user.click(within(rowOf('用户管理')).getByRole('button', { name: '新增下级' }))
+    await user.click(within(rowOf('用户管理')).getByRole('button', { name: '添加子菜单' }))
     const drawer = screen.getByRole('dialog')
     // creating under a C menu defaults the type to a button (F)
     expect(within(drawer).getByRole('radio', { name: '按钮' })).toBeChecked()
-    await user.type(within(drawer).getByLabelText('标题'), '删除')
+    await user.type(within(drawer).getByLabelText('菜单标题'), '删除')
     await user.type(within(drawer).getByLabelText(/权限标识/), 'system:role:delete')
     await user.click(within(drawer).getByRole('button', { name: '保 存' }))
 
@@ -153,16 +185,16 @@ describe('menus page - management (spec: Menu Management)', () => {
     renderPage()
     await screen.findByText('用户管理')
 
-    await user.click(within(rowOf('用户管理')).getByRole('button', { name: '编辑节点' }))
+    await user.click(within(rowOf('用户管理')).getByRole('button', { name: '编辑' }))
     const drawer = screen.getByRole('dialog')
-    expect(within(drawer).getByLabelText('标题')).toHaveValue('用户管理')
+    expect(within(drawer).getByLabelText('菜单标题')).toHaveValue('用户管理')
     expect(within(drawer).getByLabelText(/权限标识/)).toHaveValue('system:user:list')
-    expect(within(drawer).getByLabelText('前端路径')).toHaveValue('user')
-    expect(within(drawer).getByLabelText('前端组件')).toHaveValue('system/user/index')
-    expect(within(drawer).getByRole('radio', { name: '菜单' })).toBeChecked()
+    expect(within(drawer).getByLabelText('路径')).toHaveValue('user')
+    expect(within(drawer).getByLabelText('组件')).toHaveValue('system/user/index')
+    expect(within(drawer).getByRole('radio', { name: '页面' })).toBeChecked()
 
-    await user.clear(within(drawer).getByLabelText('标题'))
-    await user.type(within(drawer).getByLabelText('标题'), '用户管理改')
+    await user.clear(within(drawer).getByLabelText('菜单标题'))
+    await user.type(within(drawer).getByLabelText('菜单标题'), '用户管理改')
     await user.click(within(drawer).getByRole('button', { name: '保 存' }))
 
     await waitFor(() => {
@@ -189,7 +221,7 @@ describe('menus page - management (spec: Menu Management)', () => {
     renderPage()
     await screen.findByText('报告审核')
 
-    await user.click(within(rowOf('报告审核')).getByRole('button', { name: '删除节点' }))
+    await user.click(within(rowOf('报告审核')).getByRole('button', { name: '删除菜单' }))
     await user.click(await screen.findByRole('button', { name: /^删\s*除$/ }))
 
     await waitFor(() => {
@@ -208,7 +240,7 @@ describe('menus page - management (spec: Menu Management)', () => {
     renderPage()
     await screen.findByText('用户管理')
 
-    await user.click(within(rowOf('用户管理')).getByRole('button', { name: '删除节点' }))
+    await user.click(within(rowOf('用户管理')).getByRole('button', { name: '删除菜单' }))
     await user.click(await screen.findByRole('button', { name: /^删\s*除$/ }))
 
     expect(await screen.findByText('存在下级节点，请先处理下级再删除')).toBeInTheDocument()
@@ -222,7 +254,7 @@ describe('menus page - management (spec: Menu Management)', () => {
     renderPage()
     await screen.findByText('用户权限')
 
-    await user.click(within(rowOf('用户权限')).getByRole('button', { name: '编辑节点' }))
+    await user.click(within(rowOf('用户权限')).getByRole('button', { name: '编辑' }))
     const dropdown = await openParentDropdown(user)
 
     // legal: the top directory remains selectable
@@ -238,7 +270,7 @@ describe('menus page - management (spec: Menu Management)', () => {
     renderPage()
     await screen.findByText('用户管理')
 
-    await user.click(within(rowOf('用户管理')).getByRole('button', { name: '新增下级' }))
+    await user.click(within(rowOf('用户管理')).getByRole('button', { name: '添加子菜单' }))
     const dropdown = await openParentDropdown(user)
 
     expect(within(dropdown).getByText('系统管理')).toBeInTheDocument()
@@ -246,14 +278,14 @@ describe('menus page - management (spec: Menu Management)', () => {
     expect(within(dropdown).queryByText('报告审核')).toBeNull()
   })
 
-  it('hides every mutation affordance without the page perm', async () => {
-    useAuthStore.getState().setSession({ perms: [] })
+  it('hides every mutation affordance without the matching perm', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:menu:list'] })
     renderPage()
     await screen.findByText('系统管理')
 
-    expect(screen.queryByRole('button', { name: '新增下级' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '编辑节点' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '删除节点' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /新建根节点/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '添加子菜单' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '删除菜单' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /添加/ })).not.toBeInTheDocument()
   })
 })
