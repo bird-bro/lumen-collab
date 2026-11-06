@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LumenCollab · 机构管理重构原型</title>
+  <style>
+    @font-face { font-family: "MiSans"; font-style: normal; font-weight: 400; font-display: swap; src: url("../../lumen-web/src/theme/fonts/MiSans-Regular.ttf") format("truetype"); }
+    @font-face { font-family: "MiSans"; font-style: normal; font-weight: 500; font-display: swap; src: url("../../lumen-web/src/theme/fonts/MiSans-Medium.ttf") format("truetype"); }
+    @font-face { font-family: "MiSans"; font-style: normal; font-weight: 700; font-display: swap; src: url("../../lumen-web/src/theme/fonts/MiSans-Bold.ttf") format("truetype"); }
+
+    :root {
+      --rail: #0B2540;
+      --rail-hover: #12355C;
+      --primary: #3178fc;
+      --primary-soft: rgba(49, 120, 252, .09);
+      --primary-border: rgba(49, 120, 252, .24);
+      --ink: #182231;
+      --text: #333;
+      --text-2: #666;
+      --text-3: #999;
+      --line: #D7DBE2;
+      --line-soft: #E7EAF0;
+      --bg: #F3F5F7;
+      --card: #fff;
+      --head: #F5F7FA;
+      --hover: #F6F6F6;
+      --green: #17A673;
+      --green-soft: #EAF9F3;
+      --amber: #B46A00;
+      --amber-soft: #FFF5E6;
+      --red: #D93F3F;
+      --red-soft: #FFF1F1;
+      --radius: 10px;
+      --shadow: 0 18px 50px rgba(11, 37, 64, .10);
+      --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; min-height: 100%; margin: 0; }
+    body {
+      color: var(--text);
+      background:
+        radial-gradient(circle at 92% -10%, rgba(49, 120, 252, .07), transparent 24rem),
+        linear-gradient(180deg, #F7F8FA, var(--bg));
+      font-family: "MiSans", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-synthesis: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; }
+    .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+    .app { display: grid; grid-template-columns: 68px 1fr; min-height: 100vh; }
+
+    /* Main navigation rail */
+    .rail {
+      position: sticky; top: 0; height: 100vh;
+      background: linear-gradient(180deg, #0B2540 0%, #0A2138 100%);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 14px 0 18px; gap: 6px; z-index: 20;
+    }
+    .logo { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; color: white; background: linear-gradient(135deg, #3178fc, #1A5FD8); box-shadow: 0 8px 20px rgba(49, 120, 252, .38); margin-bottom: 12px; }
+    .logo svg { width: 19px; height: 19px; }
+    .rail-item {
+      width: 58px; min-height: 58px; border: 0; background: transparent; color: rgba(255,255,255,.72);
+      border-radius: 12px; display: grid; place-items: center; gap: 3px; padding: 6px 0;
+      transition: background .2s ease, color .2s ease, transform .2s ease;
+    }
+    .rail-item svg { width: 24px; height: 24px; }
+    .rail-item span { font-size: .667rem; line-height: 1; }
+    .rail-item:hover { color: white; background: var(--rail-hover); transform: translateY(-1px); }
+    .rail-item.active { color: white; background: var(--primary); box-shadow: 0 8px 18px rgba(49, 120, 252, .24); }
+
+    .main { min-width: 0; display: flex; flex-direction: column; }
+
+    /* Header */
+    .header {
+      position: sticky; top: 0; z-index: 10; height: 60px;
+      background: rgba(255,255,255,.94); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--line-soft);
+      display: flex; align-items: center; justify-content: space-between; padding: 0 18px;
+    }
+    .brand { display: flex; align-items: baseline; gap: 10px; }
+    .brand strong { font-size: 1.11rem; color: var(--ink); letter-spacing: .2px; }
+    .brand em { font-style: normal; color: var(--text-3); font-size: .778rem; }
+    .context {
+      display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px;
+      border: 1px solid var(--primary-border); background: var(--primary-soft); color: #2358b4;
+      border-radius: 999px; font-size: .833rem; white-space: nowrap;
+    }
+    .user { display: flex; align-items: center; gap: 12px; padding-left: 16px; border-left: 1px solid var(--line-soft); }
+    .user-meta { text-align: right; line-height: 1.2; }
+    .user-meta b { display: block; font-size: .833rem; color: var(--ink); }
+    .user-meta small { color: var(--text-3); font-size: .722rem; }
+    .avatar { width: 34px; height: 34px; border-radius: 50%; background: #DCE7F8; color: #2358B4; display: grid; place-items: center; font-size: .778rem; font-weight: 700; }
+
+    /* Secondary sidebar + content */
+    .body { display: grid; grid-template-columns: 160px minmax(0, 1fr); flex: 1; }
+    .side { background: white; border-right: 1px solid var(--line-soft); padding: 12px 10px; }
+    .side-group { margin: 10px 0 8px; display: flex; align-items: center; gap: 7px; color: #8A8F98; font-size: .722rem; padding: 0 6px; }
+    .side-group svg { width: 14px; height: 14px; }
+    .side-link { width: 100%; border: 0; background: transparent; color: #555F6D; text-align: left; min-height: 38px; padding: 8px 10px; border-radius: 8px; font-size: .889rem; }
+    .side-link:hover { background: var(--hover); color: var(--ink); }
+    .side-link.active { color: var(--primary); background: var(--primary-soft); font-weight: 500; }
+
+    .page { padding: 5px; display: grid; grid-template-columns: minmax(280px, 330px) minmax(0, 1fr); gap: 5px; align-items: start; }
+    .panel { background: var(--card); border: 1px solid var(--line-soft); border-radius: var(--radius); box-shadow: 0 4px 20px rgba(15, 35, 58, .04); min-width: 0; }
+    .tree-panel { height: calc(100vh - 94px); display: flex; flex-direction: column; overflow: hidden; }
+    .work-panel { height: calc(100vh - 94px); display: flex; flex-direction: column; overflow: hidden; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px 10px; }
+    .panel-title { display: flex; align-items: center; gap: 8px; font-size: 1rem; font-weight: 700; color: var(--ink); }
+    .panel-title .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft); }
+    .search-wrap { position: relative; display: flex; align-items: center; margin: 0 12px 12px; }
+    .search-wrap svg { position: absolute; left: 10px; width: 16px; height: 16px; color: var(--text-3); }
+    .search-wrap input { width: 100%; height: 36px; border: 1px solid var(--line); border-radius: 8px; padding: 0 10px 0 32px; background: #FBFCFD; outline: none; transition: border-color .2s, box-shadow .2s; }
+    .search-wrap input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+
+    .tree { flex: 1; overflow: auto; padding: 2px 10px 12px; }
+    .node { position: relative; }
+    .node-row {
+      width: 100%; min-width: 0; border: 1px solid transparent; background: transparent;
+      display: grid; grid-template-columns: 20px minmax(0,1fr) auto; align-items: center; gap: 8px;
+      padding: 9px 8px; border-radius: 9px; text-align: left; margin-bottom: 4px; transition: all .18s ease;
+    }
+    .node-row:hover { background: var(--hover); }
+    .node-row.selected { background: var(--primary-soft); border-color: var(--primary-border); box-shadow: inset 3px 0 0 var(--primary); }
+    .caret { width: 16px; height: 16px; display: grid; place-items: center; color: var(--text-3); transition: transform .2s; border: 0; background: transparent; padding: 0; }
+    .caret::before { content: ""; width: 6px; height: 6px; border-right: 1.7px solid currentColor; border-bottom: 1.7px solid currentColor; transform: rotate(-45deg); margin-top: -2px; }
+    .caret.open { transform: rotate(90deg); }
+    .caret.hidden { visibility: hidden; }
+    .node-main { min-width: 0; }
+    .node-name { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .node-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--ink); }
+    .node-sub { margin-top: 3px; color: var(--text-3); font-size: .667rem; }
+    .tag { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 6px; font-size: .667rem; white-space: nowrap; }
+    .tag-hospital { color: #2358B4; background: #E8F0FF; border: 1px solid rgba(49,120,252,.18); }
+    .tag-campus { color: #49725A; background: #EBF7F1; border: 1px solid #CBE9DB; }
+    .tag-off { color: var(--amber); background: var(--amber-soft); }
+    .tag-default { color: #7A4E00; background: #FFF0D6; }
+    .node-count { color: var(--text-3); font-size: .667rem; background: var(--head); border-radius: 999px; min-width: 22px; height: 20px; display: grid; place-items: center; padding: 0 6px; }
+    .tree-note { margin: 12px 6px 0; padding: 11px; border: 1px dashed #C8D3E4; border-radius: 9px; color: var(--text-3); font-size: .722rem; line-height: 1.5; background: rgba(246, 249, 253, .72); }
+
+    /* Work area */
+    .work-head { padding: 16px 18px 14px; border-bottom: 1px solid var(--line-soft); background: linear-gradient(90deg, rgba(49,120,252,.045), transparent 42%); }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--text-3); font-size: .722rem; letter-spacing: .08em; text-transform: uppercase; }
+    .title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-top: 6px; }
+    .title-row h1 { margin: 0; font-size: 1.333rem; line-height: 1.25; color: var(--ink); }
+    .title-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+    .title-meta span { color: var(--text-2); font-size: .778rem; }
+    .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .btn { height: 36px; border-radius: 8px; border: 1px solid var(--line); background: white; color: #555F6D; padding: 0 13px; display: inline-flex; align-items: center; gap: 7px; transition: all .18s ease; }
+    .btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: #fff; }
+    .btn.primary { border-color: var(--primary); background: var(--primary); color: white; box-shadow: 0 6px 16px rgba(49,120,252,.20); }
+    .btn.primary:hover:not(:disabled) { filter: brightness(.97); color: white; }
+    .btn.danger { color: var(--red); }
+    .btn.danger:hover:not(:disabled) { border-color: var(--red); background: var(--red-soft); color: var(--red); }
+    .btn svg { width: 15px; height: 15px; }
+
+    .tabs { display: flex; gap: 4px; padding: 0 14px; border-bottom: 1px solid var(--line-soft); overflow-x: auto; }
+    .tab { border: 0; background: transparent; color: var(--text-2); min-height: 42px; padding: 0 13px; border-bottom: 2px solid transparent; font-size: .889rem; white-space: nowrap; }
+    .tab:hover { color: var(--ink); }
+    .tab.active { color: var(--primary); border-color: var(--primary); font-weight: 500; }
+    .tab .n { margin-left: 5px; font-size: .722rem; color: var(--text-3); }
+
+    .work-body { flex: 1; overflow: auto; padding: 16px; background: linear-gradient(180deg, rgba(255,255,255,0), rgba(243,245,247,.65)); }
+    .tab-pane { display: none; animation: fade .24s ease; }
+    .tab-pane.active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+    .profile-grid { display: grid; grid-template-columns: 300px minmax(0,1fr); gap: 16px; align-items: start; }
+    .id-card { padding: 18px; border-radius: 12px; border: 1px solid var(--line-soft); background: linear-gradient(150deg, #FFFFFF, #F7FAFF); position: relative; overflow: hidden; }
+    .id-card::after { content: ""; position: absolute; right: -45px; bottom: -55px; width: 150px; height: 150px; border-radius: 50%; background: rgba(49,120,252,.07); }
+    .id-mark { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; color: white; background: linear-gradient(135deg, #3178FC, #1D5FCB); }
+    .id-mark svg { width: 24px; height: 24px; }
+    .id-name { margin: 13px 0 3px; font-size: 1.111rem; font-weight: 700; color: var(--ink); }
+    .id-code { color: var(--text-3); font-size: .778rem; }
+    .id-stats { display: grid; gap: 10px; margin-top: 16px; }
+    .stat { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px 10px; background: white; border: 1px solid var(--line-soft); border-radius: 8px; }
+    .stat small { color: var(--text-3); font-size: .722rem; }
+    .stat b { font-size: .833rem; color: var(--ink); font-weight: 500; }
+    .fields { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; background: white; border: 1px solid var(--line-soft); border-radius: 12px; overflow: hidden; }
+    .field { min-width: 0; padding: 14px 16px; border-bottom: 1px solid var(--line-soft); }
+    .field:nth-child(odd) { border-right: 1px solid var(--line-soft); }
+    .field.wide { grid-column: 1 / -1; border-right: 0; }
+    .field > small { display: block; color: var(--text-3); font-size: .722rem; margin-bottom: 4px; }
+    .field > div { color: var(--ink); font-size: .889rem; line-height: 1.4; word-break: break-word; }
+    .field .empty { color: #B9Bfca; }
+
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }
+    .section-title { color: var(--ink); font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .section-title::before { content: ""; width: 4px; height: 15px; border-radius: 3px; background: var(--primary); }
+    .table-card { background: white; border: 1px solid var(--line-soft); border-radius: 10px; overflow: hidden; }
+    .table-scroll { overflow: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 680px; }
+    th { background: var(--head); color: #909399; font-size: .778rem; font-weight: 500; text-align: left; padding: 11px 14px; white-space: nowrap; }
+    td { border-top: 1px solid var(--line-soft); color: var(--text); font-size: .833rem; padding: 12px 14px; vertical-align: middle; }
+    tbody tr { transition: background .15s; }
+    tbody tr:hover { background: var(--hover); }
+    .td-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .glyph { width: 32px; height: 32px; border-radius: 9px; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; flex: 0 0 auto; }
+    .glyph svg { width: 16px; height: 16px; }
+    .td-main strong { color: var(--ink); font-weight: 500; display: block; }
+    .td-main small { color: var(--text-3); font-size: .722rem; }
+    .pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: .667rem; }
+    .pill.on { color: var(--green); background: var(--green-soft); }
+    .pill.off { color: var(--amber); background: var(--amber-soft); }
+    .pill.default { color: #7A4E00; background: #FFF0D6; }
+    .pill.blue { color: var(--primary); background: var(--primary-soft); }
+    .row-actions { display: inline-flex; gap: 3px; justify-content: flex-end; }
+    .icon-btn { width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: var(--primary); display: grid; place-items: center; transition: background .18s, color .18s; }
+    .icon-btn:hover { background: var(--primary-soft); }
+    .icon-btn.danger { color: var(--red); }
+    .icon-btn.danger:hover { background: var(--red-soft); }
+    .icon-btn svg { width: 15px; height: 15px; }
+    .empty-state { padding: 32px 16px; text-align: center; color: var(--text-3); font-size: .833rem; }
+    .callout { margin-top: 14px; padding: 12px 14px; border-left: 3px solid var(--primary); background: rgba(49,120,252,.06); color: #47678F; font-size: .778rem; line-height: 1.55; border-radius: 0 8px 8px 0; }
+    .callout.warn { border-left-color: var(--amber); background: rgba(214, 134, 20, .08); color: #8A5600; }
+
+    /* Drawer / modal */
+    .layer { position: fixed; inset: 0; z-index: 100; display: none; }
+    .layer.open { display: block; }
+    .mask { position: absolute; inset: 0; background: rgba(10, 28, 48, .42); backdrop-filter: blur(3px); animation: fade .2s ease; }
+    .drawer { position: absolute; top: 0; right: 0; height: 100%; width: min(560px, calc(100vw - 24px)); background: white; box-shadow: -12px 0 50px rgba(11,37,64,.18); display: flex; flex-direction: column; animation: slide .24s ease; }
+    @keyframes slide { from { transform: translateX(30px); opacity: .4; } to { transform: none; opacity: 1; } }
+    .drawer-head { padding: 20px 24px 14px; border-bottom: 1px solid var(--line-soft); display: flex; align-items: flex-start; justify-content: space-between; }
+    .drawer-head h2 { margin: 0; color: var(--ink); font-size: 1.111rem; }
+    .drawer-head p { margin: 5px 0 0; color: var(--text-3); font-size: .778rem; }
+    .close { width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--text-3); font-size: 1.111rem; display: grid; place-items: center; }
+    .close:hover { background: var(--hover); color: var(--ink); }
+    .drawer-body { flex: 1; overflow: auto; padding: 18px 24px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+    .form-item { display: grid; gap: 6px; min-width: 0; }
+    .form-item.full { grid-column: 1 / -1; }
+    .form-item label { font-size: .778rem; color: #555F6D; }
+    .form-item label b { color: var(--red); font-weight: normal; margin-left: 2px; }
+    .input, select.input, textarea.input { width: 100%; min-height: 38px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; background: #FBFCFD; outline: none; transition: all .18s; }
+    textarea.input { resize: vertical; min-height: 76px; }
+    .input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px var(--primary-soft); }
+    .input:disabled { background: #F3F4F6; color: #8A8F98; }
+    .switch { display: inline-flex; align-items: center; gap: 9px; min-height: 38px; }
+    .switch input { appearance: none; width: 40px; height: 22px; margin: 0; border-radius: 999px; background: #DDE1E8; position: relative; outline: none; transition: background .2s; cursor: pointer; }
+    .switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: white; box-shadow: 0 2px 6px rgba(0,0,0,.15); transition: transform .2s; }
+    .switch input:checked { background: var(--primary); }
+    .switch input:checked::after { transform: translateX(18px); }
+    .switch span { color: var(--text-2); font-size: .833rem; }
+    .drawer-foot { padding: 14px 24px 20px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; gap: 8px; }
+    .confirm-card { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 40px)); background: white; border-radius: 12px; padding: 22px; box-shadow: var(--shadow); }
+    .confirm-card h3 { margin: 0 0 8px; color: var(--ink); font-size: 1rem; }
+    .confirm-card p { margin: 0; color: var(--text-2); font-size: .833rem; line-height: 1.55; }
+    .confirm-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+    .toast { position: fixed; z-index: 120; left: 50%; bottom: 28px; transform: translate(-50%, 16px); padding: 10px 16px; border-radius: 9px; color: white; background: rgba(23, 28, 36, .94); font-size: .833rem; box-shadow: 0 12px 28px rgba(0,0,0,.2); opacity: 0; pointer-events: none; transition: all .24s; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 1150px) {
+      .page { grid-template-columns: 1fr; }
+      .tree-panel, .work-panel { height: auto; }
+      .profile-grid { grid-template-columns: 1fr; }
+      .fields { grid-template-columns: 1fr; }
+      .field:nth-child(odd) { border-right: 0; }
+      .field.wide { grid-column: auto; }
+      .form-grid { grid-template-columns: 1fr; }
+      .side { display: none; }
+      .body { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" aria-label="主导航">
+    <div class="logo" title="LumenCollab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l7 4v7c0 5-3.2 7.6-7 9-3.8-1.4-7-4-7-9V6z"/><path d="M8.5 12.2l2.2 2.2 4.8-5"/></svg></div>
+    <button class="rail-item" title="工作台"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span>工作台</span></button>
+    <button class="rail-item" title="影像工作"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8a2 2 0 0 1 2-2h3l1.5-2h5L16 6h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="12.5" r="3.5"/></svg><span>影像</span></button>
+    <button class="rail-item" title="随访"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10l8-6 8 6v10"/><path d="M9 20v-6h6v6"/></svg><span>随访</span></button>
+    <button class="rail-item active" title="系统管理"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06A2 2 0 1 1 4.28 16.9l.06-.06A1.7 1.7 0 0 0 4.68 15a1.7 1.7 0 0 0-1.56-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06A2 2 0 1 1 7.1 4.25l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg><span>系统</span></button>
+  </aside>
+
+  <div class="main">
+    <header class="header">
+      <div class="brand"><strong>LumenCollab</strong><em>机构管理原型 · 受控医院/院区模型</em></div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <span class="context" id="campusContext">当前院区：全部</span>
+        <div class="user">
+          <div class="user-meta"><b>系统管理员</b><small id="headerHospital">未命名医院</small></div>
+          <div class="avatar">管</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="body">
+      <aside class="side">
+        <div class="side-group"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>系统管理</div>
+        <button class="side-link active">机构管理</button>
+        <button class="side-link">科室管理</button>
+        <button class="side-link">用户管理</button>
+        <button class="side-link">角色管理</button>
+        <button class="side-link">菜单管理</button>
+        <button class="side-link">字典管理</button>
+        <button class="side-link">日志查询</button>
+      </aside>
+
+      <main class="page">
+        <section class="panel tree-panel" aria-label="机构树">
+          <div class="panel-head">
+            <div class="panel-title"><i class="dot"></i>机构 / 院区</div>
+            <button class="icon-btn" title="刷新" onclick="showToast('已刷新机构树')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
+          </div>
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input id="treeSearch" placeholder="搜索名称 / 代码" oninput="renderTree()">
+          </div>
+          <div class="tree" id="tree"></div>
+          <div class="tree-note">系统初始化默认生成一个可编辑医院根节点；院区是医院的下一级受控节点。科室在科室管理中挂到院区。</div>
+        </section>
+
+        <section class="panel work-panel">
+          <div class="work-head">
+            <div class="eyebrow">ORGANIZATION</div>
+            <div class="title-row">
+              <div>
+                <h1 id="workTitle">未命名医院</h1>
+                <div class="title-meta" id="workMeta"></div>
+              </div>
+              <div class="actions" id="workActions"></div>
+            </div>
+          </div>
+          <nav class="tabs" id="tabs">
+            <button class="tab active" data-tab="profile">基本信息</button>
+            <button class="tab" data-tab="campuses">院区<span class="n" id="campusCount"></span></button>
+            <button class="tab" data-tab="departments">科室<span class="n" id="depCount"></span></button>
+            <button class="tab" data-tab="access">接入</button>
+          </nav>
+          <div class="work-body">
+            <section class="tab-pane active" id="pane-profile"></section>
+            <section class="tab-pane" id="pane-campuses"></section>
+            <section class="tab-pane" id="pane-departments"></section>
+            <section class="tab-pane" id="pane-access"></section>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</div>
+
+<div class="layer" id="drawerLayer">
+  <div class="mask" onclick="closeDrawer()"></div>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+    <div class="drawer-head">
+      <div>
+        <h2 id="drawerTitle">新增院区</h2>
+        <p id="drawerSub">上级机构：未命名医院</p>
+      </div>
+      <button class="close" onclick="closeDrawer()" aria-label="关闭">×</button>
+    </div>
+    <div class="drawer-body">
+      <form id="orgForm" onsubmit="saveOrg(event)">
+        <div class="form-grid">
+          <div class="form-item"><label>上级机构<b>*</b></label><input class="input" id="fParent" disabled></div>
+          <div class="form-item"><label>类型<b>*</b></label><input class="input" id="fType" disabled></div>
+          <div class="form-item"><label>机构代码<b>*</b></label><input class="input" id="fCode" required placeholder="如 HOSP001-DY"></div>
+          <div class="form-item"><label>名称<b>*</b></label><input class="input" id="fName" required placeholder="如 东院区"></div>
+          <div class="form-item"><label>简称</label><input class="input" id="fShort" placeholder="如 东院"></div>
+          <div class="form-item"><label>状态</label><label class="switch"><input type="checkbox" id="fStatus" checked><span id="statusLabel">启用</span></label></div>
+          <div class="form-item"><label>省份 / 城市 / 区县</label><input class="input" id="fRegion" placeholder="如 上海市 / 上海市 / 徐汇区"></div>
+          <div class="form-item"><label>详细地址</label><input class="input" id="fAddress" placeholder="如 宜山路 100 号"></div>
+          <div class="form-item"><label>联系人</label><input class="input" id="fContact" placeholder="联系人"></div>
+          <div class="form-item"><label>联系电话</label><input class="input" id="fPhone" placeholder="联系电话"></div>
+          <div class="form-item full"><label>邮箱</label><input class="input" id="fEmail" type="email" placeholder="admin@example.com"></div>
+          <div class="form-item full"><label>Logo URL</label><input class="input" id="fLogo" placeholder="https://...（可选）"></div>
+          <div class="form-item full" id="defaultItem"><label class="switch"><input type="checkbox" id="fDefault"><span>设为默认院区</span></label></div>
+          <div class="form-item full"><label>排序</label><input class="input" id="fSort" type="number" min="0" value="10"></div>
+        </div>
+      </form>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn" type="button" onclick="closeDrawer()">取消</button>
+      <button class="btn primary" form="orgForm">保存</button>
+    </div>
+  </aside>
+</div>
+
+<div class="layer" id="confirmLayer">
+  <div class="mask" onclick="closeConfirm()"></div>
+  <div class="confirm-card">
+    <h3>删除确认</h3>
+    <p id="confirmText">确认删除该机构？</p>
+    <div class="confirm-foot">
+      <button class="btn" onclick="closeConfirm()">取消</button>
+      <button class="btn danger" onclick="confirmDelete()">删除</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // Static demo data. The prototype intentionally contains no API layer.
+  const hospital = { id: 1, type: "hospital", code: "LUMEN-HOSP", name: "未命名医院", shortName: "", status: true, region: "", address: "", contact: "", phone: "", email: "", logoUrl: "", sort: 0, initialized: false };
+  const campuses = [
+    { id: 2, type: "campus", code: "HOSP-001-ZY", name: "总院区", shortName: "总院", status: true, isDefault: true, region: "上海市 / 上海市 / 徐汇区", address: "宜山路 100 号", contact: "周云和", phone: "021-6000 1001", email: "zy@lumen.health", sort: 10 },
+    { id: 3, type: "campus", code: "HOSP-001-DY", name: "东院区", shortName: "东院", status: true, isDefault: false, region: "上海市 / 上海市 / 浦东新区", address: "东方路 88 号", contact: "陈叙", phone: "021-6000 2001", email: "dy@lumen.health", sort: 20 },
+    { id: 4, type: "campus", code: "HOSP-001-PD", name: "浦东分院", shortName: "浦东分院", status: false, isDefault: false, region: "上海市 / 上海市 / 浦东新区", address: "张江路 220 号", contact: "李慕", phone: "021-6000 3001", email: "pd@lumen.health", sort: 30 },
+  ];
+  const departments = [
+    { id: 11, campusId: 2, code: "radiology", name: "放射科" },
+    { id: 12, campusId: 2, code: "ultrasound", name: "超声科" },
+    { id: 13, campusId: 2, code: "endo", name: "内镜中心" },
+    { id: 21, campusId: 3, code: "radiology", name: "放射科" },
+    { id: 22, campusId: 3, code: "ultrasound", name: "超声科" },
+    { id: 23, campusId: 3, code: "lab", name: "医学检验科" },
+    { id: 31, campusId: 4, code: "radiology", name: "放射科" },
+    { id: 32, campusId: 4, code: "endo", name: "内镜中心" },
+  ];
+  const access = [
+    { campusId: 2, ae: "LUMEN_ZY", mwl: "MWL-ZY-01", qido: "dcm4chee-zy", status: true },
+    { campusId: 3, ae: "LUMEN_DY", mwl: "MWL-DY-01", qido: "dcm4chee-dy", status: true },
+    { campusId: 4, ae: "LUMEN_PD", mwl: "MWL-PD-01", qido: "dcm4chee-pd", status: false },
+  ];
+
+  let selectedId = 1;
+  let expanded = { 1: true };
+  let activeTab = "profile";
+  let drawerMode = null; // create-campus | edit-org
+  let pendingDeleteId = null;
+
+  const $ = id => document.getElementById(id);
+  const campusById = id => campuses.find(item => item.id === id);
+  const orgById = id => id === hospital.id ? hospital : campusById(id);
+  const enabledCampuses = () => campuses.filter(item => item.status);
+
+  function esc(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+  function statusPill(on, text) { return `<span class="pill ${on ? "on" : "off"}"><i></i>${esc(text)}</span>`; }
+
+  function nodeMatches(node, keyword) {
+    return node.name.toLowerCase().includes(keyword) || node.code.toLowerCase().includes(keyword);
+  }
+
+  function renderTree() {
+    const keyword = $("treeSearch").value.trim().toLowerCase();
+    const showRoot = !keyword || nodeMatches(hospital, keyword) || campuses.some(c => nodeMatches(c, keyword));
+    const visibleCampuses = keyword ? campuses.filter(c => nodeMatches(c, keyword)) : campuses;
+    const rows = [];
+    if (showRoot) {
+      rows.push(`
+        <div class="node">
+          <button class="node-row ${selectedId === hospital.id ? "selected" : ""}" onclick="selectNode(1)" title="${esc(hospital.code)}">
+            <span class="caret ${expanded[1] ? "open" : ""} ${keyword ? "hidden" : ""}" onclick="event.stopPropagation(); toggleRoot()" role="button" tabindex="0" aria-label="展开/收起"></span>
+            <div class="node-main">
+              <div class="node-name"><strong>${esc(hospital.name)}</strong><span class="tag tag-hospital">医院</span></div>
+              <div class="node-sub mono">${esc(hospital.code)}</div>
+            </div>
+            <span class="node-count">${campuses.length}</span>
+          </button>
+      `);
+      if (expanded[1] || keyword) {
+        visibleCampuses.forEach(campus => {
+          const depCount = departments.filter(dep => dep.campusId === campus.id).length;
+          rows.push(`
+            <button class="node-row ${selectedId === campus.id ? "selected" : ""}" onclick="selectNode(${campus.id})" title="${esc(campus.code)}" style="margin-left:24px;width:calc(100% - 24px)">
+              <span class="caret hidden"></span>
+              <div class="node-main">
+                <div class="node-name"><strong>${esc(campus.name)}</strong><span class="tag tag-campus">院区</span>${campus.isDefault ? '<span class="tag tag-default">默认</span>' : ""}${campus.status ? "" : '<span class="tag tag-off">停用</span>'}</div>
+                <div class="node-sub mono">${esc(campus.code)} · ${depCount} 科室</div>
+              </div>
+              <span class="node-count">${depCount}</span>
+            </button>
+          `);
+        });
+      }
+      rows.push("</div>");
+    }
+    $("tree").innerHTML = rows.join("") || `<div class="empty-state">未找到匹配的机构</div>`;
+  }
+
+  function selectNode(id) { selectedId = id; activeTab = "profile"; renderAll(); }
+  function toggleRoot() { expanded[1] = !expanded[1]; renderTree(); }
+
+  function renderAll() {
+    $("headerHospital").textContent = hospital.name;
+    renderTree();
+    renderTabs();
+    renderWork();
+    document.querySelectorAll(".tab").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === activeTab));
+    document.querySelectorAll(".tab-pane").forEach(pane => pane.classList.toggle("active", pane.id === `pane-${activeTab}`));
+  }
+
+  function renderTabs() {
+    $("campusCount").textContent = campuses.length;
+    const deps = selectedId === hospital.id ? departments : departments.filter(dep => dep.campusId === selectedId);
+    $("depCount").textContent = deps.length;
+  }
+
+  function renderWork() {
+    const org = orgById(selectedId);
+    const isHospital = org.type === "hospital";
+    const depCount = selectedId === hospital.id ? departments.length : departments.filter(dep => dep.campusId === selectedId).length;
+
+    $("workTitle").textContent = org.name;
+    $("campusContext").textContent = isHospital ? "当前院区：全部" : `当前院区：${org.name}`;
+    $("workMeta").innerHTML = `
+      <span class="tag ${isHospital ? "tag-hospital" : "tag-campus"}">${isHospital ? "医院" : "院区"}</span>
+      <span class="mono">${esc(org.code)}</span>
+      <span>·</span>${statusPill(org.status, org.status ? "启用" : "停用")}
+      ${!isHospital && org.isDefault ? '<span class="pill default">默认院区</span>' : ""}
+      <span>· ${depCount} 个科室</span>
+    `;
+
+    const actions = [];
+    if (isHospital) {
+      actions.push(`<button class="btn" onclick="openDrawer('edit-org')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>编辑机构</button>`);
+      actions.push(`<button class="btn primary" onclick="openDrawer('create-campus')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>新增院区</button>`);
+    } else {
+      if (!org.isDefault) actions.push(`<button class="btn" onclick="setDefault(${org.id})">设为默认</button>`);
+      actions.push(`<button class="btn" onclick="openDrawer('edit-org')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>编辑院区</button>`);
+      actions.push(`<button class="btn danger" onclick="askDelete(${org.id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></svg>删除</button>`);
+    }
+    $("workActions").innerHTML = actions.join("");
+    renderProfile(org);
+    renderCampuses();
+    renderDepartments(org);
+    renderAccess();
+  }
+
+  function renderProfile(org) {
+    const depCount = org.type === "hospital" ? departments.length : departments.filter(dep => dep.campusId === org.id).length;
+    $("pane-profile").innerHTML = `
+      <div class="profile-grid">
+        <aside class="id-card">
+          <div class="id-mark">${org.type === "hospital"
+            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-5h6v5"/><path d="M12 8v5M9.5 10.5h5"/></svg>'
+            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 20V8l7-5 7 5v12"/><path d="M17 20V11h4v9"/><path d="M6 12h4M8 10v4"/></svg>'}</div>
+          <div class="id-name">${esc(org.name)}</div>
+          <div class="id-code mono">${esc(org.code)}</div>
+          <div class="id-stats">
+            <div class="stat"><small>类型</small><b>${org.type === "hospital" ? "医院根节点" : "院区"}</b></div>
+            <div class="stat"><small>状态</small><b>${org.status ? "启用" : "停用"}</b></div>
+            <div class="stat"><small>科室</small><b>${depCount}</b></div>
+            ${org.type === "campus" ? `<div class="stat"><small>默认院区</small><b>${org.isDefault ? "是" : "否"}</b></div>` : `<div class="stat"><small>院区</small><b>${campuses.length}</b></div>`}
+          </div>
+        </aside>
+        <div class="fields">
+          <div class="field"><small>机构名称</small><div>${esc(org.name)}</div></div>
+          <div class="field"><small>简称</small><div>${esc(org.shortName || "—")}</div></div>
+          <div class="field"><small>省市区</small><div>${esc(org.region || "—")}</div></div>
+          <div class="field"><small>详细地址</small><div>${esc(org.address || "—")}</div></div>
+          <div class="field"><small>联系人</small><div>${esc(org.contact || "—")}</div></div>
+          <div class="field"><small>联系电话</small><div>${esc(org.phone || "—")}</div></div>
+          <div class="field"><small>邮箱</small><div>${esc(org.email || "—")}</div></div>
+          <div class="field"><small>Logo URL</small><div class="${org.logoUrl ? "" : "empty"}">${esc(org.logoUrl || "未设置")}</div></div>
+          <div class="field wide"><small>结构约束</small><div>${org.type === "hospital" ? "医院根节点；可创建院区，不能创建第二个医院根节点。" : "院区为叶子节点；不能继续创建子机构，可作为科室归属。"}</div></div>
+        </div>
+      </div>
+      ${org.type === "hospital" && !org.initialized
+        ? '<div class="callout warn"><strong>初始化未完成：</strong>系统已生成“未命名医院/总院区”。请点击“编辑机构”，补齐医院名称、代码、地区、地址和联系人等信息。本页不提供“新建根机构”。</div>'
+        : '<div class="callout">原型约束：本页不提供“新建根机构”。第二版如出现集团多医院，再单独扩展集团层级，不在当前院内版本范围内。</div>'}
+    `;
+  }
+
+  function renderCampuses() {
+    const rows = campuses.map(campus => {
+      const depCount = departments.filter(dep => dep.campusId === campus.id).length;
+      return `<tr>
+        <td><div class="td-main"><div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 20V8l7-5 7 5v12"/><path d="M17 20V11h4v9"/><path d="M6 12h4M8 10v4"/></svg></div><div><strong>${esc(campus.name)}</strong><small>${esc(campus.shortName || "—")}</small></div></div></td>
+        <td class="mono">${esc(campus.code)}</td>
+        <td>${esc(campus.region || "—")}</td>
+        <td>${esc(campus.contact || "—")}</td>
+        <td>${depCount}</td>
+        <td><div style="display:flex;gap:6px;align-items:center">${statusPill(campus.status, campus.status ? "启用" : "停用")}${campus.isDefault ? '<span class="pill default">默认</span>' : ""}</div></td>
+        <td><div class="row-actions"><button class="icon-btn" title="选择" onclick="selectNode(${campus.id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button></div></td>
+      </tr>`;
+    }).join("");
+    $("pane-campuses").innerHTML = `
+      <div class="section-head"><div class="section-title">院区列表</div><button class="btn primary" onclick="openDrawer('create-campus')">新增院区</button></div>
+      <div class="table-card"><div class="table-scroll"><table><thead><tr><th>院区</th><th>代码</th><th>地区</th><th>联系人</th><th>科室</th><th>状态</th><th style="text-align:right">操作</th></tr></thead><tbody>${rows}</tbody></table></div></div>
+      <div class="callout">院区表示物理执业地点。这里的“东院区放射科”和“总院区放射科”是两个不同的业务科室实例。</div>
+    `;
+  }
+
+  function renderDepartments(org) {
+    const rowsData = org.type === "hospital" ? departments : departments.filter(dep => dep.campusId === org.id);
+    const rows = rowsData.map(dep => {
+      const campus = campusById(dep.campusId);
+      return `<tr>
+        <td><div class="td-main"><div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 20V7h6v13M14 20V11h6v9M3 20h18"/></svg></div><div><strong>${esc(dep.name)}</strong><small>院区：${esc(campus.name)}</small></div></div></td>
+        <td class="mono">${esc(dep.code)}</td>
+        <td>${esc(campus.name)}</td>
+        <td><span class="pill blue">临床业务</span></td>
+      </tr>`;
+    }).join("");
+    $("pane-departments").innerHTML = `
+      <div class="section-head"><div class="section-title">科室归属</div><button class="btn" onclick="showToast('原型：跳转到科室管理')">去科室管理</button></div>
+      <div class="table-card"><div class="table-scroll"><table><thead><tr><th>科室</th><th>科室代码</th><th>院区</th><th>类型</th></tr></thead><tbody>${rows || `<tr><td colspan="4"><div class="empty-state">该院区暂无科室</div></td></tr>`}</tbody></table></div></div>
+      <div class="callout">本页仅展示归属关系。科室的完整增删改在“科室管理”页完成，创建时只能选择院区作为上级。</div>
+    `;
+  }
+
+  function renderAccess() {
+    const rows = access.map(item => {
+      const campus = campusById(item.campusId);
+      return `<tr>
+        <td>${esc(campus.name)}</td>
+        <td class="mono">${esc(item.ae)}</td>
+        <td class="mono">${esc(item.mwl)}</td>
+        <td class="mono">${esc(item.qido)}</td>
+        <td>${statusPill(item.status, item.status ? "已接入" : "未启用")}</td>
+      </tr>`;
+    }).join("");
+    $("pane-access").innerHTML = `
+      <div class="section-head"><div class="section-title">院区接入示意</div><span class="pill blue">后续变更</span></div>
+      <div class="table-card"><div class="table-scroll"><table><thead><tr><th>院区</th><th>AE Title</th><th>MWL</th><th>QIDO Source</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table></div></div>
+      <div class="callout">这是后续集成能力的示意位：院区将用于区分 PACS/QIDO、HL7 与 MWL 的接入上下文，避免多院区设备路由混淆。</div>
+    `;
+  }
+
+  document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
+    activeTab = btn.dataset.tab;
+    renderAll();
+  }));
+
+  function openDrawer(mode) {
+    const org = orgById(selectedId);
+    drawerMode = mode;
+    if (mode === "create-campus") {
+      $("drawerTitle").textContent = "新增院区";
+      $("drawerSub").textContent = `上级机构：${hospital.name}`;
+      $("fParent").value = hospital.name;
+      $("fType").value = "院区";
+      $("fCode").value = "";
+      $("fName").value = "";
+      $("fShort").value = "";
+      $("fStatus").checked = true;
+      $("fRegion").value = "";
+      $("fAddress").value = "";
+      $("fContact").value = "";
+      $("fPhone").value = "";
+      $("fEmail").value = "";
+      $("fLogo").value = "";
+      $("fSort").value = (Math.max(...campuses.map(item => item.sort)) + 10);
+      $("fDefault").checked = false;
+      $("defaultItem").style.display = "grid";
+    } else {
+      $("drawerTitle").textContent = org.type === "hospital" ? "编辑机构" : "编辑院区";
+      $("drawerSub").textContent = org.type === "hospital" ? "机构类型与父级不可修改" : `上级机构：${hospital.name} · 类型与父级不可修改`;
+      $("fParent").value = org.type === "hospital" ? "部署根节点" : hospital.name;
+      $("fType").value = org.type === "hospital" ? "医院" : "院区";
+      $("fCode").value = org.code;
+      $("fName").value = org.name;
+      $("fShort").value = org.shortName || "";
+      $("fStatus").checked = org.status;
+      $("fRegion").value = org.region || "";
+      $("fAddress").value = org.address || "";
+      $("fContact").value = org.contact || "";
+      $("fPhone").value = org.phone || "";
+      $("fEmail").value = org.email || "";
+      $("fLogo").value = org.logoUrl || "";
+      $("fSort").value = org.sort || 0;
+      $("fDefault").checked = Boolean(org.isDefault);
+      $("defaultItem").style.display = org.type === "campus" ? "grid" : "none";
+    }
+    $("statusLabel").textContent = $("fStatus").checked ? "启用" : "停用";
+    $("drawerLayer").classList.add("open");
+  }
+
+  function closeDrawer() { $("drawerLayer").classList.remove("open"); }
+
+  function saveOrg(event) {
+    event.preventDefault();
+    const code = $("fCode").value.trim();
+    const name = $("fName").value.trim();
+    if (!code || !name) { showToast("请填写机构代码和名称"); return; }
+    if (drawerMode === "create-campus") {
+      if (campuses.some(item => item.code.toLowerCase() === code.toLowerCase())) { showToast("机构代码已存在"); return; }
+      const newCampus = { id: Date.now(), type: "campus", code, name, shortName: $("fShort").value.trim(), status: $("fStatus").checked, isDefault: false, region: $("fRegion").value.trim(), address: $("fAddress").value.trim(), contact: $("fContact").value.trim(), phone: $("fPhone").value.trim(), email: $("fEmail").value.trim(), logoUrl: $("fLogo").value.trim(), sort: Number($("fSort").value || 0) };
+      campuses.push(newCampus);
+      selectedId = newCampus.id;
+      showToast("院区已创建（原型数据）");
+    } else {
+      const org = orgById(selectedId);
+      Object.assign(org, { code, name, shortName: $("fShort").value.trim(), status: $("fStatus").checked, region: $("fRegion").value.trim(), address: $("fAddress").value.trim(), contact: $("fContact").value.trim(), phone: $("fPhone").value.trim(), email: $("fEmail").value.trim(), logoUrl: $("fLogo").value.trim(), sort: Number($("fSort").value || 0) });
+      if (org.type === "campus" && $("fDefault").checked) setDefault(org.id, true);
+      if (org.type === "hospital") org.initialized = true;
+      showToast("保存成功（原型数据）");
+    }
+    closeDrawer();
+    renderAll();
+  }
+
+  function setDefault(id, silent) {
+    campuses.forEach(item => item.isDefault = item.id === id);
+    if (!silent) showToast("默认院区已更新");
+    renderAll();
+  }
+
+  function askDelete(id) {
+    const org = orgById(id);
+    const hasDeps = departments.some(dep => dep.campusId === id);
+    pendingDeleteId = id;
+    $("confirmText").innerHTML = hasDeps
+      ? `“${esc(org.name)}”仍存在 ${departments.filter(dep => dep.campusId === id).length} 个科室。后端将拒绝删除，需先处理科室。`
+      : `确认删除“${esc(org.name)}”？该操作为逻辑删除。`;
+    $("confirmLayer").classList.add("open");
+  }
+
+  function closeConfirm() { $("confirmLayer").classList.remove("open"); pendingDeleteId = null; }
+
+  function confirmDelete() {
+    const org = orgById(pendingDeleteId);
+    const hasDeps = departments.some(dep => dep.campusId === pendingDeleteId);
+    if (hasDeps) { showToast("删除被拒绝：存在下级科室"); closeConfirm(); return; }
+    const index = campuses.findIndex(item => item.id === pendingDeleteId);
+    if (index >= 0) campuses.splice(index, 1);
+    selectedId = hospital.id;
+    closeConfirm();
+    showToast(`“${org.name}”已删除（原型数据）`);
+    renderAll();
+  }
+
+  let toastTimer;
+  function showToast(text) {
+    const el = $("toast");
+    el.textContent = text;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+  }
+
+  document.addEventListener("keydown", event => { if (event.key === "Escape") { closeDrawer(); closeConfirm(); } });
+  renderAll();
+</script>
+</body>
+</html>

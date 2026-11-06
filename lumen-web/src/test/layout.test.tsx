@@ -207,7 +207,7 @@ describe('three-zone shell metrics (web-foundation-auth-console 5.4)', () => {
 })
 
 describe('sidebar fold control (web-foundation-auth-console 5.4)', () => {
-  it('collapses to a 40px strip and back, showing the vertical active-L1 strip text', async () => {
+  it('collapses to a mini icon rail and back, without the vertical strip text', async () => {
     const user = userEvent.setup()
     seedAdminSession()
     const { container } = renderShell('/system/orgs')
@@ -220,7 +220,9 @@ describe('sidebar fold control (web-foundation-auth-console 5.4)', () => {
     expect(sidebar?.style.width).toBe('40px')
     const expand = container.querySelector<HTMLElement>('.lumen-side-expand')
     expect(expand).not.toBeNull()
-    expect(expand?.textContent).toContain('系统管理')
+    // Mini-rail cleanup (user request 2026-11-05): no vertical active-L1 text.
+    expect(expand?.textContent).not.toContain('系统管理')
+    expect(container.querySelectorAll('.lumen-side-mini-btn').length).toBeGreaterThan(0)
 
     await user.click(expand!)
     expect(container.querySelector<HTMLElement>('.lumen-side')?.style.width).toBe('160px')

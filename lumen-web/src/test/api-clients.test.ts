@@ -4,7 +4,8 @@ import { createUser, enableUser, listUsers, resetPassword } from '@/api/users'
 import { createOrg, deleteOrg, orgTree, updateOrg } from '@/api/orgs'
 import { createDep, deleteDep, listDeps, updateDep } from '@/api/org-deps'
 import { assignRoleMenus, createRole, deleteRole, listRoles, updateRole } from '@/api/roles'
-import { menuTree } from '@/api/menus'
+import { createMenu, menuTree, removeMenu, updateMenu } from '@/api/menus'
+import type { CreateMenuBody, UpdateMenuBody } from '@/api/types'
 import {
   createCatal,
   createDetail,
@@ -352,6 +353,37 @@ describe('menus client (task 4.3)', () => {
     expect(data[0].mid).toBe(1)
     expect(data[0].children?.[0].mid).toBe(2)
     expect(data[0].children?.[0].perms).toBe('system:user:list')
+  })
+
+  it('createMenu posts the node body to /system/menus and unwraps the new id', async () => {
+    const fetchMock = stubOk(33)
+    const body: CreateMenuBody = { upId: 9, type: 'F', title: '删除', perms: 'system:role:delete', sort: 9, visible: 1 }
+    const data = await createMenu(body)
+    const { url, init } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/menus')
+    expect(init.method).toBe('POST')
+    expect(init.body).toBe(JSON.stringify(body))
+    expect(data).toBe(33)
+  })
+
+  it('updateMenu puts the full field body to /system/menus/{id}', async () => {
+    const fetchMock = stubOk(true)
+    const body: UpdateMenuBody = { upId: 15, type: 'C', title: '改名', sort: 3, visible: 0 }
+    const data = await updateMenu(33, body)
+    const { url, init } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/menus/33')
+    expect(init.method).toBe('PUT')
+    expect(init.body).toBe(JSON.stringify(body))
+    expect(data).toBe(true)
+  })
+
+  it('removeMenu deletes /system/menus/{id}', async () => {
+    const fetchMock = stubOk(true)
+    const data = await removeMenu(33)
+    const { url, init } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/menus/33')
+    expect(init.method).toBe('DELETE')
+    expect(data).toBe(true)
   })
 })
 

@@ -171,7 +171,9 @@
   color: var(--lumen-fold-hover-color);
 }
 /* Collapsed mini rail (user request 2026-11-05): one 40px icon button per
-   L2 section; click opens a right flyout with that section's L3 items. */
+   L2 section; click opens a right flyout with that section's L3 items. The
+   sider-children wrapper above is already a full-height flex column, so the
+   rail's flex:1 makes the bottom margin-top:auto pin work. */
 .lumen-side-mini {
   display: flex;
   flex: 1;
@@ -179,13 +181,14 @@
   align-items: center;
   gap: 4px;
   width: 100%;
-  padding: 6px 0 52px;
+  min-height: 0;
+  padding: 6px 0 0;
 }
 .lumen-side-mini-btn {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 0;
   border-radius: 6px;
@@ -194,48 +197,79 @@
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
+/* Hover gets the primary tint; an OPEN popover only gets the neutral chip so
+   it is not confused with the selected section's highlight (user 2026-11-05:
+   two buttons lit at once). */
 .lumen-side-mini-btn:hover {
+  background: color-mix(in srgb, var(--lumen-menu-active-bar) 18%, transparent);
+  color: var(--lumen-menu-active-bar);
+}
+.ant-popover-open.lumen-side-mini-btn {
   background: var(--lumen-fold-hover-bg);
   color: var(--lumen-fold-hover-color);
 }
 .lumen-side-mini-btn-active {
-  background: var(--lumen-fold-hover-bg);
+  background: color-mix(in srgb, var(--lumen-menu-active-bar) 22%, transparent);
+  /* Selected section keeps the primary tint + glyph (user 2026-11-05). */
   color: var(--lumen-menu-active-bar);
+  font-weight: 600;
 }
 .lumen-side-mini-char {
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 600;
   line-height: 1;
 }
+/* Flyout hierarchy (user request 2026-11-05): the L2 group title reads as a
+   bold header with a divider; L3 rows are larger and indented, so the two
+   levels are visually distinct and mis-clicks are unlikely. */
 .lumen-side-mini-pop {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 120px;
+  min-width: 170px;
 }
 .lumen-side-mini-pop-title {
-  padding: 4px 10px 6px;
-  font-size: 12px;
-  color: var(--lumen-group-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--lumen-pop-border, var(--lumen-group-separator));
+  font-size: 15px;
+  font-weight: 600;
+  /* Unified gray (user request 2026-11-05): the header icon + text share the
+     sidebar's group-label color instead of AntD's near-black default. */
+  color: var(--lumen-fold-color, var(--lumen-title-color, inherit));
 }
 .lumen-side-mini-item {
-  padding: 6px 10px;
+  padding: 9px 12px;
   border: 0;
   border-radius: 5px;
   background: transparent;
   color: var(--lumen-title-color, inherit);
-  font-size: 14px;
+  font-size: 15px;
   text-align: left;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s;
 }
 .lumen-side-mini-item:hover {
-  background: var(--lumen-fold-hover-bg);
+  background: color-mix(in srgb, var(--lumen-menu-active-bar) 16%, transparent);
+  color: var(--lumen-menu-active-bar);
 }
 .lumen-side-mini-item-active {
   color: var(--lumen-menu-active-bar);
-  background: color-mix(in srgb, var(--lumen-menu-active-bar) 10%, transparent);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--lumen-menu-active-bar) 22%, transparent);
+  box-shadow: inset 3px 0 0 var(--lumen-menu-active-bar);
+  border-radius: 5px;
+}
+/* Inside the mini rail the expand control is just a bottom-pinned icon -
+   the vertical active-L1 title was dropped as redundant clutter. */
+.lumen-side-mini .lumen-side-expand {
+  flex: 0 0 auto;
+  margin-top: auto;
+  padding: 12px 0;
 }
 .lumen-side-expand {
   display: flex;

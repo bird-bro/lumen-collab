@@ -156,6 +156,10 @@ export function BasicLayout() {
   const menus = useAuthStore((state) => state.menus)
   const profile = useAuthStore((state) => state.profile)
   const [folded, setFolded] = useState(false)
+  // The currently open mini-rail flyout (null when none): while browsing
+  // another section, the route section's highlight yields (user 2026-11-05:
+  // two L2 buttons lit at once read as a bug).
+  const [openSectionKey, setOpenSectionKey] = useState<string | null>(null)
 
   const activeL1 = useMemo(() => activeTopLevelNode(menus, pathname), [menus, pathname])
 
@@ -176,10 +180,10 @@ export function BasicLayout() {
           borderBottom: `1px solid ${token.colorBorderSecondary}`,
         }}
       >
-        <span style={{ fontSize: token.fontSizeSM, fontWeight: 500, color: token.colorText }}>
+        <span style={{ fontSize: 18, fontWeight: 600, color: token.colorText }}>
           {profile?.name ?? '未登录'}
         </span>
-        <span style={{ fontSize: 12, color: token.colorTextTertiary }}>{SEED_ORG_LABEL}</span>
+        <span style={{ fontSize: 15, color: token.colorTextTertiary }}>{SEED_ORG_LABEL}</span>
       </div>
       <Button block size="large" onClick={logout}>
         退出登录
@@ -243,6 +247,10 @@ export function BasicLayout() {
           // Console-table current-row chrome (OPS dict-page highlight-current-row).
           '--lumen-row-current-bar': token.colorPrimary,
           '--lumen-row-current-bg': token.colorBgContainer,
+          // Mini-rail highlight color: previously only the expanded Menu
+          // defined this var, so the collapsed rail's active color resolved
+          // to inherited near-black (user-reported color mismatch).
+          '--lumen-menu-active-bar': token.colorPrimary,
         } as CSSProperties
       }
     >
@@ -271,7 +279,7 @@ export function BasicLayout() {
           <img
             src={headLogo}
             alt="LumenCollab"
-            style={{ width: 44, height: 44, borderRadius: 11, display: 'block' }}
+            style={{ width: 50, height: 50, borderRadius: 12, display: 'block' }}
           />
         </div>
         {menus.map((item) => {
@@ -376,16 +384,37 @@ export function BasicLayout() {
               <div className="lumen-side-mini">
                 {sidebarSections.map((section) => {
                   const firstLabel = section.items[0]?.label ?? ''
-                  const active = section.items.some((entry) => entry.key === pathname)
+                  const routeActive = section.items.some((entry) => entry.key === pathname)
+                  const active = routeActive && (openSectionKey === null || openSectionKey === section.key)
                   return (
                     <Popover
                       key={section.key}
                       trigger="click"
                       placement="rightTop"
+                      onOpenChange={(open) => setOpenSectionKey(open ? section.key : null)}
+                      overlayInnerStyle={{
+                        padding: '10px 8px',
+                        borderRadius: 10,
+                        border: `1px solid ${token.colorBorder}`,
+                        boxShadow: '0 6px 24px rgba(0, 0, 0, 0.12)',
+                      }}
                       content={
-                        <div className="lumen-side-mini-pop">
+                        <div
+                          className="lumen-side-mini-pop"
+                          style={
+                            {
+                              '--lumen-pop-border': token.colorBorder,
+                              '--lumen-menu-active-bar': token.colorPrimary,
+                              '--lumen-title-color': token.colorText,
+                              '--lumen-fold-color': token.colorTextTertiary,
+                            } as CSSProperties
+                          }
+                        >
                           {section.title ? (
-                            <div className="lumen-side-mini-pop-title">{section.title}</div>
+                            <div className="lumen-side-mini-pop-title">
+                              {section.icon ? <MenuIcon name={section.icon} size={20} /> : null}
+                              <span>{section.title}</span>
+                            </div>
                           ) : null}
                           {section.items.map((entry) => (
                             <button
@@ -397,10 +426,10 @@ export function BasicLayout() {
                                   : 'lumen-side-mini-item'
                               }
                               onClick={() => {
-                                if (entry.key.startsWith('/')) {
-                                  navigate(entry.key)
-                                  setFolded(false)
-                                }
+                                // Stay folded after jumping (user request
+                                // 2026-11-05): the mini rail remains for the
+                                // next section switch.
+                                if (entry.key.startsWith('/')) navigate(entry.key)
                               }}
                             >
                               {String(entry.label)}
@@ -419,7 +448,7 @@ export function BasicLayout() {
                         title={section.title ?? firstLabel}
                       >
                         {section.icon ? (
-                          <MenuIcon name={section.icon} size={18} />
+                          <MenuIcon name={section.icon} size={26} />
                         ) : (
                           <span className="lumen-side-mini-char">{firstLabel.slice(0, 1) || '·'}</span>
                         )}
@@ -434,7 +463,6 @@ export function BasicLayout() {
                   title="展开侧栏"
                 >
                   <MenuUnfoldOutlined style={{ fontSize: 24 }} />
-                  <span className="lumen-side-expand-text">{activeL1?.title}</span>
                 </button>
               </div>
             ) : (

@@ -241,6 +241,37 @@ export interface CreateDictDetailBody {
 
 export type UpdateDictDetailBody = Partial<CreateDictDetailBody>;
 
+/**
+ * POST /system/menus payload (menu-management-api family): a node of the
+ * `upId` tree (`upId = 0` = top level) typed `M` directory / `C` menu / `F`
+ * button. `perms` is free text (the `模块:资源:动作` convention) - the server
+ * stores it verbatim; creation auto-grants the node to the admin role.
+ */
+export interface CreateMenuBody {
+  upId: number;
+  type: 'M' | 'C' | 'F';
+  title: string;
+  perms?: string | null;
+  path?: string | null;
+  component?: string | null;
+  icon?: string | null;
+  sort?: number | null;
+  visible?: number | null;
+}
+
+/** PUT /system/menus/{id} payload - full-field update including reparenting via `upId`. */
+export interface UpdateMenuBody {
+  upId: number;
+  type: 'M' | 'C' | 'F';
+  title: string;
+  perms?: string | null;
+  path?: string | null;
+  component?: string | null;
+  icon?: string | null;
+  sort?: number | null;
+  visible?: number | null;
+}
+
 /** Operation-log row (the LogInfoEntity JSON field set). */
 export interface LogItem {
   id: number;

@@ -1,10 +1,17 @@
 /// <reference types="vitest/config" />
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // Direct-service preview override (web-app-shell spec): VITE_API_ENTRY_URL retargets
+  // the /api/v1 proxy. Vite does NOT inject .env files into process.env for this config
+  // file itself, so load them explicitly - .env.local (gitignored) then works without a
+  // shell export (the former process.env-only read silently kept the :80 default and
+  // surfaced as proxy 500s when no nginx entry was listening).
+  const env = loadEnv(mode, process.cwd(), 'VITE_')
+  return {
   // Backend-first (change frontend-backend-first, user ruling 2026-11-05):
   // no dev-server mock layer exists - /api/v1 always falls through the proxy
   // to the real unified entry (nginx :80) and pages render REAL backend data,
@@ -51,9 +58,10 @@ export default defineConfig({
       // no Java gateway. Override the target with VITE_API_ENTRY_URL; no service
       // port is ever hard-coded here.
       '/api/v1': {
-        target: process.env.VITE_API_ENTRY_URL ?? 'http://localhost:80',
+        target: env.VITE_API_ENTRY_URL ?? 'http://localhost:80',
         changeOrigin: true,
       },
     },
   },
+}
 })

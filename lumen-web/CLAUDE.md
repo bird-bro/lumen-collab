@@ -21,6 +21,9 @@ You are a **Frontend Web Agent**. Your scope: UI, components, state, API integra
   request goes through the vite proxy to the REAL backend
   (`VITE_API_ENTRY_URL ?? http://localhost:80`, nginx unified entry); when the entry is
   unreachable requests fail as-is - never fabricate or stub page data
+- Day-to-day dev against a local `lumen-system` (no nginx on this machine): copy
+  `.env.example` to `.env.local` (`VITE_API_ENTRY_URL=http://localhost:8081`) and restart
+  `pnpm dev` - the spec's Direct-service preview override path, no source change
 - `pnpm dev` precondition = the backend entry is reachable; unit tests stub API client
   modules at the seam (`vi.mock('@/api/...')`), which never serves page data at runtime
 - Static demo pages with hard-coded data are allowed for visual preview (new pages only;
