@@ -103,6 +103,18 @@ function tree(): HTMLElement {
   return document.querySelector('.ant-tree') as HTMLElement
 }
 
+/** AntD's Table spin container carries pointer-events:none - row-action clicks
+ * must wait for the CURRENT load to finish, or userEvent refuses (and which
+ * test loses the race varies with machine load). */
+async function waitForTableReady() {
+  await waitFor(() => expect(document.querySelector('.ant-spin-spinning')).toBeNull())
+  // The tree's auto-select effect fires a second identical load right after the
+  // first settles - require the calm to HOLD across a macrotask boundary or the
+  // click lands on the new spin's pointer-events:none container.
+  await new Promise((resolve) => setTimeout(resolve, 60))
+  await waitFor(() => expect(document.querySelector('.ant-spin-spinning')).toBeNull())
+}
+
 /** Same code may live on several campuses - any row counts as "rendered". */
 async function waitForRow(code: string) {
   await waitFor(() => expect(screen.getAllByText(code).length).toBeGreaterThan(0))
@@ -272,6 +284,7 @@ describe('dep page - code handling (delta: Department Code Handling)', () => {
     renderPage()
     await waitForRow('radiology')
 
+    await waitForTableReady()
     await user.click(within(rowOf('radiology')).getByTitle('编辑科室'))
     expect(screen.getByLabelText('科室编码')).toBeDisabled()
     expect(screen.getByLabelText('科室编码')).toHaveValue('radiology')
@@ -313,6 +326,7 @@ describe('dep page - code handling (delta: Department Code Handling)', () => {
     renderPage()
     await waitForRow('radiology')
 
+    await waitForTableReady()
     await user.click(within(rowOf('radiology')).getByTitle('编辑科室'))
     await user.click(screen.getByLabelText('所属院区'))
     await user.click(within(document.querySelector('.ant-select-dropdown') as HTMLElement).getByText('东院区'))
@@ -330,6 +344,7 @@ describe('dep page - delete and perms (delta: mutation affordances follow system
     renderPage()
     await waitForRow('radiology')
 
+    await waitForTableReady()
     const row = rowOf('radiology')
     await user.click(within(row).getByTitle('删除科室'))
     await user.click(screen.getByRole('button', { name: '删 除' }))

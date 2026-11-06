@@ -112,6 +112,17 @@ function renderPage() {
   )
 }
 
+/** AntD's Table spin container carries pointer-events:none - row-action clicks
+ * must wait for the CURRENT load to finish, or userEvent refuses under load. */
+async function waitForTableReady() {
+  await waitFor(() => expect(document.querySelector('.ant-spin-spinning')).toBeNull())
+  // The tree's auto-select effect fires a second identical load right after the
+  // first settles - require the calm to HOLD across a macrotask boundary or the
+  // click lands on the new spin's pointer-events:none container.
+  await new Promise((resolve) => setTimeout(resolve, 60))
+  await waitFor(() => expect(document.querySelector('.ant-spin-spinning')).toBeNull())
+}
+
 async function waitForCampusRow(name: string) {
   await waitFor(() => expect(screen.getByText(name)).toBeInTheDocument())
 }
@@ -232,6 +243,7 @@ describe('org page - campus CRUD round-trip (delta: Campus CRUD round-trip)', ()
     renderPage()
     await waitForCampusRow('总院区')
 
+    await waitForTableReady()
     await user.click(within(rowOf('总院区')).getByTitle('编辑院区'))
     expect(screen.getByLabelText('机构代码')).toHaveValue('CAMPUS-1')
     await user.clear(screen.getByLabelText('机构名称'))
@@ -251,6 +263,7 @@ describe('org page - campus CRUD round-trip (delta: Campus CRUD round-trip)', ()
     renderPage()
     await waitForCampusRow('总院区')
 
+    await waitForTableReady()
     await user.click(within(rowOf('东院区')).getByTitle('设为默认'))
     expect(orgsApi.updateOrg).toHaveBeenCalledWith(275, { isDefault: 1 })
     await waitFor(() => {
@@ -265,6 +278,7 @@ describe('org page - campus CRUD round-trip (delta: Campus CRUD round-trip)', ()
     renderPage()
     await waitForCampusRow('东院区')
 
+    await waitForTableReady()
     await user.click(within(rowOf('东院区')).getByTitle('删除院区'))
     await user.click(screen.getByRole('button', { name: '删 除' }))
     await waitFor(() => expect(orgsApi.deleteOrg).toHaveBeenCalledWith(275))
@@ -301,6 +315,7 @@ describe('org page - rejection surfaces (delta: Organization rejection surfaces)
     renderPage()
     await waitForCampusRow('东院区')
 
+    await waitForTableReady()
     await user.click(within(rowOf('东院区')).getByTitle('删除院区'))
     await user.click(screen.getByRole('button', { name: '删 除' }))
 
