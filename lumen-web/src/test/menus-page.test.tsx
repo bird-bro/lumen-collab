@@ -13,7 +13,7 @@ import { themeConfig } from '@/theme'
  * 菜单管理 page (button-perm-enforcement-web tasks 2.2 + 3.1/3.2; spec
  * `specs/web-system-console` § Menu Management + user instruction 2026-11-06:
  * visual alignment with the 随访 reference `fu_web/src/views/system/menu/index.vue`
- * - 菜单名/类型/路径/组件/权限标识/排序/可见 columns, a menu-name filter tool row,
+ * - 菜单/类型/路径/组件/权限标识/显示/排序 columns, a menu-name filter tool row,
  * icon actions with per-action perms, and the reference drawer wording). API
  * clients stub at the `vi.mock('@/api/menus')` seam (no mock layer - runtime
  * rides the vite proxy to the real backend).
@@ -42,7 +42,38 @@ function menu(partial: Partial<MenuNode> & { mid: number; title: string; upId: n
   }
 }
 
+const DEEP_TREE: MenuNode[] = [
+  menu({
+    mid: 1,
+    title: '系统管理',
+    upId: 0,
+    type: 'M',
+    children: [
+      menu({
+        mid: 14,
+        title: '用户权限',
+        upId: 1,
+        type: 'M',
+        children: [
+          menu({
+            mid: 2,
+            title: '用户管理',
+            upId: 14,
+            perms: 'system:user:list',
+            path: 'user',
+            component: 'system/user/index',
+            children: [
+              menu({ mid: 7, title: '用户删除', upId: 2, type: 'F', perms: 'system:user:delete' }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  }),
+]
+
 const TREE: MenuNode[] = [
+  menu({ mid: 30, title: '放射工作站', upId: 0, type: 'W' }),
   menu({
     mid: 1,
     title: '系统管理',
@@ -63,6 +94,7 @@ const TREE: MenuNode[] = [
             perms: 'system:user:list',
             path: 'user',
             component: 'system/user/index',
+            remark: '用户菜单备注',
           }),
           menu({ mid: 6, title: '报告审核', upId: 14, type: 'F', perms: 'system:report:audit', visible: true }),
         ],
@@ -70,6 +102,13 @@ const TREE: MenuNode[] = [
     ],
   }),
 ]
+
+/** Expand one row's tree affordance; controlled tree expansion is async-safe. */
+async function expandRow(title: string): Promise<void> {
+  const icon = rowOf(title).querySelector('.ant-table-row-expand-icon') as HTMLElement | null
+  if (!icon) throw new Error(`No expand icon on row: ${title}`)
+  await userEvent.setup().click(icon)
+}
 
 function renderPage() {
   return render(
@@ -113,8 +152,10 @@ describe('menus page - management (spec: Menu Management)', () => {
   it('renders the 随访-style column set with type tags, perms, and paths', async () => {
     renderPage()
     expect(await screen.findByText('系统管理')).toBeInTheDocument()
-    for (const header of ['菜单名', '类型', '路径', '组件', '权限标识', '排序', '可见']) {
-      expect(screen.getByText(header)).toBeInTheDocument()
+    await expandRow('用户权限')
+    const headers = screen.getAllByRole('columnheader').map((header) => header.textContent)
+    for (const header of ['菜单', '类型', '路径', '组件', '权限标识', '显示', '排序']) {
+      expect(headers).toContain(header)
     }
     // cell values: path / component / perms render from the row data
     expect(screen.getByText('user')).toBeInTheDocument()
@@ -127,10 +168,92 @@ describe('menus page - management (spec: Menu Management)', () => {
     expect(screen.getAllByText('按钮').length).toBeGreaterThan(0)
   })
 
-  it('renders the visible column as a tag and shows "-" for button rows', async () => {
+  it('expands only the first tree layer by default', async () => {
+    vi.mocked(menusApi.menuTree).mockResolvedValue(DEEP_TREE)
+    renderPage()
+
+    // Layer 1 is expanded, so layer 2 is visible.
+    expect(await screen.findByText('用户权限')).toBeInTheDocument()
+    // Layers 3+ stay folded until the user expands their ancestors.
+    expect(screen.queryByText('用户管理')).not.toBeInTheDocument()
+    expect(screen.queryByText('用户删除')).not.toBeInTheDocument()
+
+    await userEvent
+      .setup()
+      .click(rowOf('用户权限').querySelector('.ant-table-row-expand-icon') as HTMLElement)
+    expect(screen.getByText('用户管理')).toBeInTheDocument()
+
+    await userEvent
+      .setup()
+      .click(rowOf('用户管理').querySelector('.ant-table-row-expand-icon') as HTMLElement)
+    expect(screen.getByText('用户删除')).toBeInTheDocument()
+  })
+
+  it('left-aligns type cells, centers sort/visible/action cells, and centers every header', async () => {
     renderPage()
     await screen.findByText('系统管理')
-    expect(screen.getAllByText('显示').length).toBeGreaterThan(0)
+    await expandRow('用户权限')
+
+    for (const header of ['菜单', '类型', '路径', '组件', '权限标识', '显示', '排序', '操作']) {
+      const headerCell = screen
+        .getAllByRole('columnheader')
+        .find((cell) => cell.textContent === header)
+      expect(headerCell).toHaveStyle({ textAlign: 'center' })
+    }
+
+    const row = rowOf('用户管理')
+    expect(within(row).getByText('页面').closest('td')).toHaveStyle({ textAlign: 'left' })
+    expect(within(row).getByText('1').closest('td')).toHaveStyle({ textAlign: 'center' })
+
+    // 工作站 uses its own tag color, distinct from 目录/页面/按钮.
+    expect(within(rowOf('放射工作站')).getByText('工作站').closest('.ant-tag')).toHaveClass(
+      'ant-tag-purple',
+    )
+    expect(within(row).getByLabelText('显示').closest('td')).toHaveStyle({ textAlign: 'center' })
+    expect(row.querySelector('td:last-child')).toHaveStyle({ textAlign: 'center' })
+  })
+
+  it('orders the create/edit type radios as 工作站/页面/目录/按钮', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('系统管理')
+
+    await user.click(screen.getByRole('button', { name: /添加$/ }))
+    const drawer = screen.getByRole('dialog')
+    expect(
+      within(drawer)
+        .getAllByRole('radio')
+        .map((radio) => radio.closest('label')?.textContent),
+    ).toEqual(['工作站', '页面', '目录', '按钮'])
+  })
+
+  it('orders the columns and refreshes from the action header icon', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('系统管理')
+
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
+      '菜单',
+      '类型',
+      '路径',
+      '组件',
+      '权限标识',
+      '显示',
+      '排序',
+      '操作',
+    ])
+
+    await user.click(screen.getByRole('button', { name: '刷新列表' }))
+    await waitFor(() => {
+      expect(menusApi.menuTree).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('renders the visible column as an icon and shows "-" for button rows', async () => {
+    renderPage()
+    await screen.findByText('系统管理')
+    await expandRow('用户权限')
+    expect(screen.getAllByLabelText('显示').length).toBeGreaterThan(0)
     const buttonRow = rowOf('报告审核')
     expect(within(buttonRow).getByText('-')).toBeInTheDocument()
   })
@@ -139,6 +262,7 @@ describe('menus page - management (spec: Menu Management)', () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('系统管理')
+    await expandRow('用户权限')
 
     await user.type(screen.getByPlaceholderText('菜单名'), '报告')
     await user.click(screen.getByRole('button', { name: /查询/ }))
@@ -151,7 +275,9 @@ describe('menus page - management (spec: Menu Management)', () => {
   it('creates a button node via 添加子菜单 and refreshes the tree', async () => {
     const user = userEvent.setup()
     renderPage()
-    await screen.findByText('用户管理')
+    await screen.findByText('用户权限')
+    await expandRow('用户权限')
+    expect(await screen.findByText('用户管理')).toBeInTheDocument()
 
     await user.click(within(rowOf('用户管理')).getByRole('button', { name: '添加子菜单' }))
     const drawer = screen.getByRole('dialog')
@@ -159,6 +285,7 @@ describe('menus page - management (spec: Menu Management)', () => {
     expect(within(drawer).getByRole('radio', { name: '按钮' })).toBeChecked()
     await user.type(within(drawer).getByLabelText('菜单标题'), '删除')
     await user.type(within(drawer).getByLabelText(/权限标识/), 'system:role:delete')
+    await user.type(within(drawer).getByLabelText('备注'), '按钮备注')
     await user.click(within(drawer).getByRole('button', { name: '保 存' }))
 
     await waitFor(() => {
@@ -174,6 +301,7 @@ describe('menus page - management (spec: Menu Management)', () => {
       icon: null,
       sort: 1,
       visible: 1,
+      remark: '按钮备注',
     })
     await waitFor(() => {
       expect(menusApi.menuTree).toHaveBeenCalledTimes(2)
@@ -183,7 +311,9 @@ describe('menus page - management (spec: Menu Management)', () => {
   it('prefills the edit drawer from the row and PUTs the full field set', async () => {
     const user = userEvent.setup()
     renderPage()
-    await screen.findByText('用户管理')
+    await screen.findByText('用户权限')
+    await expandRow('用户权限')
+    expect(await screen.findByText('用户管理')).toBeInTheDocument()
 
     await user.click(within(rowOf('用户管理')).getByRole('button', { name: '编辑' }))
     const drawer = screen.getByRole('dialog')
@@ -192,6 +322,12 @@ describe('menus page - management (spec: Menu Management)', () => {
     expect(within(drawer).getByLabelText('路径')).toHaveValue('user')
     expect(within(drawer).getByLabelText('组件')).toHaveValue('system/user/index')
     expect(within(drawer).getByRole('radio', { name: '页面' })).toBeChecked()
+    expect(within(drawer).getByLabelText('备注')).toHaveValue('用户菜单备注')
+    expect(within(drawer).getByText(/页面权限串/)).toHaveStyle({ fontSize: '12px' })
+    const visibleRow = within(drawer)
+      .getByRole('switch', { name: '是否显示' })
+      .closest('[data-menu-visible-row]')
+    expect(visibleRow).toHaveStyle({ display: 'flex' })
 
     await user.clear(within(drawer).getByLabelText('菜单标题'))
     await user.type(within(drawer).getByLabelText('菜单标题'), '用户管理改')
@@ -210,6 +346,7 @@ describe('menus page - management (spec: Menu Management)', () => {
       icon: null,
       sort: 1,
       visible: 1,
+      remark: '用户菜单备注',
     })
     await waitFor(() => {
       expect(menusApi.menuTree).toHaveBeenCalledTimes(2)
@@ -219,7 +356,9 @@ describe('menus page - management (spec: Menu Management)', () => {
   it('deletes a leaf behind a Popconfirm and refreshes the tree', async () => {
     const user = userEvent.setup()
     renderPage()
-    await screen.findByText('报告审核')
+    await screen.findByText('用户权限')
+    await expandRow('用户权限')
+    expect(await screen.findByText('报告审核')).toBeInTheDocument()
 
     await user.click(within(rowOf('报告审核')).getByRole('button', { name: '删除菜单' }))
     await user.click(await screen.findByRole('button', { name: /^删\s*除$/ }))
@@ -238,7 +377,9 @@ describe('menus page - management (spec: Menu Management)', () => {
       new ApiError('A0400', '存在下级节点，请先处理下级再删除'),
     )
     renderPage()
-    await screen.findByText('用户管理')
+    await screen.findByText('用户权限')
+    await expandRow('用户权限')
+    expect(await screen.findByText('用户管理')).toBeInTheDocument()
 
     await user.click(within(rowOf('用户管理')).getByRole('button', { name: '删除菜单' }))
     await user.click(await screen.findByRole('button', { name: /^删\s*除$/ }))
@@ -268,7 +409,9 @@ describe('menus page - management (spec: Menu Management)', () => {
   it('offers no F nodes as parent choices when creating under a menu', async () => {
     const user = userEvent.setup()
     renderPage()
-    await screen.findByText('用户管理')
+    await screen.findByText('用户权限')
+    await expandRow('用户权限')
+    expect(await screen.findByText('用户管理')).toBeInTheDocument()
 
     await user.click(within(rowOf('用户管理')).getByRole('button', { name: '添加子菜单' }))
     const dropdown = await openParentDropdown(user)

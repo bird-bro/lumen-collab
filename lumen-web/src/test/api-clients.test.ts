@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { login, me } from '@/api/auth'
 import { createUser, enableUser, listUsers, resetPassword } from '@/api/users'
-import { createOrg, deleteOrg, orgTree, updateOrg } from '@/api/orgs'
+import { createOrg, deleteOrg, orgTree, setOrgStatus, updateOrg } from '@/api/orgs'
 import { createDep, deleteDep, listDeps, pageDep, updateDep } from '@/api/org-deps'
 import { assignRoleMenus, createRole, deleteRole, listRoles, updateRole } from '@/api/roles'
 import { createMenu, menuTree, removeMenu, updateMenu } from '@/api/menus'
@@ -182,6 +182,13 @@ describe('orgs client (task 4.3)', () => {
     expect(data[0].name).toBe('示例医院')
   })
 
+  it('orgTree sends only the name query for campus-name filtering', async () => {
+    const fetchMock = stubOk([])
+    await orgTree({ name: ' 东 ' })
+    const { url } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/orgs/tree?name=%E4%B8%9C')
+  })
+
   it('createOrg posts /system/orgs and unwraps the new id', async () => {
     const fetchMock = stubOk(2)
     const body = { upId: 1, name: '分院' }
@@ -200,6 +207,16 @@ describe('orgs client (task 4.3)', () => {
     expect(url).toBe('/api/v1/system/orgs/2')
     expect(init.method).toBe('PUT')
     expect(init.body).toBe(JSON.stringify({ name: '改名' }))
+    expect(data).toBe(true)
+  })
+
+  it('setOrgStatus puts /system/orgs/{id}/status and unwraps true', async () => {
+    const fetchMock = stubOk(true)
+    const data = await setOrgStatus(2, 0)
+    const { url, init } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/orgs/2/status')
+    expect(init.method).toBe('PUT')
+    expect(init.body).toBe(JSON.stringify({ status: 0 }))
     expect(data).toBe(true)
   })
 
@@ -385,6 +402,7 @@ describe('menus client (task 4.3)', () => {
     expect(init.method).toBe('DELETE')
     expect(data).toBe(true)
   })
+
 })
 
 describe('dicts client (task 4.3)', () => {
@@ -402,6 +420,23 @@ describe('dicts client (task 4.3)', () => {
     expect(page.records).toHaveLength(1)
     expect(page.records[0].name).toBe('通用状态')
     expect(page.size).toBe(20)
+  })
+
+  it('listCityDicts coalesces identical read-only city queries', async () => {
+    vi.resetModules()
+    const { listCityDicts } = await import('@/api/dicts')
+    const fetchMock = stubOk([
+      { id: 120000, upId: 0, code: '120000', name: '天津市', level: 1 },
+    ])
+    const [first, second, third] = await Promise.all([
+      listCityDicts({ upId: 120000 }),
+      listCityDicts({ upId: 120000 }),
+      listCityDicts({ upId: 120000 }),
+    ])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(first).toBe(second)
+    expect(second).toBe(third)
+    expect(lastCall(fetchMock).url).toBe('/api/v1/system/dicts/city/list?upId=120000')
   })
 
   it('createCatal posts /system/dicts/catal and unwraps the new id', async () => {

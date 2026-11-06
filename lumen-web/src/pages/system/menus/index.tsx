@@ -6,6 +6,7 @@ import {
   InputNumber,
   Popconfirm,
   Radio,
+  Space,
   Spin,
   Switch,
   Table,
@@ -13,11 +14,20 @@ import {
   Tooltip,
   TreeSelect,
   message,
+  theme,
 } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusCircleOutlined, SearchOutlined } from '@ant-design/icons'
+import {
+  CheckCircleFilled,
+  DeleteOutlined,
+  EditOutlined,
+  MinusCircleFilled,
+  PlusCircleOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+} from '@ant-design/icons'
 import { useCallback, useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { Key, ReactNode } from 'react'
 import { createMenu, menuTree, removeMenu, updateMenu } from '@/api/menus'
 import { ApiError } from '@/api/client'
 import type { MenuNode } from '@/api/types'
@@ -28,9 +38,18 @@ import { ConsolePanel, readForm } from '../console-shell'
  * 菜单管理 (button-perm-enforcement-web tasks 2.2 + 3.1/3.2; spec
  * `specs/web-system-console` § Menu Management + user instruction 2026-11-06):
  * visual alignment with the 随访 reference (`随访/fu_web/src/views/system/menu/
- * index.vue`) - the 菜单名/类型/路径/组件/权限标识/排序/可见 column set, a menu-name
+ * index.vue`) - the 菜单/类型/路径/组件/权限标识/显示/排序 column set, a menu-name
  * filter tool row (subtree-keep filter applied on 查询/Enter), fixed-right icon
  * actions each gated by its own button perm, and the reference drawer wording.
+ * Table alignment (user instruction 2026-11-06): the 显示/排序/操作 cells are
+ * centered, the 类型 body cell stays left-aligned, and every header cell stays
+ * centered without moving the left-aligned text columns' body content. Follow-up polish (same day): wider
+ * 类型 column (工作站 tags use a dedicated purple color), 类型/显示 tag fonts
+ * at the table body size (token.fontSize), the create/edit type radios follow the
+ * 工作站/页面/目录/按钮 order (user instruction 2026-11-06), and a
+ * larger gap between the three row actions (Space - the raw adjacent-button
+ * margin invited mis-clicks), and the header 刷新 icon colored token.colorPrimary
+ * to match the console-shell refresh buttons.
  * lumen deltas kept: no 重定向/是否缓存 (model columns trimmed), and 权限标识 stays
  * editable for every type (lumen C nodes carry page perms). Runtime rides the vite
  * proxy to the REAL backend (no mock layer - frontend-backend-first ruling).
@@ -40,9 +59,10 @@ const TYPE_LABELS: Record<string, string> = {
   M: '目录',
   C: '页面',
   F: '按钮',
+  W: '工作站',
 }
 
-type MenuType = 'M' | 'C' | 'F'
+type MenuType = 'M' | 'C' | 'F' | 'W'
 
 interface MenuFormValues {
   type: MenuType
@@ -54,6 +74,7 @@ interface MenuFormValues {
   icon?: string
   sort?: number
   visible: boolean
+  remark?: string
 }
 
 type DrawerState =
@@ -87,6 +108,27 @@ function buildParentOptions(nodes: MenuNode[], excludeId: number | null): Parent
 }
 
 /**
+ * Default expansion stays shallow: expand only the first tree layer so a
+ * deep menu/button tree does not flood the page on load; deeper levels open
+ * on demand.
+ */
+function defaultExpandedKeys(nodes: MenuNode[], maxDepth = 1): number[] {
+  const keys: number[] = []
+  const walk = (list: MenuNode[], depth: number) => {
+    for (const node of list) {
+      if (node.children?.length && depth <= maxDepth) {
+        keys.push(node.mid)
+      }
+      if (node.children?.length) {
+        walk(node.children, depth + 1)
+      }
+    }
+  }
+  walk(nodes, 1)
+  return keys
+}
+
+/**
  * The reference's filterTree semantics: a hit node keeps its whole subtree, a
  * child hit keeps the ancestor chain, everything else is pruned.
  */
@@ -109,7 +151,9 @@ function filterTree(nodes: MenuNode[], keyword: string): MenuNode[] {
 
 export default function MenusPage() {
   const hasPerm = usePerm()
+  const { token } = theme.useToken()
   const [tree, setTree] = useState<MenuNode[] | null>(null)
+  const [expandedKeys, setExpandedKeys] = useState<Key[]>([])
   const [messageApi, messageHolder] = message.useMessage()
   const [drawer, setDrawer] = useState<DrawerState | null>(null)
   const [saving, setSaving] = useState(false)
@@ -131,6 +175,11 @@ export default function MenusPage() {
   useEffect(() => {
     void reloadTree()
   }, [reloadTree])
+
+  // Keep the shallow default after tree refreshes while allowing manual expansion.
+  useEffect(() => {
+    if (tree) setExpandedKeys(defaultExpandedKeys(tree))
+  }, [tree])
 
   const closeDrawer = useCallback(() => {
     setDrawer(null)
@@ -162,6 +211,7 @@ export default function MenusPage() {
         icon: node.icon ?? '',
         sort: node.sort ?? 1,
         visible: node.visible,
+        remark: node.remark ?? '',
       })
       setDrawer({ mode: 'edit', node })
     },
@@ -182,6 +232,7 @@ export default function MenusPage() {
       component: values.component?.trim() || null,
       icon: values.icon?.trim() || null,
       sort: values.sort ?? 1,
+      remark: values.remark?.trim() || null,
       // F rows hide the switch (unregistered field) - visible defaults to 1
       visible: values.visible === undefined ? 1 : values.visible ? 1 : 0,
     }
@@ -220,16 +271,28 @@ export default function MenusPage() {
 
   const columns: TableColumnsType<MenuNode> = [
     {
-      title: '菜单名',
+      title: '菜单',
       dataIndex: 'title',
       render: (title: string) => <span>{title}</span>,
     },
     {
       title: '类型',
       dataIndex: 'type',
-      width: 90,
+      width: 140,
+      onCell: () => ({ style: { textAlign: 'left' } }),
       render: (type: string) => (
-        <Tag color={type === 'M' ? 'gold' : type === 'C' ? 'blue' : 'default'} style={{ marginInlineEnd: 0 }}>
+        <Tag
+          color={
+            type === 'M'
+              ? 'gold'
+              : type === 'C'
+                ? 'blue'
+                : type === 'W'
+                  ? 'purple'
+                  : 'default'
+          }
+          style={{ marginInlineEnd: 0, fontSize: token.fontSize }}
+        >
           {TYPE_LABELS[type] ?? type}
         </Tag>
       ),
@@ -256,31 +319,68 @@ export default function MenusPage() {
         ) : null,
     },
     {
-      title: '排序',
-      dataIndex: 'sort',
-      width: 70,
-    },
-    {
-      title: '可见',
+      title: '显示',
       dataIndex: 'visible',
       width: 100,
+      align: 'center',
       render: (visible: boolean, node: MenuNode) =>
         node.type === 'F' ? (
           <span>-</span>
         ) : (
-          <Tag color={visible ? 'success' : 'default'} style={{ marginInlineEnd: 0 }}>
-            {visible ? '显示' : '隐藏'}
-          </Tag>
+          <Tooltip title={visible ? '显示' : '隐藏'}>
+            {visible ? (
+              <CheckCircleFilled aria-label="显示" style={{ color: token.colorSuccess }} />
+            ) : (
+              <MinusCircleFilled aria-label="隐藏" style={{ color: token.colorTextQuaternary }} />
+            )}
+          </Tooltip>
         ),
+    },
+    {
+      title: '排序',
+      dataIndex: 'sort',
+      width: 70,
+      align: 'center',
     },
   ]
 
   const actionColumn: TableColumnsType<MenuNode>[number] = {
-    title: '操作',
+    title: (
+      <span
+        style={{
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        操作
+        <Tooltip title="刷新列表">
+          <Button
+            type="text"
+            size="small"
+            aria-label="刷新列表"
+            icon={<ReloadOutlined style={{ color: token.colorPrimary }} />}
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: '50%',
+              transform: 'translateY(-50%)',
+            }}
+            onClick={() => {
+              void reloadTree()
+            }}
+          />
+        </Tooltip>
+      </span>
+    ),
     key: 'actions',
     width: 150,
+    align: 'center',
     render: (_: unknown, node: MenuNode) => (
-      <>
+      // Space gap > the console-shell size-6: icon-only targets sit close enough
+      // to mis-click at the default adjacent-button margin (user feedback).
+      <Space size={12}>
         {canCreate ? (
           <Tooltip title="添加子菜单">
             <Button
@@ -326,9 +426,16 @@ export default function MenusPage() {
             </Tooltip>
           </Popconfirm>
         ) : null}
-      </>
+      </Space>
     ),
   }
+
+  // Keep body content of text columns left-aligned while centering every header.
+  const withCenteredHeaders = (cols: TableColumnsType<MenuNode>): TableColumnsType<MenuNode> =>
+    cols.map((column) => ({
+      ...column,
+      onHeaderCell: () => ({ style: { textAlign: 'center' } }),
+    }))
 
   const editing = drawer?.mode === 'edit' ? drawer.node : null
   const parentOptions = buildParentOptions(tree ?? [], editing ? editing.mid : null)
@@ -367,9 +474,10 @@ export default function MenusPage() {
           ) : (
             <Table<MenuNode>
               rowKey={(node) => node.mid}
-              columns={[...columns, actionColumn]}
+              columns={withCenteredHeaders([...columns, actionColumn])}
               dataSource={filterTree(tree, appliedTitle)}
-              defaultExpandAllRows
+              expandedRowKeys={expandedKeys}
+              onExpandedRowsChange={(keys) => setExpandedKeys([...keys])}
               pagination={false}
               size="middle"
             />
@@ -426,12 +534,13 @@ export default function MenusPage() {
           </Form.Item>
           <Form.Item name="type" label="类型" rules={[{ required: true, message: '请选择类型' }]}>
             <Radio.Group>
-              <Radio value="M">目录</Radio>
+              <Radio value="W">工作站</Radio>
               <Radio value="C">页面</Radio>
+              <Radio value="M">目录</Radio>
               <Radio value="F">按钮</Radio>
             </Radio.Group>
           </Form.Item>
-          {formType !== 'F' ? (
+          {formType !== 'F' && formType !== 'W' ? (
             <Form.Item name="path" label="路径">
               <Input autoComplete="off" placeholder="如 /system/user" />
             </Form.Item>
@@ -441,29 +550,45 @@ export default function MenusPage() {
               <Input autoComplete="off" placeholder="如 system/user/index" />
             </Form.Item>
           ) : null}
-          {formType !== 'F' ? (
+          {formType !== 'F' && formType !== 'W' ? (
             <Form.Item name="icon" label="图标">
               <Input autoComplete="off" placeholder="图标名" />
             </Form.Item>
           ) : null}
+          {formType !== 'W' ? (
           <Form.Item
             name="perms"
             label="权限标识"
             extra={
-              formType === 'F'
-                ? '约定 模块:资源:动作（如 system:user:create）'
-                : '页面权限串（如 system:user:list），留空表示纯导航节点'
+              <span style={{ fontSize: 12 }}>
+                {formType === 'F'
+                  ? '约定 模块:资源:动作（如 system:user:create）'
+                  : '页面权限串（如 system:user:list），留空表示纯导航节点'}
+              </span>
             }
           >
             <Input autoComplete="off" placeholder="如 system:user:create" />
           </Form.Item>
+          ) : null}
           <Form.Item name="sort" label="排序">
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
+          <Form.Item name="remark" label="备注">
+            <Input.TextArea
+              autoSize={{ minRows: 2, maxRows: 4 }}
+              placeholder="请输入备注"
+            />
+          </Form.Item>
           {formType !== 'F' ? (
-            <Form.Item name="visible" label="是否显示" valuePropName="checked">
-              <Switch />
-            </Form.Item>
+            <div
+              data-menu-visible-row
+              style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}
+            >
+              <label htmlFor="visible">是否显示</label>
+              <Form.Item name="visible" valuePropName="checked" noStyle>
+                <Switch id="visible" />
+              </Form.Item>
+            </div>
           ) : null}
         </Form>
       </Drawer>

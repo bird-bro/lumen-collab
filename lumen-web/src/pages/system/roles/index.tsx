@@ -83,7 +83,7 @@ function withAncestors(tree: MenuNode[], checked: Set<number>): number[] {
   return [...result].sort((a, b) => a - b)
 }
 
-const TYPE_LABELS: Record<string, string> = { M: '目录', C: '菜单', F: '按钮' }
+const TYPE_LABELS: Record<string, string> = { M: '目录', C: '页面', F: '按钮', W: '工作站' }
 
 /**
  * The grant tree as a nested checkbox list (batch 6b): AntD `Tree`'s checkbox

@@ -20,3 +20,13 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
     }),
   })
 }
+
+// The auth store persists to localStorage; zustand's hydration is a microtask that
+// can re-apply a PREVIOUS test file's session AFTER the current file seeds its own
+// (observed as menu-tree ghosts during workstation-filter testing). Each file
+// starts from a clean persisted session: clear the storage AND synchronously
+// re-hydrate the store to it (async hydration would otherwise resurrect the stale
+// session over the current file's setSession).
+localStorage.clear();
+import { useAuthStore } from '@/stores/auth';
+useAuthStore.persist.rehydrate();

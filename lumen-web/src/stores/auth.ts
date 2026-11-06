@@ -15,28 +15,51 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { configureApiClient } from '@/api/client';
 import type { MenuNode, UserProfile } from '@/api/types';
 
-/** The persisted session quadruple. */
+
+/**
+ * The persisted session quintuple (workstation-context-web, W-node model): menus
+ * carry the type-W station nodes; `activeWorkstation` is the ACTIVE W node's MID
+ * (null = console view). Session-scoped: re-login re-derives it (the FIRST granted
+ * W node per the user's display rule).
+ */
 export interface AuthSession {
   token: string | null;
   profile: UserProfile | null;
   menus: MenuNode[];
   perms: string[];
+  activeWorkstation: number | null;
 }
 
 interface AuthState extends AuthSession {
-  /** Writes the given session fields wholesale and persists them (partial writes keep untouched fields). */
+  /** Writes the given session fields wholesale and persists them; a session LANDING re-derives activeWorkstation (the FIRST granted W node, null when none). */
   setSession: (partial: Partial<AuthSession>) => void;
-  /** Empties all four session fields and persists the cleared session. */
+  /** Session-scoped station switch (re-login re-lands on the first W). */
+  setActiveWorkstation: (wsMid: number | null) => void;
+  /** Empties all session fields and persists the cleared session. */
   clear: () => void;
 }
 
-const EMPTY_SESSION: AuthSession = { token: null, profile: null, menus: [], perms: [] };
+const EMPTY_SESSION: AuthSession = {
+  token: null, profile: null, menus: [], perms: [], activeWorkstation: null,
+};
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...EMPTY_SESSION,
-      setSession: (partial) => set(partial),
+      setSession: (partial) => {
+        set(partial);
+        // a session LANDING re-derives the active station: the FIRST granted W node
+        // (user display rule: 默认展示第一个); switching is session-scoped via
+        // setActiveWorkstation
+        const firstW = (partial.menus ?? get().menus).find((m) => m.type === 'W');
+        set({ activeWorkstation: firstW ? firstW.mid : null });
+      },
+      // a switch to a mid with no granted W node is ignored (nothing to activate)
+      setActiveWorkstation: (wsMid) => {
+        const exists = get().menus.some((m) => m.mid === wsMid && m.type === 'W');
+        if (exists) set({ activeWorkstation: wsMid });
+      },
       clear: () => set({ ...EMPTY_SESSION }),
     }),
     {

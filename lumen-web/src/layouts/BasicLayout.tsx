@@ -17,6 +17,8 @@ import { activeTopLevelNode, firstLeafRouteOf, resolveMenuRoute } from '@/routes
 import { OrgBuildingIcon, ShieldCheckIcon, SystemToolIcon, UserAccountIcon } from '@/components/ops-icons'
 import headLogo from '@/assets/head.png'
 import { useAuthStore } from '@/stores/auth'
+import { WorkstationChip } from './WorkstationChip'
+import { sidebarMenus } from '@/config/workstations'
 import { themeConfig } from '@/theme'
 import './basic-layout.css'
 
@@ -31,7 +33,8 @@ import './basic-layout.css'
  *   are the Menu dark tokens from `src/theme/tokens.ts` injected as CSS
  *   variables (see `./basic-layout.css` - the CSS file itself holds no
  *   colors).
- * - zone 2: a 60px white header - product title left; the user area right is
+ * - zone 2: a 60px white header - product title left with the workstation chip
+ *   immediately to its right; the user area right is
  *   the OPS form: two-line text (name/org) LEFT + a 50px round avatar RIGHT,
  *   no caret; a click opens a Popover with the basic info and a plain
  *   退出登录 button (store.clear() + navigate /login).
@@ -144,7 +147,7 @@ const SIDE_MENU_THEME: ThemeConfig = {
   },
 }
 
-function MenuIcon({ name, size }: { name: string | null; size: number }) {
+export function MenuIcon({ name, size }: { name: string | null; size: number }) {
   const Icon = (name && MENU_ICON_BY_NAME[name]) || RAIL_FALLBACK_ICON
   return <Icon style={{ fontSize: size }} />
 }
@@ -155,13 +158,15 @@ export function BasicLayout() {
   const { token } = theme.useToken()
   const menus = useAuthStore((state) => state.menus)
   const profile = useAuthStore((state) => state.profile)
+  const activeWorkstation = useAuthStore((state) => state.activeWorkstation)
   const [folded, setFolded] = useState(false)
   // The currently open mini-rail flyout (null when none): while browsing
   // another section, the route section's highlight yields (user 2026-11-05:
   // two L2 buttons lit at once read as a bug).
   const [openSectionKey, setOpenSectionKey] = useState<string | null>(null)
 
-  const activeL1 = useMemo(() => activeTopLevelNode(menus, pathname), [menus, pathname])
+  const sidebarTree = useMemo(() => sidebarMenus(menus, activeWorkstation), [menus, activeWorkstation])
+  const activeL1 = useMemo(() => activeTopLevelNode(sidebarTree, pathname), [sidebarTree, pathname])
 
   const logout = () => {
     useAuthStore.getState().clear()
@@ -282,7 +287,7 @@ export function BasicLayout() {
             style={{ width: 50, height: 50, borderRadius: 12, display: 'block' }}
           />
         </div>
-        {menus.map((item) => {
+        {sidebarTree.map((item) => {
           const target = firstLeafRouteOf(item)
           const active = activeL1?.mid === item.mid
           return (
@@ -317,6 +322,7 @@ export function BasicLayout() {
           }}
         >
           <span className="lumen-header-title">LumenCollab</span>
+          <WorkstationChip />
           <div style={{ marginLeft: 'auto' }}>
             <Popover trigger="click" placement="bottomRight" content={userPopContent}>
               <button type="button" className="lumen-header-user" title="用户区">

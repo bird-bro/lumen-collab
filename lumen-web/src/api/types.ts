@@ -327,6 +327,30 @@ export interface CreateDictDetailBody {
 export type UpdateDictDetailBody = Partial<CreateDictDetailBody>;
 
 /**
+ * dict_city administrative-divisions node (spec `system-data` § City Reference
+ * Query; seeded by backend V4): the 13-column 随访 lineage shape, 3751 rows.
+ * Levels: 0 中国 root / 1 province / 2 city / 3 district; on levels 1-3 the
+ * lineage `id` IS the GB division code the org profile stores. READ-ONLY - the
+ * seed migrations are the only data source (no write path, no CRUD page).
+ */
+export interface CityDict {
+  id: number;
+  upId: number;
+  code: string;
+  name: string;
+  abbreviation: string | null;
+  level: number;
+  cityCode: string | null;
+  zipCode: string | null;
+  merger: string;
+  pinyin: string;
+  lng: string;
+  lat: string;
+  initial: string | null;
+  children: CityDict[] | null;
+}
+
+/**
  * POST /system/menus payload (menu-management-api family): a node of the
  * `upId` tree (`upId = 0` = top level) typed `M` directory / `C` menu / `F`
  * button. `perms` is free text (the `模块:资源:动作` convention) - the server
@@ -334,7 +358,7 @@ export type UpdateDictDetailBody = Partial<CreateDictDetailBody>;
  */
 export interface CreateMenuBody {
   upId: number;
-  type: 'M' | 'C' | 'F';
+  type: 'M' | 'C' | 'F' | 'W';
   title: string;
   perms?: string | null;
   path?: string | null;
@@ -342,12 +366,13 @@ export interface CreateMenuBody {
   icon?: string | null;
   sort?: number | null;
   visible?: number | null;
+  remark?: string | null;
 }
 
 /** PUT /system/menus/{id} payload - full-field update including reparenting via `upId`. */
 export interface UpdateMenuBody {
   upId: number;
-  type: 'M' | 'C' | 'F';
+  type: 'M' | 'C' | 'F' | 'W';
   title: string;
   perms?: string | null;
   path?: string | null;
@@ -355,6 +380,7 @@ export interface UpdateMenuBody {
   icon?: string | null;
   sort?: number | null;
   visible?: number | null;
+  remark?: string | null;
 }
 
 /** Operation-log row (the LogInfoEntity JSON field set). */

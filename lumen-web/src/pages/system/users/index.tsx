@@ -282,8 +282,8 @@ export default function UsersPage() {
           checked={enable === 1}
           disabled={!canEnable}
           aria-label={`启用 ${row.username}`}
-          checkedChildren="启"
-          unCheckedChildren="停"
+          checkedChildren="✓"
+          unCheckedChildren="✕"
           onChange={(checked) => void toggleEnable(row, checked ? 1 : 0)}
         />
       ),
@@ -346,19 +346,19 @@ export default function UsersPage() {
               ? {
                   width: COLUMN_WIDTHS.actions,
                   render: (row) =>
-                    canResetPwd
-                      ? [
-                          <ConsoleAction
-                            key="reset"
-                            label="重置密码"
-                            icon="key"
-                            onClick={() => {
-                              setResetTarget(row)
-                              resetForm.setFieldsValue({ password: '' })
-                            }}
-                          />,
-                        ]
-                      : [],
+                    [
+                      canResetPwd ? (
+                        <ConsoleAction
+                          key="reset"
+                          label="重置密码"
+                          icon="key"
+                          onClick={() => {
+                            setResetTarget(row)
+                            resetForm.setFieldsValue({ password: '' })
+                          }}
+                        />
+                      ) : null,
+                    ].filter(Boolean),
                 }
               : undefined
           }

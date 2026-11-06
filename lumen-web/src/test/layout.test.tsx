@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ConfigProvider } from 'antd'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -28,7 +28,7 @@ function menuNode(partial: {
   mid: number
   title: string
   upId: number
-  type: 'M' | 'C' | 'F'
+  type: 'M' | 'C' | 'F' | 'W'
   path?: string | null
   component?: string | null
   icon?: string | null
@@ -86,9 +86,6 @@ function adminMenus(): MenuNode[] {
         }),
       ],
     }),
-    menuNode({ mid: 3, title: '放射科', upId: 0, type: 'C', path: '/radiology' }),
-    menuNode({ mid: 4, title: '超声科', upId: 0, type: 'C', path: '/ultrasound' }),
-    menuNode({ mid: 5, title: '内镜科', upId: 0, type: 'C', path: '/endoscopy' }),
   ]
 }
 
@@ -106,6 +103,27 @@ function seedAdminSession() {
   })
 }
 
+/** The admin tree PLUS a radiology L1 (V21 marker) - the multi-station session shape. */
+function multiStationMenus(): MenuNode[] {
+  return [
+    ...adminMenus(),
+    menuNode({
+      mid: 30, title: '放射工作站', upId: 0, type: 'W', path: '/radiology',
+      children: [menuNode({ mid: 31, title: '登记预约', upId: 30, type: 'C', path: '/radiology/register' })],
+    }),
+    menuNode({ mid: 40, title: '超声工作站', upId: 0, type: 'W', path: '/us' }),
+  ]
+}
+
+function seedMultiStationSession() {
+  useAuthStore.getState().setSession({
+    token: 't-shell',
+    profile: ADMIN_PROFILE,
+    menus: multiStationMenus(),
+    perms: ['system:user:list'],
+  })
+}
+
 function renderShell(initialPath: string) {
   return render(
     <ConfigProvider theme={themeConfig}>
@@ -115,6 +133,8 @@ function renderShell(initialPath: string) {
             <Route path="/system/orgs" element={<div>ORGS_MARKER</div>} />
             <Route path="/system/roles" element={<div>ROLES_MARKER</div>} />
             <Route path="/radiology" element={<div>RADIOLOGY_MARKER</div>} />
+            <Route path="/radiology/register" element={<div>REGISTER_MARKER</div>} />
+            <Route path="/radiology/register" element={<div>REGISTER_MARKER</div>} />
           </Route>
           <Route path="/login" element={<div>LOGIN_MARKER</div>} />
         </Routes>
@@ -169,9 +189,9 @@ describe('three-zone shell metrics (web-foundation-auth-console 5.4)', () => {
     // contains 系统管理 (系统管理员).
     const rail = within(container.querySelector<HTMLElement>('.lumen-rail')!)
     expect(rail.getByRole('button', { name: /系统管理/ })).toBeInTheDocument()
-    expect(rail.getByRole('button', { name: /放射科/ })).toBeInTheDocument()
-    expect(rail.getByRole('button', { name: /超声科/ })).toBeInTheDocument()
-    expect(rail.getByRole('button', { name: /内镜科/ })).toBeInTheDocument()
+    // V10 parked the department placeholder L1s; the admin fixture holds console
+    // menus only (department stations are separate V21 roots with their own markers)
+    expect(rail.queryByRole('button', { name: /放射科/ })).not.toBeInTheDocument()
     expect(screen.queryByText('Radiology')).not.toBeInTheDocument()
   })
 
@@ -192,17 +212,30 @@ describe('three-zone shell metrics (web-foundation-auth-console 5.4)', () => {
     expect(menu?.style.getPropertyValue('--lumen-menu-active-bar')).toBe('#3178fc')
   })
 
-  it('switches the active rail entry and navigates to its first leaf on click', async () => {
+  it('switches the active rail entry and navigates to its first leaf on click (multi-station session)', async () => {
     const user = userEvent.setup()
-    seedAdminSession()
-    renderShell('/system/orgs')
+    // V21: department L1s are separate station roots - the radiology entry exists in
+    // the rail only for a multi-station session; land on a radiology-primary session
+    // so the rail carries both L1s from the start (append semantics)
+    seedMultiStationSession()
+    renderShell('/radiology')
 
-    await user.click(screen.getByRole('button', { name: /放射科/ }))
+    // the rail button's name is split (svg + label span) - locate by textContent,
+    // scoped INSIDE the rail so the chip's dropdown items cannot match
+    await waitFor(() => {
+      const rail = document.querySelector('.lumen-rail')!
+      expect(rail.textContent).toContain('登记预约')
+    })
+    const rail = document.querySelector('.lumen-rail')!
+    const registerBtn = [...rail.querySelectorAll('button')].find((el) => el.textContent?.includes('登记预约'))
+    expect(registerBtn).toBeDefined()
+    await user.click(registerBtn!)
 
-    expect(await screen.findByText('RADIOLOGY_MARKER')).toBeInTheDocument()
+    // the M-directory L1 navigates to its FIRST LEAF (/radiology/register)
+    expect(await screen.findByText('REGISTER_MARKER')).toBeInTheDocument()
     const railItems = document.querySelectorAll<HTMLElement>('.lumen-rail-item')
-    const radiologyItem = [...railItems].find((el) => el.textContent?.includes('放射科'))
-    expect(radiologyItem).toHaveClass('lumen-rail-item-active')
+    const registerItem = [...railItems].find((el) => el.textContent?.includes('登记预约'))
+    expect(registerItem).toHaveClass('lumen-rail-item-active')
   })
 })
 
@@ -276,5 +309,80 @@ describe('guard wiring inside the shell route (web-foundation-auth-console 5.4)'
     expect(await screen.findByText('LOGIN_MARKER')).toBeInTheDocument()
     expect(screen.queryByText('ORGS_MARKER')).not.toBeInTheDocument()
     expect(document.querySelector('.ant-layout-header')).toBeNull()
+  })
+})
+
+describe('workstation chip + append sidebar (workstation-context-web 3.1/3.2)', () => {
+  it('renders the chip in zone 2 right of the product title when stations are granted', () => {
+    seedMultiStationSession()
+    const { container } = renderShell('/system/orgs')
+    const chip = container.querySelector('[aria-label="工作站切换"]')
+    expect(chip).not.toBeNull()
+    const header = chip!.closest('.lumen-header') ?? chip!.parentElement
+    const title = header!.querySelector('.lumen-header-title')
+    // chip sits RIGHT of the product title (user instruction 2026-11-06)
+    expect(
+      title!.compareDocumentPosition(chip!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('renders no chip when the workstations payload is absent', () => {
+    seedAdminSession()
+    const { container } = renderShell('/system/orgs')
+    expect(container.querySelector('[aria-label="工作站切换"]')).toBeNull()
+  })
+
+  it('lists the granted stations with the active one checked in the dropdown', async () => {
+    const user = userEvent.setup()
+    seedMultiStationSession()
+    renderShell('/radiology')
+    await user.click(screen.getByRole('button', { name: /工作站切换/ }))
+    await waitFor(() => {
+      expect(document.querySelector('.ant-dropdown:not(.ant-dropdown-hidden)')).not.toBeNull()
+    })
+    const dropdown = document.querySelector<HTMLElement>('.ant-dropdown:not(.ant-dropdown-hidden)')!
+    expect(within(dropdown).getByText('放射工作站')).toBeInTheDocument()
+    expect(within(dropdown).queryByText('内镜工作站')).not.toBeInTheDocument()
+    // only GRANTED W nodes render (内镜工作站 not granted in this session)
+    expect(within(dropdown).queryByText('内镜工作站')).not.toBeInTheDocument()
+  })
+
+  it('APPEND semantics: the first W is default-active and its children promote beside 系统管理', async () => {
+    // seed('admin') derives the active station = the FIRST W node (放射工作站) per
+    // the user's display rule - no click needed; the promoted children render beside
+    // the resident 系统管理
+    seedMultiStationSession()
+    const { container } = renderShell('/system/orgs')
+
+    const rail = container.querySelector<HTMLElement>('.lumen-rail')!
+    expect(within(rail).getAllByText('系统管理').length).toBeGreaterThan(0)
+    expect(within(rail).getAllByText('登记预约').length).toBeGreaterThan(0)
+    // the W node itself stays out of the bar (chip-only)
+    expect(within(rail).queryByText('放射工作站')).not.toBeInTheDocument()
+  })
+
+  it('switching stations via the chip swaps the promoted set', async () => {
+    const user = userEvent.setup()
+    seedMultiStationSession()
+    const { container } = renderShell('/system/orgs')
+    // the default-active station is 放射工作站 (first W); pick 超声工作站 -> its
+    // (empty) children replace the promoted set
+    await user.click(screen.getByRole('button', { name: /工作站切换/ }))
+    await user.click(await screen.findByRole('menuitem', { name: /超声工作站/ }))
+    await waitFor(() => {
+      expect(useAuthStore.getState().activeWorkstation).toBe(40)
+    })
+    const rail = container.querySelector<HTMLElement>('.lumen-rail')!
+    expect(within(rail).getAllByText('系统管理').length).toBeGreaterThan(0)
+    expect(within(rail).queryByText('登记预约')).not.toBeInTheDocument() // promoted set swapped
+  })
+
+  it('re-login lands on the primary workstation (radiology session starts appended)', () => {
+    seedMultiStationSession()
+    const { container } = renderShell('/radiology')
+    // the RAIL carries 系统管理 (resident) + 放射科 (the primary station) on login
+    const rail = container.querySelector<HTMLElement>('.lumen-rail')!
+    expect(within(rail).getAllByText('系统管理').length).toBeGreaterThan(0)
+    expect(within(rail).getAllByText('登记预约').length).toBeGreaterThan(0)
   })
 })

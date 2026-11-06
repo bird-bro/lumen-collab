@@ -90,7 +90,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   // The documented perms string of this page (SEED_MENUS id 2 = the V2 seed row,
   // also the backend @PreAuthorize on the user list). No new perms code.
-  useAuthStore.getState().setSession({ perms: ['system:user:list', 'system:user:create', 'system:user:reset-pwd', 'system:user:enable'] })
+  useAuthStore.getState().setSession({ perms: ['system:user:list', 'system:user:create', 'system:user:reset-pwd', 'system:user:enable', 'system:user:assign-ws'] })
   vi.mocked(usersApi.listUsers).mockResolvedValue([ADMIN, WANG, LI])
   vi.mocked(rolesApi.listRoles).mockResolvedValue({
     records: [role({ id: 1, name: '系统管理员', type: 10 })],
@@ -114,6 +114,8 @@ describe('users page - paged list (spec: Paged user list)', () => {
 
     const adminSwitch = within(rowOf('admin')).getByRole('switch')
     expect(adminSwitch).toBeChecked()
+    expect(adminSwitch).toHaveTextContent('✓')
+    expect(adminSwitch).not.toHaveTextContent('启')
     expect(screen.getByText('2026-10-28 14:32:07')).toBeInTheDocument()
     // mustChangePassword = 1 is echoed as a chip (the reset contract's visible side)
     expect(within(rowOf('admin')).getByText('首次登录需改密')).toBeInTheDocument()
@@ -283,6 +285,8 @@ describe('users page - enable toggle (spec: Password and enable actions)', () =>
     await waitFor(() => expect(usersApi.enableUser).toHaveBeenCalledWith(2, 0))
     await waitFor(() => expect(usersApi.listUsers).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(within(rowOf('wangq')).getByRole('switch')).not.toBeChecked())
+    expect(within(rowOf('wangq')).getByRole('switch')).toHaveTextContent('✕')
+    expect(within(rowOf('wangq')).getByRole('switch')).not.toHaveTextContent('停')
   })
 
   it('an out-of-range rejection surfaces the msg and restores the switch to the server state', async () => {
@@ -323,7 +327,7 @@ describe('users page - button-level gating (button-perm-enforcement-web)', () =>
   })
 
   it('reveals each affordance as its button perm is granted', async () => {
-    useAuthStore.getState().setSession({ perms: ['system:user:list', 'system:user:create', 'system:user:reset-pwd', 'system:user:enable'] })
+    useAuthStore.getState().setSession({ perms: ['system:user:list', 'system:user:create', 'system:user:reset-pwd', 'system:user:enable', 'system:user:assign-ws'] })
     renderPage()
     await screen.findByText('admin')
     expect(screen.getByRole('button', { name: /新建用户/ })).toBeInTheDocument()
@@ -331,3 +335,5 @@ describe('users page - button-level gating (button-perm-enforcement-web)', () =>
     expect(screen.getByLabelText('启用 admin')).toBeEnabled()
   })
 })
+
+

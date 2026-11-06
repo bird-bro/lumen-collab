@@ -71,8 +71,18 @@ export function firstLeafRouteOf(node: MenuNode): string | null {
  * active L1 (rail selection + which children the secondary sidebar renders).
  */
 export function activeTopLevelNode(menus: MenuNode[], pathname: string): MenuNode | null {
+  // segment-safe prefix: a directory L1 (type M, e.g. /radiology) also owns its
+  // prefix subtree ("/radiology" owns "/radiology/register" but NOT "/users")
+  const pathOwns = (node: MenuNode): boolean => {
+    const p = node.path;
+    if (p != null && p.startsWith('/')) {
+      return pathname === p || pathname.startsWith(p + '/');
+    }
+    return false;
+  };
   const subtreeHas = (node: MenuNode): boolean =>
     resolveMenuRoute(node) === pathname ||
+    pathOwns(node) ||
     (node.children ?? []).some((child) => subtreeHas(child));
   return menus.find((node) => subtreeHas(node)) ?? null;
 }
