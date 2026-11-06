@@ -172,3 +172,51 @@ the network layer, and the page SHALL be identifiable as a demo.
 - **THEN** its data does not pass through `src/api/` clients or the network
   layer
 - **AND** it is identifiable as a demo (not presented as backend-backed data)
+
+
+<!-- synced from: workstation-context-web 2026-11-06 - REVISED: stations derive from
+     the granted tree's type-W nodes (the per-user grant machinery was torn down by
+     workstation-w-nodes-api; see archive/workstation-context-web + workstation-w-nodes-api) -->
+
+### Requirement: Workstation Switcher and Menu Promotion
+
+The shell SHALL render a workstation chip in the header (zone 2, left of the product
+title); its dropdown lists every workstation node in the granted menu tree
+(`type = 'W'`, title/icon from the node, a check on the active), defaulting to the
+FIRST granted W node. Display rule (user spec 2026-11-06):
+
+- **W-type** nodes appear ONLY in the chip dropdown; the ACTIVE W node's child menus
+  are PROMOTED one level and render in the left menu bar beside the resident M-type
+  L1 menus (登记 beside 系统管理 — the append the user described). The W node itself
+  never renders as a menu-bar entry.
+- **M-type** L1 menus render exactly as today (current hierarchy unchanged).
+- Clicking a promoted entry navigates normally WITHOUT changing the chip's active
+  station; the active station changes only through the chip. Session-scoped: re-login
+  re-selects the first W node; a user with no granted W node sees no chip (console
+  only).
+
+#### Scenario: Chip lists granted stations
+
+- **WHEN** a user whose granted tree carries 放射工作站 and 超声工作站 opens the chip
+  dropdown
+- **THEN** both stations render with the active one checked
+
+#### Scenario: Default selection is the first W node
+
+- **WHEN** a user whose granted tree carries 放射工作站 and 超声工作站 logs in
+- **THEN** the chip's active station is 放射工作站 (the first) without manual
+  switching
+- **AND** 放射工作站's child menus are promoted into the left menu bar
+
+#### Scenario: Switching swaps the promoted set
+
+- **WHEN** the user selects a different workstation in the dropdown
+- **THEN** the promoted set in the left menu bar is replaced by the newly active
+  station's children
+- **AND** the resident 系统管理 L1 stays in place
+
+#### Scenario: A station without leaf pages switches context only
+
+- **WHEN** the user selects a workstation node whose subtree carries no leaf route
+- **THEN** the active station changes WITHOUT navigating (navigating to the index
+  route would blank the page)

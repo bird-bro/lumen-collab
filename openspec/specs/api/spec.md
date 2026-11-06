@@ -368,3 +368,33 @@ login/me menu payloads are unchanged.
 - **THEN** the response is an `A`-class business error with a descriptive `msg`
 - **AND** the node and its children remain live
 
+
+<!-- synced from: workstation-w-nodes-api 2026-11-06 - REPLACES the per-user
+     workstation-grant requirement (removed by the W-node correction; see
+     archive/workstation-w-nodes-api delta) -->
+
+### Requirement: Workstation Menu Nodes
+
+The menu tree SHALL carry workstation nodes as `type = W` entries at L1 level (放射
+工作站/超声工作站/内镜工作站 seeded by V22 with the admin auto-grant; new stations
+creatable through the menu management page's type option). The login/me menu tree
+carries the W nodes with their subtrees — the frontend derives the workstation list
+from the granted tree (a user whose roles hold no W node sees the console only).
+The menu create/update validation SHALL accept the `W` type.
+
+#### Scenario: W nodes are seeded and granted
+
+- **WHEN** the migrations run
+- **THEN** three type-W nodes (放射工作站/超声工作站/内镜工作站) exist at L1
+- **AND** the admin role's grant contains them
+
+#### Scenario: Grant flows through roles
+
+- **WHEN** a role is granted the 放射工作站 W node and a user binds that role
+- **THEN** the user's next login/me menu tree contains the W node with its subtree
+
+#### Scenario: Wrong machinery is gone
+
+- **WHEN** a client calls `PUT /api/v1/system/users/{id}/workstations`
+- **THEN** the endpoint does not exist (404)
+- **AND** `user_workstation` no longer exists as a table

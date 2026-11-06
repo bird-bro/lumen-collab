@@ -332,3 +332,22 @@ queries) carry no gated affordances.
 - **WHEN** a session holds button perms but somehow lacks the page perm
 - **THEN** no action column renders (the page surface itself is route-gated by the
   page perm; the server remains authoritative either way)
+
+
+<!-- synced from: workstation-context-web 2026-11-06 - W-node model (user ruling
+     2026-11-06: workstation = menu tree node type W, granted through roles; the
+     per-user assignment requirement drafted in this change was dropped before
+     implementation - see archive/workstation-context-web) -->
+
+### Requirement: Workstation Type in Menu Management
+
+The menu management type option SHALL include 工作站 (type W) so administrators can
+create workstation nodes as L1 entries; the type tags SHALL label W as 工作站. The
+per-user workstation assignment affordance in 用户管理 SHALL be absent (workstation
+access flows through roles — the roles-page 菜单授权 tree covers W nodes).
+
+#### Scenario: Workstation nodes are menu content
+
+- **WHEN** an administrator creates an L1 node with the 工作站 type
+- **THEN** the node renders with the 工作站 type tag in the tree
+- **AND** no workstation assignment affordance exists in 用户管理

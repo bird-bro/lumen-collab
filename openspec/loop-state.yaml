@@ -28,17 +28,24 @@
 # openspec-sync-specs, so archive ran --skip-specs). verify.md PASS_WITH_ISSUES 26/27;
 # the one PARTIAL (fresh-DB replay) waived by user ruling, carry-over list in
 # openspec/coordination/org-management-redesign.md.
-phase: verifying
-change: org-management-redesign-web
+# 2026-11-06: org-logo-upload PROPOSED (cross-stack with org-logo-upload-api + -web,
+# coordination doc openspec/coordination/org-logo-upload.md; both Inline, contracts
+# fresh, validates 5/5). QUEUED - did NOT touch the slot keys below (workstation-context-api
+# holds it in a parallel session); slot handoff happens at this feature's /opsx:apply.
+# 2026-11-06: workstation-context-web archived (slot released); org-logo-upload-api took
+# the slot (backend-first of the org-logo-upload feature; Inline, 7 tasks, full mode,
+# contract hash f5b9f835 preflight-PASS; -web queued behind user-verified backend).
+phase: applying
+change: org-logo-upload-api
 current_task: null
-execution_mode: Batch Inline
-tasks_total: 10
-tasks_done: 10
+execution_mode: Inline
+tasks_total: 7
+tasks_done: 0
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: 131c6c2a3a27287c23106dd46c296bd6f52f7b11421c65fcf56c9a232ab49fb6
+artifacts_hash: 1ae2f93ddb4178c91d6796b16a2bbf7f98232e09b19b69664e5bbc557610d434
 contract_hash: null
 batches_completed: 0
-last_updated: 2026-11-05
+last_updated: 2026-11-06

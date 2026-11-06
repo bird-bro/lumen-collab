@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>workstation-context UI 原型 · lumen-collab</title>
+<!--
+  工作站上下文 UI 原型（非权威，供评审）：
+  ① zone 2 头部切台 chip（产品标题左侧，下拉列授权台 + 主台勾选）
+  ② 切台后侧栏过滤效果（admin 控制台 ↔ 放射工作站）
+  ③ 用户管理页「工作站授权」抽屉（勾台 + 设主台）
+  点击顶部 chip 或演示切换按钮体验。数据语义见
+  openspec/coordination/workstation-context.md。
+-->
+<style>
+  :root {
+    --rail-bg: #0b1f4e;
+    --rail-item: #12306e;
+    --rail-active: #1d4ed8;
+    --header-bg: #ffffff;
+    --page-bg: #f0f2f7;
+    --panel-border: #e5e9f2;
+    --text: #1f2733;
+    --text-2: #5b6b85;
+    --primary: #2b5fd9;
+    --primary-weak: #eef3ff;
+    --success: #16a34a;
+    --warning-bg: #fff7e8;
+    --warning: #b45309;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(15, 33, 82, .06), 0 8px 24px rgba(15, 33, 82, .08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    background: var(--page-bg); color: var(--text);
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ===== 三区 shell ===== */
+  .shell { display: flex; flex: 1; min-height: 0; }
+  /* zone 1: 68px 主导航轨 */
+  .rail {
+    width: 68px; background: var(--rail-bg); display: flex; flex-direction: column;
+    align-items: center; padding: 14px 0; gap: 10px; flex-shrink: 0;
+  }
+  .rail .logo { color: #fff; font-size: 20px; margin-bottom: 10px; }
+  .rail .nav-item {
+    width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; color: #93a7d4; font-size: 18px; cursor: pointer;
+  }
+  .rail .nav-item.active { background: var(--rail-active); color: #fff; }
+  .rail .nav-label { font-size: 10px; color: #93a7d4; text-align: center; margin-top: -6px; }
+
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  /* zone 2: 60px header */
+  .header {
+    height: 60px; background: var(--header-bg); border-bottom: 1px solid var(--panel-border);
+    display: flex; align-items: center; padding: 0 20px; gap: 14px; flex-shrink: 0;
+  }
+  .header .title { font-size: 16px; font-weight: 600; letter-spacing: .5px; }
+
+  /* ===== ① 工作站 chip（评审核心） ===== */
+  .ws-chip { position: relative; }
+  .ws-chip-btn {
+    display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+    border: 1px solid var(--panel-border); border-radius: 999px; cursor: pointer;
+    background: #fff; transition: box-shadow .15s, border-color .15s;
+  }
+  .ws-chip-btn:hover { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-weak); }
+  .ws-chip-btn .ws-icon { font-size: 16px; }
+  .ws-chip-btn .ws-name { font-size: 13px; font-weight: 600; }
+  .ws-chip-btn .caret { font-size: 10px; color: var(--text-2); transition: transform .15s; }
+  .ws-chip-btn.open .caret { transform: rotate(180deg); }
+  .ws-badge {
+    font-size: 10px; padding: 1px 6px; border-radius: 999px;
+    background: var(--warning-bg); color: var(--warning); font-weight: 600;
+  }
+  .ws-dropdown {
+    position: absolute; top: calc(100% + 8px); left: 0; width: 264px; z-index: 50;
+    background: #fff; border-radius: var(--radius); box-shadow: var(--shadow);
+    border: 1px solid var(--panel-border); padding: 6px; display: none;
+  }
+  .ws-dropdown.show { display: block; animation: drop .14s ease-out; }
+  @keyframes drop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .ws-dropdown .hd { font-size: 11px; color: var(--text-2); padding: 8px 10px 4px; }
+  .ws-opt {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+    border-radius: 8px; cursor: pointer;
+  }
+  .ws-opt:hover { background: var(--primary-weak); }
+  .ws-opt .opt-icon {
+    width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center;
+    justify-content: center; font-size: 16px; background: var(--primary-weak); color: var(--primary);
+    flex-shrink: 0;
+  }
+  .ws-opt.active .opt-icon { background: var(--primary); color: #fff; }
+  .ws-opt .opt-name { font-size: 13px; font-weight: 600; }
+  .ws-opt .opt-desc { font-size: 11px; color: var(--text-2); }
+  .ws-opt .check { margin-left: auto; color: var(--success); font-weight: 700; visibility: hidden; }
+  .ws-opt.active .check { visibility: visible; }
+  .primary-tag {
+    font-size: 10px; color: var(--primary); border: 1px solid var(--primary);
+    padding: 0 4px; border-radius: 4px; margin-left: 6px;
+  }
+
+  .header .spacer { flex: 1; }
+  .header .user { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; }
+  .header .avatar {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--primary);
+    color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+
+  .body { display: flex; flex: 1; min-height: 0; }
+  /* zone 3: 160px 侧栏 */
+  .sidebar {
+    width: 160px; background: #fff; border-right: 1px solid var(--panel-border);
+    padding: 12px 8px; flex-shrink: 0; overflow-y: auto;
+  }
+  .side-group { font-size: 11px; color: var(--text-2); padding: 10px 10px 4px; }
+  .side-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px;
+    font-size: 13px; cursor: pointer; color: var(--text);
+  }
+  .side-item:hover { background: var(--primary-weak); }
+  .side-item.active { background: var(--primary-weak); color: var(--primary); font-weight: 600; }
+  .fade-out { opacity: .25; text-decoration: line-through; }
+  .pruned { display: none; }
+  .ws-note {
+    margin: 12px 8px; padding: 10px; border-radius: 8px; background: var(--warning-bg);
+    color: var(--warning); font-size: 11px; line-height: 1.6;
+  }
+
+  /* 内容区 */
+  .content { flex: 1; padding: 18px; overflow-y: auto; }
+  .panel { background: #fff; border: 1px solid var(--panel-border); border-radius: var(--radius); padding: 16px; }
+  .panel h3 { font-size: 14px; margin-bottom: 12px; }
+  .demo-switch { display: flex; gap: 8px; margin-bottom: 14px; }
+  .demo-btn {
+    padding: 6px 14px; border-radius: 8px; border: 1px solid var(--panel-border);
+    background: #fff; cursor: pointer; font-size: 13px;
+  }
+  .demo-btn.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--panel-border); }
+  th { color: var(--text-2); font-weight: 500; font-size: 12px; }
+  .tag { font-size: 11px; padding: 1px 8px; border-radius: 4px; }
+  .tag.blue { background: var(--primary-weak); color: var(--primary); }
+  .tag.gold { background: var(--warning-bg); color: var(--warning); }
+  .tag.green { background: #e8f7ee; color: var(--success); }
+  .mono { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+
+  /* ===== ③ 授权抽屉 ===== */
+  .drawer-mask {
+    position: fixed; inset: 0; background: rgba(15, 33, 82, .35); z-index: 90;
+    display: none;
+  }
+  .drawer-mask.show { display: block; }
+  .drawer {
+    position: fixed; top: 0; right: -480px; width: 460px; height: 100vh; background: #fff;
+    z-index: 100; box-shadow: -12px 0 32px rgba(15, 33, 82, .18); transition: right .22s ease-out;
+    display: flex; flex-direction: column;
+  }
+  .drawer.show { right: 0; }
+  .drawer .d-head {
+    padding: 16px 20px; border-bottom: 1px solid var(--panel-border);
+    font-size: 15px; font-weight: 600; display: flex; justify-content: space-between; align-items: center;
+  }
+  .drawer .d-head .close { cursor: pointer; color: var(--text-2); font-size: 18px; }
+  .drawer .d-body { flex: 1; padding: 20px; overflow-y: auto; }
+  .drawer .d-user { display: flex; gap: 10px; align-items: center; padding-bottom: 14px; border-bottom: 1px dashed var(--panel-border); margin-bottom: 14px; }
+  .drawer .d-user .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; }
+  .drawer .d-user .u-name { font-size: 14px; font-weight: 600; }
+  .drawer .d-user .u-sub { font-size: 12px; color: var(--text-2); }
+  .ws-check {
+    border: 1px solid var(--panel-border); border-radius: var(--radius);
+    padding: 12px; margin-bottom: 10px; cursor: pointer; transition: border-color .15s;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .ws-check:hover { border-color: var(--primary); }
+  .ws-check.granted { border-color: var(--primary); background: var(--primary-weak); }
+  .ws-check input { width: 16px; height: 16px; margin-top: 3px; accent-color: var(--primary); }
+  .ws-check .w-name { font-size: 13px; font-weight: 600; }
+  .ws-check .w-desc { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+  .ws-check .radio-wrap { margin-left: auto; display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+  .ws-check .radio-wrap input { width: 14px; height: 14px; margin: 0; }
+  .d-foot { padding: 14px 20px; border-top: 1px solid var(--panel-border); display: flex; justify-content: flex-end; gap: 10px; }
+  .btn { padding: 7px 18px; border-radius: 8px; border: 1px solid var(--panel-border); background: #fff; cursor: pointer; font-size: 13px; }
+  .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .hint { font-size: 11px; color: var(--text-2); margin: 10px 2px 0; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- zone 1 -->
+  <div class="rail">
+    <div class="logo">◉</div>
+    <div>
+      <div class="nav-item" id="railConsole">🖥</div>
+      <div class="nav-label">控制台</div>
+    </div>
+    <div>
+      <div class="nav-item" id="railRadiology">🩻</div>
+      <div class="nav-label">放射科</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- zone 2 header -->
+    <div class="header">
+      <!-- ① 工作站 chip：产品标题左侧 -->
+      <div class="ws-chip">
+        <div class="ws-chip-btn" id="chipBtn" onclick="toggleDropdown(event)">
+          <span class="ws-icon" id="chipIcon">🖥</span>
+          <span class="ws-name" id="chipName">系统管理工作站</span>
+          <span class="ws-badge">主台</span>
+          <span class="caret">▾</span>
+        </div>
+        <div class="ws-dropdown" id="wsDropdown">
+          <div class="hd">切换工作站（会话内有效）</div>
+          <div class="ws-opt" data-ws="admin" onclick="switchWs('admin')">
+            <div class="opt-icon">🖥</div>
+            <div>
+              <div class="opt-name">系统管理工作站<span class="primary-tag" id="tagAdmin">主台</span></div>
+              <div class="opt-desc">不激活科室台（纯控制台）</div>
+            </div>
+            <div class="check">✓</div>
+          </div>
+          <div class="ws-opt" data-ws="radiology" onclick="switchWs('radiology')">
+            <div class="opt-icon">🩻</div>
+            <div>
+              <div class="opt-name">放射科工作站</div>
+              <div class="opt-desc">登记 · 检查 · 报告</div>
+            </div>
+            <div class="check">✓</div>
+          </div>
+          <div class="ws-opt" data-ws="us" onclick="switchWs('us')" style="opacity:.45">
+            <div class="opt-icon">🩺</div>
+            <div>
+              <div class="opt-name">超声工作站</div>
+              <div class="opt-desc">未授权（v2 阶段）</div>
+            </div>
+            <div class="check">✓</div>
+          </div>
+        </div>
+      </div>
+
+      <span class="title">LumenCollab</span>
+      <div class="spacer"></div>
+      <div class="user"><span>系统管理员</span><div class="avatar">管</div></div>
+    </div>
+
+    <div class="body">
+      <!-- zone 3 sidebar：M 常驻 + 激活 W 的下级提升为 L1 -->
+      <div class="sidebar">
+        <div class="ws-note" id="wsNote">
+          原型提示：W 节点只在 chip 下拉（默认第一个）；激活台的下级菜单「提升一级」进左侧菜单栏，与系统管理(M)并列；M 类型照旧。
+        </div>
+        <!-- M 类型 L1：常驻，现状层级 -->
+        <div class="side-group ws-admin">🖥 系统管理</div>
+        <div class="side-item ws-admin" style="padding-left:22px"><span style="color:var(--text-2)">├ 机构管理</span></div>
+        <div class="side-item ws-admin" style="padding-left:22px"><span style="color:var(--text-2)">├ 用户管理</span></div>
+        <div class="side-item ws-admin active" style="padding-left:22px"><span style="color:var(--text-2)">└ 菜单管理</span></div>
+        <!-- 激活 W 的 children：提升为 L1 -->
+        <div class="side-group ws-extra pruned" id="extraGroup">🩻 放射工作站（提升组）</div>
+        <div class="side-item ws-extra pruned">📝 登记预约</div>
+        <div class="side-item ws-extra pruned">🩻 检查执行</div>
+        <div class="side-item ws-extra pruned">📄 报告书写</div>
+      </div>
+
+      <!-- content -->
+      <div class="content">
+        <div class="panel">
+          <h3>切台演示</h3>
+          <div class="demo-switch">
+            <button class="demo-btn on" id="btnAdmin" onclick="switchWs('admin')">系统管理台（现状）</button>
+            <button class="demo-btn" id="btnRadiology" onclick="switchWs('radiology')">放射工作站（过滤后）</button>
+            <button class="btn" style="margin-left:auto" onclick="openDrawer()">③ 打开「工作站授权」抽屉</button>
+          </div>
+          <p style="font-size:12px; color:var(--text-2); line-height:1.8">
+            chip 常显于产品标题左侧（三区中唯一不随切台重渲染的存活域）；切换 = 路由到该台落地页 + 客户端重过滤菜单树（/me 全量载荷、零请求）；
+            re-login 落 <span class="mono">profile.primaryWorkstation</span>。授权台与主台来自
+            <span class="mono">PUT /users/&#123;id&#125;/workstations</span> 的全量替换授权。
+          </p>
+          <div style="margin-top:14px">
+            <h3 style="font-size:13px; margin-bottom:8px">菜单管理页 — 按工作站分组渲染（分组标题行，非菜单节点）</h3>
+            <table>
+              <tr><th style="width:55%">菜单（树）</th><th>类型</th><th>所属工作站</th></tr>
+              <tr><td colspan="3" style="background:var(--primary-weak); color:var(--primary); font-weight:600; font-size:12px">▼ 系统管理工作站（分组标题行 · admin）</td></tr>
+              <tr><td style="padding-left:26px">系统管理</td><td><span class="tag gold">目录</span></td><td class="mono">admin</td></tr>
+              <tr><td style="padding-left:44px">├ 机构管理</td><td><span class="tag blue">页面</span></td><td class="mono">admin（派生）</td></tr>
+              <tr><td style="padding-left:44px">└ 日志查询</td><td><span class="tag blue">页面</span></td><td class="mono">admin（派生）</td></tr>
+              <tr><td colspan="3" style="background:var(--primary-weak); color:var(--primary); font-weight:600; font-size:12px">▼ 放射科工作站（分组标题行 · radiology）</td></tr>
+              <tr><td style="padding-left:26px">放射科</td><td><span class="tag gold">目录</span></td><td class="mono">radiology</td></tr>
+              <tr><td style="padding-left:44px">└ 登记预约（未来页面挂这里）</td><td><span class="tag blue">页面</span></td><td class="mono">radiology（派生）</td></tr>
+              <tr><td colspan="3" style="background:var(--primary-weak); color:var(--primary); font-weight:600; font-size:12px">▼ 超声科工作站 / 内镜科工作站（占位 L1 · us / endo）</td></tr>
+            </table>
+            <div class="hint">L1 菜单的「所属工作站」是表单下拉（固定四项，不可新建台）；子菜单的台 = 祖先 L1 派生；分组标题行是渲染分组，不是 menu_info 节点（不加假层级、授权祖先链不变、零迁移重排）。</div>
+          </div>
+          <div style="margin-top:14px">
+            <table>
+              <tr><th>语义</th><th>来源</th></tr>
+              <tr><td>授权台列表</td><td class="mono">/me.workstations</td></tr>
+              <tr><td>默认台（re-login 落点）</td><td class="mono">/me.profile.primaryWorkstation</td></tr>
+              <tr><td>授权入口</td><td>用户管理 → 工作站授权（<span class="mono">system:user:assign-ws</span>）</td></tr>
+              <tr><td>导航过滤</td><td>路由域静态映射（编译期锁死）</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ③ 授权抽屉 -->
+<div class="drawer-mask" id="drawerMask" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="d-head"><span>工作站授权 — 陈医生</span><span class="close" onclick="closeDrawer()">✕</span></div>
+  <div class="d-body">
+    <div class="d-user">
+      <div class="avatar">陈</div>
+      <div>
+        <div class="u-name">陈医生（chen.md）</div>
+        <div class="u-sub">当前授权：radiology（主台）· 来自 <span class="mono">/me.workstations</span> 同构数据</div>
+      </div>
+    </div>
+
+    <label class="ws-check granted">
+      <input type="checkbox" checked onchange="toggle(this,'radioAdmin')">
+      <div>
+        <div class="w-name">🖥 系统管理工作站</div>
+        <div class="w-desc">控制台：用户 / 角色 / 字典 / 菜单</div>
+      </div>
+      <label class="radio-wrap" onclick="event.stopPropagation()">
+        <input type="radio" name="primary" id="radioAdmin"> 主台
+      </label>
+    </label>
+
+    <label class="ws-check granted">
+      <input type="checkbox" checked onchange="toggle(this,'radioRadiology')">
+      <div>
+        <div class="w-name">🩻 放射科工作站</div>
+        <div class="w-desc">登记 · 检查 · 报告</div>
+      </div>
+      <label class="radio-wrap" onclick="event.stopPropagation()">
+        <input type="radio" name="primary" id="radioRadiology" checked> 主台
+      </label>
+    </label>
+
+    <label class="ws-check">
+      <input type="checkbox" onchange="toggle(this,'radioUs')">
+      <div>
+        <div class="w-name">🩺 超声工作站</div>
+        <div class="w-desc">登记 · 检查 · 报告（v2 阶段）</div>
+      </div>
+      <label class="radio-wrap" onclick="event.stopPropagation()">
+        <input type="radio" name="primary" id="radioUs"> 主台
+      </label>
+    </label>
+
+    <label class="ws-check">
+      <input type="checkbox" onchange="toggle(this,'radioEndo')">
+      <div>
+        <div class="w-name">🔬 内镜工作站</div>
+        <div class="w-desc">登记 · 检查 · 报告（v2 阶段）</div>
+      </div>
+      <label class="radio-wrap" onclick="event.stopPropagation()">
+        <input type="radio" name="primary" id="radioEndo"> 主台
+      </label>
+    </label>
+
+    <div class="hint">
+      保存 = <span class="mono">PUT /users/&#123;id&#125;/workstations</span> 全量替换（与角色-菜单授权同款交互）；
+      勾选行为保留原 disabled 逻辑；按钮权限 <span class="mono">system:user:assign-ws</span>
+      （V19 种子 F 节点，服务端方法级钉 + 前端 hasPerm 双侧）。双主台服务端拒绝并内联报错。
+    </div>
+  </div>
+  <div class="d-foot">
+    <button class="btn" onclick="closeDrawer()">取消</button>
+    <button class="btn primary" onclick="closeDrawer()">保 存</button>
+  </div>
+</div>
+
+<script>
+  // ---- chip 下拉 ----
+  function toggleDropdown(e) {
+    e.stopPropagation();
+    document.getElementById('wsDropdown').classList.toggle('show');
+    document.getElementById('chipBtn').classList.toggle('open');
+  }
+  document.addEventListener('click', () => {
+    document.getElementById('wsDropdown').classList.remove('show');
+    document.getElementById('chipBtn').classList.remove('open');
+  });
+
+  // ---- 切台：chip 状态 + 侧栏过滤 ----
+  const STATIONS = {
+    admin:     { icon: '🖥', name: '系统管理工作站' },
+    radiology: { icon: '🩻', name: '放射科工作站' },
+    us:        { icon: '🩺', name: '超声工作站' },
+  };
+  let active = 'admin';
+
+  function switchWs(ws) {
+    if (!STATIONS[ws]) return;
+    active = ws;
+    document.getElementById('chipIcon').textContent = STATIONS[ws].icon;
+    document.getElementById('chipName').textContent = STATIONS[ws].name;
+    document.querySelectorAll('.ws-opt').forEach(o => o.classList.toggle('active', o.dataset.ws === ws));
+    // 显示规则：W 下级提升为 L1（激活台切换即替换提升集合）
+    const dept = ws === 'admin' ? null : ws;
+    document.getElementById('extraGroup').classList.toggle('pruned', !dept);
+    document.getElementById('extraGroup').textContent = dept
+      ? (STATIONS[dept].icon + ' ' + STATIONS[dept].name + '（提升组）')
+      : '🩻 放射工作站（提升组）';
+    document.querySelectorAll('.ws-extra:not(#extraGroup)').forEach(el => {
+      el.classList.toggle('pruned', dept !== 'radiology');
+    });
+    // rail 高亮跟随
+    document.getElementById('railConsole').classList.toggle('active', admin);
+    document.getElementById('railRadiology').classList.toggle('active', ws === 'radiology');
+    // 演示按钮态
+    document.getElementById('btnAdmin').classList.toggle('on', admin);
+    document.getElementById('btnRadiology').classList.toggle('on', ws === 'radiology');
+    // 主台徽标只在 admin 台时显示（原型：主台=admin）
+    document.querySelector('.ws-badge').style.display = admin ? '' : 'none';
+    // 过滤后侧栏空态提示
+    const note = document.getElementById('wsNote');
+    note.textContent = ws === 'admin'
+      ? '原型提示：系统管理 L1 常驻；chip 选中科室台后，该台 L1 追加进侧栏与系统管理并列。'
+      : '原型提示：已激活「' + STATIONS[ws].name + '」——该台 L1（登记预约…）追加到系统管理之下并列显示；切回控制台即回到现状。';
+  }
+
+  // ---- 授权抽屉 ----
+  function openDrawer() {
+    document.getElementById('drawer').classList.add('show');
+    document.getElementById('drawerMask').classList.add('show');
+  }
+  function closeDrawer() {
+    document.getElementById('drawer').classList.remove('show');
+    document.getElementById('drawerMask').classList.remove('show');
+  }
+  function toggle(box, radioId) {
+    box.closest('.ws-check').classList.toggle('granted', box.checked);
+    const radio = document.getElementById(radioId);
+    radio.disabled = !box.checked;
+    if (!box.checked && radio.checked) radio.checked = false;
+  }
+</script>
+</body>
+</html>
