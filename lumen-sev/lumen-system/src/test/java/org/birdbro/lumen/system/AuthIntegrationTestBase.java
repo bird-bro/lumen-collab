@@ -163,7 +163,8 @@ public abstract class AuthIntegrationTestBase {
      * AuthUserAgentResilienceTests' probe account (its rows are swept, not left in place).
      */
     static final String[] ACCOUNT_PREFIXES = { "b2", "dup_u_", "pw_u_", "en_u_", "replace_u_",
-            "role_del_u_", "audit_u_", "single_u_", "noperm_u_", "city_u_", "no.such.user." };
+            "role_del_u_", "audit_u_", "single_u_", "noperm_u_", "city_u_", "menuperm_u_",
+            "btnmatrix_", "no.such.user." };
 
     /**
      * Fixture-role namespace owned by the tests, sweep-targetable (the Chinese literals
@@ -172,7 +173,8 @@ public abstract class AuthIntegrationTestBase {
      * matching them, together with their role_menu bindings; bound fixture users go with
      * the account sweep.
      */
-    static final String[] ROLE_NAME_PREFIXES = { "报告审核员_", "单页角色_", "无权角色_", "denied_role_" };
+    static final String[] ROLE_NAME_PREFIXES = { "报告审核员_", "单页角色_", "无权角色_",
+            "无权菜单角色_", "denied_role_" };
 
     /** Id of the run-admin user row; null until the identity is ensured. */
     private static volatile Long runUserId;

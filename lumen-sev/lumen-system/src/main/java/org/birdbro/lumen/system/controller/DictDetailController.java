@@ -55,6 +55,7 @@ public class DictDetailController {
     /** Creates a detail under a live catalog (anchored by caId, value required); returns the new id. */
     @ApiOperation("创建字典明细（caId 锚定，(caId,value) 重复 A0714 拒绝）")
     @Log(title = "字典明细", type = "新增")
+    @PreAuthorize("hasAuthority('system:dict-detail:create')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PostMapping
     public Integer create(@Valid @RequestBody DetailCreate request) {
         return dictDetailManageService.create(request);
@@ -63,6 +64,7 @@ public class DictDetailController {
     /** Partial update: re-anchor / value / sort / enable (null fields skipped). */
     @ApiOperation("字典明细部分更新（改挂目录/值/排序/启停）")
     @Log(title = "字典明细", type = "修改")
+    @PreAuthorize("hasAuthority('system:dict-detail:update')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id, @Valid @RequestBody DetailModify request) {
         return dictDetailManageService.update(id, request);
@@ -71,6 +73,7 @@ public class DictDetailController {
     /** Logical delete ({@code @TableLogic}: {@code UPDATE deleted = 1}). */
     @ApiOperation("逻辑删除字典明细")
     @Log(title = "字典明细", type = "删除")
+    @PreAuthorize("hasAuthority('system:dict-detail:delete')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @DeleteMapping("/{id}")
     public Boolean delete(@PathVariable Integer id) {
         return dictDetailManageService.delete(id);

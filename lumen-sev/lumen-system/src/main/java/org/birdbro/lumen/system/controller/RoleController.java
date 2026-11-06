@@ -52,6 +52,7 @@ public class RoleController {
     /** Creates a role (duplicate live name rejected {@code A0714}); returns the new id. */
     @Log(title = "角色管理", type = "新增")
     @ApiOperation("创建角色")
+    @PreAuthorize("hasAuthority('system:role:create')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PostMapping
     public Integer create(@Valid @RequestBody CreateRoleRequest request) {
         return roleService.create(request);
@@ -60,6 +61,7 @@ public class RoleController {
     /** Partial update: rename / type / remark (null fields skipped). */
     @Log(title = "角色管理", type = "修改")
     @ApiOperation("角色部分更新")
+    @PreAuthorize("hasAuthority('system:role:update')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id, @Valid @RequestBody UpdateRoleRequest request) {
         return roleService.update(id, request);
@@ -71,6 +73,7 @@ public class RoleController {
      */
     @Log(title = "角色管理", type = "删除")
     @ApiOperation("删除角色（级联解绑 user_role/role_menu）")
+    @PreAuthorize("hasAuthority('system:role:delete')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @DeleteMapping("/{id}")
     public Boolean delete(@PathVariable Integer id) {
         return roleService.delete(id);
@@ -79,6 +82,7 @@ public class RoleController {
     /** FULL-REPLACE menu assignment: the given ids become the role's complete grant set. */
     @Log(title = "角色管理", type = "授权")
     @ApiOperation("角色-菜单全量分配（全量替换语义）")
+    @PreAuthorize("hasAuthority('system:role:assign')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PutMapping("/{id}/menus")
     public Boolean assignMenus(@PathVariable Integer id,
             @Valid @RequestBody AssignRoleMenusRequest request) {

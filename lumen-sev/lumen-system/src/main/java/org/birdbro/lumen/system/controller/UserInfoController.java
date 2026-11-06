@@ -61,6 +61,7 @@ public class UserInfoController {
      */
     @Log(title = "用户管理", type = "新增")
     @ApiOperation("创建用户（BCrypt 散列 + 可选角色绑定）")
+    @PreAuthorize("hasAuthority('system:user:create')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PostMapping
     public Integer create(@Valid @RequestBody CreateUserRequest request) {
         return userInfoService.createUser(request);
@@ -76,6 +77,7 @@ public class UserInfoController {
     /** Admin password reset: BCrypt re-encode + {@code must_change_password = 1}. */
     @Log(title = "用户管理", type = "重置密码")
     @ApiOperation("管理员重置密码（强制首次登录改密）")
+    @PreAuthorize("hasAuthority('system:user:reset-pwd')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PutMapping("/{id}/password")
     public Boolean resetPassword(@PathVariable Integer id,
             @Valid @RequestBody ResetPasswordRequest request) {
@@ -85,6 +87,7 @@ public class UserInfoController {
     /** Sets the enable flag ({@code 1} active / {@code 0} disabled). */
     @Log(title = "用户管理", type = "修改")
     @ApiOperation("启用/停用用户")
+    @PreAuthorize("hasAuthority('system:user:enable')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PutMapping("/{id}/enable")
     public Boolean setEnable(@PathVariable Integer id, @Valid @RequestBody SetEnableRequest request) {
         return userInfoService.setEnable(id, request.getEnable());

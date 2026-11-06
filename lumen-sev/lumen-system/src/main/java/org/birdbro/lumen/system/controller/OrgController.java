@@ -56,6 +56,7 @@ public class OrgController {
     /** Creates a org ({@code upId = 0} = a root - multi-root capable); returns the new id. */
     @Log(title = "机构管理", type = "新增")
     @ApiOperation("创建机构（upId=0 为根，多机构部署）")
+    @PreAuthorize("hasAuthority('system:org:create')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PostMapping
     public Integer create(@Valid @RequestBody CreateOrgRequest request) {
         return orgService.create(request);
@@ -64,6 +65,7 @@ public class OrgController {
     /** Partial update: rename / re-parent / level / type (null fields skipped). */
     @Log(title = "机构管理", type = "修改")
     @ApiOperation("机构部分更新（改名/挂父/层级/类型）")
+    @PreAuthorize("hasAuthority('system:org:update')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id, @Valid @RequestBody UpdateOrgRequest request) {
         return orgService.update(id, request);
@@ -72,6 +74,7 @@ public class OrgController {
     /** Logical delete ({@code @TableLogic}: {@code UPDATE deleted = 1}). */
     @Log(title = "机构管理", type = "删除")
     @ApiOperation("逻辑删除机构")
+    @PreAuthorize("hasAuthority('system:org:delete')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @DeleteMapping("/{id}")
     public Boolean delete(@PathVariable Integer id) {
         return orgService.delete(id);

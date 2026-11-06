@@ -54,6 +54,7 @@ public class DictCatalController {
     /** Creates a catalog (duplicate live name rejected {@code A0714}; V12 dropped the code column); returns the new id. */
     @ApiOperation("创建字典目录（名称唯一，A0714 拒绝重复）")
     @Log(title = "字典目录", type = "新增")
+    @PreAuthorize("hasAuthority('system:dict-catal:create')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PostMapping
     public Integer create(@Valid @RequestBody CatalCreate request) {
         return dictCatalManageService.create(request);
@@ -62,6 +63,7 @@ public class DictCatalController {
     /** Partial update: rename / sort / enable (null fields skipped). */
     @ApiOperation("字典目录部分更新（改名/排序/启停）")
     @Log(title = "字典目录", type = "修改")
+    @PreAuthorize("hasAuthority('system:dict-catal:update')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id, @Valid @RequestBody CatalModify request) {
         return dictCatalManageService.update(id, request);
@@ -70,6 +72,7 @@ public class DictCatalController {
     /** Logical delete ({@code @TableLogic}: {@code UPDATE deleted = 1}). */
     @ApiOperation("逻辑删除字典目录")
     @Log(title = "字典目录", type = "删除")
+    @PreAuthorize("hasAuthority('system:dict-catal:delete')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @DeleteMapping("/{id}")
     public Boolean delete(@PathVariable Integer id) {
         return dictCatalManageService.delete(id);

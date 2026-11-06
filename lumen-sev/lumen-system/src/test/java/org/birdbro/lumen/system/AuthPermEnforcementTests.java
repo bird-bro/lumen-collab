@@ -46,11 +46,16 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
     private static final String USERS_URL = "/api/v1/system/users";
     private static final String ROLES_URL = "/api/v1/system/roles";
     private static final String MENUS_TREE_URL = "/api/v1/system/menus/tree";
+    private static final String MENUS_URL = "/api/v1/system/menus";
     private static final String ORGS_TREE_URL = "/api/v1/system/orgs/tree";
     private static final String DEPS_LIST_URL = "/api/v1/system/org-deps/list";
     private static final String DETAIL_LIST_URL = "/api/v1/system/dicts/detail/list?caId=1000";
     private static final String LOGS_URL = "/api/v1/system/logs?pageNum=1&pageSize=10";
     private static final String CITY_TREE_URL = "/api/v1/system/dicts/city/tree";
+    private static final String ORGS_URL = "/api/v1/system/orgs";
+    private static final String DEPS_URL = "/api/v1/system/org-deps";
+    private static final String CATAL_URL = "/api/v1/system/dicts/catal";
+    private static final String DETAIL_URL = "/api/v1/system/dicts/detail";
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -184,6 +189,65 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
         cleanupRoleAndUser(roleId, userId);
     }
 
+    /**
+     * Menu write family (menu-management-api task 3.2): the three lifecycle endpoints
+     * sit under the SAME class-level {@code system:menu:list} gate as the tree read -
+     * a perm-less authenticated user is denied on POST/PUT/DELETE, and the denial fires
+     * BEFORE the controller (no node row appears). The probe target is a throwaway
+     * admin-created node so an accidental gate pass cannot damage the seeds.
+     */
+    @Test
+    void menuWriteFamilyIsPageGated() throws Exception {
+        String adminToken = adminToken();
+        long ts = System.currentTimeMillis();
+        String roleName = "无权菜单角色_" + ts;
+        String username = "menuperm_u_" + ts;
+
+        // throwaway probe node (admin-created, cleaned up at the end)
+        ResponseEntity<String> fixtureResponse = exchangeJson(HttpMethod.POST, MENUS_URL,
+                "{\"upId\":9,\"type\":\"F\",\"title\":\"ut门禁探针_" + ts
+                        + "\",\"perms\":\"ut.gate:probe:" + ts + "\",\"sort\":9,\"visible\":1}",
+                adminToken);
+        int probeId = parse(fixtureResponse).path("data").asInt(-1);
+        assertTrue(probeId > 0, "the admin fixture create must succeed");
+
+        int roleId = createRole(adminToken, roleName);
+        int userId = createUserWithRoles(adminToken, username, roleName, roleId);
+        String userToken = loginToken(username);
+
+        JsonNode createBody = parse(exchangeJson(HttpMethod.POST, MENUS_URL,
+                "{\"upId\":9,\"type\":\"F\",\"title\":\"ut门禁按钮_" + ts
+                        + "\",\"perms\":\"ut.gate:deny:" + ts + "\",\"sort\":1,\"visible\":1}",
+                userToken));
+        assertEquals("A0301", createBody.path("code").asText(),
+                "a perm-less menu create must be denied by the class-level gate: " + createBody);
+        Integer created = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system.menu_info WHERE title = ?", Integer.class,
+                "ut门禁按钮_" + ts);
+        assertEquals(Integer.valueOf(0), created,
+                "the denied create must not reach the controller (no node row)");
+
+        JsonNode updateBody = parse(exchangeJson(HttpMethod.PUT, MENUS_URL + "/" + probeId,
+                "{\"upId\":9,\"type\":\"F\",\"title\":\"ut门禁探针改_"
+                        + ts + "\",\"sort\":1,\"visible\":1}", userToken));
+        assertEquals("A0301", updateBody.path("code").asText(),
+                "a perm-less menu update must be denied by the class-level gate: " + updateBody);
+
+        JsonNode deleteBody = parse(exchangeJson(HttpMethod.DELETE, MENUS_URL + "/" + probeId,
+                null, userToken));
+        assertEquals("A0301", deleteBody.path("code").asText(),
+                "a perm-less menu delete must be denied by the class-level gate: " + deleteBody);
+        Integer stillLive = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system.menu_info WHERE id = ? AND deleted = 0",
+                Integer.class, probeId);
+        assertEquals(Integer.valueOf(1), stillLive,
+                "the denied delete must leave the probe node live");
+
+        jdbcTemplate.update("UPDATE system.role_menu SET deleted = 1 WHERE menu_id = ?", probeId);
+        jdbcTemplate.update("UPDATE system.menu_info SET deleted = 1 WHERE id = ?", probeId);
+        cleanupRoleAndUser(roleId, userId);
+    }
+
     /** Entry-point precedence: a tokenless request still answers "203", never "A0301". */
     @Test
     void tokenlessStillAnswers203() throws Exception {
@@ -191,6 +255,260 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
                 USERS_URL + "/list?pageNum=1&pageSize=10", null, null));
         assertEquals("203", body.path("code").asText(),
                 "tokenless must stay the entry point's 203: " + body);
+    }
+
+    /**
+     * Button-level enforcement matrix (button-perm-enforcement-api task 2.1, spec delta
+     * auth-rbac ADDED "Button-Level Permission Enforcement"): EVERY console write
+     * endpoint denies a role holding only the PAGE perm (A0301, nothing written) and
+     * passes a role holding only the BUTTON perm - whose list read stays class-gate
+     * denied (D2: the button node is the ACTION authority, the page node the VISIBILITY
+     * authority). One fixture role + user are reused; the grant is FULL-REPLACEd per
+     * phase and the fixture re-logs in (the session perm set solidifies at login).
+     * The perms/endpoint inventory mirrors the coordination table
+     * (openspec/coordination/button-perm-enforcement.md) - a missing pin or a drifted
+     * string fails here, not in production.
+     */
+    @Test
+    void buttonPermsGateEveryConsoleWriteEndpoint() throws Exception {
+        String adminToken = adminToken();
+        long ts = System.currentTimeMillis();
+
+        // throwaway targets the button-only PASS side consumes (DELETE) or mutates (PUT)
+        int thrUserId = createUserWithRoles(adminToken, "btnmatrix_t_" + ts, "矩阵目标用户", 1);
+        int thrPutRoleId = createRole(adminToken, "按钮矩阵PUT目标_" + ts);
+        int thrDelRoleId = createRole(adminToken, "按钮矩阵DEL目标_" + ts);
+        int thrAssignRoleId = createRole(adminToken, "按钮矩阵ASSIGN目标_" + ts);
+        int thrNodeId = adminCreateMenu(adminToken, 9, "ut矩阵节点_" + ts, null);
+        int thrDelNodeId = adminCreateMenu(adminToken, 9, "ut矩阵删节点_" + ts, null);
+        int thrOrgId = adminCreateOrg(adminToken, ts);
+        int thrDelOrgId = adminCreateOrg(adminToken, ts);
+        int matrixCampusId = adminCreateOrg(adminToken, ts); // departments need a live CAMPUS owner (V16)
+        int thrDepId = adminCreateDep(adminToken, matrixCampusId);
+        int thrDelDepId = adminCreateDep(adminToken, matrixCampusId);
+        int thrCatalId = adminCreateCatal(adminToken, ts);
+        int thrDelCatalId = adminCreateCatal(adminToken, ts);
+        int thrDetailId = adminCreateDetail(adminToken, thrCatalId, ts);
+        int thrDelDetailId = adminCreateDetail(adminToken, thrDelCatalId, ts);
+
+        int roleId = createRole(adminToken, "按钮矩阵角色_" + ts);
+        String username = "btnmatrix_u_" + ts;
+        createUserWithRoles(adminToken, username, "按钮矩阵用户", roleId);
+
+        // users family
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 14, 2}, "system:user:create",
+                "POST /users",
+                token -> exchangeJson(HttpMethod.POST, USERS_URL,
+                        "{\"username\":\"btnmatrix_w_" + ts + "\",\"password\":\"audit-pass-123\","
+                                + "\"name\":\"矩阵直建用户\",\"roleIds\":[]}", token));
+        // D2 semantics (spec scenario "Button perm alone authorizes the write"): the
+        // role currently holds ONLY the bare create-button node - its list read stays
+        // class-gate denied.
+        assertEquals("A0301", parse(exchangeJson(HttpMethod.GET,
+                USERS_URL + "/list?pageNum=1&pageSize=10", null, loginToken(username)))
+                .path("code").asText(),
+                "a button-only role's list read must stay class-gate denied");
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system.user_info WHERE username = ? AND deleted = 0",
+                Integer.class, "btnmatrix_deny_" + ts).intValue(),
+                "the denied create must not reach the controller");
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 14, 2}, "system:user:reset-pwd",
+                "PUT /users/{id}/password",
+                token -> exchangeJson(HttpMethod.PUT, USERS_URL + "/" + thrUserId + "/password",
+                        "{\"newPassword\":\"NewPass1!23\"}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 14, 2}, "system:user:enable",
+                "PUT /users/{id}/enable",
+                token -> exchangeJson(HttpMethod.PUT, USERS_URL + "/" + thrUserId + "/enable",
+                        "{\"enable\":0}", token));
+
+        // roles family
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 14, 9}, "system:role:create",
+                "POST /roles",
+                token -> exchangeJson(HttpMethod.POST, ROLES_URL,
+                        "{\"name\":\"按钮矩阵直建_" + ts + "\",\"type\":11}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 14, 9}, "system:role:update",
+                "PUT /roles/{id}",
+                token -> exchangeJson(HttpMethod.PUT, ROLES_URL + "/" + thrPutRoleId,
+                        "{\"name\":\"按钮矩阵改名_" + ts + "\"}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 14, 9}, "system:role:delete",
+                "DELETE /roles/{id}",
+                token -> exchangeJson(HttpMethod.DELETE, ROLES_URL + "/" + thrDelRoleId, null, token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 14, 9}, "system:role:assign",
+                "PUT /roles/{id}/menus",
+                token -> exchangeJson(HttpMethod.PUT, ROLES_URL + "/" + thrAssignRoleId + "/menus",
+                        "{\"menuIds\":[1]}", token));
+
+        // menus family
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 15, 10}, "system:menu:create",
+                "POST /menus",
+                token -> exchangeJson(HttpMethod.POST, MENUS_URL,
+                        "{\"upId\":9,\"type\":\"F\",\"title\":\"ut矩阵按钮_" + ts
+                                + "\",\"perms\":\"ut.mtx:" + ts + "\",\"sort\":1,\"visible\":1}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 15, 10}, "system:menu:update",
+                "PUT /menus/{id}",
+                token -> exchangeJson(HttpMethod.PUT, MENUS_URL + "/" + thrNodeId,
+                        "{\"upId\":9,\"type\":\"F\",\"title\":\"ut矩阵节点改_" + ts
+                                + "\",\"perms\":\"ut.mtx:" + ts + "\",\"sort\":2,\"visible\":1}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 15, 10}, "system:menu:delete",
+                "DELETE /menus/{id}",
+                token -> exchangeJson(HttpMethod.DELETE, MENUS_URL + "/" + thrDelNodeId, null, token));
+
+        // orgs family
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 13, 7}, "system:org:create",
+                "POST /orgs",
+                token -> exchangeJson(HttpMethod.POST, ORGS_URL,
+                        "{\"upId\":1,\"name\":\"按钮矩阵院区_" + ts + "\"}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 13, 7}, "system:org:update",
+                "PUT /orgs/{id}",
+                token -> exchangeJson(HttpMethod.PUT, ORGS_URL + "/" + thrOrgId,
+                        "{\"name\":\"按钮矩阵机构改_" + ts + "\"}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 13, 7}, "system:org:delete",
+                "DELETE /orgs/{id}",
+                token -> exchangeJson(HttpMethod.DELETE, ORGS_URL + "/" + thrDelOrgId, null, token));
+
+        // deps family (matrixCampusId - a freshly created live campus - made at the top)
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 13, 8}, "system:dep:create",
+                "POST /org-deps",
+                token -> exchangeJson(HttpMethod.POST, DEPS_URL,
+                        "{\"orgId\":" + matrixCampusId + ",\"code\":\"ut_mtx_dep_" + ts
+                                + "\",\"name\":\"按钮矩阵科室_" + ts + "\"}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 13, 8}, "system:dep:update",
+                "PUT /org-deps/{id}",
+                token -> exchangeJson(HttpMethod.PUT, DEPS_URL + "/" + thrDepId,
+                        "{\"name\":\"按钮矩阵科室改_" + ts + "\"}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 13, 8}, "system:dep:delete",
+                "DELETE /org-deps/{id}",
+                token -> exchangeJson(HttpMethod.DELETE, DEPS_URL + "/" + thrDelDepId, null, token));
+
+        // dicts family (two resources)
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 15, 11}, "system:dict-catal:create",
+                "POST /dicts/catal",
+                token -> exchangeJson(HttpMethod.POST, CATAL_URL,
+                        "{\"name\":\"按钮矩阵目录_" + ts + "\",\"sort\":9}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 15, 11}, "system:dict-catal:update",
+                "PUT /dicts/catal/{id}",
+                token -> exchangeJson(HttpMethod.PUT, CATAL_URL + "/" + thrCatalId,
+                        "{\"name\":\"按钮矩阵目录改_" + ts + "\"}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 15, 11}, "system:dict-catal:delete",
+                "DELETE /dicts/catal/{id}",
+                token -> exchangeJson(HttpMethod.DELETE, CATAL_URL + "/" + thrDelCatalId, null, token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 15, 11}, "system:dict-detail:create",
+                "POST /dicts/detail",
+                token -> exchangeJson(HttpMethod.POST, DETAIL_URL,
+                        "{\"caId\":" + thrCatalId + ",\"code\":9101,\"value\":\"按钮矩阵值_"
+                                + ts + "\",\"sort\":9}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 15, 11}, "system:dict-detail:update",
+                "PUT /dicts/detail/{id}",
+                token -> exchangeJson(HttpMethod.PUT, DETAIL_URL + "/" + thrDetailId,
+                        "{\"value\":\"按钮矩阵值改_" + ts + "\"}", token));
+        expectDenyThenPass(adminToken, roleId, username, new int[]{1, 15, 11}, "system:dict-detail:delete",
+                "DELETE /dicts/detail/{id}",
+                token -> exchangeJson(HttpMethod.DELETE, DETAIL_URL + "/" + thrDelDetailId, null, token));
+
+        // cleanup: everything the matrix created or touched (logical deletes)
+        jdbcTemplate.update("UPDATE system.user_info SET deleted = 1 WHERE username LIKE 'btnmatrix\\_%' ESCAPE '\\'");
+        jdbcTemplate.update("UPDATE system.role_menu SET deleted = 1 WHERE role_id IN (SELECT id FROM system.role_info WHERE name LIKE '按钮矩阵%')");
+        jdbcTemplate.update("UPDATE system.role_menu SET deleted = 1 WHERE menu_id IN (SELECT id FROM system.menu_info WHERE title LIKE 'ut矩阵%' OR title LIKE '按钮矩阵%')");
+        jdbcTemplate.update("UPDATE system.user_role SET deleted = 1 WHERE role_id IN (SELECT id FROM system.role_info WHERE name LIKE '按钮矩阵%')");
+        jdbcTemplate.update("UPDATE system.role_info SET deleted = 1 WHERE name LIKE '按钮矩阵%'");
+        jdbcTemplate.update("UPDATE system.menu_info SET deleted = 1 WHERE title LIKE 'ut矩阵%' OR title LIKE '按钮矩阵%' OR perms LIKE 'ut.mtx%'");
+        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE name LIKE '按钮矩阵%'");
+        jdbcTemplate.update("UPDATE system.org_dep SET deleted = 1 WHERE name LIKE '按钮矩阵%' OR code LIKE 'ut_mtx_dep_%'");
+        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE name LIKE '按钮矩阵院区%'");
+        jdbcTemplate.update("UPDATE public.dict_catal SET deleted = 1 WHERE name LIKE '按钮矩阵%'");
+        jdbcTemplate.update("UPDATE public.dict_detail SET deleted = 1 WHERE value LIKE '按钮矩阵%'");
+    }
+
+    /** The deny-then-pass proof for ONE write endpoint (see the matrix javadoc). */
+    private void expectDenyThenPass(String adminToken, int roleId, String username,
+                                    int[] pageChain, String buttonPerms, String describe,
+                                    ThrowingCall call) throws Exception {
+        // 1) page-only grant: the write must DENY (A0301) and write nothing
+        assignMenus(adminToken, roleId, pageChain);
+        JsonNode denied = parse(call.apply(loginToken(username)));
+        assertEquals("A0301", denied.path("code").asText(),
+                "a page-only role must be DENIED on " + describe + ": " + denied);
+
+        // 2) button-only grant (the bare button node - no ancestors): the write must
+        //    PASS (the perms set flows through role_menu -> menu_info without any tree
+        //    requirement), proving the button node is the action authority (D2).
+        int buttonId = buttonId(buttonPerms);
+        assignMenus(adminToken, roleId, new int[]{buttonId});
+        JsonNode passed = parse(call.apply(loginToken(username)));
+        assertEquals("200", passed.path("code").asText(),
+                "a button-only role must PASS " + describe + ": " + passed);
+    }
+
+    /** The live menu id carrying the given perms string (the V15 seed's node). */
+    private int buttonId(String perms) {
+        Integer id = jdbcTemplate.queryForObject(
+                "SELECT id FROM system.menu_info WHERE perms = ? AND type = 'F' AND deleted = 0",
+                Integer.class, perms);
+        assertNotNull(id, "the seeded button node must exist: " + perms);
+        return id;
+    }
+
+    private void assignMenus(String adminToken, int roleId, int[] menuIds) throws Exception {
+        StringBuilder json = new StringBuilder("{\"menuIds\":[");
+        for (int i = 0; i < menuIds.length; i++) {
+            if (i > 0) json.append(',');
+            json.append(menuIds[i]);
+        }
+        json.append("]}");
+        JsonNode body = parse(exchangeJson(HttpMethod.PUT, ROLES_URL + "/" + roleId + "/menus",
+                json.toString(), adminToken));
+        assertEquals("200", body.path("code").asText(), "the grant assignment must succeed: " + body);
+    }
+
+    private int adminCreateMenu(String token, int upId, String title, String perms) throws Exception {
+        String permsPart = perms == null ? "" : ",\"perms\":\"" + perms + "\"";
+        JsonNode body = parse(exchangeJson(HttpMethod.POST, MENUS_URL,
+                "{\"upId\":" + upId + ",\"type\":\"F\",\"title\":\"" + title + "\"" + permsPart
+                        + ",\"sort\":9,\"visible\":1}", token));
+        assertEquals("200", body.path("code").asText(), "the fixture node create must succeed: " + body);
+        return body.path("data").asInt(-1);
+    }
+
+    private int adminCreateOrg(String token, long ts) throws Exception {
+        long seq = System.nanoTime(); // names must be unique among live rows
+        // V16 model: upId=1 (the hospital root) creates a CAMPUS (code server-generated)
+        JsonNode body = parse(exchangeJson(HttpMethod.POST, ORGS_URL,
+                "{\"upId\":1,\"name\":\"按钮矩阵院区T_" + seq + "\"}", token));
+        assertEquals("200", body.path("code").asText(), "the fixture org create must succeed: " + body);
+        return body.path("data").asInt(-1);
+    }
+
+    private int adminCreateDep(String token, long ts) throws Exception {
+        // unique code per campus: department codes repeat across campuses but not within one (A0712)
+        long codeSeq = System.nanoTime();
+        int campusId = jdbcTemplate.queryForObject(
+                "SELECT id FROM system.org_info WHERE up_id = 1 AND deleted = 0 "
+                        + "AND is_default = 1 ORDER BY id LIMIT 1", Integer.class);
+        JsonNode body = parse(exchangeJson(HttpMethod.POST, DEPS_URL,
+                "{\"orgId\":" + campusId + ",\"code\":\"ut_mtx_dep_" + codeSeq + "\",\"name\":\"按钮矩阵科室T_"
+                        + codeSeq + "\"}", token));
+        assertEquals("200", body.path("code").asText(), "the fixture dep create must succeed: " + body);
+        return body.path("data").asInt(-1);
+    }
+
+    private int adminCreateCatal(String token, long ts) throws Exception {
+        long seq = System.nanoTime(); // catal names are unique among live rows (A0714)
+        JsonNode body = parse(exchangeJson(HttpMethod.POST, CATAL_URL,
+                "{\"name\":\"按钮矩阵目录T_" + seq + "\",\"sort\":9}", token));
+        assertEquals("200", body.path("code").asText(), "the fixture catal create must succeed: " + body);
+        return body.path("data").asInt(-1);
+    }
+
+    private int adminCreateDetail(String token, int caId, long ts) throws Exception {
+        JsonNode body = parse(exchangeJson(HttpMethod.POST, DETAIL_URL,
+                "{\"caId\":" + caId + ",\"code\":9101,\"value\":\"按钮矩阵值T_" + ts + "\",\"sort\":9}", token));
+        assertEquals("200", body.path("code").asText(), "the fixture detail create must succeed: " + body);
+        return body.path("data").asInt(-1);
+    }
+
+    /** One HTTP call with the given token, throwing checked exceptions. */
+    private interface ThrowingCall {
+        ResponseEntity<String> apply(String token) throws Exception;
     }
 
     // ---------- helpers (house style, mirroring AuthRoleMenuTests) ----------
