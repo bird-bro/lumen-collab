@@ -106,44 +106,144 @@ envelope. (Implemented surface - documentation sync of shipped `lumen-system` co
 - **THEN** it returns `code: "200"` and the mutation persists
 
 
-<!-- synced from: web-foundation-auth-console 2026-11-05 -->
+<!-- synced from: org-management-redesign-api 2026-11-06 (replaces "Org Tree Endpoints") -->
 
-### Requirement: Org Tree Endpoints
-`lumen-system` SHALL expose the org hierarchy under `/api/v1/system/orgs`:
-`GET /api/v1/system/orgs/tree` (parent-child nesting from `upId`, seeded hospital root included),
-`POST /api/v1/system/orgs`, `PUT /api/v1/system/orgs/{id}`, and `DELETE /api/v1/system/orgs/{id}`.
-All respond with the standard envelope. (Implemented surface - documentation sync.)
+### Requirement: Controlled Organization Management Endpoints
 
-#### Scenario: Org tree query
-- **WHEN** an authenticated client requests `GET /api/v1/system/orgs/tree`
-- **THEN** it returns `code: "200"` with the nested tree, seeded hospital root included
+`lumen-system` SHALL expose organization management under `/api/v1/system/orgs` for the
+controlled hospital/campus model. `GET /tree` SHALL return the hospital root and campuses
+with profile fields. `POST` SHALL create only a bootstrap hospital root or a campus under
+that hospital. `PUT` SHALL update profile fields and status only. `DELETE` SHALL be guarded
+by live dependents. The family remains gated by `system:org:list`.
 
-#### Scenario: Org mutation verbs
-- **WHEN** an authenticated client creates, updates, or deletes an org through the documented
-  verbs
-- **THEN** the envelope returns `code: "200"` and the tree reflects the change
+#### Scenario: Controlled tree query
 
+- **WHEN** an authenticated client requests the organization tree
+- **THEN** it returns the single live hospital root and its campus children with profile
+  fields
 
-<!-- synced from: web-foundation-auth-console 2026-11-05 -->
+#### Scenario: Campus creation
 
-### Requirement: Department Endpoints
-`lumen-system` SHALL expose departments under `/api/v1/system/org-deps`:
-`GET /api/v1/system/org-deps/list` (by org), `POST /api/v1/system/org-deps`,
-`PUT /api/v1/system/org-deps/{id}`, and `DELETE /api/v1/system/org-deps/{id}`, all with the
-standard envelope. (Implemented surface - documentation sync.)
+- **WHEN** an authorized client posts a campus record under the live hospital
+- **THEN** the endpoint returns the new campus id
+- **AND** the tree contains that campus under the hospital
 
-#### Scenario: Org tree query
-- **WHEN** an authenticated client requests `GET /api/v1/system/orgs/tree`
-- **THEN** it returns `code: "200"` with the nested tree, seeded hospital root included
+#### Scenario: Second hospital root is rejected
 
-#### Scenario: Org mutation verbs
-- **WHEN** an authenticated client creates, updates, or deletes an org through the documented
-  verbs
-- **THEN** the envelope returns `code: "200"` and the tree reflects the change
+- **WHEN** a client posts another `upId = 0` hospital while a live root exists
+- **THEN** the response is an A-class business error with a descriptive message
+- **AND** no organization row is created
 
-#### Scenario: Department list by org
-- **WHEN** an authenticated client requests `GET /api/v1/system/org-deps/list` for an org
-- **THEN** only that org's departments return in `data`
+#### Scenario: Campus cannot contain a child organization
+
+- **WHEN** a client posts an organization whose parent is a campus
+- **THEN** the response is an A-class business error
+- **AND** no organization row is created
+
+#### Scenario: Type and parent are immutable
+
+- **WHEN** a client updates an organization with a different type or a different parent id
+- **THEN** the response is an A-class business error
+- **AND** the stored type and parent remain unchanged
+
+#### Scenario: Organization delete guard
+
+- **WHEN** a client deletes an organization that has a live child organization or live
+  department
+- **THEN** the response is an A-class business error
+- **AND** the organization and its dependents remain live
+
+<!-- synced from: org-management-redesign-api 2026-11-06 -->
+
+### Requirement: Existing Department List Compatibility
+
+`lumen-system` SHALL continue to expose `GET /api/v1/system/org-deps/list`. An absent
+`orgId` SHALL return all live departments. A present `orgId` SHALL filter departments by
+the owning organization. The endpoint SHALL remain gated by `system:dep:list`.
+
+#### Scenario: Existing list without a campus filter
+
+- **WHEN** an authenticated client requests the existing department list without `orgId`
+- **THEN** all live departments return in `data`
+
+#### Scenario: Existing list with a campus filter
+
+- **WHEN** an authenticated client requests the existing department list with a campus
+  `orgId`
+- **THEN** only that campus's departments return in `data`
+
+<!-- synced from: org-management-redesign-api 2026-11-06 (replaces "Department Endpoints") -->
+
+### Requirement: Department Table Query
+
+`lumen-system` SHALL expose `GET /api/v1/system/org-deps/page` for the department table.
+The query SHALL support optional `orgId`, `keyword`, `status`, `pageNum`, and `pageSize`.
+An absent `orgId` SHALL mean all campuses; a present `orgId` SHALL be a campus. Results
+SHALL be paginated and deterministically ordered. The endpoint SHALL remain gated by
+`system:dep:list`.
+
+#### Scenario: Department table query returns all campuses
+
+- **WHEN** the department page query is requested without `orgId`
+- **THEN** departments from every campus are returned in the page result
+- **AND** the total count covers all matching campus rows
+
+#### Scenario: Department table query filters a campus
+
+- **WHEN** the department page query is requested with a campus `orgId`
+- **THEN** only that campus's matching departments are returned
+- **AND** the result is ordered deterministically
+
+#### Scenario: Department table query filters keyword and status
+
+- **WHEN** the department page query is requested with a keyword and a status
+- **THEN** only live departments whose code or name matches the keyword and whose status
+  matches the requested value are returned
+
+<!-- synced from: org-management-redesign-api 2026-11-06 -->
+
+### Requirement: Campus-Scoped Department Mutations
+
+`POST /api/v1/system/org-deps` and `PUT /api/v1/system/org-deps/{id}` SHALL require a live,
+enabled campus owner. A hospital root or disabled campus SHALL NOT own a department. A
+department code SHALL be immutable after creation and unique among live departments within
+the same campus but MAY repeat across campuses.
+
+#### Scenario: Department belongs to a campus
+
+- **WHEN** an authorized client creates a department for a live, enabled campus
+- **THEN** it returns the new department id
+- **AND** the department list for that campus contains the department
+
+#### Scenario: Hospital owner is rejected
+
+- **WHEN** a client creates or updates a department whose owning org is the hospital root
+- **THEN** the response is an A-class business error
+- **AND** no department ownership change is persisted
+
+#### Scenario: Disabled campus cannot receive a department
+
+- **WHEN** a client creates or updates a department whose owning org is a disabled campus
+- **THEN** the response is an A-class business error
+- **AND** no department ownership change is persisted
+
+#### Scenario: Department code is immutable
+
+- **WHEN** a client updates a department with a code different from the stored code
+- **THEN** the response is an A-class business error
+- **AND** the stored code remains unchanged
+
+#### Scenario: Duplicate code within a campus
+
+- **WHEN** a client creates or updates a department with a code that already exists live in
+  the same campus
+- **THEN** the response is an A-class duplicate-code error
+
+#### Scenario: Same code across campuses
+
+- **WHEN** campuses A and B each have a department with code `radiology`
+- **THEN** both departments persist
+- **AND** querying each campus returns only its own department
 
 
 <!-- synced from: web-foundation-auth-console 2026-11-05 -->
