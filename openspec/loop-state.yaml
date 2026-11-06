@@ -18,17 +18,21 @@
 # 2026-11-05: sign-log-query took the slot (user-ruled scope: V13 partitioned log tables
 # with log_info_def/log_sign_def default net, sign-log endpoint + 登录日志 page, two pages
 # not tabs; SDD mode, 10 tasks).
+# Archived 2026-11-05 (12/12; slot released). 2026-11-05: menu-management-api took the
+# slot (cross-stack menu-management with menu-management-web, coordination doc
+# openspec/coordination/menu-management.md; Inline mode, 11 tasks; user waited out the
+# sign-log-query slot before apply).
 phase: archived
-change: sign-log-query
+change: button-perm-enforcement-api
 current_task: null
-execution_mode: SDD
-tasks_total: 12
-tasks_done: 12
+execution_mode: Inline
+tasks_total: 7
+tasks_done: 7
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: d6ac214f3883218683e2ceb8b4e09b1aaaa57d79242d14ccb47365c2e8d35555
+artifacts_hash: 5f6409775d9f71d4837179b3cde95c5a8c7dff4c1171ab65f62f3389c7801da0
 contract_hash: null
 batches_completed: 0
 last_updated: 2026-11-05

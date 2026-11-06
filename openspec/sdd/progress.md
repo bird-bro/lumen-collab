@@ -543,3 +543,29 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
   shared DB per user order (816 log_sign + 839 log_info + 5 fixture users soft-deleted,
   V5-precedent style; suites re-pollute on every ./mvnw test run - standing cleanup left
   as an open user decision).
+
+## Follow-up: test-fixture DB cleanup hook (user ruling 2026-11-05 #1)
+- Design: run-scoped admin clone (`itadmin_<ts>`, cloned bcrypt hash + role 1) in
+  AuthIntegrationTestBase + @AfterAll residue sweep (log rows by RUN_ACCOUNT exact +
+  fixture family prefixes; leaked users/roles by family) - zero time-window races, zero
+  prod-code changes. AuthLoginTests stays on real admin (documented ~2 rows/run residue);
+  AuthAuditIdentityTests createBy==1 -> runUserId (same identity-propagation contract).
+- Status: Dispatched (implementer running; brief fitup-cleanup-hook-brief.md)
+- Note: Constants.APP_CODE checked - compile-time constant, config route rejected.
+- Implementer DONE (commit 1dc6c37; 14 test files; 81/81 green incl. parallel session's new
+  tests; itadmin/family post-run = 0). Reviewer running. Deviations under review:
+  (1) @BeforeAll pre-refresh lazy retry; (2) 5 numeric-id assertion re-points beyond the
+  ruled createBy==1 (DictCrud/OperationLog x2/UserAgentResilience) - reviewer vetoes any
+  non-operator-identity semantics. Open residue: 147/131 live log rows (pre-hook legacy
+  runs + real user activity mixed) - attribution pending reviewer query; final legacy
+  sweep = user decision (hook never touches real-admin rows by design).
+- Reviewer: Approved (81/81 independent run; all 5 assertion re-points verdict (a) operator
+  identity - two strictly TIGHTER than old uid=1; hunk-level zero-prod verified; lazy-retry
+  sound). Dispositions: Important #1 (menuperm_u_/AuthMenuManageTests leak) = handoff to
+  menu-management change owner; Minor #2 crash-orphaned itadmin sweep REJECTED (adding
+  "itadmin_" prefix would let concurrent-session sweeps eat an active run's rows - exact
+  match stays, manual V5 sweep covers orphans); Minors #3-#5 cosmetic, no action.
+- Final DB state: log_info live = 0 (131-row pre-hook test burst 17:33-17:36 swept per the
+  user's standing cleanup order - titles were 100% suite CRUD); log_sign admin 152 left
+  (mixed real logins + pre-hook test logins, hook guarantees no new accumulation except
+  AuthLoginTests ~2/run). follow-up CLOSED.

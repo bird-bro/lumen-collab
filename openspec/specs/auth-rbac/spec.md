@@ -151,3 +151,82 @@ rows.
 - **WHEN** a fresh database receives the migrations
 - **THEN** the default administrator can log in
 - **AND** the three seeded departments are visible in the department list
+
+
+<!-- synced from: menu-management-api 2026-11-06 -->
+
+### Requirement: Menu Node Lifecycle Administration
+
+Menu nodes (directories, menus, buttons) SHALL be administrable through the menu
+management family while preserving the grant model:
+
+- Creating a menu node SHALL also insert the node into the admin role's `role_menu`
+  grant, so the super administrator immediately sees and can re-grant every new node
+  (lumen keeps explicit `role_menu` grants - no wildcard authority). Grant rows SHALL be
+  created only on CREATE; updating a node SHALL NOT alter any role's grants.
+- Updating a node SHALL NOT be able to reparent it into itself or its own descendant
+  subtree, and SHALL NOT allow any node to hang under a button (`type = F`) node.
+- Deleting a menu node SHALL be refused while the node still has live children.
+  Deleting a childless node SHALL soft-delete the node and SHALL soft-delete its
+  `role_menu` binding rows, so no role keeps granting a permission whose owning node is
+  gone.
+
+#### Scenario: New node is immediately admin-visible
+
+- **WHEN** an administrator creates any menu node
+- **THEN** the admin role's grant contains the new node without a separate assignment step
+
+#### Scenario: Update never touches grants
+
+- **WHEN** an administrator renames, re-icons, or moves an existing node
+- **THEN** the `role_menu` rows for that node are unchanged
+
+#### Scenario: Deleted button stops granting its permission
+
+- **WHEN** a button node (`type = F`) with a `perms` string is deleted
+- **THEN** roles that had the button granted no longer receive the `perms` string in
+  their login/me permission set
+
+
+<!-- synced from: button-perm-enforcement-api 2026-11-06 -->
+
+### Requirement: Button-Level Permission Enforcement
+
+Every console write endpoint SHALL be enforced at button level: the endpoint carries a
+method-level `@PreAuthorize` whose authority is the button node's `perms` string (the
+method annotation replaces the class-level page gate for that method; read endpoints
+keep the page gate). The button inventory is the coordination doc's perms table - 用户
+(create/reset-pwd/enable), 角色 (create/update/delete/assign), 菜单 (create/update/
+delete), 机构 (create/update/delete), 科室 (create/update/delete), 字典目录
+(dict-catal:create/update/delete) and 字典明细 (dict-detail:create/update/delete).
+
+The Flyway seed SHALL insert the 22 button nodes (`type = F`) under their console C
+pages with the inventory's `perms` strings, and SHALL grant every new node to the admin
+role (role 1) - idempotently (guarded inserts + sequence resync, the V5 discipline), so
+the super administrator sees and can re-grant every button without a manual step.
+
+#### Scenario: Write endpoint rejects without the button perm
+
+- **WHEN** an authenticated user holding only the page perm (`system:user:list`, via a
+  role granted just the 用户管理 page) calls `POST /api/v1/system/users`
+- **THEN** the request is denied with the `A0301` envelope and no user row is created
+
+#### Scenario: Button perm alone authorizes the write
+
+- **WHEN** a role is granted only the 新建用户 button node (not the page) and its user
+  calls `POST /api/v1/system/users`
+- **THEN** the request executes (the button perm is the action authority)
+- **AND** the same user's `GET /api/v1/system/users/list` is still denied by the
+  class-level page gate
+
+#### Scenario: Admin sees every button after seeding
+
+- **WHEN** the migrations run on a database where the admin role owned every menu
+- **THEN** the 22 button nodes exist under their console pages with their `perms`
+  strings
+- **AND** the admin role's login/me permission set contains every button perms string
+
+#### Scenario: Re-running the seed is a no-op
+
+- **WHEN** `V15` runs again on an already-migrated database
+- **THEN** no duplicate menu or role_menu rows appear (guarded inserts)
