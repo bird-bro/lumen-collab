@@ -138,11 +138,13 @@ is contract-tightening plus one additive department page endpoint:
 | Stack | Change | Status | Verify |
 |:--|:--|:--|:--|
 | backend | org-management-redesign-api | **archived 2026-11-06** | PASS_WITH_ISSUES 26/27 (verify.md) |
-| frontend | org-management-redesign-web | proposing | - |
+| frontend | org-management-redesign-web | **archived 2026-11-06** | PASS 19/19 (verify.md) |
 
 ## Gate
 
 Feature done = ALL registered changes verify PASS -> archive each.
+**DONE 2026-11-06**: backend PASS_WITH_ISSUES 26/27 (one waived PARTIAL, see
+Carry-over) + frontend PASS 19/19; both archived the same day.
 
 ## Carry-over (backend archived 2026-11-06, unresolved here)
 

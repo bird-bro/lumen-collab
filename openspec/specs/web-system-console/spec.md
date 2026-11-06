@@ -12,40 +12,6 @@ aside plus a right work area where applicable.
 
 <!-- synced from: web-foundation-auth-console 2026-11-05 -->
 
-### Requirement: Org Tree Management
-The console SHALL provide an org page that renders the organization hierarchy from
-`GET /api/v1/system/orgs/tree`, supports creating a child org on any node, editing and
-deleting an org, and reflects multi-root capability (a second root can be created and shown
-alongside the first).
-
-#### Scenario: Tree renders with seeded root
-- **WHEN** an administrator opens the org page
-- **THEN** the hierarchy returns with the seeded hospital root visible
-
-#### Scenario: Org CRUD round-trip
-- **WHEN** an administrator creates, edits, and deletes an org
-- **THEN** each operation calls the documented endpoint and the tree reflects the result
-
-
-<!-- synced from: web-foundation-auth-console 2026-11-05 -->
-
-### Requirement: Department Management
-The console SHALL provide department management anchored to the org tree: departments are
-listed for a selected org (`GET /api/v1/system/org-deps/list`), and can be created, edited, and
-deleted. The page SHALL present the org tree as the selection context (left aside, right list
-pattern).
-
-#### Scenario: Departments of a selected org
-- **WHEN** an administrator selects an org node
-- **THEN** only that org's departments are listed
-
-#### Scenario: Department CRUD round-trip
-- **WHEN** an administrator creates, edits, and deletes a department under an org
-- **THEN** the documented endpoints are called and the list reflects the result
-
-
-<!-- synced from: web-foundation-auth-console 2026-11-05 -->
-
 ### Requirement: User Management
 The console SHALL provide a user list view (`GET /api/v1/system/users/list`, which returns
 a plain list - the view paginates client-side) with create
@@ -65,7 +31,6 @@ surface the backend's `A`-class `msg` on the form.
 - **WHEN** an administrator resets a user's password or toggles enable
 - **THEN** the corresponding documented endpoint is called and the list reflects the result
 
-
 <!-- synced from: web-foundation-auth-console 2026-11-05 -->
 
 ### Requirement: Role Management and Menu Assignment
@@ -83,7 +48,6 @@ menus SHALL be assignable via a tree with checkboxes that full-replaces the gran
 - **WHEN** an administrator checks a set of menus for a role and saves
 - **THEN** the checked set is sent as the role's complete grant
 - **AND** reopening the dialog shows exactly that set
-
 
 <!-- synced from: menu-management-web 2026-11-06 - REPLACES the former read-only
      "Menu Tree Visibility" requirement (see archive/menu-management-web delta). -->
@@ -127,7 +91,6 @@ can shape the directory/menu/button tree and author button permission strings:
 - **THEN** button nodes are not selectable as parents
 - **AND** when editing a node, the node itself and its descendants are not selectable
 
-
 <!-- synced from: web-foundation-auth-console 2026-11-05 -->
 
 ### Requirement: Dictionary Management
@@ -144,7 +107,6 @@ edit, delete).
 #### Scenario: Details ordered by sort
 - **WHEN** an administrator opens a catalog's details
 - **THEN** details return ordered by `sort` and CRUD round-trips through the documented endpoints
-
 
 <!-- synced from: web-foundation-auth-console 2026-11-05 -->
 
@@ -181,3 +143,162 @@ no write affordances (append-only data). The page SHALL render the audit columns
 - **THEN** the 登录日志 menu entry is not visible to that user
 
 <!-- synced from: sign-log-query 2026-11-05 -->
+
+### Requirement: Hospital Profile and Campus Table Management
+
+The organization page SHALL render a hospital profile card on the left and a campus table on
+the right. The hospital card SHALL show key profile fields and an edit action. The campus
+table SHALL support keyword/status filtering and campus create/edit/default/delete actions.
+The page SHALL NOT offer generic root creation, reparenting, or type changes during normal
+operation. Mutation affordances SHALL follow `system:org:list`.
+
+#### Scenario: Hospital and campuses render
+
+- **WHEN** an administrator opens organization management
+- **THEN** the left hospital profile card renders
+- **AND** the right campus table renders one row per campus with code, default state, and
+  status distinguishable
+
+#### Scenario: Campus CRUD round-trip
+
+- **WHEN** an administrator creates a campus, edits its profile, and deletes an empty campus
+- **THEN** each operation calls the documented endpoint and the campus table reflects the
+  result
+
+#### Scenario: Root creation is not a normal action
+
+- **WHEN** a hospital administrator opens the organization page
+- **THEN** no generic new-root affordance is available
+- **AND** creating another root through the API remains rejected by the backend
+
+#### Scenario: Organization rejection surfaces
+
+- **WHEN** the backend rejects a create, update, or delete because of controlled-tree rules
+- **THEN** the page shows the backend message
+- **AND** the hospital card and campus table are unchanged until a successful mutation
+
+### Requirement: First-run Organization Profile Completion
+
+The console SHALL support Option B initialization by rendering the seeded editable hospital
+root and default campus. While the hospital root remains in its bootstrap state, the page
+SHALL show a first-run completion hint. Administrators SHALL complete hospital details through
+the existing hospital edit form; the page SHALL NOT offer root creation.
+
+#### Scenario: First-run state renders
+
+- **WHEN** an administrator opens organization management on a fresh deployment
+- **THEN** the first-run hospital card and default campus row render
+- **AND** a completion hint is shown without a generic root-creation control
+
+#### Scenario: First-run profile is completed
+
+- **WHEN** an administrator updates the hospital name, code, and profile through the edit form
+- **THEN** the refreshed hospital card and campus table show the completed values
+- **AND** the first-run hint is no longer shown
+
+### Requirement: Campus Profile Management
+
+The organization page SHALL collect and display hospital/campus profile fields:
+
+- hospital and campus records: code, name, short name, status, province/city/district,
+  address, contact, phone, email, logo URL, and sort;
+- campus records additionally support marking one default campus per hospital.
+
+Code SHALL be required for a new hospital or campus. Status SHALL default to enabled. Type
+and parent SHALL not be edited in the form.
+
+#### Scenario: Create campus profile
+
+- **WHEN** an administrator submits a campus with code, name, region, address, contact, and
+  status
+- **THEN** the new campus appears in the campus table with those values
+
+#### Scenario: Code is required
+
+- **WHEN** an administrator submits a new campus without a code
+- **THEN** the form blocks submission with a field-level required message
+
+#### Scenario: Default campus remains unique
+
+- **WHEN** an administrator marks a different campus as the default campus
+- **THEN** the hospital has exactly one default campus after refresh
+
+### Requirement: Department Campus Filter Tree
+
+The department page SHALL render a left hospital/campus tree as a filter. The tree SHALL
+contain only the hospital and campus nodes, never departments. Selecting the hospital SHALL
+mean "all campuses"; selecting a campus SHALL filter departments to that campus.
+
+#### Scenario: Departments of a selected campus
+
+- **WHEN** an administrator selects a campus in the filter tree
+- **THEN** the department table queries and displays only that campus's departments
+
+#### Scenario: Hospital selection means all campuses
+
+- **WHEN** an administrator selects the hospital root in the filter tree
+- **THEN** the department table queries all campuses
+- **AND** cross-campus rows show their campus names
+
+#### Scenario: Tree is not a department editor
+
+- **WHEN** an administrator views the left hospital/campus tree
+- **THEN** no department nodes are rendered in the tree
+- **AND** department actions are available from the right table context rather than tree
+  department nodes
+
+### Requirement: Department Table Management
+
+The department page SHALL render a right-side department table with server-side pagination,
+keyword filtering, and status filtering. It SHALL allow department creation and editing
+through a dialog that requires a live, enabled campus owner. Mutation affordances SHALL
+follow `system:dep:list`.
+
+#### Scenario: Department table is paginated
+
+- **WHEN** many matching departments exceed the page size
+- **THEN** the table shows only the requested page
+- **AND** the pager reports the total matched department count
+
+#### Scenario: Keyword and status filtering
+
+- **WHEN** an administrator filters by keyword and status
+- **THEN** the table queries matching live departments by code/name and status
+- **AND** changing the filter resets to the first page
+
+#### Scenario: Department create campus context
+
+- **WHEN** an administrator creates a department from a campus-filtered view
+- **THEN** the dialog prefills that campus and requires it to be a live, enabled campus
+- **AND** when the hospital-root view is selected, the dialog requires an explicit campus
+
+#### Scenario: Hospital cannot own a department
+
+- **WHEN** the selected node is the hospital root
+- **THEN** the create dialog does not treat the hospital as the owner
+- **AND** it requires a campus before submission
+
+### Requirement: Department Code Handling
+
+Department creation SHALL include the campus context, and the department code SHALL be
+immutable after creation. Same-campus duplicate-code rejection SHALL surface on the code
+field. Campus reassignment MAY be allowed, but the target campus SHALL be validated and the
+code SHALL remain unchanged.
+
+#### Scenario: Same code across campuses
+
+- **WHEN** campus A and campus B each contain a department with code `radiology`
+- **THEN** selecting campus A shows only campus A's department
+- **AND** selecting campus B shows only campus B's department
+
+#### Scenario: Code cannot be edited after creation
+
+- **WHEN** an administrator opens the edit dialog for an existing department
+- **THEN** the code field is read-only
+- **AND** submitting the edit does not change the stored code
+
+#### Scenario: Duplicate code in one campus
+
+- **WHEN** an administrator creates a second `radiology` in the same campus
+- **THEN** the backend rejection message appears on the code field
+- **AND** the dialog remains open

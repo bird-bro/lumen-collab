@@ -29,6 +29,12 @@ affordance to its own button perm string.
 - Test sweep: existing page tests assert affordances visible under page-only perm sets -
   their session perm sets gain the button perms, plus new hidden-when-ungranted cases.
 - Log pages: no buttons, untouched. No API client changes (endpoints unchanged).
+- **`/system/menus` visual alignment with the 随访 (eis-web) menu-management page**
+  (user instruction in the apply command, 2026-11-06): the management table gains the
+  reference page's information columns (ID / 图标 / 页面地址 / 前端组件 beside the existing
+  标题/排序/可见 + perms) and its tool-row pattern (title filter + query + right-aligned
+  add); the drawer keeps the type-aware fields with reference-style labels. Display
+  only - no behavior change to the gating scenarios.
 
 ## Capabilities
 

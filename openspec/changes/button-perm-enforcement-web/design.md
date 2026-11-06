@@ -43,6 +43,26 @@ inventory). See proposal.md for the why.
   new cases assert the hidden-when-ungranted / shown-when-granted pairs (the delta
   scenarios, per page).
 
+- **D7a - orgs 设为默认 stays page-gated** (apply-time note, 2026-11-06): the
+  org-redesign session's campus column added a 设为默认 action with no dedicated F
+  node in the V15 inventory - it keeps the page gate until the org-redesign owners
+  define its button perm (server-side is unpinned too).
+- **D7 - Menus page visual alignment with the 随访 reference** (user instruction in
+  the apply command, 2026-11-06; reference corrected by the user - EIS was the WRONG
+  system, the real one is `/birdbro/work/01-JF/00-gitlab/随访/fu_web/src/views/system/
+  menu/index.vue`): the management table adopts the reference column set - 菜单名 (tree) /
+  类型 tag (M 目录 / C 页面 / F 按钮) / 路径 / 组件 / 权限标识 / 排序 / 可见 (tag, F shows
+  "-") / 操作 (fixed right, icon actions with tooltips, per-action perms) - and its
+  tool-row pattern (menu-name filter + 查询 on the left, add button on the right). The
+  filter is client-side over the loaded tree: hit nodes keep their whole subtree,
+  children hits keep the ancestor chain (the reference's filterTree semantics), applied
+  on 查询/Enter. Drawer follows the reference field order and wording (上级菜单/
+  菜单标题/类型/路径/组件/图标/权限标识/排序/是否显示) with lumen deltas kept: no
+  重定向/是否缓存 (columns trimmed from the lumen model, design D5 of menu-management),
+  and perms stays editable for EVERY type (lumen C nodes carry page perms - the
+  reference hides perms on C, lumen cannot). Display only - the gating scenarios keep
+  their recorded behavior.
+
 ## Risks / Trade-offs
 
 - [A missed swap leaves an affordance on the blanket gate] → the per-page gating tests
