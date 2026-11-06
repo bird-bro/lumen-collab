@@ -1,4 +1,4 @@
-package org.birdbro.lumen.system.security;
+package org.birdbro.framework.security.handle;
 
 import org.birdbro.common.core.R;
 import org.birdbro.common.enums.ExceptionEnum;
@@ -9,20 +9,25 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
- * Renders the permission-denied envelope for METHOD-SECURITY denials
- * (server-side-perm-enforcement design D3): a class-level {@code @PreAuthorize} on a
- * controller throws {@link AccessDeniedException} from the handler-invocation AOP
- * layer, which propagates through {@code HandlerExceptionResolver} - so a lumen-owned
- * advice catches it (no copied {@code SecurityConfig} edit, no filter-level handler
- * registration). Tokenless requests never reach here: the copied entry point answers
- * them with {@code "203"} at the filter stage.
+ * Renders the permission-denied envelope for METHOD-SECURITY denials. LUMEN ADDITION
+ * (adaptation (13), 2026-11-06): promoted from lumen-system (originally
+ * server-side-perm-enforcement design D3) so the A0301 envelope (errors spec
+ * "Permission Denied Response") is inherited by EVERY Servlet service by default
+ * instead of being a per-service copy-paste obligation. A class-level
+ * {@code @PreAuthorize} on a controller throws {@link AccessDeniedException} from the
+ * handler-invocation AOP layer, which propagates through {@code HandlerExceptionResolver}
+ * - this advice catches it (no copied {@code SecurityConfig} edit, no filter-level
+ * handler registration). Tokenless requests never reach here: the copied entry point
+ * answers them with {@code "203"} at the filter stage - {@code A0301} stays exclusive
+ * to the authenticated-but-unauthorized case.
  *
  * <p>{@code @Order(HIGHEST_PRECEDENCE)} - the copied {@code GlobalExceptionHandler}
  * (unordered) carries an {@code Exception.class} catch-all that would otherwise win
  * the advice-resolution race and mask the denial as a 500.</p>
  *
  * @author birdbro
- */
+ * @date 2026-11-06
+ **/
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
 public class AuthDenyAdvice {

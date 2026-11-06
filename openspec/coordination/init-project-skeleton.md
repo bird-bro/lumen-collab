@@ -141,6 +141,18 @@ those services assign them and update this table.
   already carried Jackson annotations (`@JsonIgnore` on `deleted`, `@JsonFormat`); no
   mapping/Lombok change. RED/GREEN proven by `AuthSignLogQueryTests` (per-row key
   absence). - 2026-11-05
+- **(13) permission-denial envelope promoted to the platform** (`framework/security/handle/AuthDenyAdvice.java`,
+  moved from `lumen-system/security/`, service-package-tidy follow-up): the A0301
+  method-security advice (server-side-perm-enforcement D3, initially lumen-local) becomes
+  a framework ADDITION so every Servlet service inherits the errors spec
+  "Permission Denied Response" envelope by default instead of copying the ~15-line class
+  per service (a forgotten copy would silently render 403 as a 500). Sits beside
+  `AuthenticationEntryPointImpl` so `handle/` carries both security exits: authentication
+  (`"203"`, filter stage) and authorization (`A0301`, handler resolution). Kept
+  `@Order(HIGHEST_PRECEDENCE)` to outrank the copied unordered `GlobalExceptionHandler`
+  catch-all; no copied line touched. Behavior-neutral today (single consumer); the
+  invariant is now platform-guaranteed. RED/GREEN re-proven by `AuthPermEnforcementTests`.
+  - 2026-11-06
 - **Package naming: dual root by code origin** - user decision 2026-10-29. groupId
   `org.birdbro` everywhere; copied modules keep `org.birdbro.{framework,common}`; new
   modules use `org.birdbro.lumen.*` (`org.birdbro.lumen.{auth,patient,radiology,us,endo,
