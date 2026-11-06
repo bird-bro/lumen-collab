@@ -27,6 +27,13 @@ spring:
   jackson:
     time-zone: GMT+8
     date-format: yyyy-MM-dd HH:mm:ss    # data spec: audit timestamps serialize GMT+8
+  servlet:
+    multipart:
+      # Transport ceiling only - headroom above the 2MB BUSINESS cap enforced in
+      # CommonController (org-logo-upload-api D4). Exceeding the business cap still
+      # answers A0400 from the controller, never Boot's MaxUploadSizeExceededException 500.
+      max-file-size: 5MB
+      max-request-size: 10MB
 
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml
@@ -71,6 +78,22 @@ dispose:
   adviceFilterPackage:
     - springfox.documentation
     - org.springframework
+
+# Local image upload (org-logo-upload-api, OPS CommonController vocabulary 1:1) -
+# framework WebMvcConfig reads upload.home (adaptation #7: it completes the truncated
+# OPS /profile/** registration with these file: locations; a service WITHOUT this key
+# keeps the location-less parity registration). Safe defaults only - no credentials;
+# override per environment via the gitignored application-dev.yml. upload.avatar is the
+# URL-path prefix persisted as the stored value (served anonymously via GET /profile/**).
+#
+# USER DECISION 2026-11-06: prefer an ABSOLUTE upload.home in the dev override.
+# A relative value anchors at the launcher's CWD, and IDEA / mvn / shell launches
+# disagree - a write/read anchor mismatch breaks the /profile read-back with a silent
+# 404 (the write lands where FileUtils resolves it, the handler reads where IT
+# resolves it). ./upload stays here only as the portable fresh-clone default.
+upload:
+  home: ./upload
+  avatar: /profile/avatar
 
 logging:
   level:
