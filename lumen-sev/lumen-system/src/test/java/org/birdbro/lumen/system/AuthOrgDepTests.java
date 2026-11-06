@@ -211,6 +211,55 @@ class AuthOrgDepTests extends AuthIntegrationTestBase {
         softDeleteOrg(campusId);
     }
 
+    /**
+     * The disabled-campus branch of {@code requireLiveCampus} (OrgDepServiceImpl:140-143) had
+     * no HTTP exercise anywhere in the suite, and the unfiltered {@code /list} shape was only
+     * used for permission gating - both specced in org-management-redesign-api, neither proven.
+     */
+    @Test
+    void disabledCampusCannotOwnDepartmentsAndUnfilteredListSpansAllCampuses() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusId = createCampus("停用院区_" + ts);
+        String code = "dep_disabled_" + ts;
+
+        JsonNode disabledCampus = parse(exchangeJson(HttpMethod.PUT, "/api/v1/system/orgs/" + campusId,
+                "{\"status\":0}", token));
+        assertEquals("200", disabledCampus.path("code").asText(),
+                "disabling the campus fixture must succeed: " + disabledCampus);
+
+        JsonNode createDenied = parse(exchangeJson(HttpMethod.POST, ORG_DEPS_URL,
+                "{\"orgId\":" + campusId + ",\"code\":\"" + code + "\",\"name\":\"停用院区科室\"}", token));
+        assertEquals("A0400", createDenied.path("code").asText(),
+                "a disabled campus cannot receive a new department: " + createDenied);
+        Integer created = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system.org_dep WHERE code = ?", Integer.class, code);
+        assertEquals(0, created, "the rejected create must leave no department row");
+
+        // The update path: move an existing department ONTO the disabled campus.
+        int otherCampusId = createCampus("迁出院区_" + ts);
+        int depId = createDepartment(otherCampusId, "dep_move_" + ts, "待迁移科室");
+        JsonNode moveDenied = parse(exchangeJson(HttpMethod.PUT, ORG_DEPS_URL + "/" + depId,
+                "{\"orgId\":" + campusId + "}", token));
+        assertEquals("A0400", moveDenied.path("code").asText(),
+                "a disabled campus cannot adopt a department: " + moveDenied);
+
+        // Unfiltered /list returns every live department, across campuses.
+        ResponseEntity<String> allResponse = exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/list", null, token);
+        JsonNode allBody = parse(allResponse);
+        assertEquals("200", allBody.path("code").asText(), "the unfiltered list must succeed");
+        JsonNode rows = allBody.path("data");
+        assertTrue(rows.isArray() && rows.size() >= 3,
+                "the unfiltered list must span campuses with at least the three seeded rows");
+        assertNotNull(departmentWithCode(rows, "radiology"),
+                "the seeded radiology row must appear without any campus filter");
+
+        softDeleteDepartment(depId);
+        softDeleteOrg(otherCampusId);
+        softDeleteOrg(campusId);
+    }
+
     private int defaultCampusId() {
         Integer id = jdbcTemplate.queryForObject(
                 "SELECT id FROM system.org_info WHERE up_id = 1 AND deleted = 0 "
