@@ -56,7 +56,7 @@
 
 - [x] 4.1 Run the web type check/build and test suite in `lumen-web/` - verify: `pnpm build`
   and `pnpm test` pass.
-- [ ] 4.2 With `org-management-redesign-api` deployed, walk every WHEN/THEN in the
+- [x] 4.2 With `org-management-redesign-api` deployed, walk every WHEN/THEN in the
   `web-system-console` delta through the Vite proxy - verify: observed behavior matches all
   scenarios.
 

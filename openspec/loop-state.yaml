@@ -28,17 +28,17 @@
 # openspec-sync-specs, so archive ran --skip-specs). verify.md PASS_WITH_ISSUES 26/27;
 # the one PARTIAL (fresh-DB replay) waived by user ruling, carry-over list in
 # openspec/coordination/org-management-redesign.md.
-phase: applying
+phase: verifying
 change: org-management-redesign-web
 current_task: null
 execution_mode: Batch Inline
-tasks_total: 17
-tasks_done: 13
+tasks_total: 10
+tasks_done: 10
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: b48ef08e0c3d09569eb1cb451022317bc72cc190ed587e857becd9d984d603b1
+artifacts_hash: 131c6c2a3a27287c23106dd46c296bd6f52f7b11421c65fcf56c9a232ab49fb6
 contract_hash: null
 batches_completed: 0
 last_updated: 2026-11-05
