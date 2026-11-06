@@ -83,8 +83,13 @@ spec AND the endpoint-pin map AND the frontend gate map - one table, three consu
 | Stack | Change | Status | Verify |
 |:--|:--|:--|:--|
 | backend | button-perm-enforcement-api | proposed (artifacts complete, valid) | - |
-| frontend | button-perm-enforcement-web | proposed (artifacts complete, valid) | - |
+| frontend | button-perm-enforcement-web | **archived 2026-11-06** | PASS (3/3, L1/L3 PASS, 204/204) |
 
 ## Gate
 
 Feature done = ALL registered changes verify PASS -> archive each.
+
+**Feature closed 2026-11-06** — both registered changes verify PASS and archived;
+`auth-rbac` carries § Button-Level Permission Enforcement (seed + pins), `web-system-console`
+carries § Button-Level Affordance Gating. Open gap recorded: orgs 设为默认 has no F node
+(design D7a of the web change) - for the org-redesign owners to define.
