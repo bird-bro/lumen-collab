@@ -10,20 +10,19 @@ import { useAuthStore } from '@/stores/auth'
 import { themeConfig } from '@/theme'
 
 /**
- * 机构管理 page (batch 6a, task 6.1; spec `specs/web-system-console`
- * § Org Tree Management: renders `GET /system/orgs/tree` with the seeded
- * hospital root, creates a child org on any node, edits, deletes, and is
- * multi-root capable).
+ * 机构管理 page rewrite (org-management-redesign-web, tasks 2.1-2.6; spec
+ * delta `web-system-console` § Hospital Profile and Campus Table Management /
+ * § First-run Organization Profile Completion / § Campus Profile Management).
  *
- * Layout source: `prototype/org-deps.html` left `.tree-panel` (tree-hd /
- * t-node rows / tree-hint / the dashed `.ghost` 「新建根机构」 foot button) -
- * the org page uses that panel as its WHOLE body (brief 6.1: the org page IS
- * the tree side of the prototype), and the modal shape follows the prototype's
- * `.modal` block (上级机构 / 名称 fields, 取消 + 保存).
+ * The old generic multi-root tree tests are REPLACED here: the page is now the
+ * dictionary-like layout - left hospital profile card + edit action, right
+ * campus table (keyword/status filters, create/edit/default/delete), no
+ * generic root creation, no reparenting/type controls.
  *
- * The api seam is stubbed with `vi.mock` (design D9 - never the dev-server
- * mock), so every assertion below is on the documented client call plus the
- * tree re-query that must follow it.
+ * The api seam is stubbed with `vi.mock` (unit-test seam only - the runtime
+ * page always talks to the real backend through the typed client, no mock
+ * layer), so every assertion is on the documented client call plus the
+ * orgTree() re-query that must follow a successful mutation.
  */
 vi.mock('@/api/orgs')
 
@@ -32,18 +31,70 @@ function orgNode(partial: Partial<OrgNode> & { id: number; name: string }): OrgN
     upId: 0,
     level: 1,
     type: 0,
+    code: '',
+    shortName: null,
+    status: 1,
+    provinceCode: null,
+    cityCode: null,
+    districtCode: null,
+    address: null,
+    contact: null,
+    phone: null,
+    email: null,
+    logoUrl: null,
+    sort: 0,
+    isDefault: 0,
     createBy: null,
-    createTime: '2026-11-04 09:00:00',
+    createTime: '2026-11-06 10:00:00',
     updateBy: null,
-    updateTime: '2026-11-04 09:00:00',
+    updateTime: '2026-11-06 10:00:00',
     children: null,
     ...partial,
   }
 }
 
-const HOSPITAL = orgNode({ id: 1, name: '示例医院' })
+/** The completed hospital the administrators converge on after first-run. */
+const HOSPITAL = orgNode({
+  id: 1,
+  name: '示例医院',
+  code: 'HOSP-001',
+  shortName: '示例医',
+  address: '上海市测试路100号',
+  contact: '张管理',
+  phone: '021-80000000',
+  children: [],
+})
 
-/** Successive tree payloads: after a create the new node must appear. */
+/** Option B first-run bootstrap hospital (V16 normalization target). */
+const BOOTSTRAP_HOSPITAL = orgNode({ id: 1, name: '未命名医院', code: 'HOSPITAL', children: [] })
+
+const CAMPUS_A = orgNode({
+  id: 274,
+  upId: 1,
+  level: 2,
+  type: 1,
+  name: '总院区',
+  code: 'CAMPUS-1',
+  isDefault: 1,
+  status: 1,
+})
+
+const CAMPUS_B = orgNode({
+  id: 275,
+  upId: 1,
+  level: 2,
+  type: 1,
+  name: '东院区',
+  code: 'CAMPUS-EAST',
+  isDefault: 0,
+  status: 0,
+})
+
+function hospitalWith(...campuses: OrgNode[]): OrgNode {
+  return { ...HOSPITAL, children: campuses.length > 0 ? campuses : null }
+}
+
+/** Successive tree payloads: after a mutation the refreshed tree must differ. */
 function treeFixture(...rounds: OrgNode[][]) {
   let call = 0
   vi.mocked(orgsApi.orgTree).mockImplementation(() => {
@@ -61,189 +112,303 @@ function renderPage() {
   )
 }
 
-async function waitForTree(name: string) {
+async function waitForCampusRow(name: string) {
   await waitFor(() => expect(screen.getByText(name)).toBeInTheDocument())
 }
 
 /**
- * jsdom starts no CSS animation, so a CLOSED AntD modal keeps lingering in the
+ * jsdom starts no CSS animation, so a CLOSED AntD drawer keeps lingering in the
  * DOM mid-leave and `queryByRole('dialog')` cannot tell "open" from "closed".
- * The library's own signal is used instead: rc-motion puts the `*-leave` class
- * on the dialog element the moment `open` flips to false. So
- * 「成功关闭」 = the dialog entered its leave motion AND the form was reset,
- * 「弹窗不关闭」 = the drawer keeps `ant-drawer-open` and the typed value still stands.
+ * 「成功关闭」 = the drawer root dropped `ant-drawer-open`; 「弹窗不关闭」 = it
+ * keeps the class and the typed value still stands.
  */
 async function expectDialogClosed() {
-  // jsdom starts no CSS animation: the observable close signal is the drawer
-  // root dropping `ant-drawer-open`; destroyOnHidden then tears the form down.
   await waitFor(() => expect(document.querySelector('.ant-drawer-open')).toBeNull())
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 }
 
-/** Opens a node's row action (the glyphs only mount while the row is hovered). */
-async function hoverNode(user: ReturnType<typeof userEvent.setup>, name: string) {
-  await user.hover(screen.getByText(name))
+/** The campus table row of the given campus name. */
+function rowOf(campusName: string): HTMLElement {
+  const cell = screen.getByText(campusName)
+  return cell.closest('tr') as HTMLElement
+}
+
+async function openCampusDropdown(user: ReturnType<typeof userEvent.setup>): Promise<HTMLElement> {
+  await user.click(screen.getByRole('combobox', { name: '状态过滤' }))
+  await waitFor(() => {
+    expect(document.querySelector('.ant-select-dropdown')).not.toBeNull()
+  })
+  return document.querySelector('.ant-select-dropdown') as HTMLElement
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  // The documented perms string of this page (seed menu id 7 in V2__seed.sql);
-  // no new perms code is invented - the mutation surface rides on it (brief § 权限门控).
+  // The documented perms string of this page (seed menu id 7); no new perms
+  // code is invented - the mutation surface rides on it (design D6).
   useAuthStore.getState().setSession({ perms: ['system:org:list'] })
   vi.mocked(orgsApi.createOrg).mockResolvedValue(9)
   vi.mocked(orgsApi.updateOrg).mockResolvedValue(true)
   vi.mocked(orgsApi.deleteOrg).mockResolvedValue(true)
+  treeFixture([hospitalWith(CAMPUS_A, CAMPUS_B)])
 })
 
-describe('org page - tree rendering (spec: Tree renders with seeded root)', () => {
-  it('loads the org tree on mount and shows the seeded hospital root', async () => {
-    treeFixture([HOSPITAL])
+describe('org page - hospital card and campus table render (delta: Hospital and campuses render)', () => {
+  it('renders the left hospital profile card and the right campus table rows', async () => {
     renderPage()
-    await waitForTree('示例医院')
-    expect(orgsApi.orgTree).toHaveBeenCalledTimes(1)
+    await waitForCampusRow('总院区')
+
+    // Left card: key profile fields visible.
+    expect(screen.getByText('示例医院')).toBeInTheDocument()
+    expect(screen.getByText('HOSP-001')).toBeInTheDocument()
+    expect(screen.getByText('上海市测试路100号')).toBeInTheDocument()
+    expect(screen.getByText(/张管理/)).toBeInTheDocument()
+
+    // Right table: one row per campus with code, default state, status distinguishable.
+    const rowA = rowOf('总院区')
+    expect(within(rowA).getByText('CAMPUS-1')).toBeInTheDocument()
+    expect(within(rowA).getByText('默认院区')).toBeInTheDocument()
+    expect(within(rowA).getByText('启用')).toBeInTheDocument()
+    const rowB = rowOf('东院区')
+    expect(within(rowB).getByText('CAMPUS-EAST')).toBeInTheDocument()
+    expect(within(rowB).queryByText('默认院区')).toBeNull()
+    expect(within(rowB).getByText('停用')).toBeInTheDocument()
   })
 
-  it('renders every nested node and keeps the parent expanded', async () => {
-    treeFixture([
-      orgNode({ ...HOSPITAL, children: [orgNode({ id: 2, name: '华东分院', upId: 1, level: 2 })] }),
-    ])
+  it('offers no generic root-creation control anywhere on the page', async () => {
     renderPage()
-    await waitForTree('示例医院')
-    await waitForTree('华东分院')
+    await waitForCampusRow('总院区')
+    expect(screen.queryByText('新建根机构')).toBeNull()
+    expect(screen.queryByText('新建机构')).toBeNull()
   })
 })
 
-describe('org page - CRUD round-trip (spec: Org CRUD round-trip)', () => {
-  it('creates a child org from a hovered node, then re-queries the tree', async () => {
+describe('org page - campus filtering (delta: campus table keyword/status filtering)', () => {
+  it('filters the campus rows by keyword across name and code', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await waitForCampusRow('总院区')
+    await user.type(screen.getByPlaceholderText('院区名称 / 代码'), '东')
+    await user.click(screen.getByRole('button', { name: /查询/ }))
+    expect(screen.getByText('东院区')).toBeInTheDocument()
+    expect(screen.queryByText('总院区')).toBeNull()
+  })
+
+  it('filters the campus rows by status and resets to unfiltered afterwards', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await waitForCampusRow('总院区')
+    const dropdown = await openCampusDropdown(user)
+    await user.click(within(dropdown).getByText('停用'))
+    expect(screen.getByText('东院区')).toBeInTheDocument()
+    expect(screen.queryByText('总院区')).toBeNull()
+  })
+})
+
+describe('org page - campus CRUD round-trip (delta: Campus CRUD round-trip)', () => {
+  it('creates a campus through the documented POST and reflects it after refresh', async () => {
+    const user = userEvent.setup()
+    const created = orgNode({
+      id: 276, upId: 1, level: 2, type: 1, name: '浦东分院', code: 'CAMPUS-PD', isDefault: 0, status: 1,
+    })
+    treeFixture([hospitalWith(CAMPUS_A, CAMPUS_B)], [hospitalWith(CAMPUS_A, CAMPUS_B, created)])
+    renderPage()
+    await waitForCampusRow('总院区')
+
+    await user.click(screen.getByRole('button', { name: /新增院区/ }))
+    await user.type(screen.getByLabelText('机构代码'), 'CAMPUS-PD')
+    await user.type(screen.getByLabelText('机构名称'), '浦东分院')
+    await user.click(screen.getByRole('button', { name: '保 存' }))
+    await expectDialogClosed()
+    expect(orgsApi.createOrg).toHaveBeenCalledWith(
+      expect.objectContaining({ upId: 1, code: 'CAMPUS-PD', name: '浦东分院' }),
+    )
+    await waitFor(() => expect(screen.getByText('浦东分院')).toBeInTheDocument())
+  })
+
+  it('edits a campus profile through PUT and reflects the refreshed values', async () => {
+    const user = userEvent.setup()
+    const renamed = { ...CAMPUS_A, name: '总院区改名', shortName: '总院' }
+    treeFixture([hospitalWith(CAMPUS_A, CAMPUS_B)], [hospitalWith(renamed, CAMPUS_B)])
+    renderPage()
+    await waitForCampusRow('总院区')
+
+    await user.click(within(rowOf('总院区')).getByTitle('编辑院区'))
+    expect(screen.getByLabelText('机构代码')).toHaveValue('CAMPUS-1')
+    await user.clear(screen.getByLabelText('机构名称'))
+    await user.type(screen.getByLabelText('机构名称'), '总院区改名')
+    await user.click(screen.getByRole('button', { name: '保 存' }))
+    await expectDialogClosed()
+    expect(orgsApi.updateOrg).toHaveBeenCalledWith(274, expect.objectContaining({ name: '总院区改名' }))
+    await waitFor(() => expect(screen.getByText('总院区改名')).toBeInTheDocument())
+  })
+
+  it('marks a different campus as default and exactly one row keeps the badge', async () => {
     const user = userEvent.setup()
     treeFixture(
-      [HOSPITAL],
-      [orgNode({ ...HOSPITAL, children: [orgNode({ id: 9, name: '华东分院', upId: 1, level: 2 })] })],
+      [hospitalWith(CAMPUS_A, CAMPUS_B)],
+      [hospitalWith({ ...CAMPUS_A, isDefault: 0 }, { ...CAMPUS_B, isDefault: 1, status: 1 })],
     )
     renderPage()
-    await waitForTree('示例医院')
+    await waitForCampusRow('总院区')
 
-    await hoverNode(user, '示例医院')
-    await user.click(await screen.findByRole('button', { name: '新建下级机构 示例医院' }))
-
-    const dialog = await screen.findByRole('dialog', { name: '新建机构' })
-    // The parent context line (prototype modal's 上级机构 row) names the dialog's target.
-    expect(within(dialog).getByText('上级机构:示例医院')).toBeInTheDocument()
-    await user.type(within(dialog).getByLabelText('机构名称'), '华东分院')
-    await user.click(within(dialog).getByRole('button', { name: '保 存' }))
-
-    await waitFor(() =>
-      expect(orgsApi.createOrg).toHaveBeenCalledWith(
-        expect.objectContaining({ upId: 1, name: '华东分院' }),
-      ),
-    )
-    // success closes the dialog and re-queries the tree
-    await expectDialogClosed()
-    await waitFor(() => expect(orgsApi.orgTree).toHaveBeenCalledTimes(2))
-    await waitForTree('华东分院')
+    await user.click(within(rowOf('东院区')).getByTitle('设为默认'))
+    expect(orgsApi.updateOrg).toHaveBeenCalledWith(275, { isDefault: 1 })
+    await waitFor(() => {
+      expect(within(rowOf('东院区')).getByText('默认院区')).toBeInTheDocument()
+      expect(within(rowOf('总院区')).queryByText('默认院区')).toBeNull()
+    })
   })
 
-  it('edits an org name through PUT /orgs/{id} and reflects it in the tree', async () => {
+  it('deletes an empty campus after confirmation and refreshes the table', async () => {
     const user = userEvent.setup()
-    treeFixture([HOSPITAL], [orgNode({ ...HOSPITAL, name: '示例总院' })])
+    treeFixture([hospitalWith(CAMPUS_A, CAMPUS_B)], [hospitalWith(CAMPUS_A)])
     renderPage()
-    await waitForTree('示例医院')
+    await waitForCampusRow('东院区')
 
-    await hoverNode(user, '示例医院')
-    await user.click(await screen.findByRole('button', { name: '编辑机构 示例医院' }))
-
-    const dialog = await screen.findByRole('dialog', { name: '编辑机构' })
-    const input = within(dialog).getByLabelText('机构名称')
-    expect(input).toHaveValue('示例医院') // prefilled
-    await user.clear(input)
-    await user.type(input, '示例总院')
-    await user.click(within(dialog).getByRole('button', { name: '保 存' }))
-
-    await waitFor(() => expect(orgsApi.updateOrg).toHaveBeenCalledWith(1, { name: '示例总院' }))
-    await waitFor(() => expect(orgsApi.orgTree).toHaveBeenCalledTimes(2))
-    await waitForTree('示例总院')
-  })
-
-  it('asks for confirmation before DELETE, and cancels without calling the endpoint', async () => {
-    const user = userEvent.setup()
-    treeFixture([HOSPITAL])
-    renderPage()
-    await waitForTree('示例医院')
-
-    await hoverNode(user, '示例医院')
-    await user.click(await screen.findByRole('button', { name: '删除机构 示例医院' }))
-
-    // The Popconfirm body text (the trigger's tooltip carries the same verb, so
-    // the question line is the assertion target).
-    expect(await screen.findByText('确定删除「示例医院」吗?')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '取 消' }))
-    expect(orgsApi.deleteOrg).not.toHaveBeenCalled()
-
-    await hoverNode(user, '示例医院')
-    await user.click(screen.getByRole('button', { name: '删除机构 示例医院' }))
-    await user.click(await screen.findByRole('button', { name: '删 除' }))
-    await waitFor(() => expect(orgsApi.deleteOrg).toHaveBeenCalledWith(1))
-    await waitFor(() => expect(orgsApi.orgTree).toHaveBeenCalledTimes(2))
+    await user.click(within(rowOf('东院区')).getByTitle('删除院区'))
+    await user.click(screen.getByRole('button', { name: '删 除' }))
+    await waitFor(() => expect(orgsApi.deleteOrg).toHaveBeenCalledWith(275))
+    await waitFor(() => expect(screen.queryByText('东院区')).toBeNull())
   })
 })
 
-describe('org page - multi-root capability (spec: multi-root)', () => {
-  it('the dashed 「新建根机构」 control creates a second root with upId 0 and both roots render', async () => {
+describe('org page - rejection surfaces (delta: Organization rejection surfaces)', () => {
+  it('keeps the dialog open and shows the backend message when a create is rejected', async () => {
     const user = userEvent.setup()
-    treeFixture([HOSPITAL], [HOSPITAL, orgNode({ id: 10, name: '第二医院', upId: 0 })])
-    renderPage()
-    await waitForTree('示例医院')
-
-    await user.click(screen.getByRole('button', { name: /新建根机构/ }))
-    const dialog = await screen.findByRole('dialog', { name: '新建根机构' })
-    await user.type(within(dialog).getByLabelText('机构名称'), '第二医院')
-    await user.click(within(dialog).getByRole('button', { name: '保 存' }))
-
-    await waitFor(() => expect(orgsApi.createOrg).toHaveBeenCalledWith({ upId: 0, name: '第二医院' }))
-    await waitForTree('第二医院')
-    expect(screen.getByText('示例医院')).toBeInTheDocument()
-  })
-})
-
-describe('org page - A-class errors', () => {
-  it('surfaces the backend msg on a failed create and keeps the dialog open', async () => {
-    const user = userEvent.setup()
-    treeFixture([HOSPITAL])
     vi.mocked(orgsApi.createOrg).mockRejectedValue(
-      new ApiError('A0400', 'new parent org does not exist: org id 8'),
+      new ApiError('A0712', 'organization code already exists: CAMPUS-1'),
     )
     renderPage()
-    await waitForTree('示例医院')
+    await waitForCampusRow('总院区')
 
-    await hoverNode(user, '示例医院')
-    await user.click(await screen.findByRole('button', { name: '新建下级机构 示例医院' }))
-    const dialog = await screen.findByRole('dialog', { name: '新建机构' })
-    await user.type(within(dialog).getByLabelText('机构名称'), '不存在的下级')
-    await user.click(within(dialog).getByRole('button', { name: '保 存' }))
+    await user.click(screen.getByRole('button', { name: /新增院区/ }))
+    await user.type(screen.getByLabelText('机构代码'), 'CAMPUS-1')
+    await user.type(screen.getByLabelText('机构名称'), '重复院区')
+    await user.click(screen.getByRole('button', { name: '保 存' }))
 
-    // msg verbatim in a floating message, dialog still open (brief: A 类错误 message.error)
-    expect(await screen.findByText('new parent org does not exist: org id 8')).toBeInTheDocument()
-    expect(screen.getByRole('dialog', { name: '新建机构' })).toBeInTheDocument()
-    // the typed name survives the failed submit (the dialog never reset itself)
-    expect(within(screen.getByRole('dialog', { name: '新建机构' })).getByLabelText('机构名称')).toHaveValue('不存在的下级')
+    expect(await screen.findByText('organization code already exists: CAMPUS-1')).toBeInTheDocument()
+    // The dialog STAYS open and the table is unchanged until a successful mutation.
+    expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
+    expect(screen.getByText('总院区')).toBeInTheDocument()
+    expect(screen.queryByText('重复院区')).toBeNull()
+  })
+
+  it('surfaces the delete guard message and keeps the row when the campus is not empty', async () => {
+    const user = userEvent.setup()
+    vi.mocked(orgsApi.deleteOrg).mockRejectedValue(
+      new ApiError('A0400', 'organization still has live departments'),
+    )
+    renderPage()
+    await waitForCampusRow('东院区')
+
+    await user.click(within(rowOf('东院区')).getByTitle('删除院区'))
+    await user.click(screen.getByRole('button', { name: '删 除' }))
+
+    expect(await screen.findByText('organization still has live departments')).toBeInTheDocument()
+    expect(screen.getByText('东院区')).toBeInTheDocument()
   })
 })
 
-describe('org page - perms gating', () => {
-  it('hides every mutation control when the session lacks system:org:list, but still reads the tree', async () => {
+describe('org page - profile form (delta: Campus Profile Management)', () => {
+  it('blocks submission without a code and never calls the endpoint', async () => {
     const user = userEvent.setup()
-    useAuthStore.getState().setSession({ perms: ['system:user:list'] })
-    treeFixture([HOSPITAL])
     renderPage()
-    await waitForTree('示例医院')
+    await waitForCampusRow('总院区')
 
-    expect(screen.queryByRole('button', { name: /新建根机构/ })).not.toBeInTheDocument()
-    await hoverNode(user, '示例医院')
-    await waitFor(() => expect(screen.getByText('示例医院')).toBeInTheDocument())
-    expect(screen.queryByRole('button', { name: /新建下级机构/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /编辑机构/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /删除机构/ })).not.toBeInTheDocument()
-    // the read path still fires
-    expect(orgsApi.orgTree).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('button', { name: /新增院区/ }))
+    await user.type(screen.getByLabelText('机构名称'), '无代码院区')
+    await user.click(screen.getByRole('button', { name: '保 存' }))
+
+    expect(await screen.findByText('请输入机构代码')).toBeInTheDocument()
+    expect(orgsApi.createOrg).not.toHaveBeenCalled()
+  })
+
+  it('offers no parent selector or type control in the dialogs (D2/D3)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await waitForCampusRow('总院区')
+
+    await user.click(screen.getByRole('button', { name: /新增院区/ }))
+    expect(screen.queryByLabelText('上级机构')).toBeNull()
+    expect(screen.queryByLabelText('机构类型')).toBeNull()
+    // Context line still tells the operator where the campus lands.
+    const drawer = document.querySelector('.ant-drawer-open') as HTMLElement
+    expect(within(drawer).getByText(/上级机构:示例医院/)).toBeInTheDocument()
+  })
+
+  it('submits a full campus profile: region, address, contact, status', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await waitForCampusRow('总院区')
+
+    await user.click(screen.getByRole('button', { name: /新增院区/ }))
+    await user.type(screen.getByLabelText('机构代码'), 'CAMPUS-W')
+    await user.type(screen.getByLabelText('机构名称'), '西院区')
+    await user.type(screen.getByLabelText('省份编码'), '310000')
+    await user.type(screen.getByLabelText('地址'), '西区测试路3号')
+    await user.type(screen.getByLabelText('联系人'), '李院办')
+    await user.click(screen.getByRole('button', { name: '保 存' }))
+
+    await expectDialogClosed()
+    expect(orgsApi.createOrg).toHaveBeenCalledWith(
+      expect.objectContaining({
+        upId: 1,
+        code: 'CAMPUS-W',
+        name: '西院区',
+        provinceCode: '310000',
+        address: '西区测试路3号',
+        contact: '李院办',
+      }),
+    )
+  })
+})
+
+describe('org page - first-run completion (delta: First-run Organization Profile Completion)', () => {
+  it('shows the completion hint on the bootstrap hospital without a root-creation control', async () => {
+    treeFixture([{ ...BOOTSTRAP_HOSPITAL, children: [CAMPUS_A] }])
+    renderPage()
+    await waitForCampusRow('总院区')
+    expect(screen.getByText(/首次部署/)).toBeInTheDocument()
+    expect(screen.queryByText('新建根机构')).toBeNull()
+  })
+
+  it('completes the profile through the hospital edit form and the hint disappears', async () => {
+    const user = userEvent.setup()
+    const completed = orgNode({ id: 1, name: '协和医院', code: 'HOSP-XYZ', children: [CAMPUS_A] })
+    treeFixture([{ ...BOOTSTRAP_HOSPITAL, children: [CAMPUS_A] }], [completed])
+    renderPage()
+    await waitForCampusRow('总院区')
+
+    await user.click(screen.getByRole('button', { name: '编辑医院' }))
+    await user.clear(screen.getByLabelText('机构名称'))
+    await user.type(screen.getByLabelText('机构名称'), '协和医院')
+    await user.clear(screen.getByLabelText('机构代码'))
+    await user.type(screen.getByLabelText('机构代码'), 'HOSP-XYZ')
+    await user.click(screen.getByRole('button', { name: '保 存' }))
+
+    await expectDialogClosed()
+    expect(orgsApi.updateOrg).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ name: '协和医院', code: 'HOSP-XYZ' }),
+    )
+    await waitFor(() => expect(screen.queryByText(/首次部署/)).toBeNull())
+    expect(screen.getByText('协和医院')).toBeInTheDocument()
+  })
+})
+
+describe('org page - perms gating (design D6)', () => {
+  it('hides every mutation control without system:org:list but keeps the page readable', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:user:list'] })
+    renderPage()
+    await waitForCampusRow('总院区')
+
+    expect(screen.queryByRole('button', { name: '新增院区' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '编辑医院' })).toBeNull()
+    expect(screen.queryByTitle('编辑院区')).toBeNull()
+    expect(screen.queryByTitle('删除院区')).toBeNull()
+    expect(screen.queryByTitle('设为默认')).toBeNull()
+    // Read-only stays: card + rows still render.
+    expect(screen.getByText('示例医院')).toBeInTheDocument()
+    expect(screen.getByText('总院区')).toBeInTheDocument()
   })
 })

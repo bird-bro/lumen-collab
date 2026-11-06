@@ -1,10 +1,10 @@
-import { Button, Drawer, Form, Input, Popconfirm, Typography, message, theme } from 'antd'
+import { Button, Drawer, Form, Input, Popconfirm, Select, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createDep, deleteDep, listDeps, updateDep } from '@/api/org-deps'
+import { createDep, deleteDep, pageDep, updateDep } from '@/api/org-deps'
 import { orgTree } from '@/api/orgs'
 import { ApiError } from '@/api/client'
-import type { OrgDep, OrgNode } from '@/api/types'
+import type { OrgDep, OrgNode, Page } from '@/api/types'
 import { usePerm } from '@/utils/perm'
 import {
   ConsoleAction,
@@ -20,40 +20,39 @@ import {
 import { OrgTree } from '../org-tree'
 
 /**
- * 科室管理 (batch 6a, task 6.2; spec `specs/web-system-console`
- * § Department Management).
+ * 科室管理 rewrite (org-management-redesign-web tasks 3.1-3.6; spec delta
+ * `web-system-console` § Department Campus Filter Tree / § Department Table
+ * Management / § Department Code Handling).
  *
- * Layout: `prototype/org-deps.html` `.work` block - the 250px left
- * `.tree-panel` carries the org SELECTION CONTEXT (`.tree-hd` 「机构」 +
- * `.tree-hint`; the row action glyphs and the dashed 「新建根机构」 foot button
- * of that prototype panel are org-management verbs and belong to task 6.1's
- * page, so this aside never mutates orgs - recorded in the batch report), and
- * the right `.list-panel` is the department list (`.tool-row` code/name input
- * + 查询 + the `.push` primary 新建科室, `.tbl` 科室名称/科室编码/创建时间/操作
- * with `.th-refresh`, centered `.pager`). The create dialog reproduces the
- * prototype `.modal`: 上级机构 context, required 科室编码 with its DICOM/HL7
- * purpose note, 科室名称.
+ * Layout (design D4/D5): the LEFT tree is a hospital/campus FILTER only - it
+ * never renders departments and offers no mutation (all department verbs live
+ * in the right table). Selecting the hospital root means "all campuses" and
+ * issues the page query WITHOUT `orgId`; selecting a campus filters to it.
+ * The RIGHT table is server-side paginated (`pageDep`) with keyword/status
+ * filters; cross-campus rows always show their campus names, so same-code
+ * departments from different campuses stay distinguishable (delta: Same code
+ * across campuses).
  *
- * Data flow: `deps.listDeps(orgId)` is re-issued whenever the selected org
- * changes; the code/name query filters the already-listed rows client-side
- * (the documented endpoint takes only `orgId`, so a re-query would be a
- * request the API does not offer). No URL is built here.
+ * Dialog (D5): the owner MUST be a live, enabled campus - the campus select
+ * lists enabled campuses only, prefills when the filter sits on a campus, and
+ * stays explicit (required) when the hospital root is selected. The code is
+ * immutable after creation: the edit form disables it and the PUT body cannot
+ * carry it (type-level, org-management-redesign-web 1.3). A same-campus
+ * duplicate (A0712) surfaces on the code field with the dialog staying open.
  *
- * Duplicate live codes reject `A0712` and per the brief that msg lands INSIDE
- * the form on the code field with the dialog staying open.
- *
- * Permission gating: `system:dep:list` (SEED_MENUS id 8 / the backend
- * `@PreAuthorize`) gates the whole mutation surface - add button + row actions.
+ * Permission gating (D6): `system:dep:list` gates every mutation affordance;
+ * without it the tree and table stay readable.
  */
 
-/** Prototype `.tbl` column widths (220 / 200 / auto / 130). */
-const COLUMN_WIDTHS = { name: 220, code: 200, actions: 130 } as const
+const COLUMN_WIDTHS = { campus: 120, name: 200, code: 180, status: 80, actions: 130 } as const
 
 const PAGE_SIZE = 10
 
 interface DepFormValues {
+  orgId: number
   code: string
   name: string
+  status: number
 }
 
 type DepDialog = { kind: 'create' } | { kind: 'edit'; dep: OrgDep }
@@ -66,46 +65,46 @@ export default function DepsPage() {
   const [orgs, setOrgs] = useState<OrgNode[]>([])
   const [orgTreeLoading, setOrgTreeLoading] = useState(true)
   const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null)
-  const [deps, setDeps] = useState<OrgDep[]>([])
+  const [keywordDraft, setKeywordDraft] = useState('')
+  const [keyword, setKeyword] = useState('')
+  const [statusFilter, setStatusFilter] = useState<number | null>(null)
+  const [pageNum, setPageNum] = useState(1)
+  const [page, setPage] = useState<Page<OrgDep> | null>(null)
   const [listLoading, setListLoading] = useState(true)
-  const [queryDraft, setQueryDraft] = useState('')
-  const [query, setQuery] = useState('')
-  const [page, setPage] = useState(1)
   const [dialog, setDialog] = useState<DepDialog | null>(null)
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm<DepFormValues>()
   const [messageApi, messageHolder] = message.useMessage()
 
-  const selectedOrg = useMemo(
-    () => (selectedOrgId === null ? null : findOrg(orgs, selectedOrgId)),
-    [orgs, selectedOrgId],
-  )
-
-  const loadDeps = useCallback(
-    async (orgId: number) => {
-      setListLoading(true)
-      try {
-        setDeps(await listDeps(orgId))
-      } catch (error) {
-        messageApi.error(error instanceof ApiError ? error.msg : '科室列表加载失败')
-      } finally {
-        setListLoading(false)
+  // Org identity maps for the campus column and the dialog's campus select.
+  const orgById = useMemo(() => {
+    const map = new Map<number, OrgNode>()
+    const walk = (nodes: OrgNode[]) => {
+      for (const node of nodes) {
+        map.set(node.id, node)
+        if (node.children) walk(node.children)
       }
-    },
-    [messageApi],
+    }
+    walk(orgs)
+    return map
+  }, [orgs])
+
+  const selectedOrg = selectedOrgId === null ? null : (orgById.get(selectedOrgId) ?? null)
+  const isCampusSelected = selectedOrg !== null && selectedOrg.upId !== 0
+  /** Only a live, ENABLED campus may own a department (delta: Department create campus context). */
+  const enabledCampuses = useMemo(
+    () =>
+      orgs.flatMap((root) => (root.children ?? []).filter((child) => child.status === 1)),
+    [orgs],
   )
 
-  // Tree: one fetch on mount; the first root becomes the context node and the
-  // department list follows it (spec: "only that org's departments are listed").
+  // Tree: one fetch on mount; the OrgTree auto-selects the first root.
   useEffect(() => {
     let alive = true
     void (async () => {
       try {
         const tree = await orgTree()
-        if (!alive) return
-        setOrgs(tree)
-        const root = tree[0]
-        if (root) setSelectedOrgId((prev) => prev ?? root.id)
+        if (alive) setOrgs(tree)
       } catch (error) {
         if (alive) messageApi.error(error instanceof ApiError ? error.msg : '机构树加载失败')
       } finally {
@@ -117,9 +116,42 @@ export default function DepsPage() {
     }
   }, [messageApi])
 
+  const loadPage = useCallback(
+    async (effective: {
+      orgId: number | undefined
+      keyword: string | undefined
+      status: number | undefined
+      pageNum: number
+    }) => {
+      setListLoading(true)
+      try {
+        // The all-campuses view carries NO orgId key at all (absent = every campus).
+        setPage(
+          await pageDep({
+            pageNum: effective.pageNum,
+            pageSize: PAGE_SIZE,
+            ...(effective.orgId !== undefined ? { orgId: effective.orgId } : {}),
+            ...(effective.keyword ? { keyword: effective.keyword } : {}),
+            ...(effective.status !== undefined ? { status: effective.status } : {}),
+          }),
+        )
+      } catch (error) {
+        messageApi.error(error instanceof ApiError ? error.msg : '科室列表加载失败')
+      } finally {
+        setListLoading(false)
+      }
+    },
+    [messageApi],
+  )
+
   useEffect(() => {
-    if (selectedOrgId !== null) void loadDeps(selectedOrgId)
-  }, [loadDeps, selectedOrgId])
+    void loadPage({
+      orgId: isCampusSelected && selectedOrgId !== null ? selectedOrgId : undefined,
+      keyword: keyword.trim() || undefined,
+      status: statusFilter ?? undefined,
+      pageNum,
+    })
+  }, [isCampusSelected, keyword, loadPage, pageNum, selectedOrgId, statusFilter])
 
   const reloadOrgTree = useCallback(async () => {
     setOrgTreeLoading(true)
@@ -132,22 +164,9 @@ export default function DepsPage() {
     }
   }, [messageApi])
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    if (!needle) return deps
-    return deps.filter(
-      (dep) => dep.code.toLowerCase().includes(needle) || dep.name.toLowerCase().includes(needle),
-    )
-  }, [deps, query])
-
-  const pageRows = useMemo(
-    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filtered, page],
-  )
-
   const runQuery = () => {
-    setQuery(queryDraft)
-    setPage(1)
+    setKeyword(keywordDraft)
+    setPageNum(1)
   }
 
   const closeDialog = useCallback(() => {
@@ -157,60 +176,96 @@ export default function DepsPage() {
 
   const openDialog = useCallback(
     (next: DepDialog) => {
-      form.setFieldsValue(
-        next.kind === 'edit'
-          ? { code: next.dep.code, name: next.dep.name }
-          : { code: '', name: '' },
-      )
+      if (next.kind === 'create') {
+        // Campus-filtered view prefills the owner; the hospital-root view leaves
+        // it empty and REQUIRES an explicit campus before submission.
+        const prefill = isCampusSelected && selectedOrgId !== null ? selectedOrgId : undefined
+        form.setFieldsValue({ orgId: prefill, code: '', name: '', status: 1 })
+      } else {
+        form.setFieldsValue({
+          orgId: next.dep.orgId,
+          code: next.dep.code,
+          name: next.dep.name,
+          status: next.dep.status,
+        })
+      }
       setDialog(next)
     },
-    [form],
+    [form, isCampusSelected, selectedOrgId],
   )
 
   const submitDialog = useCallback(async () => {
-    if (!dialog || selectedOrgId === null) return
-    // A rejected validateFields() must never escape the drawer footer submit handler
-    // (an unhandled rejection would also swallow the dialog's field errors).
+    if (!dialog) return
+    // A rejected validateFields() must never escape the drawer footer submit handler.
     const values = await readForm(form)
     if (!values) return
     setSaving(true)
     try {
       if (dialog.kind === 'edit') {
-        // 科室编码 is immutable after creation (it routes DICOM/HL7 traffic),
-        // so the PUT carries the name only.
-        await updateDep(dialog.dep.id, { name: values.name })
+        // The code is immutable after creation - the PUT carries name/owner/status only.
+        await updateDep(dialog.dep.id, {
+          name: values.name,
+          orgId: values.orgId,
+          status: values.status,
+        })
       } else {
-        await createDep({ orgId: selectedOrgId, code: values.code, name: values.name })
+        await createDep({ orgId: values.orgId, code: values.code, name: values.name, status: values.status })
       }
       closeDialog()
-      await loadDeps(selectedOrgId)
+      await loadPage({
+        orgId: isCampusSelected && selectedOrgId !== null ? selectedOrgId : undefined,
+        keyword: keyword.trim() || undefined,
+        status: statusFilter ?? undefined,
+        pageNum,
+      })
     } catch (error) {
-      if (error instanceof ApiError) {
-        // Duplicate live code (A0712) and other validation-class rejections
-        // belong to the code field, and the dialog STAYS OPEN (brief 6.2).
+      if (error instanceof ApiError && error.code === 'A0712') {
+        // Duplicate live code within the campus: the message lands ON the code
+        // field and the dialog STAYS OPEN (delta: Duplicate code in one campus).
         form.setFields([{ name: 'code', errors: [error.msg] }])
       } else {
-        messageApi.error('保存科室失败')
+        messageApi.error(error instanceof ApiError ? error.msg : '保存科室失败')
       }
     } finally {
       setSaving(false)
     }
-  }, [closeDialog, dialog, form, loadDeps, messageApi, selectedOrgId])
+  }, [
+    closeDialog,
+    dialog,
+    form,
+    isCampusSelected,
+    keyword,
+    loadPage,
+    messageApi,
+    pageNum,
+    selectedOrgId,
+    statusFilter,
+  ])
 
   const removeDep = useCallback(
     async (dep: OrgDep) => {
-      if (selectedOrgId === null) return
       try {
         await deleteDep(dep.id)
-        await loadDeps(selectedOrgId)
+        await loadPage({
+          orgId: isCampusSelected && selectedOrgId !== null ? selectedOrgId : undefined,
+          keyword: keyword.trim() || undefined,
+          status: statusFilter ?? undefined,
+          pageNum,
+        })
       } catch (error) {
         messageApi.error(error instanceof ApiError ? error.msg : '删除科室失败')
       }
     },
-    [loadDeps, messageApi, selectedOrgId],
+    [isCampusSelected, keyword, loadPage, messageApi, pageNum, selectedOrgId, statusFilter],
   )
 
   const columns: TableColumnsType<OrgDep> = [
+    {
+      title: '院区',
+      dataIndex: 'orgId',
+      width: COLUMN_WIDTHS.campus,
+      render: (orgId: number) => orgById.get(orgId)?.name ?? '—',
+    },
     { title: '科室名称', dataIndex: 'name', width: COLUMN_WIDTHS.name },
     {
       title: '科室编码',
@@ -221,27 +276,24 @@ export default function DepsPage() {
       ),
     },
     {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      render: (createTime: string) => (
-        <Typography.Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {createTime}
-        </Typography.Text>
-      ),
+      title: '状态',
+      dataIndex: 'status',
+      width: COLUMN_WIDTHS.status,
+      render: (status: number) => (status === 1 ? '启用' : '停用'),
     },
   ]
 
-  // Selection context only: no org mutation is offered here (task 6.1 owns it).
+  // Selection context only: no org mutation is offered here (the org page owns it).
   const aside = (
     <ConsolePanel>
       <OrgTree
         nodes={orgs}
         loading={orgTreeLoading}
-        hint="选中机构后,右侧仅列出该机构下的科室。"
+        hint="树只含医院与院区:选中医院查看全部院区的科室,选中院区仅看该院区。"
         selectedOrgId={selectedOrgId}
         onSelect={(node) => {
           setSelectedOrgId(node ? node.id : null)
-          setPage(1)
+          setPageNum(1)
         }}
         onRefresh={reloadOrgTree}
       />
@@ -253,9 +305,7 @@ export default function DepsPage() {
   return (
     <div style={{ height: '100%' }}>
       {messageHolder}
-      <ConsoleWorkArea
-        aside={aside}
-      >
+      <ConsoleWorkArea aside={aside}>
         <ConsolePanel>
           <ConsoleToolRow
             trailing={
@@ -269,36 +319,51 @@ export default function DepsPage() {
               style={{ width: 220 }}
               placeholder="科室编码 / 名称"
               aria-label="科室编码 / 名称"
-              value={queryDraft}
-              onChange={(event) => setQueryDraft(event.target.value)}
+              value={keywordDraft}
+              onChange={(event) => setKeywordDraft(event.target.value)}
               onPressEnter={runQuery}
+            />
+            <Select<number | null>
+              allowClear
+              style={{ width: 120 }}
+              placeholder="状态"
+              aria-label="状态过滤"
+              value={statusFilter}
+              onChange={(next) => {
+                setStatusFilter(next ?? null)
+                setPageNum(1)
+              }}
+              options={[
+                { value: 1, label: '启用' },
+                { value: 0, label: '停用' },
+              ]}
             />
             <ConsoleQueryButton onClick={runQuery} />
           </ConsoleToolRow>
 
           <ConsoleTable<OrgDep>
-            rowKey={(dep) => dep.id}
+            rowKey={(row) => row.id}
             columns={columns}
-            dataSource={pageRows}
+            dataSource={page?.records ?? []}
             loading={listLoading}
             actions={
               canManage
                 ? {
                     width: COLUMN_WIDTHS.actions,
-                    render: (dep) => [
+                    render: (row) => [
                       <ConsoleAction
                         key="edit"
                         label="编辑科室"
-                        onClick={() => openDialog({ kind: 'edit', dep })}
+                        onClick={() => openDialog({ kind: 'edit', dep: row })}
                       />,
                       <Popconfirm
                         key="remove"
                         title="删除科室"
-                        description={`确定删除「${dep.name}」吗?`}
+                        description={`确定删除「${row.name}」吗?`}
                         okText="删除"
                         cancelText="取消"
                         okButtonProps={{ danger: true }}
-                        onConfirm={() => void removeDep(dep)}
+                        onConfirm={() => void removeDep(row)}
                       >
                         <ConsoleAction label="删除科室" icon="remove" danger onClick={() => undefined} />
                       </Popconfirm>,
@@ -307,23 +372,28 @@ export default function DepsPage() {
                 : undefined
             }
             onRefresh={() => {
-              if (selectedOrgId !== null) void loadDeps(selectedOrgId)
+              void loadPage({
+                orgId: isCampusSelected && selectedOrgId !== null ? selectedOrgId : undefined,
+                keyword: keyword.trim() || undefined,
+                status: statusFilter ?? undefined,
+                pageNum,
+              })
             }}
           />
 
           <ConsolePagination
-            total={filtered.length}
-            current={page}
+            total={page?.total ?? 0}
+            current={pageNum}
             pageSize={PAGE_SIZE}
             showSizeChanger={false}
-            onChange={(next) => setPage(next)}
+            onChange={(next) => setPageNum(next)}
           />
         </ConsolePanel>
       </ConsoleWorkArea>
 
       <Drawer
         open={!!dialog}
-        title={dialog?.kind === 'edit' ? '编辑科室' : '新建科室'}
+        title={editing ? '编辑科室' : '新建科室'}
         width={500}
         onClose={closeDialog}
         closable={{ placement: 'end' }}
@@ -338,13 +408,20 @@ export default function DepsPage() {
           </div>
         }
       >
-        <div style={{ marginBottom: 16 }}>
-          <Typography.Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-            上级机构
-          </Typography.Text>
-          <div>{selectedOrg?.name ?? '未选中机构'}</div>
-        </div>
+        <p style={{ margin: '0 0 16px', fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
+          {editing ? `科室编码创建后不可修改:${editing.code}` : '科室必须归属一个启用中的院区。'}
+        </p>
         <Form<DepFormValues> form={form} layout="vertical" disabled={saving}>
+          <Form.Item
+            name="orgId"
+            label="所属院区"
+            rules={[{ required: true, message: '请选择所属院区' }]}
+          >
+            <Select
+              placeholder="选择院区"
+              options={enabledCampuses.map((campus) => ({ value: campus.id, label: campus.name }))}
+            />
+          </Form.Item>
           <Form.Item
             name="code"
             label="科室编码"
@@ -360,21 +437,17 @@ export default function DepsPage() {
           >
             <Input placeholder="如 病理科" autoComplete="off" />
           </Form.Item>
+          <Form.Item name="status" label="状态" initialValue={1}>
+            <Select
+              aria-label="状态"
+              options={[
+                { value: 1, label: '启用' },
+                { value: 0, label: '停用' },
+              ]}
+            />
+          </Form.Item>
         </Form>
       </Drawer>
-
     </div>
   )
-}
-
-/** Depth-first lookup of the selected org node (the aside's context label). */
-function findOrg(nodes: OrgNode[], id: number): OrgNode | null {
-  for (const node of nodes) {
-    if (node.id === id) return node
-    if (node.children) {
-      const found = findOrg(node.children, id)
-      if (found) return found
-    }
-  }
-  return null
 }

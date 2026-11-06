@@ -1,55 +1,90 @@
-import { Button, Drawer, Form, Input, message, theme } from 'antd'
-import { useCallback, useEffect, useState } from 'react'
+import { Alert, Button, Drawer, Form, Input, InputNumber, Popconfirm, Select, Tag, message, theme } from 'antd'
+import type { TableColumnsType } from 'antd'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createOrg, deleteOrg, orgTree, updateOrg } from '@/api/orgs'
-import type { OrgNode } from '@/api/types'
 import { ApiError } from '@/api/client'
+import type { OrgNode } from '@/api/types'
 import { usePerm } from '@/utils/perm'
-import { ConsolePanel, readForm } from '../console-shell'
-import { OrgTree } from '../org-tree'
+import {
+  ConsoleAction,
+  ConsoleAddButton,
+  ConsolePanel,
+  ConsoleQueryButton,
+  ConsoleTable,
+  ConsoleToolRow,
+  ConsoleWorkArea,
+  readForm,
+} from '../console-shell'
 
 /**
- * 机构管理 (batch 6a, task 6.1; spec `specs/web-system-console`
- * § Org Tree Management).
+ * 机构管理 rewrite (org-management-redesign-web tasks 2.1-2.6; spec delta
+ * `web-system-console` § Hospital Profile and Campus Table Management).
  *
- * Layout: the user-confirmed prototype `org-deps.html` models the org as the
- * LEFT `.tree-panel` of a two-zone work area; on this page the tree IS the
- * work area (brief 6.1 「树为主体的工作区」), so the panel is that same block
- * (tree-hd + tree + tree-hint + the dashed `.ghost` 「新建根机构」 foot button,
- * which is the spec's multi-root affordance), widened from the prototype's
- * 250px so a row's hover action glyphs fit on one line. The modal shape
- * (上级机构 context line + 名称 + 取消/保存) is the prototype's `.modal` block.
+ * Layout (design D1): the dictionary-like work area - LEFT the hospital
+ * profile card with its edit action, RIGHT the campus table with keyword/
+ * status filtering and the create/edit/default/delete actions. The generic
+ * multi-root tree and its 「新建根机构」 affordance are gone (D2: root
+ * creation is not a normal action; the backend rejects a second live root).
+ * There is no parent selector and no type control anywhere (D2/D3): the
+ * create dialog's context line names the owning hospital, and type stays
+ * server-derived.
  *
- * Data flow: local hooks only - one `orgTree()` on mount, and every mutation
- * re-queries (spec 「the tree reflects the result」). No URL is built here: all
- * traffic goes through the typed `@/api/orgs` client.
+ * Option B first-run (D7): while the seeded root is still the bootstrap
+ * placeholder (`未命名医院` + code `HOSPITAL`), a completion hint shows above
+ * the table; administrators complete the real profile through the normal
+ * hospital edit form - no initialization-specific control is invented.
  *
- * Permission gating: the page's own documented perms string `system:org:list`
- * (seed menu id 7 in the backend `V2__seed.sql`, also the backend
- * `@PreAuthorize` on the list endpoint) gates the whole mutation surface - create-child, edit, delete
- * and 新建根机构. No new perms code is invented (brief § 权限门控).
+ * Data flow: one orgTree() on mount; every successful mutation re-queries and
+ * the card/table reflect the refreshed tree. A-class rejections surface the
+ * backend msg and leave the dialog open, the table untouched (delta:
+ * Organization rejection surfaces). No mock layer - the typed @/api/orgs
+ * client goes through the Vite proxy to the real backend.
+ *
+ * Permission gating (D6): the page's documented `system:org:list` gates every
+ * mutation affordance - 编辑医院, 新增院区, and the row actions; without it the
+ * page is read-only.
  */
 
-/** Prototype `.tree-panel{flex:0 0 250px}` widened for the row action glyphs. */
-const ORG_PANEL_WIDTH = 360
+/** The campus-table action glyphs (prototype `.act` verbs). */
+const ACTION_COLUMN_WIDTH = 150
 
-interface OrgFormValues {
-  name: string
+/** Option B bootstrap detection: V16 normalizes the seed to exactly this pair. */
+function isFirstRunBootstrap(hospital: OrgNode | null): boolean {
+  return hospital !== null && hospital.code === 'HOSPITAL' && hospital.name === '未命名医院'
 }
 
 type OrgDialog =
-  | { kind: 'create-child'; parent: OrgNode }
-  | { kind: 'create-root' }
-  | { kind: 'edit'; node: OrgNode }
+  | { kind: 'create-campus'; hospital: OrgNode }
+  | { kind: 'edit-campus'; campus: OrgNode }
+  | { kind: 'edit-hospital'; hospital: OrgNode }
 
-/** The dialog's title + submit label, per the prototype's modal header habit. */
-function dialogCopy(dialog: OrgDialog): { title: string; context: string | null } {
-  if (dialog.kind === 'create-child') {
-    return { title: '新建机构', context: `上级机构:${dialog.parent.name}` }
-  }
-  if (dialog.kind === 'create-root') {
-    return { title: '新建根机构', context: '上级机构:无(作为根节点)' }
-  }
-  return { title: '编辑机构', context: dialog.node.name }
+/** The shared profile fields (delta: Campus Profile Management bullet list). */
+const PROFILE_FIELDS = [
+  { name: 'shortName', label: '机构简称', placeholder: '如 总院 / 东院' },
+  { name: 'provinceCode', label: '省份编码', placeholder: '如 310000' },
+  { name: 'cityCode', label: '城市编码', placeholder: '如 310100' },
+  { name: 'districtCode', label: '区县编码', placeholder: '如 310101' },
+  { name: 'address', label: '地址', placeholder: '详细地址' },
+  { name: 'contact', label: '联系人', placeholder: '联系人姓名' },
+  { name: 'phone', label: '联系电话', placeholder: '如 021-60000000' },
+  { name: 'email', label: '邮箱', placeholder: 'name@example.org' },
+  { name: 'logoUrl', label: 'Logo 地址', placeholder: 'https://...' },
+] as const
+
+interface OrgFormValues {
+  code: string
+  name: string
+  shortName?: string | null
+  status: number
+  provinceCode?: string | null
+  cityCode?: string | null
+  districtCode?: string | null
+  address?: string | null
+  contact?: string | null
+  phone?: string | null
+  email?: string | null
+  logoUrl?: string | null
+  sort?: number
 }
 
 export default function OrgsPage() {
@@ -59,7 +94,9 @@ export default function OrgsPage() {
 
   const [nodes, setNodes] = useState<OrgNode[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null)
+  const [keywordDraft, setKeywordDraft] = useState('')
+  const [keyword, setKeyword] = useState('')
+  const [statusFilter, setStatusFilter] = useState<number | null>(null)
   const [dialog, setDialog] = useState<OrgDialog | null>(null)
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm<OrgFormValues>()
@@ -80,6 +117,20 @@ export default function OrgsPage() {
     void reload()
   }, [reload])
 
+  const hospital = useMemo(() => nodes.find((node) => node.upId === 0) ?? null, [nodes])
+  const campuses = useMemo(() => hospital?.children ?? [], [hospital])
+
+  const visibleCampuses = useMemo(() => {
+    const needle = keyword.trim().toLowerCase()
+    return campuses.filter((campus) => {
+      if (statusFilter !== null && campus.status !== statusFilter) return false
+      if (!needle) return true
+      return campus.name.toLowerCase().includes(needle) || campus.code.toLowerCase().includes(needle)
+    })
+  }, [campuses, keyword, statusFilter])
+
+  const runQuery = () => setKeyword(keywordDraft)
+
   const closeDialog = useCallback(() => {
     setDialog(null)
     form.resetFields()
@@ -87,75 +138,286 @@ export default function OrgsPage() {
 
   const openDialog = useCallback(
     (next: OrgDialog) => {
-      form.setFieldsValue({ name: next.kind === 'edit' ? next.node.name : '' })
+      const current: Pick<
+        OrgNode,
+        | 'code'
+        | 'name'
+        | 'shortName'
+        | 'status'
+        | 'provinceCode'
+        | 'cityCode'
+        | 'districtCode'
+        | 'address'
+        | 'contact'
+        | 'phone'
+        | 'email'
+        | 'logoUrl'
+        | 'sort'
+      > =
+        next.kind === 'create-campus'
+          ? {
+              code: '',
+              name: '',
+              shortName: null,
+              status: 1,
+              provinceCode: null,
+              cityCode: null,
+              districtCode: null,
+              address: null,
+              contact: null,
+              phone: null,
+              email: null,
+              logoUrl: null,
+              sort: 0,
+            }
+          : next.kind === 'edit-campus'
+            ? next.campus
+            : next.hospital
+      form.setFieldsValue({
+        code: current.code,
+        name: current.name,
+        shortName: current.shortName,
+        status: current.status,
+        provinceCode: current.provinceCode,
+        cityCode: current.cityCode,
+        districtCode: current.districtCode,
+        address: current.address,
+        contact: current.contact,
+        phone: current.phone,
+        email: current.email,
+        logoUrl: current.logoUrl,
+        sort: current.sort ?? 0,
+      })
       setDialog(next)
     },
     [form],
   )
 
   const submitDialog = useCallback(async () => {
-    if (!dialog) return
+    if (!dialog || hospital === null) return
     // A rejected validateFields() must never escape the drawer footer submit handler.
     const values = await readForm(form)
     if (!values) return
     setSaving(true)
     try {
-      if (dialog.kind === 'edit') await updateOrg(dialog.node.id, { name: values.name })
-      else await createOrg({ upId: dialog.kind === 'create-root' ? 0 : dialog.parent.id, name: values.name })
+      if (dialog.kind === 'create-campus') {
+        await createOrg({ upId: dialog.hospital.id, ...values })
+      } else if (dialog.kind === 'edit-campus') {
+        await updateOrg(dialog.campus.id, { ...values, sort: values.sort ?? undefined })
+      } else {
+        // The hospital form never carries the default-campus flag - that is
+        // campus-only semantics (delta: Campus Profile Management).
+        await updateOrg(dialog.hospital.id, { ...values, sort: values.sort ?? undefined })
+      }
       closeDialog()
       await reload()
     } catch (error) {
-      // A-class failures (unknown parent, blank name): the backend msg lands on
-      // the floating message and the dialog STAYS OPEN (brief § 错误反馈).
+      // A-class failures: the backend msg lands on the floating message and
+      // the dialog STAYS OPEN (delta: Organization rejection surfaces).
       messageApi.error(error instanceof ApiError ? error.msg : '保存机构失败')
     } finally {
       setSaving(false)
     }
-  }, [closeDialog, dialog, form, messageApi, reload])
+  }, [closeDialog, dialog, form, hospital, messageApi, reload])
 
-  const removeOrg = useCallback(
-    async (node: OrgNode) => {
+  const setDefaultCampus = useCallback(
+    async (campus: OrgNode) => {
       try {
-        await deleteOrg(node.id)
-        if (selectedOrgId === node.id) setSelectedOrgId(null)
+        await updateOrg(campus.id, { isDefault: 1 })
         await reload()
       } catch (error) {
-        messageApi.error(error instanceof ApiError ? error.msg : '删除机构失败')
+        messageApi.error(error instanceof ApiError ? error.msg : '设置默认院区失败')
       }
     },
-    [messageApi, reload, selectedOrgId],
+    [messageApi, reload],
   )
 
-  const copy = dialog ? dialogCopy(dialog) : null
+  const removeCampus = useCallback(
+    async (campus: OrgNode) => {
+      try {
+        await deleteOrg(campus.id)
+        await reload()
+      } catch (error) {
+        messageApi.error(error instanceof ApiError ? error.msg : '删除院区失败')
+      }
+    },
+    [messageApi, reload],
+  )
+
+  const columns: TableColumnsType<OrgNode> = [
+    { title: '院区', dataIndex: 'name', width: 180 },
+    {
+      title: '代码',
+      dataIndex: 'code',
+      width: 160,
+      render: (code: string) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{code}</span>,
+    },
+    {
+      title: '默认',
+      dataIndex: 'isDefault',
+      width: 90,
+      render: (isDefault: number) =>
+        isDefault === 1 ? <Tag color="blue">默认院区</Tag> : <span style={{ color: token.colorTextTertiary }}>—</span>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 80,
+      render: (status: number) => (status === 1 ? '启用' : '停用'),
+    },
+    {
+      title: '地址',
+      dataIndex: 'address',
+      ellipsis: true,
+      render: (address: string | null) =>
+        address ? <span style={{ color: token.colorTextSecondary }}>{address}</span> : '—',
+    },
+  ]
+
+  const dialogTitle =
+    dialog?.kind === 'create-campus'
+      ? '新增院区'
+      : dialog?.kind === 'edit-campus'
+        ? '编辑院区'
+        : '编辑医院'
+
+  const dialogContext =
+    dialog?.kind === 'create-campus'
+      ? `上级机构:${dialog.hospital.name}`
+      : dialog?.kind === 'edit-campus'
+        ? `机构类型:院区 · ${dialog.campus.name}`
+        : '机构类型:医院(根机构)'
 
   return (
-    <div style={{ height: '100%', minWidth: ORG_PANEL_WIDTH }}>
+    <div style={{ height: '100%' }}>
       {messageHolder}
-      <ConsolePanel>
-        <OrgTree
-          nodes={nodes}
-          loading={loading}
-          hint="选中机构后,悬停或选中该行即可新建下级机构、编辑或删除;「新建根机构」创建并列的第二棵根。"
-          selectedOrgId={selectedOrgId}
-          onSelect={(node) => setSelectedOrgId(node ? node.id : null)}
-          onCreateRoot={canManage ? () => openDialog({ kind: 'create-root' }) : undefined}
-          actions={
-            canManage
-              ? {
-                  onCreateChild: (parent) => openDialog({ kind: 'create-child', parent }),
-                  onEdit: (node) => openDialog({ kind: 'edit', node }),
-                  onDelete: (node) => void removeOrg(node),
-                }
-              : undefined
-          }
-          onRefresh={() => void reload()}
-        />
-      </ConsolePanel>
+      <ConsoleWorkArea
+        aside={
+          <ConsolePanel>
+            {hospital ? (
+              <div style={{ padding: '12px 14px' }}>
+                <div style={{ fontSize: token.fontSizeLG, fontWeight: 600 }}>{hospital.name}</div>
+                <div style={{ marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{hospital.code}</div>
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ color: token.colorTextSecondary }}>
+                    状态:{hospital.status === 1 ? '启用' : '停用'}
+                  </div>
+                  {hospital.shortName ? (
+                    <div style={{ color: token.colorTextSecondary }}>简称:{hospital.shortName}</div>
+                  ) : null}
+                  {hospital.address ? (
+                    <div style={{ color: token.colorTextSecondary, marginTop: 4 }}>{hospital.address}</div>
+                  ) : null}
+                  {hospital.contact ? (
+                    <div style={{ color: token.colorTextSecondary }}>联系人:{hospital.contact}</div>
+                  ) : null}
+                  {hospital.phone ? (
+                    <div style={{ color: token.colorTextSecondary }}>{hospital.phone}</div>
+                  ) : null}
+                </div>
+                {canManage ? (
+                  <Button
+                    style={{ marginTop: 12 }}
+                    aria-label="编辑医院"
+                    onClick={() => openDialog({ kind: 'edit-hospital', hospital })}
+                  >
+                    编辑医院
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+          </ConsolePanel>
+        }
+      >
+        <ConsolePanel>
+          {isFirstRunBootstrap(hospital) ? (
+            <Alert
+              style={{ marginBottom: 12 }}
+              type="info"
+              showIcon
+              message="首次部署:请通过「编辑医院」完善医院信息,并核对默认院区。"
+            />
+          ) : null}
+          <ConsoleToolRow
+            trailing={
+              canManage && hospital ? (
+                <ConsoleAddButton
+                  label="新增院区"
+                  onClick={() => openDialog({ kind: 'create-campus', hospital })}
+                />
+              ) : undefined
+            }
+          >
+            <Input
+              allowClear
+              style={{ width: 200 }}
+              placeholder="院区名称 / 代码"
+              aria-label="院区名称 / 代码"
+              value={keywordDraft}
+              onChange={(event) => setKeywordDraft(event.target.value)}
+              onPressEnter={runQuery}
+            />
+            <Select<number | null>
+              allowClear
+              style={{ width: 120 }}
+              placeholder="状态"
+              aria-label="状态过滤"
+              value={statusFilter}
+              onChange={(next) => setStatusFilter(next ?? null)}
+              options={[
+                { value: 1, label: '启用' },
+                { value: 0, label: '停用' },
+              ]}
+            />
+            <ConsoleQueryButton onClick={runQuery} />
+          </ConsoleToolRow>
+
+          <ConsoleTable<OrgNode>
+            rowKey={(campus) => campus.id}
+            columns={columns}
+            dataSource={visibleCampuses}
+            loading={loading}
+            actions={
+              canManage
+                ? {
+                    width: ACTION_COLUMN_WIDTH,
+                    render: (campus) => [
+                      <ConsoleAction
+                        key="edit"
+                        label="编辑院区"
+                        onClick={() => openDialog({ kind: 'edit-campus', campus })}
+                      />,
+                      <ConsoleAction
+                        key="default"
+                        label="设为默认"
+                        icon="assign"
+                        disabled={campus.isDefault === 1}
+                        onClick={() => void setDefaultCampus(campus)}
+                      />,
+                      <Popconfirm
+                        key="remove"
+                        title="删除院区"
+                        description={`确定删除「${campus.name}」吗?`}
+                        okText="删除"
+                        cancelText="取消"
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => void removeCampus(campus)}
+                      >
+                        <ConsoleAction label="删除院区" icon="remove" danger onClick={() => undefined} />
+                      </Popconfirm>,
+                    ],
+                  }
+                : undefined
+            }
+            onRefresh={() => void reload()}
+          />
+        </ConsolePanel>
+      </ConsoleWorkArea>
 
       <Drawer
         open={!!dialog}
-        title={copy?.title}
-        width={500}
+        title={dialogTitle}
+        width={520}
         onClose={closeDialog}
         closable={{ placement: 'end' }}
         maskClosable={false}
@@ -169,18 +431,40 @@ export default function OrgsPage() {
           </div>
         }
       >
-        {copy?.context ? (
-          <p style={{ margin: '0 0 16px', fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
-            {copy.context}
-          </p>
-        ) : null}
+        <p style={{ margin: '0 0 16px', fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
+          {dialogContext}
+        </p>
         <Form<OrgFormValues> form={form} layout="vertical" requiredMark disabled={saving}>
+          <Form.Item
+            name="code"
+            label="机构代码"
+            rules={[{ required: true, message: '请输入机构代码' }]}
+          >
+            <Input placeholder="如 HOSP-001 / CAMPUS-1" autoComplete="off" />
+          </Form.Item>
           <Form.Item
             name="name"
             label="机构名称"
             rules={[{ required: true, message: '请输入机构名称' }]}
           >
-            <Input placeholder="如 示例医院 / 华东分院" autoComplete="off" />
+            <Input placeholder="如 总院区" autoComplete="off" />
+          </Form.Item>
+          {PROFILE_FIELDS.map((field) => (
+            <Form.Item key={field.name} name={field.name} label={field.label}>
+              <Input placeholder={field.placeholder} autoComplete="off" />
+            </Form.Item>
+          ))}
+          <Form.Item name="status" label="状态" initialValue={1}>
+            <Select
+              aria-label="状态"
+              options={[
+                { value: 1, label: '启用' },
+                { value: 0, label: '停用' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="sort" label="排序" initialValue={0}>
+            <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
         </Form>
       </Drawer>

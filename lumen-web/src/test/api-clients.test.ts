@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { login, me } from '@/api/auth'
 import { createUser, enableUser, listUsers, resetPassword } from '@/api/users'
 import { createOrg, deleteOrg, orgTree, updateOrg } from '@/api/orgs'
-import { createDep, deleteDep, listDeps, updateDep } from '@/api/org-deps'
+import { createDep, deleteDep, listDeps, pageDep, updateDep } from '@/api/org-deps'
 import { assignRoleMenus, createRole, deleteRole, listRoles, updateRole } from '@/api/roles'
 import { createMenu, menuTree, removeMenu, updateMenu } from '@/api/menus'
 import type { CreateMenuBody, UpdateMenuBody } from '@/api/types'
@@ -483,6 +483,108 @@ describe('logs client (task 4.3)', () => {
     await listLogs({ page: 1, pageSize: 20 })
     const { url } = lastCall(fetchMock)
     expect(url).toBe('/api/v1/system/logs?page=1&pageSize=20')
+  })
+})
+
+describe('orgs client profile fields (org-management-redesign-web 1.1)', () => {
+  /** Backend V17 org_info row shape (the /tree nodes are full entities). */
+  const CAMPUS_NODE = {
+    id: 274, upId: 1, level: 2, type: 1, name: '总院区',
+    code: 'CAMPUS-1', shortName: null, status: 1,
+    provinceCode: '310000', cityCode: '310100', districtCode: '310101',
+    address: '浦东新区测试路1号', contact: '院区前台', phone: '021-60000000',
+    email: 'campus@example.org', logoUrl: null, sort: 0, isDefault: 1,
+    createBy: null, createTime: '2026-11-06 10:00:00', updateBy: null, updateTime: '2026-11-06 10:00:00',
+    children: null,
+  }
+
+  it('orgTree surfaces the hospital/campus profile fields on each node', async () => {
+    const fetchMock = stubOk([CAMPUS_NODE])
+    const data = await orgTree()
+    expect(lastCall(fetchMock).url).toBe('/api/v1/system/orgs/tree')
+    expect(data[0].code).toBe('CAMPUS-1')
+    expect(data[0].status).toBe(1)
+    expect(data[0].isDefault).toBe(1)
+    expect(data[0].address).toBe('浦东新区测试路1号')
+    expect(data[0].shortName).toBeNull()
+  })
+
+  it('createOrg posts the campus profile body and unwraps the new id', async () => {
+    const fetchMock = stubOk(275)
+    const body = {
+      upId: 1,
+      code: 'CAMPUS-EAST',
+      name: '东院区',
+      shortName: '东院',
+      status: 1,
+      provinceCode: '310000',
+      address: '东区测试路2号',
+      sort: 2,
+    }
+    const data = await createOrg(body)
+    const { url, init } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/orgs')
+    expect(init.method).toBe('POST')
+    expect(init.body).toBe(JSON.stringify(body))
+    expect(data).toBe(275)
+  })
+
+  it('updateOrg carries profile fields and status (type/parent stay out of the body)', async () => {
+    const fetchMock = stubOk(true)
+    const body = {
+      code: 'CAMPUS-1',
+      name: '总院区改名',
+      status: 1,
+      contact: '新的联系人',
+      isDefault: 1,
+    }
+    const data = await updateOrg(274, body)
+    const { url, init } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/orgs/274')
+    expect(init.method).toBe('PUT')
+    expect(init.body).toBe(JSON.stringify(body))
+    expect(data).toBe(true)
+  })
+})
+
+describe('org-deps client page query (org-management-redesign-web 1.2)', () => {
+  const DEP_ROW = {
+    id: 1, orgId: 274, code: 'radiology', name: '放射科', status: 1,
+    createBy: null, createTime: '2026-11-06 10:00:00', updateBy: null, updateTime: '2026-11-06 10:00:00',
+  }
+
+  it('pageDep GETs /system/org-deps/page with the full filter set and unwraps the IPage shape', async () => {
+    const fetchMock = stubOk({ records: [DEP_ROW], total: 1, size: 20, current: 1, pages: 1 })
+    const page = await pageDep({ orgId: 274, keyword: '放射', status: 1, pageNum: 1, pageSize: 20 })
+    const { url, init } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/org-deps/page?pageNum=1&pageSize=20&orgId=274&keyword=%E6%94%BE%E5%B0%84&status=1')
+    expect(init.method).toBe('GET')
+    expect(page.records).toHaveLength(1)
+    expect(page.records[0].status).toBe(1)
+    expect(page.total).toBe(1)
+  })
+
+  it('pageDep falls back to the paging defaults and omits absent filters', async () => {
+    const fetchMock = stubOk({ records: [], total: 0, size: 20, current: 1, pages: 0 })
+    await pageDep()
+    const { url } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/org-deps/page?pageNum=1&pageSize=20')
+  })
+
+  it('createDep carries the department status field', async () => {
+    const fetchMock = stubOk(5)
+    const body = { orgId: 274, code: 'pathology', name: '病理科', status: 1 }
+    const data = await createDep(body)
+    const { init } = lastCall(fetchMock)
+    expect(init.body).toBe(JSON.stringify(body))
+    expect(data).toBe(5)
+  })
+
+  it('updateDep carries status but never the code', async () => {
+    const fetchMock = stubOk(true)
+    await updateDep(5, { name: '病理科2', status: 0 })
+    const { init } = lastCall(fetchMock)
+    expect(init.body).toBe(JSON.stringify({ name: '病理科2', status: 0 }))
   })
 })
 

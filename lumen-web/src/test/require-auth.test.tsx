@@ -128,9 +128,11 @@ describe('RequireAuth guard (web-foundation-auth-console 5.3)', () => {
 })
 
 describe('index redirect (web-foundation-auth-console 5.3)', () => {
-  // Batch 6.1 replaced the /system/orgs placeholder with the real org page, so
-  // the landing evidence is now the org tree request + the tree panel chrome
-  // (the assertion's INTENT is unchanged: / lands on the first granted route).
+  // Batch 6.1 replaced the /system/orgs placeholder with the real org page, and
+  // org-management-redesign-web rewrote that page as hospital-card + campus-table
+  // (the old tree panel's 「机构」 heading is gone). The landing marker is now the
+  // campus table's filter row - always rendered, unique to this page. The
+  // assertion's INTENT is unchanged: / lands on the first granted route.
   it('redirects / to the first route the menu tree grants (admin: /system/orgs)', async () => {
     useAuthStore.getState().setSession({ token: 't-login', profile: null, menus: ADMIN_MENUS, perms: [] })
     const fetchMock = stubFetch(async (input) => {
@@ -140,7 +142,7 @@ describe('index redirect (web-foundation-auth-console 5.3)', () => {
     })
     renderRoutes('/')
 
-    expect(await screen.findByText('机构')).toBeInTheDocument()
+    expect(await screen.findByPlaceholderText('院区名称 / 代码')).toBeInTheDocument()
     const urls = fetchMock.mock.calls.map(([input]) => String(input))
     expect(urls).toContain('/api/v1/system/me')
     expect(urls).toContain('/api/v1/system/orgs/tree')

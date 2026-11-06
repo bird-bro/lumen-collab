@@ -22,22 +22,23 @@
 # slot (cross-stack menu-management with menu-management-web, coordination doc
 # openspec/coordination/menu-management.md; Inline mode, 11 tasks; user waited out the
 # sign-log-query slot before apply).
+# 2026-11-06: org-management-redesign-web took the slot (frontend of the org-management-redesign feature; backend archived PASS_WITH_ISSUES 26/27. Batch Inline, 17 tasks, existing-page edits - no frontend-design prototype per coordination ruling 2026-11-05; builds against the real /api/v1 via Vite proxy, no mock layer).
 # 2026-11-06: org-management-redesign-api archived OUT OF BAND (never held this slot -
 # implementation was done and verified in a parallel root session; specs synced via
 # openspec-sync-specs, so archive ran --skip-specs). verify.md PASS_WITH_ISSUES 26/27;
 # the one PARTIAL (fresh-DB replay) waived by user ruling, carry-over list in
 # openspec/coordination/org-management-redesign.md.
-phase: archived
-change: button-perm-enforcement-api
+phase: applying
+change: org-management-redesign-web
 current_task: null
-execution_mode: Inline
-tasks_total: 7
-tasks_done: 7
+execution_mode: Batch Inline
+tasks_total: 17
+tasks_done: 13
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: 5f6409775d9f71d4837179b3cde95c5a8c7dff4c1171ab65f62f3389c7801da0
+artifacts_hash: b48ef08e0c3d09569eb1cb451022317bc72cc190ed587e857becd9d984d603b1
 contract_hash: null
 batches_completed: 0
 last_updated: 2026-11-05

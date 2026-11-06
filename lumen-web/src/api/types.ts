@@ -101,13 +101,33 @@ export interface CreateUserBody {
   roleIds?: number[];
 }
 
-/** Org tree node (backend org tree): the org row plus upId-assembled children (leaf children null). */
+/**
+ * Org tree node (backend org tree): the org row plus upId-assembled children
+ * (leaf children null). Carries the V16 hospital/campus profile surface - the
+ * controlled model: at most one live hospital root (`upId = 0`), campuses as
+ * its leaf children (`type = 1`), `isDefault` marks the one default campus.
+ */
 export interface OrgNode {
   id: number;
   upId: number;
   level: number;
   type: number | null;
   name: string;
+  /** Stable organization code, unique among live siblings (backend V16). */
+  code: string;
+  shortName: string | null;
+  /** 1 = enabled, 0 = disabled. */
+  status: number;
+  provinceCode: string | null;
+  cityCode: string | null;
+  districtCode: string | null;
+  address: string | null;
+  contact: string | null;
+  phone: string | null;
+  email: string | null;
+  logoUrl: string | null;
+  sort: number;
+  isDefault: number;
   createBy: number | null;
   createTime: string;
   updateBy: number | null;
@@ -115,36 +135,101 @@ export interface OrgNode {
   children: OrgNode[] | null;
 }
 
+/**
+ * POST /system/orgs body. `upId` is 0 for the bootstrap hospital root
+ * (rejected by the backend once a live root exists) or the hospital id for a
+ * campus; `type`/`level` are server-derived and are not client inputs. The
+ * campus form requires `code` (spec: code SHALL be required) - the type keeps
+ * it optional because the backend generates one when the field is absent.
+ */
 export interface CreateOrgBody {
   /** Parent org id, 0 for a root. */
   upId: number;
   name: string;
-  level?: number;
-  type?: number | null;
+  code?: string;
+  shortName?: string | null;
+  status?: number;
+  provinceCode?: string | null;
+  cityCode?: string | null;
+  districtCode?: string | null;
+  address?: string | null;
+  contact?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  logoUrl?: string | null;
+  sort?: number;
 }
 
-/** PUT /system/orgs/{id} accepts a partial update (null fields are skipped server-side). */
-export type UpdateOrgBody = Partial<Pick<OrgNode, 'upId' | 'level' | 'type' | 'name'>>;
+/**
+ * PUT /system/orgs/{id} accepts a partial profile update (null fields are
+ * skipped server-side). Deliberately excludes `upId`/`type`/`level`: the
+ * controlled model rejects reparenting and type changes, and level is
+ * server-derived - the UI cannot express them (org-management-redesign-web 1.3).
+ */
+export type UpdateOrgBody = Partial<
+  Pick<
+    OrgNode,
+    | 'code'
+    | 'name'
+    | 'shortName'
+    | 'status'
+    | 'provinceCode'
+    | 'cityCode'
+    | 'districtCode'
+    | 'address'
+    | 'contact'
+    | 'phone'
+    | 'email'
+    | 'logoUrl'
+    | 'sort'
+    | 'isDefault'
+  >
+>;
 
-/** Department row (backend org_dep table shape). */
+/**
+ * Department row (backend org_dep table shape). `orgId` MUST reference a live,
+ * enabled campus (org-management-redesign-api) - the same `code` may exist on
+ * different campuses, but is unique within one campus among live rows.
+ */
 export interface OrgDep {
   id: number;
   orgId: number;
   code: string;
   name: string;
+  /** 1 = enabled, 0 = disabled (V16). */
+  status: number;
   createBy: number | null;
   createTime: string;
   updateBy: number | null;
   updateTime: string;
 }
 
+/** POST /system/org-deps body - the owner must be a live, enabled campus. */
 export interface CreateDepBody {
+  /** Owning campus org id (a hospital root or disabled campus is rejected A0400). */
   orgId: number;
   code: string;
   name: string;
+  status?: number;
 }
 
-export type UpdateDepBody = Partial<Pick<OrgDep, 'orgId' | 'code' | 'name'>>;
+/**
+ * PUT /system/org-deps/{id} partial update. Deliberately excludes `code`:
+ * the code is immutable after creation (it routes DICOM/HL7 traffic and is
+ * unique per campus) - the edit dialog cannot send it
+ * (org-management-redesign-web 1.3).
+ */
+export type UpdateDepBody = Partial<Pick<OrgDep, 'orgId' | 'name' | 'status'>>;
+
+/** GET /system/org-deps/page query (the department table's server-side filters). */
+export interface DepPageQuery {
+  /** Absent = all campuses; present = a campus (hospital id is rejected). */
+  orgId?: number;
+  keyword?: string;
+  status?: number;
+  pageNum?: number;
+  pageSize?: number;
+}
 
 /**
  * Role row plus the role's granted menu ids. `menuIds` is not yet promised by
