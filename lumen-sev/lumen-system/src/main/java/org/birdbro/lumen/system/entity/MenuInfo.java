@@ -56,4 +56,7 @@ public class MenuInfo extends EntityBase {
 
     /** Visible flag: 1 = visible (default), 0 = hidden. */
     private Integer visible;
+
+    /** Optional free-text remark. */
+    private String remark;
 }
