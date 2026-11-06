@@ -61,6 +61,14 @@ export default defineConfig(({ mode }) => {
         target: env.VITE_API_ENTRY_URL ?? 'http://localhost:80',
         changeOrigin: true,
       },
+      // Static upload read-back (org-logo-upload-web, spec `web-app-shell` § Unified
+      // API Entry Boundary): /profile/** is the ONE sanctioned segment outside /api/v1
+      // - the SAME unified-entry target serves stored upload paths (org logo tiles)
+      // same-origin. VITE_API_ENTRY_URL retargets it identically.
+      '/profile': {
+        target: env.VITE_API_ENTRY_URL ?? 'http://localhost:80',
+        changeOrigin: true,
+      },
     },
   },
 }

@@ -205,6 +205,24 @@ describe('dep page - filter tree (delta: Department Campus Filter Tree)', () => 
 })
 
 describe('dep page - server-side table (delta: Department Table Management)', () => {
+  it('orders the columns and stacks the name/code cell like organization management', async () => {
+    renderPage()
+    await waitForRow('radiology')
+
+    const headers = Array.from(document.querySelectorAll('.ant-table-thead th'))
+      .map((cell) => cell.textContent)
+      .filter((text): text is string => text !== null)
+    expect(headers).toEqual(['科室', '状态', '院区', '创建人 / 创建时间', '操作'])
+
+    const row = rowOf('radiology')
+    expect(within(row).getByText('放射科')).toBeInTheDocument()
+    expect(within(row).getByText('radiology')).toBeInTheDocument()
+    expect(within(row).getByText('启用')).toHaveClass('ant-tag')
+    expect(within(row).getByText('总院区')).toBeInTheDocument()
+    expect(within(row).getByText('—')).toBeInTheDocument()
+    expect(within(row).getByText('2026-11-06 10:00:00')).toBeInTheDocument()
+  })
+
   it('pager reports the total matched count from the server page', async () => {
     vi.mocked(orgDepsApi.pageDep).mockResolvedValue(
       pageOf([DEP_RADIOLOGY_A, DEP_RADIOLOGY_B], 42),

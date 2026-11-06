@@ -8,6 +8,7 @@ import {
   InputNumber,
   Popconfirm,
   Select,
+  Switch,
   Tag,
   message,
   theme,
@@ -22,11 +23,14 @@ import {
   UserOutlined,
 } from '@ant-design/icons'
 import type { TableColumnsType } from 'antd'
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { createOrg, deleteOrg, orgTree, updateOrg } from '@/api/orgs'
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createOrg, deleteOrg, orgTree, setOrgStatus, updateOrg } from '@/api/orgs'
+import { listCityDicts } from '@/api/dicts'
 import { ApiError } from '@/api/client'
 import type { OrgNode } from '@/api/types'
 import { usePerm } from '@/utils/perm'
+import { RegionSelects } from './region-selects'
+import { LogoUploadField } from './logo-upload'
 import {
   ConsoleAction,
   ConsoleAddButton,
@@ -48,8 +52,8 @@ import {
  * multi-root tree and its 「新建根机构」 affordance are gone (D2: root
  * creation is not a normal action; the backend rejects a second live root).
  * There is no parent selector and no type control anywhere (D2/D3): the
- * create dialog's context line names the owning hospital, and type stays
- * server-derived.
+ * dialogs do not model a hierarchy control: a campus is owned by the single
+ * root hospital, and type stays server-derived.
  *
  * Option B first-run (D7): while the seeded root is still the bootstrap
  * placeholder (`未命名医院` + code `HOSPITAL`), a completion hint shows in the
@@ -60,10 +64,12 @@ import {
  * the card/table reflect the refreshed tree. A-class rejections surface the
  * backend msg and leave the dialog open, the table untouched (delta:
  * Organization rejection surfaces). No mock layer - the typed @/api/orgs
- * client goes through the Vite proxy to the real backend.
+ * client goes through the Vite proxy to the real backend. The campus-table
+ * 地址 cell merges the resolved 地区 label and the detailed address as two
+ * stacked lines (user direction 2026-11-06; shared resolver with the card).
  *
  * Permission gating (D6): the page's documented `system:org:list` gates every
- * mutation affordance - 编辑医院, 新增院区, and the row actions; without it the
+ * mutation affordance - 编辑医院, 新建院区, and the row actions; without it the
  * page is read-only.
  */
 
@@ -126,11 +132,120 @@ function ProfileFact({
         style={{
           lineHeight: '22px',
           overflowWrap: 'anywhere',
+          whiteSpace: 'pre-line',
           color: token.colorText,
         }}
       >
         {value}
       </span>
+    </div>
+  )
+}
+
+/**
+ * Resolves stored division codes into a compact 地区 display label ("省 市 区")
+ * by chaining the same read-only divisions source as the profile cascade
+ * (level-1 provinces, then each node's children by its parent dict id).
+ * Absent codes - and codes unknown to the dict - drop out of the join; no
+ * province code at all resolves to null.
+ */
+async function resolveRegionLabel(codes: {
+  provinceCode: string | null
+  cityCode: string | null
+  districtCode: string | null
+}): Promise<string | null> {
+  const { provinceCode, cityCode, districtCode } = codes
+  if (!provinceCode) return null
+
+  let label: string | null = null
+  const provinces = (await listCityDicts({ level: 1 })) ?? []
+  const province = provinces.find((row) => row.code === provinceCode)
+  if (province) label = province.name
+
+  if (cityCode) {
+    const cityRows = province ? ((await listCityDicts({ upId: province.id })) ?? []) : []
+    const city = cityRows.find((row) => row.code === cityCode)
+    if (city) label = [label, city.name].filter(Boolean).join(' ')
+
+    if (districtCode) {
+      const districtRows = city ? ((await listCityDicts({ upId: city.id })) ?? []) : []
+      const district = districtRows.find((row) => row.code === districtCode)
+      if (district) label = [label, district.name].filter(Boolean).join(' ')
+    }
+  }
+
+  return label
+}
+
+/** Resolves the hospital card's 地区 fact; resets when the stored codes clear. */
+function useRegionLabel(hospital: OrgNode): string | null {
+  const [label, setLabel] = useState<string | null>(null)
+  const { provinceCode, cityCode, districtCode } = hospital
+
+  useEffect(() => {
+    if (!provinceCode) {
+      setLabel(null)
+      return
+    }
+    let cancelled = false
+    void resolveRegionLabel({ provinceCode, cityCode, districtCode }).then((next) => {
+      if (!cancelled) setLabel(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [provinceCode, cityCode, districtCode])
+
+  return label
+}
+
+/**
+ * The campus-table 地址 cell (user direction 2026-11-06: merge the region and
+ * the address into one column, two lines - the same pairing the hospital card
+ * shows). Line 1 the detailed address, line 2 the resolved 地区 label
+ * (meta style); either line drops out when absent and a bare cell renders —.
+ */
+function RegionAddressCell({ org }: { org: OrgNode }) {
+  const { token } = theme.useToken()
+  const [regionLabel, setRegionLabel] = useState<string | null>(null)
+  const { provinceCode, cityCode, districtCode, address } = org
+
+  useEffect(() => {
+    if (!provinceCode) {
+      setRegionLabel(null)
+      return
+    }
+    let cancelled = false
+    void resolveRegionLabel({ provinceCode, cityCode, districtCode }).then((next) => {
+      if (!cancelled) setRegionLabel(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [provinceCode, cityCode, districtCode])
+
+  if (!regionLabel && !address) {
+    return <span style={{ color: token.colorTextTertiary }}>—</span>
+  }
+
+  const ellipsis = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+      {address ? (
+        <span style={{ ...ellipsis, color: token.colorTextSecondary }}>{address}</span>
+      ) : null}
+      {regionLabel ? (
+        <span
+          style={{
+            ...ellipsis,
+            fontSize: token.fontSizeSM,
+            lineHeight: '18px',
+            color: token.colorTextTertiary,
+          }}
+        >
+          {regionLabel}
+        </span>
+      ) : null}
     </div>
   )
 }
@@ -148,6 +263,7 @@ function HospitalProfileCard({
   onEdit: () => void
 }) {
   const { token } = theme.useToken()
+  const regionLabel = useRegionLabel(hospital)
 
   const profileFacts = [
     {
@@ -159,9 +275,6 @@ function HospitalProfileCard({
     ...(hospital.shortName
       ? [{ key: 'shortName', icon: <TagOutlined />, label: '简称', value: hospital.shortName }]
       : []),
-    ...(hospital.address
-      ? [{ key: 'address', icon: <EnvironmentOutlined />, label: '地址', value: hospital.address }]
-      : []),
     ...(hospital.contact
       ? [{ key: 'contact', icon: <UserOutlined />, label: '联系人', value: hospital.contact }]
       : []),
@@ -170,6 +283,14 @@ function HospitalProfileCard({
       : []),
     ...(hospital.email
       ? [{ key: 'email', icon: <MailOutlined />, label: '邮箱', value: hospital.email }]
+      : []),
+    ...(hospital.address || regionLabel
+      ? [{
+          key: 'address',
+          icon: <EnvironmentOutlined />,
+          label: '地址',
+          value: [regionLabel, hospital.address].filter(Boolean).join('\n'),
+        }]
       : []),
   ]
 
@@ -256,17 +377,18 @@ type OrgDialog =
   | { kind: 'edit-campus'; campus: OrgNode }
   | { kind: 'edit-hospital'; hospital: OrgNode }
 
-/** The shared profile fields (delta: Campus Profile Management bullet list). */
+/**
+ * The shared profile fields (delta: Campus Profile Management bullet list).
+ * The region triple is NOT here - divisions are picked, not typed: the 地区
+ * cascade (see RegionSelects) renders before 地址 and submits the same
+ * provinceCode/cityCode/districtCode codes.
+ */
 const PROFILE_FIELDS = [
   { name: 'shortName', label: '机构简称', placeholder: '如 总院 / 东院' },
-  { name: 'provinceCode', label: '省份编码', placeholder: '如 310000' },
-  { name: 'cityCode', label: '城市编码', placeholder: '如 310100' },
-  { name: 'districtCode', label: '区县编码', placeholder: '如 310101' },
   { name: 'address', label: '地址', placeholder: '详细地址' },
   { name: 'contact', label: '联系人', placeholder: '联系人姓名' },
   { name: 'phone', label: '联系电话', placeholder: '如 021-60000000' },
   { name: 'email', label: '邮箱', placeholder: 'name@example.org' },
-  { name: 'logoUrl', label: 'Logo 地址', placeholder: 'https://...' },
 ] as const
 
 interface OrgFormValues {
@@ -289,8 +411,7 @@ export default function OrgsPage() {
   const hasPerm = usePerm()
   const canManage = hasPerm('system:org:list')
   // button-level gating (button-perm-enforcement-web): campus affordances answer to
-  // their own perms strings (the V15 seeded F nodes pinned server-side). 设为默认
-  // has no dedicated F node in the V15 inventory - it stays under the page gate.
+  // their own perms strings (the V15 seeded F nodes pinned server-side).
   const canCreateCampus = canManage && hasPerm('system:org:create')
   const canUpdateOrg = canManage && hasPerm('system:org:update')
   const canDeleteCampus = canManage && hasPerm('system:org:delete')
@@ -306,16 +427,16 @@ export default function OrgsPage() {
   const [form] = Form.useForm<OrgFormValues>()
   const [messageApi, messageHolder] = message.useMessage()
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (name: string = keyword) => {
     setLoading(true)
     try {
-      setNodes(await orgTree())
+      setNodes(await orgTree({ name }))
     } catch (error) {
       messageApi.error(error instanceof ApiError ? error.msg : '机构树加载失败')
     } finally {
       setLoading(false)
     }
-  }, [messageApi])
+  }, [keyword, messageApi])
 
   useEffect(() => {
     void reload()
@@ -325,15 +446,14 @@ export default function OrgsPage() {
   const campuses = useMemo(() => hospital?.children ?? [], [hospital])
 
   const visibleCampuses = useMemo(() => {
-    const needle = keyword.trim().toLowerCase()
-    return campuses.filter((campus) => {
-      if (statusFilter !== null && campus.status !== statusFilter) return false
-      if (!needle) return true
-      return campus.name.toLowerCase().includes(needle) || campus.code.toLowerCase().includes(needle)
-    })
-  }, [campuses, keyword, statusFilter])
+    return campuses.filter((campus) => statusFilter === null || campus.status === statusFilter)
+  }, [campuses, statusFilter])
 
-  const runQuery = () => setKeyword(keywordDraft)
+  const runQuery = () => {
+    // The keyword state drives the mount/query effect; issuing reload here too
+    // would start the identical backend read twice (user report 2026-11-06).
+    setKeyword(keywordDraft)
+  }
 
   const closeDialog = useCallback(() => {
     setDialog(null)
@@ -382,9 +502,11 @@ export default function OrgsPage() {
         name: current.name,
         shortName: current.shortName,
         status: current.status,
-        provinceCode: current.provinceCode,
-        cityCode: current.cityCode,
-        districtCode: current.districtCode,
+        // null → undefined: the region Selects treat undefined as "no choice"
+        // (placeholder) - a Select must never hold the model's null sentinel.
+        provinceCode: current.provinceCode ?? undefined,
+        cityCode: current.cityCode ?? undefined,
+        districtCode: current.districtCode ?? undefined,
         address: current.address,
         contact: current.contact,
         phone: current.phone,
@@ -402,19 +524,30 @@ export default function OrgsPage() {
     // A rejected validateFields() must never escape the drawer footer submit handler.
     const values = await readForm(form)
     if (!values) return
+    // Cleared region selects arrive as undefined, but the backend partial
+    // update skips absent/null fields (MyBatis-Plus NOT-NULL strategy) - the
+    // empty string is the wire form of "clear this column" (Input-era parity).
+    const withRegionClears = {
+      ...values,
+      provinceCode: values.provinceCode ?? '',
+      cityCode: values.cityCode ?? '',
+      districtCode: values.districtCode ?? '',
+    }
     setSaving(true)
     try {
       if (dialog.kind === 'create-campus') {
+        // Absent keys (untouched selects) stay absent - create maps them to
+        // NULL columns; no clear semantics exist on insert.
         await createOrg({ upId: dialog.hospital.id, ...values })
       } else if (dialog.kind === 'edit-campus') {
-        await updateOrg(dialog.campus.id, { ...values, sort: values.sort ?? undefined })
+        await updateOrg(dialog.campus.id, { ...withRegionClears, sort: values.sort ?? undefined })
       } else {
         // The hospital form never carries the default-campus flag - that is
         // campus-only semantics (delta: Campus Profile Management).
-        await updateOrg(dialog.hospital.id, { ...values, sort: values.sort ?? undefined })
+        await updateOrg(dialog.hospital.id, { ...withRegionClears, sort: values.sort ?? undefined })
       }
       closeDialog()
-      await reload()
+      await reload(keyword)
     } catch (error) {
       // A-class failures: the backend msg lands on the floating message and
       // the dialog STAYS OPEN (delta: Organization rejection surfaces).
@@ -422,19 +555,7 @@ export default function OrgsPage() {
     } finally {
       setSaving(false)
     }
-  }, [closeDialog, dialog, form, hospital, messageApi, reload])
-
-  const setDefaultCampus = useCallback(
-    async (campus: OrgNode) => {
-      try {
-        await updateOrg(campus.id, { isDefault: 1 })
-        await reload()
-      } catch (error) {
-        messageApi.error(error instanceof ApiError ? error.msg : '设置默认院区失败')
-      }
-    },
-    [messageApi, reload],
-  )
+  }, [closeDialog, dialog, form, hospital, keyword, messageApi, reload])
 
   const removeCampus = useCallback(
     async (campus: OrgNode) => {
@@ -444,6 +565,23 @@ export default function OrgsPage() {
       } catch (error) {
         messageApi.error(error instanceof ApiError ? error.msg : '删除院区失败')
       }
+    },
+    [messageApi, reload],
+  )
+
+  // The campus status switch mirrors users: optimistic flip, server rollback,
+  // then a reload re-syncs every cell from the tree response.
+  const toggleOrgStatus = useCallback(
+    async (campus: OrgNode, next: 0 | 1) => {
+      setNodes((prev) =>
+        prev.map((row) => (row.id === campus.id ? { ...row, status: next } : row)),
+      )
+      try {
+        await setOrgStatus(campus.id, next)
+      } catch (error) {
+        messageApi.error(error instanceof ApiError ? error.msg : '启用状态更新失败')
+      }
+      await reload()
     },
     [messageApi, reload],
   )
@@ -489,37 +627,25 @@ export default function OrgsPage() {
       dataIndex: 'status',
       width: 90,
       align: 'center',
-      render: (status: number) =>
-        status === 1 ? (
-          <Tag
-            bordered={false}
-            color="blue"
-            style={{ marginInlineEnd: 0, fontSize: token.fontSize }}
-          >
-            启用
-          </Tag>
-        ) : (
-          <Tag
-            bordered={false}
-            style={{
-              marginInlineEnd: 0,
-              fontSize: token.fontSize,
-              color: token.colorTextSecondary,
-              background: token.colorBgContainer,
-              borderColor: token.colorBorder,
-            }}
-          >
-            停用
-          </Tag>
-        ),
+      render: (status: number, row: OrgNode) => (
+        <Switch
+          checked={status === 1}
+          disabled={!canUpdateOrg}
+          aria-label={`启用 ${row.name}`}
+          checkedChildren="✓"
+          unCheckedChildren="✕"
+          onChange={(checked) => void toggleOrgStatus(row, checked ? 1 : 0)}
+        />
+      ),
     },
     {
+      // Merged cell (user direction 2026-11-06): line 1 the resolved 地区
+      // label, line 2 the detailed address - the pairing the hospital card shows.
       title: '地址',
       dataIndex: 'address',
       width: 220,
       ellipsis: true,
-      render: (address: string | null) =>
-        address ? <span style={{ color: token.colorTextSecondary }}>{address}</span> : '—',
+      render: (_: unknown, row: OrgNode) => <RegionAddressCell org={row} />,
     },
     {
       // The org API currently exposes the audit creator as a numeric UID; the
@@ -549,17 +675,10 @@ export default function OrgsPage() {
 
   const dialogTitle =
     dialog?.kind === 'create-campus'
-      ? '新增院区'
+      ? '新建院区'
       : dialog?.kind === 'edit-campus'
         ? '编辑院区'
         : '编辑医院'
-
-  const dialogContext =
-    dialog?.kind === 'create-campus'
-      ? `上级机构:${dialog.hospital.name}`
-      : dialog?.kind === 'edit-campus'
-        ? `机构类型:院区 · ${dialog.campus.name}`
-        : '机构类型:医院(根机构)'
 
   return (
     <div style={{ height: '100%' }}>
@@ -583,7 +702,7 @@ export default function OrgsPage() {
             trailing={
               canCreateCampus && hospital ? (
                 <ConsoleAddButton
-                  label="新增院区"
+                  label="新建院区"
                   onClick={() => openDialog({ kind: 'create-campus', hospital })}
                 />
               ) : undefined
@@ -592,8 +711,8 @@ export default function OrgsPage() {
             <Input
               allowClear
               style={{ width: 200 }}
-              placeholder="院区名称 / 代码"
-              aria-label="院区名称 / 代码"
+              placeholder="院区名称"
+              aria-label="院区名称"
               value={keywordDraft}
               onChange={(event) => setKeywordDraft(event.target.value)}
               onPressEnter={runQuery}
@@ -623,15 +742,6 @@ export default function OrgsPage() {
                 ? {
                     width: ACTION_COLUMN_WIDTH,
                     render: (campus) => [
-                      canUpdateOrg ? (
-                        <ConsoleAction
-                          key="default"
-                          label="设为默认"
-                          icon="star"
-                          disabled={campus.isDefault === 1}
-                          onClick={() => void setDefaultCampus(campus)}
-                        />
-                      ) : null,
                       canUpdateOrg ? (
                         <ConsoleAction
                           key="edit"
@@ -678,9 +788,6 @@ export default function OrgsPage() {
           </div>
         }
       >
-        <p style={{ margin: '0 0 16px', fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
-          {dialogContext}
-        </p>
         <Form<OrgFormValues> form={form} layout="vertical" requiredMark disabled={saving}>
           <Form.Item
             name="code"
@@ -697,10 +804,27 @@ export default function OrgsPage() {
             <Input placeholder="如 总院区" autoComplete="off" />
           </Form.Item>
           {PROFILE_FIELDS.map((field) => (
-            <Form.Item key={field.name} name={field.name} label={field.label}>
-              <Input placeholder={field.placeholder} autoComplete="off" />
-            </Form.Item>
+            <Fragment key={field.name}>
+              {field.name === 'address' ? (
+                // 地区 cascade (OPS org-form parity): one label, three inline
+                // selects fed by the real divisions dict - see RegionSelects.
+                <Form.Item label="地区">
+                  <RegionSelects />
+                </Form.Item>
+              ) : null}
+              <Form.Item name={field.name} label={field.label}>
+                <Input placeholder={field.placeholder} autoComplete="off" />
+              </Form.Item>
+            </Fragment>
           ))}
+          {/* Logo upload (org-logo-upload-web; spec `web-system-console` § Organization
+              Logo Upload Control) - replaces the former `Logo 地址` URL input. The named
+              Form.Item makes LogoUploadField a controlled form control (injected
+              value/onChange): backfill via openDialog and the submit body contract are
+              unchanged - `validateFields` keeps carrying `logoUrl`. */}
+          <Form.Item name="logoUrl" label="Logo" extra="png/jpg/jpeg/webp ≤2MB">
+            <LogoUploadField />
+          </Form.Item>
           <Form.Item name="status" label="状态" initialValue={1}>
             <Select
               aria-label="状态"

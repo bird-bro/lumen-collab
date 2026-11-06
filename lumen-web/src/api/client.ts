@@ -52,6 +52,19 @@ let getToken: () => string | null = () => null;
 let onSessionExpired: () => void = () => undefined;
 
 /**
+ * In-flight coalescing for idempotent reads. React StrictMode intentionally
+ * remounts effects in development, so two identical GETs can start before the
+ * first response arrives. Share that one transport Promise, then forget it:
+ * completed requests are never cached, so refreshes still read fresh data.
+ */
+const GET_REQUESTS_IN_FLIGHT = new Map<string, Promise<unknown>>()
+
+/** Prevents a pre-mutation read from being shared with a post-mutation reader. */
+function clearInFlightGetRequests(): void {
+  GET_REQUESTS_IN_FLIGHT.clear()
+}
+
+/**
  * Wires the store-provided callbacks (module-level no-op defaults before the
  * first call). Each provided key overwrites its slot; omitted keys keep the
  * previously configured one.
@@ -85,30 +98,12 @@ function describeCause(cause: unknown): string {
 }
 
 /**
- * Performs one API call: joins `path` (leading "/", a resource path from the
- * API spec, e.g. "/system/me") onto BASE_PATH, injects the Bearer header,
- * unwraps the envelope. Resolves the typed `data` for code "200", null for
- * "204"; throws `ApiError` for every other code - after firing
- * `onSessionExpired()` when the code is "203".
+ * The shared envelope contract, transport-agnostic (org-logo-upload-web task 1.2
+ * extracted it from `performApiRequest` so the multipart transport semantics stay
+ * identical): body code "200" -> resolve `data`; "204" -> resolve null; "203" fires
+ * `onSessionExpired()` then still throws; any other code throws `ApiError{code,msg}`.
  */
-export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const url = `${BASE_PATH}${path}${options.query ? buildQueryString(options.query) : ''}`;
-
-  const headers: Record<string, string> = {};
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json';
-
-  const init: RequestInit = { method: options.method ?? 'GET', headers };
-  if (options.body !== undefined) init.body = JSON.stringify(options.body);
-
-  let response: Response;
-  try {
-    response = await fetch(url, init);
-  } catch (cause) {
-    throw new ApiError(TRANSPORT_ERROR_CODE, `network failure calling ${path}: ${describeCause(cause)}`);
-  }
-
+async function unwrapEnvelope<T>(response: Response, path: string): Promise<T> {
   let envelope: ApiEnvelope<T>;
   try {
     envelope = (await response.json()) as ApiEnvelope<T>;
@@ -127,4 +122,85 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     throw new ApiError(envelope.code, envelope.msg);
   }
   throw new ApiError(envelope.code, envelope.msg);
+}
+
+/**
+ * Performs one transport call without read coalescing. See `apiRequest` for
+ * the envelope contract.
+ */
+async function performApiRequest<T>(path: string, options: ApiRequestOptions): Promise<T> {
+  const url = `${BASE_PATH}${path}${options.query ? buildQueryString(options.query) : ''}`;
+
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+
+  const init: RequestInit = { method: options.method ?? 'GET', headers };
+  if (options.body !== undefined) init.body = JSON.stringify(options.body);
+
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch (cause) {
+    throw new ApiError(TRANSPORT_ERROR_CODE, `network failure calling ${path}: ${describeCause(cause)}`);
+  }
+
+  return unwrapEnvelope<T>(response, path);
+}
+
+/**
+ * Public request entry: performs the envelope contract above and coalesces
+ * concurrent identical GET calls only. The key includes the token so requests
+ * from different sessions never share a response; removal on settlement keeps
+ * later calls fresh rather than introducing a result cache.
+ */
+export function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const method = options.method ?? 'GET';
+  if (method !== 'GET') {
+    clearInFlightGetRequests();
+    return performApiRequest<T>(path, options);
+  }
+
+  const url = `${BASE_PATH}${path}${options.query ? buildQueryString(options.query) : ''}`;
+  const key = JSON.stringify({ url, token: getToken(), body: options.body ?? null });
+  const pending = GET_REQUESTS_IN_FLIGHT.get(key);
+  if (pending) return pending as Promise<T>;
+
+  const request = performApiRequest<T>(path, options);
+  const tracked = request.finally(() => {
+    if (GET_REQUESTS_IN_FLIGHT.get(key) === tracked) GET_REQUESTS_IN_FLIGHT.delete(key);
+  });
+  GET_REQUESTS_IN_FLIGHT.set(key, tracked);
+  return tracked;
+}
+
+/**
+ * The multipart upload transport (org-logo-upload-web task 1.2; spec `web-app-shell`
+ * § Multipart Upload Transport): wraps ONE `File` in `FormData` under the documented
+ * part name, sends the Bearer header, and deliberately sets NO `Content-Type` - the
+ * browser owns the multipart boundary. Envelope semantics are the shared ones
+ * (`unwrapEnvelope`): only endpoints documented in the api spec may be called through
+ * it - the invented-endpoints rule applies unchanged. Like any mutation it drops the
+ * in-flight GET coalescing so no pre-upload read leaks into a post-upload reader.
+ */
+export async function apiUpload<T>(path: string, file: File, partName = 'file'): Promise<T> {
+  const url = `${BASE_PATH}${path}`;
+
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const body = new FormData();
+  body.append(partName, file);
+
+  let response: Response;
+  try {
+    response = await fetch(url, { method: 'POST', headers, body });
+  } catch (cause) {
+    throw new ApiError(TRANSPORT_ERROR_CODE, `network failure calling ${path}: ${describeCause(cause)}`);
+  }
+
+  clearInFlightGetRequests();
+  return unwrapEnvelope<T>(response, path);
 }

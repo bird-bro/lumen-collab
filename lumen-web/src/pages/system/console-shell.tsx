@@ -29,8 +29,8 @@ import type { ReactNode } from 'react'
  * Table component tokens in `src/theme/tokens.ts` (brief: 不动).
  */
 
-/** Prototype `.tree-panel{flex:0 0 250px}` (org-deps.html). */
-export const CONSOLE_ASIDE_WIDTH = 250
+/** Fixed left console rail width. */
+export const CONSOLE_ASIDE_WIDTH = 360
 
 /** Prototype `.pager{height:60px}` (rev.6: pagination centered, 60px row). */
 const PAGER_HEIGHT = 60
@@ -63,12 +63,12 @@ export function ConsolePanel({ children }: { children: ReactNode }) {
 }
 
 /**
- * Two-zone work area (org-deps.html `.work{display:flex;gap:16px}`): the fixed
- * 250px org-tree aside + the flexible right panel.
+ * Two-zone work area: the fixed
+ * 360px console aside + the flexible right panel with a compact 6px gap.
  */
 export function ConsoleWorkArea({ aside, children }: { aside: ReactNode; children: ReactNode }) {
   return (
-    <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', height: '100%' }}>
+    <div style={{ display: 'flex', gap: 6, alignItems: 'stretch', height: '100%' }}>
       <div style={{ flex: `0 0 ${CONSOLE_ASIDE_WIDTH}px`, width: CONSOLE_ASIDE_WIDTH }}>
         {aside}
       </div>

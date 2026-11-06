@@ -153,4 +153,64 @@ describe('apiRequest - transport client (web-foundation-auth-console 4.1)', () =
     expect(init.method).toBe('GET')
     expect(init.body).toBeUndefined()
   })
+
+  it('10. coalesces concurrent identical GET calls without caching the completed request', async () => {
+    let resolveFetch!: (value: unknown) => void
+    const fetchMock = stubFetch(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve
+        }),
+    )
+
+    const first = apiRequest('/system/me')
+    const second = apiRequest('/system/me')
+    expect(fetchMock.mock.calls).toHaveLength(1)
+
+    resolveFetch(okEnvelope({ name: 'admin' }))
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      { name: 'admin' },
+      { name: 'admin' },
+    ])
+
+    const refresh = apiRequest('/system/me')
+    resolveFetch(okEnvelope({ name: 'admin-2' }))
+    await expect(refresh).resolves.toEqual({ name: 'admin-2' })
+    expect(fetchMock.mock.calls).toHaveLength(2)
+  })
+
+  it('11. coalesces concurrent GET failures and retries only after settlement', async () => {
+    let rejectFetch!: (reason: unknown) => void
+    const fetchMock = stubFetch(
+      () =>
+        new Promise((_, reject) => {
+          rejectFetch = reject
+        }),
+    )
+
+    const first = apiRequest('/system/me')
+    const second = apiRequest('/system/me')
+    expect(fetchMock.mock.calls).toHaveLength(1)
+
+    rejectFetch(new TypeError('Failed to fetch'))
+    await expect(first).rejects.toMatchObject({ code: 'B0001' })
+    await expect(second).rejects.toMatchObject({ code: 'B0001' })
+
+    stubFetch(async () => okEnvelope({ name: 'admin' }))
+    await expect(apiRequest('/system/me')).resolves.toEqual({ name: 'admin' })
+  })
+
+  it('12. does not coalesce GETs with different tokens or mutations', async () => {
+    const fetchMock = stubFetch(async () => okEnvelope(null))
+    configureApiClient({ getToken: () => 't1' })
+    const first = apiRequest('/system/me')
+    configureApiClient({ getToken: () => 't2' })
+    const second = apiRequest('/system/me')
+    await Promise.all([first, second])
+    expect(fetchMock.mock.calls).toHaveLength(2)
+
+    await apiRequest('/system/orgs', { method: 'POST', body: { name: 'a' } })
+    await apiRequest('/system/orgs', { method: 'POST', body: { name: 'a' } })
+    expect(fetchMock.mock.calls).toHaveLength(4)
+  })
 })

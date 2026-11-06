@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { apiUpload, configureApiClient } from '@/api/client'
 import { login, me } from '@/api/auth'
 import { createUser, enableUser, listUsers, resetPassword } from '@/api/users'
 import { createOrg, deleteOrg, orgTree, setOrgStatus, updateOrg } from '@/api/orgs'
@@ -650,5 +651,70 @@ describe('sign-logs client (sign-log-query b4, task 4.1)', () => {
     await listSignLogs({ page: 1, pageSize: 20 })
     const { url } = lastCall(fetchMock)
     expect(url).toBe('/api/v1/system/logs/sign?page=1&pageSize=20')
+  })
+})
+
+describe('multipart upload transport (org-logo-upload-web 1.1)', () => {
+  const PNG = new File([new Uint8Array([137, 80, 78, 71])], 'logo.png', { type: 'image/png' })
+
+  afterEach(() => {
+    // Restore the module-level token/expiry slots the other suites rely on.
+    configureApiClient({ getToken: () => null, onSessionExpired: () => undefined })
+  })
+
+  it('apiUpload posts the FormData part with Bearer and NO Content-Type, unwraps {path}', async () => {
+    configureApiClient({ getToken: () => 'jwt-logo' })
+    const fetchMock = stubOk({ path: '/profile/avatar/2026/11/06/x.png' })
+    const data = await apiUpload<{ path: string }>('/system/common/upload/image', PNG)
+    const { url, init } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/common/upload/image')
+    expect(init.method).toBe('POST')
+    expect(init.body).toBeInstanceOf(FormData)
+    expect((init.body as FormData).get('file')).toBe(PNG)
+    const headers = new Headers(init.headers)
+    expect(headers.get('Authorization')).toBe('Bearer jwt-logo')
+    // The browser must own the multipart boundary - the transport never sets Content-Type.
+    expect(headers.get('Content-Type')).toBeNull()
+    expect(data.path).toBe('/profile/avatar/2026/11/06/x.png')
+  })
+
+  it('apiUpload without a token sends no Authorization header', async () => {
+    const fetchMock = stubOk({ path: '/profile/avatar/x.png' })
+    await apiUpload('/system/common/upload/image', PNG)
+    expect(new Headers(lastCall(fetchMock).init.headers).get('Authorization')).toBeNull()
+  })
+
+  it('shares the JSON transport envelope semantics: 203 fires onSessionExpired then throws', async () => {
+    const onSessionExpired = vi.fn()
+    configureApiClient({ onSessionExpired })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        json: async () => ({ timestamp: '', code: '203', msg: '请先登录', data: null }),
+      })),
+    )
+    await expect(apiUpload('/system/common/upload/image', PNG)).rejects.toMatchObject({ code: '203' })
+    expect(onSessionExpired).toHaveBeenCalledTimes(1)
+  })
+
+  it('shares the JSON transport envelope semantics: A0400 throws ApiError with code+msg', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        json: async () => ({ timestamp: '', code: 'A0400', msg: '仅支持 png/jpg/jpeg/webp 图片', data: null }),
+      })),
+    )
+    await expect(apiUpload('/system/common/upload/image', PNG)).rejects.toMatchObject({
+      code: 'A0400',
+      msg: '仅支持 png/jpg/jpeg/webp 图片',
+    })
+  })
+
+  it('apiRequest JSON regression pin: Content-Type stays application/json with a stringified body', async () => {
+    const fetchMock = stubOk(true)
+    await updateOrg(2, { name: '改名' })
+    const { init } = lastCall(fetchMock)
+    expect(init.body).toBe(JSON.stringify({ name: '改名' }))
+    expect(new Headers(init.headers).get('Content-Type')).toBe('application/json')
   })
 })

@@ -10,8 +10,12 @@ import { apiRequest } from './client';
 import type { CreateOrgBody, OrgNode, UpdateOrgBody } from './types';
 
 /** GET /system/orgs/tree - the controlled hospital/campus tree with profile fields. */
-export function orgTree(): Promise<OrgNode[]> {
-  return apiRequest<OrgNode[]>('/system/orgs/tree', { method: 'GET' });
+export function orgTree(params?: { name?: string }): Promise<OrgNode[]> {
+  const name = params?.name?.trim();
+  return apiRequest<OrgNode[]>('/system/orgs/tree', {
+    method: 'GET',
+    query: name ? { name } : undefined,
+  });
 }
 
 /**
@@ -21,6 +25,11 @@ export function orgTree(): Promise<OrgNode[]> {
  */
 export function createOrg(body: CreateOrgBody): Promise<number> {
   return apiRequest<number>('/system/orgs', { method: 'POST', body });
+}
+
+/** PUT /system/orgs/{id}/status - the explicit lifecycle toggle (0 = disabled, 1 = enabled). */
+export function setOrgStatus(id: number, status: 0 | 1): Promise<boolean> {
+  return apiRequest<boolean>(`/system/orgs/${id}/status`, { method: 'PUT', body: { status } });
 }
 
 /** PUT /system/orgs/{id} - partial profile/status update (null fields skipped server-side). */

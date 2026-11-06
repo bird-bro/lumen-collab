@@ -467,3 +467,13 @@ export type ListSignLogsQuery = {
   uid?: number;
   dateYm?: number;
 };
+
+/**
+ * POST /system/common/upload/image response data (api spec § Common Image
+ * Upload Endpoint): the stored file path, e.g.
+ * `/profile/avatar/2026/11/06/<uuid>.png` - directly usable as an `<img src>`
+ * via the `/profile/**` static read-back segment.
+ */
+export interface UploadedImage {
+  path: string;
+}

@@ -60,6 +60,12 @@ const themeComponents: ThemeConfig['components'] = {
     darkItemSelectedBg: '#3178fc',
     darkItemHoverBg: '#12355C',
   },
+  Tree: {
+    // Selected org rows need a clearly visible light-blue fill (user follow-up:
+    // the default primary tint is too subtle against the white panel).
+    nodeSelectedBg: '#cfe4ff',
+    nodeHoverBg: '#e9f2ff',
+  },
   Table: {
     // Header: the follow-up system's Element-UI el-table chrome (user ruling
     // 2026-11-05: every list header mirrors the el-table thead, background

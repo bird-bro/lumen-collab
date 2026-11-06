@@ -6,6 +6,7 @@
  */
 import { apiRequest } from './client';
 import type {
+  CityDict,
   CreateDictCatalBody,
   CreateDictDetailBody,
   DictCatal,
@@ -66,4 +67,39 @@ export function updateDetail(id: number, body: UpdateDictDetailBody): Promise<bo
 /** DELETE /system/dicts/detail/{id}. */
 export function deleteDetail(id: number): Promise<boolean> {
   return apiRequest<boolean>(`/system/dicts/detail/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * GET /system/dicts/city/list - administrative-divisions reference rows
+ * (spec `system-data` § City Reference Query; READ-ONLY dict, no write path).
+ * Both filters are optional server-side; callers of the region cascade pass
+ * exactly one per request (`level: 1` for provinces, `upId` for one node's
+ * children) and NEVER query bare - an unfiltered call returns all 3751 rows.
+ */
+const CITY_DICT_CACHE = new Map<string, Promise<CityDict[]>>()
+
+/**
+ * `city_dict` is read-only reference data, so identical queries are coalesced
+ * for the session. This keeps stacked region cells (hospital card + campus
+ * rows) from firing the same province/city/district lookup repeatedly. A failed
+ * request is not retained: the next caller retries.
+ */
+function cityDictCacheKey(params: { level?: number; upId?: number }): string {
+  return JSON.stringify({ level: params.level ?? null, upId: params.upId ?? null })
+}
+
+export function listCityDicts(params: { level?: number; upId?: number }): Promise<CityDict[]> {
+  const key = cityDictCacheKey(params)
+  const cached = CITY_DICT_CACHE.get(key)
+  if (cached) return cached
+
+  const request = apiRequest<CityDict[]>('/system/dicts/city/list', {
+    method: 'GET',
+    query: params,
+  }).catch((error: unknown) => {
+    CITY_DICT_CACHE.delete(key)
+    throw error
+  })
+  CITY_DICT_CACHE.set(key, request)
+  return request
 }

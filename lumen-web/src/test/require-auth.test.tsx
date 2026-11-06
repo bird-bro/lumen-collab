@@ -142,7 +142,7 @@ describe('index redirect (web-foundation-auth-console 5.3)', () => {
     })
     renderRoutes('/')
 
-    expect(await screen.findByPlaceholderText('院区名称 / 代码')).toBeInTheDocument()
+    expect(await screen.findByPlaceholderText('院区名称')).toBeInTheDocument()
     const urls = fetchMock.mock.calls.map(([input]) => String(input))
     expect(urls).toContain('/api/v1/system/me')
     expect(urls).toContain('/api/v1/system/orgs/tree')

@@ -1,4 +1,4 @@
-import { Button, Drawer, Form, Input, Popconfirm, Select, message, theme } from 'antd'
+import { Button, Drawer, Form, Input, Popconfirm, Select, Tag, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createDep, deleteDep, pageDep, updateDep } from '@/api/org-deps'
@@ -44,7 +44,7 @@ import { OrgTree } from '../org-tree'
  * without it the tree and table stay readable.
  */
 
-const COLUMN_WIDTHS = { campus: 120, name: 200, code: 180, status: 80, actions: 130 } as const
+const COLUMN_WIDTHS = { campus: 120, name: 220, status: 90, audit: 170, actions: 130 } as const
 
 const PAGE_SIZE = 10
 
@@ -266,25 +266,83 @@ export default function DepsPage() {
 
   const columns: TableColumnsType<OrgDep> = [
     {
-      title: '院区',
-      dataIndex: 'orgId',
-      width: COLUMN_WIDTHS.campus,
-      render: (orgId: number) => orgById.get(orgId)?.name ?? '—',
-    },
-    { title: '科室名称', dataIndex: 'name', width: COLUMN_WIDTHS.name },
-    {
-      title: '科室编码',
-      dataIndex: 'code',
-      width: COLUMN_WIDTHS.code,
-      render: (code: string) => (
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{code}</span>
+      title: '科室',
+      dataIndex: 'name',
+      width: COLUMN_WIDTHS.name,
+      render: (_: unknown, row: OrgDep) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {row.name}
+          </span>
+          <span
+            style={{
+              fontSize: token.fontSizeSM,
+              lineHeight: '18px',
+              color: token.colorTextTertiary,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {row.code}
+          </span>
+        </div>
       ),
     },
     {
       title: '状态',
       dataIndex: 'status',
       width: COLUMN_WIDTHS.status,
-      render: (status: number) => (status === 1 ? '启用' : '停用'),
+      align: 'center',
+      render: (status: number) =>
+        status === 1 ? (
+          <Tag
+            bordered={false}
+            color="blue"
+            style={{ marginInlineEnd: 0, fontSize: token.fontSize }}
+          >
+            启用
+          </Tag>
+        ) : (
+          <Tag
+            bordered={false}
+            style={{
+              marginInlineEnd: 0,
+              fontSize: token.fontSize,
+              color: token.colorTextSecondary,
+              background: token.colorBgContainer,
+              borderColor: token.colorBorder,
+            }}
+          >
+            停用
+          </Tag>
+        ),
+    },
+    {
+      title: '院区',
+      dataIndex: 'orgId',
+      width: COLUMN_WIDTHS.campus,
+      render: (orgId: number) => orgById.get(orgId)?.name ?? '—',
+    },
+    {
+      title: '创建人 / 创建时间',
+      dataIndex: 'createTime',
+      width: COLUMN_WIDTHS.audit,
+      render: (_: unknown, row: OrgDep) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {row.createBy === null ? '—' : `UID ${row.createBy}`}
+          </span>
+          <span
+            style={{
+              fontSize: token.fontSizeSM,
+              lineHeight: '18px',
+              color: token.colorTextTertiary,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {row.createTime}
+          </span>
+        </div>
+      ),
     },
   ]
 
@@ -294,7 +352,6 @@ export default function DepsPage() {
       <OrgTree
         nodes={orgs}
         loading={orgTreeLoading}
-        hint="树只含医院与院区:选中医院查看全部院区的科室,选中院区仅看该院区。"
         selectedOrgId={selectedOrgId}
         onSelect={(node) => {
           setSelectedOrgId(node ? node.id : null)
