@@ -1,4 +1,4 @@
-package org.birdbro.lumen.system.service;
+package org.birdbro.lumen.system.service.support;
 
 import java.util.List;
 import java.util.stream.Collectors;

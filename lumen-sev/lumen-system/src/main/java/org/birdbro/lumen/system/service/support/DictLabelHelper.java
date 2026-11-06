@@ -1,4 +1,4 @@
-package org.birdbro.lumen.system.service;
+package org.birdbro.lumen.system.service.support;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;

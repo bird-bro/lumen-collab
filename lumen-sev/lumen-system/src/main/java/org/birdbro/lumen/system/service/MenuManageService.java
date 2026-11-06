@@ -20,7 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Menu node lifecycle management (menu-management-api): create / update / delete behind
  * the {@code /api/v1/system/menus} family, beside (never inside) the read-side
- * {@link MenuTreeService}. Tree integrity is SERVICE-level - {@code menu_info} has no
+ * {@link org.birdbro.lumen.system.service.support.MenuTreeService}. Tree integrity is
+ * SERVICE-level - {@code menu_info} has no
  * self-FK, so every structural guard reads one live-node map per request (console-scale
  * data; the same map serves parent validation, the cycle walk and delete's child check
  * with zero extra queries).

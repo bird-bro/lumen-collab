@@ -60,7 +60,8 @@ public interface OrgService {
     Boolean delete(Integer id);
 
     /**
-     * The full org tree via the Batch 2 {@link OrgTreeService} assembly: roots are the
+     * The full org tree via the Batch 2 {@link org.birdbro.lumen.system.service.support.OrgTreeService}
+     * assembly: roots are the
      * {@code upId = 0} rows, children nest by {@code upId}, orphans drop.
      *
      * @return the root orgs with their nested children

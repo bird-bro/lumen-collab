@@ -16,7 +16,7 @@ import org.birdbro.lumen.system.entity.OrgInfo;
 import org.birdbro.lumen.system.mapper.OrgDepMapper;
 import org.birdbro.lumen.system.mapper.OrgInfoMapper;
 import org.birdbro.lumen.system.service.OrgService;
-import org.birdbro.lumen.system.service.OrgTreeService;
+import org.birdbro.lumen.system.service.support.OrgTreeService;
 import org.springframework.stereotype.Service;
 
 /**

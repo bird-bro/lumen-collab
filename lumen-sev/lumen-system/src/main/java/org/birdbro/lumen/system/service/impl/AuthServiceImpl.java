@@ -26,7 +26,7 @@ import org.birdbro.lumen.system.mapper.RoleInfoMapper;
 import org.birdbro.lumen.system.mapper.RoleMenuMapper;
 import org.birdbro.lumen.system.mapper.UserInfoMapper;
 import org.birdbro.lumen.system.service.AuthService;
-import org.birdbro.lumen.system.service.MenuTreeService;
+import org.birdbro.lumen.system.service.support.MenuTreeService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 

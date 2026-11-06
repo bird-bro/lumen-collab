@@ -10,7 +10,7 @@ import org.birdbro.common.core.pojo.user.MenuTree;
 import org.birdbro.lumen.system.dto.CreateMenuRequest;
 import org.birdbro.lumen.system.dto.UpdateMenuRequest;
 import org.birdbro.lumen.system.service.MenuManageService;
-import org.birdbro.lumen.system.service.MenuTreeService;
+import org.birdbro.lumen.system.service.support.MenuTreeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;

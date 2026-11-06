@@ -28,6 +28,14 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
   The application class lives in the service root package
   (e.g. `org.birdbro.lumen.system.SystemApplication`); services scan `org.birdbro`
   (OPS `LaunchApplication` habit) so shared beans from `framework`/`common` register.
+- **Service package layout** (user decision 2026-11-06, service-package-tidy): the
+  `service/` top level holds BUSINESS services only - OPS-copied ones stay
+  interface + `impl/` (never move, upstream sync); lumen-new ones are concrete classes
+  (single impl, no ceremony - `MenuManageService` precedent). Stateless collaborators
+  with no HTTP surface of their own (tree assemblers `*TreeService`, dict label/code
+  helpers `*Helper`) live in `service/support/`; `impl/` only holds implementations of a
+  sibling top-level interface. Same-package javadoc `{@link}`s to support classes use the
+  FQN. All service modules follow this.
 - **Module artifact names**: copied modules keep OPS names (`framework`, `common`);
   new modules are `lumen-*`. Department services use each domain's most recognizable
   short name: `lumen-radiology` (radiology), `lumen-us` (ultrasound, DICOM modality US),

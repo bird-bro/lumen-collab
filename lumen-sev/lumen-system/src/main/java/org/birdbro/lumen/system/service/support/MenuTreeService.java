@@ -1,4 +1,4 @@
-package org.birdbro.lumen.system.service;
+package org.birdbro.lumen.system.service.support;
 
 import java.util.ArrayList;
 import java.util.Collection;
