@@ -26,7 +26,7 @@ public class CreateMenuRequest {
     private Integer upId;
 
     @NotBlank(message = "type must not be blank")
-    @Pattern(regexp = "M|C|F", message = "type must be M (directory), C (menu) or F (button)")
+    @Pattern(regexp = "M|C|F|W", message = "type must be M (directory), C (menu), F (button) or W (workstation)")
     @ApiModelProperty("Node type: M directory / C menu / F button")
     private String type;
 
@@ -51,4 +51,7 @@ public class CreateMenuRequest {
 
     @ApiModelProperty("Visible flag: 1 = visible (default), 0 = hidden")
     private Integer visible;
+
+    @ApiModelProperty("Optional free-text remark")
+    private String remark;
 }

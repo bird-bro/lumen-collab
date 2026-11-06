@@ -65,12 +65,14 @@ class AuthMenuManageTests extends AuthIntegrationTestBase {
         long ts = System.currentTimeMillis();
         String title = "ut菜单按钮_" + ts;
         String perms = "ut.menu:delete:" + ts;
+        String remark = "ut菜单备注_" + ts;
 
         // Spec scenario: create a button node under a menu -> id back, tree shows it,
         // admin role's grant contains the node (auto-grant, explicit-grant model).
         ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, MENUS_URL,
                 "{\"upId\":" + ROLE_MENU_PAGE_ID + ",\"type\":\"F\",\"title\":\"" + title
-                        + "\",\"perms\":\"" + perms + "\",\"sort\":9,\"visible\":1}", token);
+                        + "\",\"perms\":\"" + perms + "\",\"sort\":9,\"visible\":1,\"remark\":\""
+                        + remark + "\"}", token);
         assertEquals(200, createResponse.getStatusCodeValue(),
                 "menu create must answer over HTTP 200 (envelope transport)");
         JsonNode createBody = parse(createResponse);
@@ -84,6 +86,7 @@ class AuthMenuManageTests extends AuthIntegrationTestBase {
         assertEquals("F", created.path("type").asText(), "the node must keep its type");
         assertEquals(perms, created.path("perms").asText(), "the perms string must round-trip");
         assertEquals(title, created.path("title").asText(), "the title must round-trip");
+        assertEquals(remark, created.path("remark").asText(), "the remark must round-trip");
 
         Integer grants = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM system.role_menu WHERE role_id = 1 AND menu_id = ? AND deleted = 0",
@@ -222,7 +225,7 @@ class AuthMenuManageTests extends AuthIntegrationTestBase {
         // rename + move: the grant must stay exactly one live row
         ResponseEntity<String> updateResponse = exchangeJson(HttpMethod.PUT, MENUS_URL + "/" + nodeId,
                 "{\"upId\":" + CONFIG_GROUP_ID + ",\"type\":\"C\",\"title\":\"ut改节点改名_"
-                        + ts + "\",\"sort\":3,\"visible\":0}", token);
+                        + ts + "\",\"sort\":3,\"visible\":0,\"remark\":\"ut改备注_" + ts + "\"}", token);
         JsonNode updateBody = parse(updateResponse);
         assertEquals("200", updateBody.path("code").asText(),
                 "the full-field update (rename + move) must succeed: " + updateBody);
@@ -237,6 +240,7 @@ class AuthMenuManageTests extends AuthIntegrationTestBase {
         assertEquals(CONFIG_GROUP_ID, moved.path("upId").asInt(-1), "the move must apply");
         assertEquals("ut改节点改名_" + ts, moved.path("title").asText(), "the rename must apply");
         assertFalse(moved.path("visible").asBoolean(true), "visible=0 must round-trip as hidden");
+        assertEquals("ut改备注_" + ts, moved.path("remark").asText(), "the remark update must apply");
 
         cleanupMenu(nodeId);
     }

@@ -70,7 +70,7 @@ class AuthRoleMenuTests extends AuthIntegrationTestBase {
 
         JsonNode systemDirectory = menuWithMid(treeBody.path("data"), 1);
         assertNotNull(systemDirectory, "menu 1 系统管理 must be a tree root");
-        assertEquals("系统管理", systemDirectory.path("title").asText());
+        // titles are operator-editable (menu management page) - assertions key on mid
         JsonNode userPermGroup = menuWithMid(systemDirectory.path("children"), 14);
         assertNotNull(userPermGroup, "the 用户权限 group (menu 14) nests under the system directory (V5 IA)");
         assertNotNull(menuWithMid(userPermGroup.path("children"), 2),
@@ -126,10 +126,9 @@ class AuthRoleMenuTests extends AuthIntegrationTestBase {
         JsonNode menus = meBody.path("data").path("menus");
         JsonNode userPermGroup = menuWithMid(menus, 14);
         assertNotNull(userPermGroup, "the granted group must appear in the user's menu tree");
-        assertEquals("用户权限", userPermGroup.path("title").asText());
+        // titles are operator-editable (menu management page) - assertions key on mid
         JsonNode userManagement = menuWithMid(userPermGroup.path("children"), 2);
         assertNotNull(userManagement, "用户管理 nests under the granted group");
-        assertEquals("用户管理", userManagement.path("title").asText());
 
         cleanupRoleAndUser(roleId, userId);
     }

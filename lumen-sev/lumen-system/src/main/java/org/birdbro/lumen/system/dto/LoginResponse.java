@@ -31,4 +31,5 @@ public class LoginResponse {
 
     @ApiModelProperty("Button gating permission strings")
     private Set<String> perms;
+
 }

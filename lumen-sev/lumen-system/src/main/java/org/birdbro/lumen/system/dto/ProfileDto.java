@@ -33,4 +33,5 @@ public class ProfileDto {
 
     @ApiModelProperty("Live role names granted through user_role")
     private List<String> roles;
+
 }

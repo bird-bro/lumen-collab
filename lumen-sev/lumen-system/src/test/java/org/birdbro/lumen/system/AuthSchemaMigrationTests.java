@@ -57,8 +57,10 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
                 "must_change_password", "enable", "name"));
         columns.put("role_info", Arrays.asList("name", "type", "remark"));
         columns.put("user_role", Arrays.asList("user_id", "role_id"));
+        // V22 dropped the evolution-added workstation column (the W-node correction);
+        // menu_info is back to the rebuilt-table shape (audit block last)
         columns.put("menu_info", Arrays.asList("up_id", "type", "title", "perms",
-                "path", "component", "icon", "sort", "visible"));
+                "path", "component", "icon", "sort", "visible", "remark"));
         columns.put("role_menu", Arrays.asList("role_id", "menu_id"));
         REQUIRED_COLUMNS = Collections.unmodifiableMap(columns);
 

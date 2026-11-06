@@ -27,4 +27,5 @@ public class MeResponse {
 
     @ApiModelProperty("Button gating permission strings")
     private Set<String> perms;
+
 }
