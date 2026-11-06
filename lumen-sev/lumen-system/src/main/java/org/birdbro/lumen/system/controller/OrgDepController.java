@@ -4,12 +4,15 @@ import java.util.List;
 
 import javax.validation.Valid;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 
 import org.birdbro.common.annotation.Log;
 
 import org.birdbro.lumen.system.dto.CreateOrgDepRequest;
+import org.birdbro.lumen.system.dto.OrgDepPageQuery;
 import org.birdbro.lumen.system.dto.UpdateOrgDepRequest;
 import org.birdbro.lumen.system.entity.OrgDep;
 import org.birdbro.lumen.system.service.OrgDepService;
@@ -84,5 +87,12 @@ public class OrgDepController {
     @GetMapping("/list")
     public List<OrgDep> list(@RequestParam(required = false) Integer orgId) {
         return orgDepService.list(orgId);
+    }
+
+    /** Paginated department table for large hospitals (campus/keyword/status filters). */
+    @ApiOperation("科室分页列表（院区/关键字/状态过滤）")
+    @GetMapping("/page")
+    public IPage<OrgDep> page(OrgDepPageQuery query) {
+        return orgDepService.page(query);
     }
 }

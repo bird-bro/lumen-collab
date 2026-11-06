@@ -2,57 +2,62 @@ package org.birdbro.lumen.system.service;
 
 import java.util.List;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+
 import org.birdbro.lumen.system.dto.CreateOrgDepRequest;
+import org.birdbro.lumen.system.dto.OrgDepPageQuery;
 import org.birdbro.lumen.system.dto.UpdateOrgDepRequest;
 import org.birdbro.lumen.system.entity.OrgDep;
 
 /**
- * OrgDep management (auth-rbac-foundation task 4.2): CRUD on the {@code department}
- * table that anchors medical workflows to the org tree. The {@code orgId} FK is
- * enforced SERVICE-side (explicit {@code A0400} envelope) with the database FK as the
- * backstop; {@code code} is duplicate-checked among live rows.
+ * Campus-scoped department management (org-management-redesign): CRUD on {@code org_dep}
+ * plus the paginated table query. Departments anchor to live, enabled campuses; codes are
+ * immutable and campus-scoped.
  *
  * @author birdbro
  */
 public interface OrgDepService {
 
     /**
-     * Creates a department for a org node: the org must exist (live) or the create is
-     * rejected with {@code A0400}; a duplicate live {@code code} is rejected with
-     * {@code A0712} (the partial unique index stays the backstop).
+     * Creates a department for a live, enabled campus.
      *
-     * @param request org id + stable code + display name
+     * @param request campus id + immutable code + display name + optional status
      * @return the database-generated id of the new row
      */
     Integer create(CreateOrgDepRequest request);
 
     /**
-     * Partial update: re-anchor to another org / change code / rename (null fields
-     * skipped). New values carry the same validations as create; an unknown target id
-     * is rejected with {@code B0031}.
+     * Partially updates a department. The code must match the stored code when present;
+     * the target campus must be live and enabled.
      *
      * @param id      the department to update
      * @param request the fields to change
-     * @return {@code Boolean.TRUE} (envelope {@code "200"}; a void return would fall
-     *         into the copied advice's null branch and render the {@code "204"} code)
+     * @return {@code Boolean.TRUE}
      */
     Boolean update(Integer id, UpdateOrgDepRequest request);
 
     /**
-     * Logical delete - delegated to MyBatis-Plus {@code deleteById}
-     * ({@code @TableLogic} renders {@code UPDATE deleted = 1}).
+     * Logically deletes a department.
      *
      * @param id the department to delete
-     * @return {@code Boolean.TRUE} (see the update note on the envelope code)
+     * @return {@code Boolean.TRUE}
      */
     Boolean delete(Integer id);
 
     /**
-     * Lists live departments, optionally scoped to one org ({@code orgId = null}
-     * lists all). Ordered by id for a stable response.
+     * Legacy list contract: all live departments, or one org's rows when an owner is
+     * supplied.
      *
      * @param orgId the owning org to scope by, or null for all orgs
      * @return the live department rows
      */
     List<OrgDep> list(Integer orgId);
+
+    /**
+     * Paginated department table query with optional campus, keyword, and status filters.
+     *
+     * @param query page and filter parameters
+     * @return the deterministic department page
+     */
+    IPage<OrgDep> page(OrgDepPageQuery query);
 }

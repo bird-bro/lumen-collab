@@ -89,7 +89,7 @@ class AuthUserAgentResilienceTests extends AuthIntegrationTestBase {
         long ts = System.currentTimeMillis();
         ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST,
                 "/api/v1/system/orgs",
-                "{\"upId\":0,\"level\":1,\"type\":0,\"name\":\"UA探针机构_" + ts + "\"}",
+                "{\"upId\":1,\"name\":\"UA探针机构_" + ts + "\"}",
                 "lumen-probe", token); // UNVERSIONED UA - bitwalker still derives a Version
         JsonNode createBody = parse(createResponse);
         assertEquals("200", createBody.path("code").asText(),

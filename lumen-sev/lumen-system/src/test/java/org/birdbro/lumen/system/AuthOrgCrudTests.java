@@ -1,8 +1,5 @@
 package org.birdbro.lumen.system;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -21,18 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Org-tree management proof (auth-rbac-foundation task 4.1): the {@code /api/v1/system/
- * orgs} CRUD + tree endpoints, driven through the real servlet context with the admin
- * token (TestRestTemplate against the RANDOM_PORT server of {@link
- * AuthIntegrationTestBase}).
- *
- * <p>The required scenario is the MULTI-ROOT capability (spec: Hierarchical Org Tree):
- * a second root is just another {@code upId = 0} row, so the tree must hold the seeded
- * hospital root AND the created root side by side, and a child created under the
- * hospital root must nest there (after a rename proves the update path). Shared
- * long-lived database: unique timestamp-suffixed names, logical-delete cleanup.</p>
- *
- * @author birdbro
+ * Controlled organization management proof (org-management-redesign-api): hospital and
+ * campus create/update/delete guards are driven through the real servlet context with the
+ * run-scoped admin token. The shared database keeps the live seeded hospital root, so
+ * these tests exercise controlled campuses and clean up their own fixtures.
  */
 class AuthOrgCrudTests extends AuthIntegrationTestBase {
 
@@ -49,88 +38,115 @@ class AuthOrgCrudTests extends AuthIntegrationTestBase {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void secondRootAppearsAsIndependentTreeRoot() throws Exception {
+    void secondRootIsRejectedAndCampusCannotContainChild() throws Exception {
         String token = adminToken();
         long ts = System.currentTimeMillis();
-        String rootName = "第二根_" + ts; // unique - shared DB
+        int campusId = createCampus("守卫院区_" + ts);
 
-        ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, ORGS_URL,
-                "{\"upId\":0,\"level\":1,\"type\":0,\"name\":\"" + rootName + "\"}", token);
-        assertEquals(200, createResponse.getStatusCodeValue(),
-                "org create must answer over HTTP 200 (envelope transport)");
-        JsonNode createBody = parse(createResponse);
-        assertEquals("200", createBody.path("code").asText(),
-                "the root-org create must succeed: " + createBody);
-        int createdId = createBody.path("data").asInt(-1);
-        assertTrue(createdId > 0, "the created org id must come back (IdType.AUTO backfill)");
+        JsonNode secondRoot = parse(exchangeJson(HttpMethod.POST, ORGS_URL,
+                "{\"upId\":0,\"name\":\"第二根_" + ts + "\"}", token));
+        assertEquals("A0400", secondRoot.path("code").asText(),
+                "a second live hospital root must be rejected: " + secondRoot);
 
-        ResponseEntity<String> treeResponse = exchangeJson(HttpMethod.GET, ORGS_URL + "/tree", null, token);
-        assertEquals(200, treeResponse.getStatusCodeValue());
-        JsonNode treeBody = parse(treeResponse);
-        assertEquals("200", treeBody.path("code").asText(), "the tree query must succeed: " + treeBody);
-        JsonNode roots = treeBody.path("data");
-        assertTrue(roots.isArray(), "the tree data must be the root array");
+        JsonNode nestedOrg = parse(exchangeJson(HttpMethod.POST, ORGS_URL,
+                "{\"upId\":" + campusId + ",\"name\":\"院区子机构_" + ts + "\"}", token));
+        assertEquals("A0400", nestedOrg.path("code").asText(),
+                "a campus must remain a leaf in org_info: " + nestedOrg);
 
-        List<String> rootNames = new ArrayList<>();
-        roots.forEach(root -> rootNames.add(root.path("name").asText()));
-        assertTrue(rootNames.contains("示例医院"),
-                "the seeded hospital root must stay a tree root; roots were " + rootNames);
-        assertTrue(rootNames.contains(rootName),
-                "the new upId=0 row must be an INDEPENDENT second root (multi-root capable); "
-                        + "roots were " + rootNames);
-        assertTrue(rootNames.size() >= 2, "the tree must hold at least the two roots");
-
-        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE id = ?", createdId);
+        softDeleteOrg(campusId);
     }
 
     @Test
-    void childOrgNestsUnderHospitalRootAfterCreateAndRename() throws Exception {
+    void campusLifecycleProfileUpdateAndLevelDerivation() throws Exception {
         String token = adminToken();
         long ts = System.currentTimeMillis();
-        String childName = "二级机构_" + ts; // unique - shared DB
-        String renamedName = "二级机构改名_" + ts;
+        String campusName = "东院区_" + ts;
+        String campusCode = "CAMPUS_T_" + ts;
+        String updatedName = "东院区改名_" + ts;
 
         ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, ORGS_URL,
-                "{\"upId\":1,\"type\":1,\"name\":\"" + childName + "\"}", token);
+                "{\"upId\":1,\"level\":9,\"type\":7,\"name\":\"" + campusName
+                        + "\",\"code\":\"" + campusCode + "\",\"shortName\":\"东院\",\"sort\":2}", token);
         JsonNode createBody = parse(createResponse);
         assertEquals("200", createBody.path("code").asText(),
-                "the child create (upId = 1, level omitted) must succeed: " + createBody);
-        int createdId = createBody.path("data").asInt(-1);
-        assertTrue(createdId > 0, "the created child id must come back");
+                "the hospital may create a campus: " + createBody);
+        int campusId = createBody.path("data").asInt(-1);
+        assertTrue(campusId > 0, "the created campus id must come back");
 
-        ResponseEntity<String> renameResponse = exchangeJson(HttpMethod.PUT, ORGS_URL + "/" + createdId,
-                "{\"name\":\"" + renamedName + "\"}", token);
-        JsonNode renameBody = parse(renameResponse);
-        assertEquals("200", renameBody.path("code").asText(),
-                "the rename (partial update) must succeed: " + renameBody);
+        JsonNode tree = tree(token);
+        JsonNode hospital = rootWithName(tree.path("data"), "未命名医院");
+        assertNotNull(hospital, "the single hospital root must be in the tree");
+        JsonNode campus = nodeWithId(hospital.path("children"), campusId);
+        assertNotNull(campus, "the created campus must nest under the hospital");
+        assertEquals(1, campus.path("type").asInt(-1), "campus type is server-derived");
+        assertEquals(2, campus.path("level").asInt(-1), "campus level is server-derived");
+        assertEquals(campusCode, campus.path("code").asText());
 
-        ResponseEntity<String> treeResponse = exchangeJson(HttpMethod.GET, ORGS_URL + "/tree", null, token);
-        JsonNode treeBody = parse(treeResponse);
-        assertEquals("200", treeBody.path("code").asText(), "the tree query must succeed: " + treeBody);
+        JsonNode update = parse(exchangeJson(HttpMethod.PUT, ORGS_URL + "/" + campusId,
+                "{\"name\":\"" + updatedName + "\",\"shortName\":\"东院新\",\"status\":0}", token));
+        assertEquals("200", update.path("code").asText(),
+                "the campus profile must update: " + update);
 
-        JsonNode hospitalRoot = rootWithName(treeBody.path("data"), "示例医院");
-        assertNotNull(hospitalRoot, "the seeded hospital root must be present in the tree");
-        List<String> childNames = new ArrayList<>();
-        hospitalRoot.path("children").forEach(child -> childNames.add(child.path("name").asText()));
-        assertTrue(childNames.contains(renamedName),
-                "the created child must nest under the hospital root with the renamed title; "
-                        + "children were " + childNames);
+        JsonNode changedType = parse(exchangeJson(HttpMethod.PUT, ORGS_URL + "/" + campusId,
+                "{\"type\":0}", token));
+        assertEquals("A0400", changedType.path("code").asText(),
+                "organization type must be immutable: " + changedType);
+        JsonNode reparent = parse(exchangeJson(HttpMethod.PUT, ORGS_URL + "/" + campusId,
+                "{\"upId\":0}", token));
+        assertEquals("A0400", reparent.path("code").asText(),
+                "reparenting must be rejected: " + reparent);
 
-        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE id = ?", createdId);
+        softDeleteOrg(campusId);
     }
 
     @Test
-    void createOrgUnderUnknownParentRejectedWithA0400() throws Exception {
+    void organizationDeleteIsGuardedByLiveDependents() throws Exception {
         String token = adminToken();
         long ts = System.currentTimeMillis();
+        int campusId = createCampus("占用院区_" + ts);
 
-        ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, ORGS_URL,
-                "{\"upId\":987654321,\"name\":\"孤儿机构_" + ts + "\"}", token);
-        assertEquals(200, createResponse.getStatusCodeValue());
-        JsonNode createBody = parse(createResponse);
-        assertEquals("A0400", createBody.path("code").asText(),
-                "a non-existent parent org must be rejected service-side (org_info has no "
-                        + "self-FK, tree integrity is service-level): " + createBody);
+        JsonNode rootDelete = parse(exchangeJson(HttpMethod.DELETE, ORGS_URL + "/1", null, token));
+        assertEquals("A0400", rootDelete.path("code").asText(),
+                "a hospital with live campuses cannot be deleted: " + rootDelete);
+
+        String code = "dep_guard_" + ts;
+        int depId = createDepartment(campusId, code, "占用科室_" + ts);
+        JsonNode campusDelete = parse(exchangeJson(HttpMethod.DELETE, ORGS_URL + "/" + campusId,
+                null, token));
+        assertEquals("A0400", campusDelete.path("code").asText(),
+                "a campus with live departments cannot be deleted: " + campusDelete);
+
+        jdbcTemplate.update("UPDATE system.org_dep SET deleted = 1 WHERE id = ?", depId);
+        softDeleteOrg(campusId);
+    }
+
+    private int createCampus(String name) throws Exception {
+        String token = adminToken();
+        ResponseEntity<String> response = exchangeJson(HttpMethod.POST, ORGS_URL,
+                "{\"upId\":1,\"name\":\"" + name + "\"}", token);
+        JsonNode body = parse(response);
+        assertEquals("200", body.path("code").asText(), "campus fixture create must succeed: " + body);
+        return body.path("data").asInt(-1);
+    }
+
+    private int createDepartment(int campusId, String code, String name) throws Exception {
+        String token = adminToken();
+        ResponseEntity<String> response = exchangeJson(HttpMethod.POST, "/api/v1/system/org-deps",
+                "{\"orgId\":" + campusId + ",\"code\":\"" + code + "\",\"name\":\"" + name + "\"}", token);
+        JsonNode body = parse(response);
+        assertEquals("200", body.path("code").asText(), "department fixture create must succeed: " + body);
+        return body.path("data").asInt(-1);
+    }
+
+    private JsonNode tree(String token) throws Exception {
+        ResponseEntity<String> response = exchangeJson(HttpMethod.GET, ORGS_URL + "/tree", null, token);
+        JsonNode body = parse(response);
+        assertEquals("200", body.path("code").asText(), "the org tree query must succeed: " + body);
+        return body;
+    }
+
+    private void softDeleteOrg(int id) {
+        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE id = ?", id);
     }
 
     private String adminToken() throws Exception {
@@ -151,7 +167,7 @@ class AuthOrgCrudTests extends AuthIntegrationTestBase {
     private ResponseEntity<String> exchangeJson(HttpMethod method, String url, String json, String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + token); // Constants.TOKEN_PREFIX
+        headers.set("Authorization", "Bearer " + token);
         return restTemplate.exchange(url, method, new HttpEntity<>(json, headers), String.class);
     }
 
@@ -166,6 +182,18 @@ class AuthOrgCrudTests extends AuthIntegrationTestBase {
         for (JsonNode root : roots) {
             if (name.equals(root.path("name").asText())) {
                 return root;
+            }
+        }
+        return null;
+    }
+
+    private static JsonNode nodeWithId(JsonNode nodes, int id) {
+        if (!nodes.isArray()) {
+            return null;
+        }
+        for (JsonNode node : nodes) {
+            if (node.path("id").asInt(-1) == id) {
+                return node;
             }
         }
         return null;

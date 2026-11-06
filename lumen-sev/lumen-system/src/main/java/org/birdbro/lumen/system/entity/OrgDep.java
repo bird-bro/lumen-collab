@@ -11,11 +11,10 @@ import lombok.NoArgsConstructor;
 import org.birdbro.common.core.base.EntityBase;
 
 /**
- * OrgDep ({@code department}, auth-rbac-foundation task 2.3, design D2): medical
- * workflows anchor to the org tree through {@code orgId}, keeping medical attributes
- * out of the org tree. {@code code} (radiology / us / endo) is the stable identifier
- * lumen-integration routes DICOM/HL7 by - unique among live rows (partial unique index,
- * so a logically deleted department does not block re-creating its code).
+ * OrgDep ({@code org_dep}, org-management-redesign): a medical department anchored to a
+ * live, enabled campus. {@code code} remains the stable integration identifier and is
+ * immutable after creation; it is unique within the owning campus among live rows and may
+ * repeat across campuses.
  *
  * @author birdbro
  */
@@ -27,16 +26,19 @@ import org.birdbro.common.core.base.EntityBase;
 @EqualsAndHashCode(callSuper = true)
 public class OrgDep extends EntityBase {
 
-    /** Primary key, database auto-increment (design D1). */
+    /** Primary key, database auto-increment. */
     @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
 
-    /** Owning org-tree node (FK org_info.id). */
+    /** Owning campus (org_info.id, type = 1). */
     private Integer orgId;
 
-    /** Stable department code (radiology/us/endo), unique among live rows. */
+    /** Stable department code (radiology/us/endo...), immutable after creation. */
     private String code;
 
     /** Display name. */
     private String name;
+
+    /** Lifecycle status: 1 = enabled, 0 = disabled. */
+    private Integer status;
 }

@@ -15,9 +15,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Schema proof for the seven-table system schema (auth-rbac-foundation task 2.1): after
- * Flyway applies {@code V1__auth_schema.sql} to the team test server's {@code system}
- * schema, {@code information_schema} must hold the seven tables with the binding DDL
+ * Schema proof for the system schema after the controlled hospital/campus migration:
+ * Flyway must reach {@code information_schema} must hold the seven tables with the binding DDL
  * columns, the EntityBase audit block in its exact order, the logical-delete
  * partial-unique indexes, and the foreign keys exactly where the binding design puts
  * them (org_info deliberately carries NO self-FK - root rows use {@code up_id = 0}).
@@ -50,8 +49,10 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
 
     static {
         Map<String, List<String>> columns = new LinkedHashMap<>();
-        columns.put("org_info", Arrays.asList("up_id", "level", "type", "name"));
-        columns.put("org_dep", Arrays.asList("org_id", "code", "name"));
+        columns.put("org_info", Arrays.asList("up_id", "level", "type", "name", "code", "short_name",
+                "status", "province_code", "city_code", "district_code", "address", "contact",
+                "phone", "email", "logo_url", "sort", "is_default"));
+        columns.put("org_dep", Arrays.asList("org_id", "code", "name", "status"));
         columns.put("user_info", Arrays.asList("username", "password",
                 "must_change_password", "enable", "name"));
         columns.put("role_info", Arrays.asList("name", "type", "remark"));
@@ -62,7 +63,9 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
         REQUIRED_COLUMNS = Collections.unmodifiableMap(columns);
 
         Map<String, String> indexes = new LinkedHashMap<>();
-        indexes.put("uk_org_dep_code", "code");
+        indexes.put("uk_org_info_up_code", "up_id, code");
+        indexes.put("uk_org_info_default_campus", "up_id, is_default");
+        indexes.put("uk_org_dep_org_code", "org_id, code");
         indexes.put("uk_user_info_username", "username");
         indexes.put("uk_role_info_name", "name");
         indexes.put("uk_user_role_user_role", "user_id, role_id");

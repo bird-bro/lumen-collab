@@ -178,8 +178,9 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
         OrgInfo child = new OrgInfo();
         child.setUpId(1); // the seeded hospital root
         child.setLevel(2);
-        child.setType(0);
+        child.setType(1); // a raw mapper smoke row still models the v1 campus child
         child.setName(childName);
+        child.setCode("UT-SMOKE-" + System.currentTimeMillis());
         assertEquals(1, orgInfoMapper.insert(child), "child org insert must affect one row");
 
         List<OrgInfo> tree = orgTreeService.orgTree();
@@ -188,7 +189,7 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
                 .findFirst()
                 .orElse(null);
         assertNotNull(root, "the seeded hospital root (id 1, up_id 0) must be a tree root");
-        assertEquals("示例医院", root.getName());
+        assertEquals("未命名医院", root.getName());
         assertNotNull(root.getChildren(), "the root must nest the inserted child");
         assertTrue(root.getChildren().stream()
                         .anyMatch(org -> child.getId().equals(org.getId())),

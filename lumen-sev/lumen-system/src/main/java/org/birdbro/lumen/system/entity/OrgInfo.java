@@ -14,15 +14,14 @@ import lombok.NoArgsConstructor;
 import org.birdbro.common.core.base.EntityBase;
 
 /**
- * Org-tree node ({@code org_info}, auth-rbac-foundation task 2.3, design D2): hospital
- * roots and their sub-orgs form the hierarchical org tree. {@code upId = 0} marks a
- * root (the {@code TreeUtils} rootParentValue convention); the schema deliberately
- * carries NO self-FK - tree integrity is service-level ({@code OrgTreeService}).
+ * Controlled org-tree node ({@code org_info}, org-management-redesign): one hospital
+ * root plus campus children. {@code upId = 0} marks the hospital root (the
+ * {@code TreeUtils} rootParentValue convention); the schema deliberately carries no
+ * self-FK - tree integrity is service-level ({@code OrgService}).
  *
  * <p>Extends the copied {@link EntityBase} ({@code deleted}/{@code createBy}/
  * {@code createTime}/{@code updateBy}/{@code updateTime}) - audit fields are NOT
- * redeclared. The entity itself is the tree node: {@code children} is a query-time
- * field only ({@code exist = false}).</p>
+ * redeclared. {@code children} is a query-time field only ({@code exist = false}).</p>
  *
  * @author birdbro
  */
@@ -34,23 +33,62 @@ import org.birdbro.common.core.base.EntityBase;
 @EqualsAndHashCode(callSuper = true)
 public class OrgInfo extends EntityBase {
 
-    /** Primary key, database auto-increment (design D1). */
+    /** Primary key, database auto-increment. */
     @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
 
-    /** Parent org id: 0 = root (TreeUtils rootParentValue convention). */
+    /** Parent org id: 0 = hospital root (TreeUtils rootParentValue convention). */
     private Integer upId;
 
-    /** Depth in the org tree: the hospital root sits at level 1. */
+    /** Depth in the controlled tree: the hospital root sits at level 1. */
     private Integer level;
 
-    /** Org type (lumen-owned): 0 = hospital root. */
+    /** Org type: 0 = hospital root, 1 = campus. */
     private Integer type;
+
+    /** Stable organization code, unique among live sibling org nodes. */
+    private String code;
 
     /** Display name. */
     private String name;
 
-    /** Children in the assembled tree - NOT a column (org_info has no self-FK). */
+    /** Abbreviated display name. */
+    private String shortName;
+
+    /** Lifecycle status: 1 = enabled, 0 = disabled. */
+    private Integer status;
+
+    /** Province administrative-division code. */
+    private String provinceCode;
+
+    /** City administrative-division code. */
+    private String cityCode;
+
+    /** District administrative-division code. */
+    private String districtCode;
+
+    /** Street address. */
+    private String address;
+
+    /** Contact person. */
+    private String contact;
+
+    /** Contact phone. */
+    private String phone;
+
+    /** Contact email. */
+    private String email;
+
+    /** Optional logo URL (no upload endpoint in this change). */
+    private String logoUrl;
+
+    /** Console display order. */
+    private Integer sort;
+
+    /** Marks the migrated default campus; {@code 1 = default}. */
+    private Integer isDefault;
+
+    /** Campuses in the assembled tree - NOT a column (org_info has no self-FK). */
     @TableField(exist = false)
     private List<OrgInfo> children;
 }

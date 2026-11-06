@@ -1,25 +1,32 @@
 package org.birdbro.lumen.system.dto;
 
+import javax.validation.constraints.Size;
+
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 /**
  * Update-department request body ({@code PUT /api/v1/system/org-deps/{id}},
- * auth-rbac-foundation task 4.2): partial update - every field optional, {@code null}
- * skipped by the MyBatis-Plus NOT-NULL update strategy. A new {@code orgId}
- * re-anchors the department (validated to exist); a new {@code code} is duplicate-checked.
+ * org-management-redesign): a partial update with every legacy field optional. A present
+ * {@code code} must equal the stored code; the department code is immutable. A new
+ * {@code orgId} re-anchors the department to another live, enabled campus.
  *
  * @author birdbro
  */
 @Data
 public class UpdateOrgDepRequest {
 
-    @ApiModelProperty("New owning org id (validated to exist)")
+    @ApiModelProperty("New owning campus org id")
     private Integer orgId;
 
-    @ApiModelProperty("New stable code (duplicate-checked among live rows)")
+    @Size(max = 32, message = "code must not exceed 32 characters")
+    @ApiModelProperty("Immutable department code; must match the stored value when present")
     private String code;
 
-    @ApiModelProperty("New display name")
+    @Size(max = 128, message = "name must not exceed 128 characters")
+    @ApiModelProperty("Display name")
     private String name;
+
+    @ApiModelProperty("Lifecycle status: 1 = enabled, 0 = disabled")
+    private Integer status;
 }

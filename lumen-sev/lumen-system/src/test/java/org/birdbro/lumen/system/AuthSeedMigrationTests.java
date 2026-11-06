@@ -40,32 +40,61 @@ class AuthSeedMigrationTests extends AuthIntegrationTestBase {
     @Test
     void hospitalRootOrgSeeded() {
         Map<String, Object> root = jdbcTemplate.queryForMap(
-                "SELECT up_id, level, type, name FROM system.org_info WHERE id = 1");
+                "SELECT up_id, level, type, name, code, status FROM system.org_info WHERE id = 1");
         assertEquals(0, ((Number) root.get("up_id")).intValue(),
                 "the hospital root uses up_id = 0 (TreeUtils rootParentValue convention)");
         assertEquals(1, ((Number) root.get("level")).intValue(),
                 "the hospital root sits at level 1");
         assertEquals(0, ((Number) root.get("type")).intValue(),
                 "the hospital root carries type 0 (lumen-owned hospital-root type)");
-        assertEquals("示例医院", root.get("name"),
-                "hospital root display name");
+        assertEquals("未命名医院", root.get("name"),
+                "the first-run hospital profile uses the Option B placeholder name");
+        assertEquals("HOSPITAL", root.get("code"),
+                "the first-run hospital uses the deterministic bootstrap code");
+        assertEquals(1, ((Number) root.get("status")).intValue(),
+                "the first-run hospital is enabled");
+
+        Map<String, Object> campus = jdbcTemplate.queryForMap(
+                "SELECT id, up_id, level, type, name, code, status, is_default "
+                + "FROM system.org_info WHERE up_id = 1 AND deleted = 0 AND is_default = 1");
+        assertEquals(1, ((Number) campus.get("up_id")).intValue(),
+                "the default campus belongs to the hospital");
+        assertEquals(2, ((Number) campus.get("level")).intValue(),
+                "the default campus sits at level 2");
+        assertEquals(1, ((Number) campus.get("type")).intValue(),
+                "the default campus carries the campus type");
+        assertEquals("总院区", campus.get("name"),
+                "the default campus uses the Option B placeholder name");
+        assertEquals(1, ((Number) campus.get("status")).intValue(),
+                "the default campus is enabled");
+        assertEquals(1, ((Number) campus.get("is_default")).intValue(),
+                "the bootstrap campus is marked default");
     }
 
     @Test
-    void threeDepartmentsSeededUnderTheRoot() {
+    void threeDepartmentsSeededUnderTheDefaultCampus() {
         String[][] codeAndName = {
                 {"radiology", "放射科"},
                 {"us", "超声科"},
                 {"endo", "内镜科"}};
+        Integer campusId = defaultCampusId();
         for (String[] department : codeAndName) {
             Map<String, Object> row = jdbcTemplate.queryForMap(
-                    "SELECT org_id, name FROM system.org_dep "
+                    "SELECT org_id, name, status FROM system.org_dep "
                     + "WHERE code = ? AND deleted = 0", department[0]);
-            assertEquals(1, ((Number) row.get("org_id")).intValue(),
-                    "department " + department[0] + " must anchor to the hospital root");
+            assertEquals(campusId.intValue(), ((Number) row.get("org_id")).intValue(),
+                    "department " + department[0] + " must anchor to the default campus");
             assertEquals(department[1], row.get("name"),
                     "department " + department[0] + " display name");
+            assertEquals(1, ((Number) row.get("status")).intValue(),
+                    "the migrated department is enabled");
         }
+    }
+
+    private Integer defaultCampusId() {
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM system.org_info WHERE up_id = 1 AND deleted = 0 "
+                + "AND is_default = 1 ORDER BY id LIMIT 1", Integer.class);
     }
 
     @Test

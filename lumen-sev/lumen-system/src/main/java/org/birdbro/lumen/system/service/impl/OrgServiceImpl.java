@@ -1,33 +1,34 @@
 package org.birdbro.lumen.system.service.impl;
 
 import java.util.List;
+import java.util.UUID;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+
 import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
+import org.birdbro.common.utils.GadgetUtils;
 import org.birdbro.lumen.system.dto.CreateOrgRequest;
 import org.birdbro.lumen.system.dto.UpdateOrgRequest;
+import org.birdbro.lumen.system.entity.OrgDep;
 import org.birdbro.lumen.system.entity.OrgInfo;
+import org.birdbro.lumen.system.mapper.OrgDepMapper;
 import org.birdbro.lumen.system.mapper.OrgInfoMapper;
 import org.birdbro.lumen.system.service.OrgService;
 import org.birdbro.lumen.system.service.OrgTreeService;
 import org.springframework.stereotype.Service;
 
 /**
- * Org management implementation (auth-rbac-foundation task 4.1). The tree integrity
- * checks live here because {@code org_info} has NO self-FK (design D2): a non-root
- * {@code upId} is verified against a live parent before the row is written - otherwise
- * the API could silently plant an orphan the {@code TreeUtils} assembly would drop.
+ * Controlled hospital/campus management (org-management-redesign). Tree integrity and
+ * product-level invariants live here because {@code org_info} has no self-FK: only one
+ * hospital root may exist, campuses may be created only under that root, and a campus is
+ * a leaf. The old request fields remain accepted for compatibility, but type and level
+ * are server-derived.
  *
- * <p>Error-code mapping (recorded decision): a referenced-but-missing PARENT at
- * create/re-parent time is a request-parameter error ({@code A0400}, the request asked
- * for an impossible placement); an update on a row that is no longer live is
- * {@code B0031} (数据更新失败，记录可能已被删除). Logical delete is a bare
- * {@code deleteById} - {@code @TableLogic} makes it {@code UPDATE deleted = 1}.</p>
- *
- * <p>The audit identity ({@code create_by}/{@code update_by}) is NOT set here on
- * purpose: the copied {@code MetaObjectConfig} fill owns it, fed by the framework
- * {@code UserHeaderBridgeFilter} from the JWT principal.</p>
+ * <p>Error-code mapping: invalid structure or a referenced-but-missing parent is
+ * {@code A0400}; an update on a no-longer-live row is {@code B0031}. Logical delete is
+ * delegated to MyBatis-Plus and guarded by live dependents.</p>
  *
  * @author birdbro
  */
@@ -35,61 +36,121 @@ import org.springframework.stereotype.Service;
 public class OrgServiceImpl implements OrgService {
 
     private static final int ROOT_PARENT_ID = 0;
+    private static final int ORG_TYPE_HOSPITAL = 0;
+    private static final int ORG_TYPE_CAMPUS = 1;
+    private static final int ORG_STATUS_ENABLED = 1;
+    private static final int ORG_STATUS_DISABLED = 0;
+    private static final int ROOT_LEVEL = 1;
+    private static final int CAMPUS_LEVEL = 2;
 
     private final OrgInfoMapper orgInfoMapper;
+    private final OrgDepMapper orgDepMapper;
     private final OrgTreeService orgTreeService;
 
-    public OrgServiceImpl(OrgInfoMapper orgInfoMapper, OrgTreeService orgTreeService) {
+    public OrgServiceImpl(OrgInfoMapper orgInfoMapper,
+                          OrgDepMapper orgDepMapper,
+                          OrgTreeService orgTreeService) {
         this.orgInfoMapper = orgInfoMapper;
+        this.orgDepMapper = orgDepMapper;
         this.orgTreeService = orgTreeService;
     }
 
     @Override
     public Integer create(CreateOrgRequest request) {
         Integer upId = request.getUpId();
-        Integer level = request.getLevel();
-        if (upId == null || upId == ROOT_PARENT_ID) {
-            if (level == null) {
-                level = 1; // a root sits at level 1
-            }
-        } else {
-            OrgInfo parent = requireLiveOrg(upId, "parent org does not exist");
-            if (level == null) {
-                level = parent.getLevel() + 1; // one deeper than the parent
-            }
-        }
+        boolean root = upId == null || upId == ROOT_PARENT_ID;
+        validateStatus(request.getStatus());
 
         OrgInfo org = new OrgInfo();
         BeanUtil.copyProperties(request, org, true);
-        org.setLevel(level); // derived above (root/parent defaulting), not the raw request value
+        if (GadgetUtils.isNotEmpty(request.getCode())) {
+            org.setCode(request.getCode().trim());
+            rejectDuplicateOrgCode(org.getCode(), upId, null);
+        } else {
+            org.setCode(generateCode(root ? "HOSPITAL" : "CAMPUS"));
+        }
+
+        if (root) {
+            if (countLiveRoots() > 0) {
+                throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                        "a live hospital root already exists");
+            }
+            org.setUpId(ROOT_PARENT_ID);
+            org.setType(ORG_TYPE_HOSPITAL);
+            org.setLevel(ROOT_LEVEL);
+        } else {
+            OrgInfo parent = requireLiveOrg(upId, "parent org does not exist");
+            if (parent.getType() == null || parent.getType() != ORG_TYPE_HOSPITAL) {
+                throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                        "a campus can only be created under the hospital root");
+            }
+            org.setUpId(parent.getId());
+            org.setType(ORG_TYPE_CAMPUS);
+            org.setLevel(CAMPUS_LEVEL);
+        }
+
+        if (org.getStatus() == null) {
+            org.setStatus(ORG_STATUS_ENABLED);
+        }
+        if (org.getSort() == null) {
+            org.setSort(0);
+        }
+        org.setIsDefault(0);
         orgInfoMapper.insert(org);
         return org.getId();
     }
 
     @Override
     public Boolean update(Integer id, UpdateOrgRequest request) {
-        requireLiveOrg(id, "org does not exist");
+        OrgInfo current = requireLiveOrg(id, "org does not exist");
+        validateStatus(request.getStatus());
 
-        Integer upId = request.getUpId();
-        if (upId != null && upId != ROOT_PARENT_ID) {
-            if (upId.equals(id)) {
+        if (request.getUpId() != null && !request.getUpId().equals(current.getUpId())) {
+            throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                    "organization parent cannot be changed");
+        }
+        if (request.getType() != null && !request.getType().equals(current.getType())) {
+            throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                    "organization type cannot be changed");
+        }
+        if (request.getCode() != null) {
+            String nextCode = request.getCode().trim();
+            if (GadgetUtils.isEmpty(nextCode)) {
                 throw new BusinessException(ExceptionEnum.ERROR_A0400,
-                        "a org cannot be re-parented under itself");
+                        "organization code must not be blank");
             }
-            requireLiveOrg(upId, "new parent org does not exist");
+            rejectDuplicateOrgCode(nextCode, current.getUpId(), id);
         }
 
-        // Null fields are skipped by the MyBatis-Plus NOT-NULL update strategy, so the
-        // request is a true partial update.
+        // Null fields are skipped by the MyBatis-Plus NOT-NULL update strategy, so this
+        // remains a true partial update. Level is intentionally not client-controlled.
         OrgInfo patch = new OrgInfo();
         BeanUtil.copyProperties(request, patch, true);
-        patch.setId(id); // path param, not a request field
+        patch.setId(id);
+        patch.setLevel(null);
+        if (patch.getCode() != null) {
+            patch.setCode(patch.getCode().trim());
+        }
         orgInfoMapper.updateById(patch);
         return Boolean.TRUE;
     }
 
     @Override
     public Boolean delete(Integer id) {
+        requireLiveOrg(id, "org does not exist");
+        Long childCount = orgInfoMapper.selectCount(
+                new LambdaQueryWrapper<OrgInfo>().eq(OrgInfo::getUpId, id));
+        if (childCount != null && childCount > 0) {
+            throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                    "organization still has live child campuses");
+        }
+        Long departmentCount = orgDepMapper.selectCount(
+                new LambdaQueryWrapper<OrgDep>().eq(OrgDep::getOrgId, id));
+        if (departmentCount != null && departmentCount > 0) {
+            throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                    "organization still has live departments");
+        }
+
         // @TableLogic turns this into UPDATE deleted = 1 (EntityBase contract).
         orgInfoMapper.deleteById(id);
         return Boolean.TRUE;
@@ -100,11 +161,11 @@ public class OrgServiceImpl implements OrgService {
         return orgTreeService.orgTree();
     }
 
-    /**
-     * Loads a live org or rejects with {@code A0400} (a missing referenced org is a
-     * bad request, not a server fault). {@code @TableLogic} appends {@code deleted = 0},
-     * so a logically deleted org counts as missing.
-     */
+    private Long countLiveRoots() {
+        return orgInfoMapper.selectCount(
+                new LambdaQueryWrapper<OrgInfo>().eq(OrgInfo::getUpId, ROOT_PARENT_ID));
+    }
+
     private OrgInfo requireLiveOrg(Integer id, String detail) {
         OrgInfo org = orgInfoMapper.selectById(id);
         if (org == null) {
@@ -112,5 +173,33 @@ public class OrgServiceImpl implements OrgService {
                     detail + ": org id " + id);
         }
         return org;
+    }
+
+    private void rejectDuplicateOrgCode(String code, Integer upId, Integer excludeId) {
+        LambdaQueryWrapper<OrgInfo> wrapper = new LambdaQueryWrapper<OrgInfo>()
+                .eq(OrgInfo::getCode, code)
+                .eq(OrgInfo::getUpId, upId == null ? ROOT_PARENT_ID : upId);
+        if (excludeId != null) {
+            wrapper.ne(OrgInfo::getId, excludeId);
+        }
+        if (orgInfoMapper.selectCount(wrapper) > 0) {
+            throw new BusinessException(ExceptionEnum.ERROR_A0712,
+                    "organization code already exists: " + code);
+        }
+    }
+
+    private String generateCode(String prefix) {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 20);
+        return prefix + "-" + suffix;
+    }
+
+    private void validateStatus(Integer status) {
+        if (status == null) {
+            return;
+        }
+        if (status != ORG_STATUS_ENABLED && status != ORG_STATUS_DISABLED) {
+            throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                    "status must be 1 (enabled) or 0 (disabled)");
+        }
     }
 }
