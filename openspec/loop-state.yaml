@@ -22,6 +22,11 @@
 # slot (cross-stack menu-management with menu-management-web, coordination doc
 # openspec/coordination/menu-management.md; Inline mode, 11 tasks; user waited out the
 # sign-log-query slot before apply).
+# 2026-11-06: org-management-redesign-api archived OUT OF BAND (never held this slot -
+# implementation was done and verified in a parallel root session; specs synced via
+# openspec-sync-specs, so archive ran --skip-specs). verify.md PASS_WITH_ISSUES 26/27;
+# the one PARTIAL (fresh-DB replay) waived by user ruling, carry-over list in
+# openspec/coordination/org-management-redesign.md.
 phase: archived
 change: button-perm-enforcement-api
 current_task: null

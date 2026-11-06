@@ -137,9 +137,24 @@ is contract-tightening plus one additive department page endpoint:
 
 | Stack | Change | Status | Verify |
 |:--|:--|:--|:--|
-| backend | org-management-redesign-api | proposing | - |
+| backend | org-management-redesign-api | **archived 2026-11-06** | PASS_WITH_ISSUES 26/27 (verify.md) |
 | frontend | org-management-redesign-web | proposing | - |
 
 ## Gate
 
 Feature done = ALL registered changes verify PASS -> archive each.
+
+## Carry-over (backend archived 2026-11-06, unresolved here)
+
+1. **Fresh-DB replay proof** - the one verify PARTIAL. Needs an isolated PostgreSQL to
+   replay V1->V18 clean; the shared server cannot (V3/V4/V13 write `public.*` reference
+   tables directly). Acceptance of the waiver was the user's ruling at archive time.
+2. **V17/V18 hand-copied column lists** - a future migration adding an `org_info`/
+   `org_dep` column must update both rebuild scripts or a fresh database silently drops
+   it. This is exactly what the replay in item 1 would catch. Recorded in commit
+   a6dcd72's body.
+3. **`org_info_v17_pkey` / `org_dep_v18_pkey`** - ALTER TABLE RENAME leaves the temp
+   name on the primary-key index. Cosmetic; fold into the next V19+ touching these
+   tables.
+4. **Shared-DB org residue** - ~250 soft-deleted test rows in `org_info`; the
+   residue sweep (1dc6c37) does not cover org tables yet.
