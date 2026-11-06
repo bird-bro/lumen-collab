@@ -195,6 +195,32 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
                         .anyMatch(org -> child.getId().equals(org.getId())),
                 "the inserted child must nest under the root via up_id");
 
+        // Name-only campus filtering keeps the hospital root and narrows only the
+        // children; the generated code must not be treated as a search needle.
+        List<OrgInfo> filtered = orgTreeService.orgTree(childName);
+        OrgInfo filteredRoot = filtered.stream()
+                .filter(org -> Integer.valueOf(1).equals(org.getId()))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(filteredRoot, "the name filter must keep the hospital root");
+        assertTrue(filteredRoot.getChildren().stream()
+                        .anyMatch(org -> child.getId().equals(org.getId())),
+                "the exact campus-name match must survive the filter");
+        assertTrue(filteredRoot.getChildren().stream()
+                        .allMatch(org -> org.getName().toLowerCase().contains(childName)),
+                "the name filter must narrow only campus-name matches");
+
+        List<OrgInfo> codeFiltered = orgTreeService.orgTree(child.getCode());
+        OrgInfo codeFilteredRoot = codeFiltered.stream()
+                .filter(org -> Integer.valueOf(1).equals(org.getId()))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(codeFilteredRoot, "the hospital root stays visible for the profile card");
+        List<OrgInfo> codeFilteredChildren = codeFilteredRoot.getChildren();
+        assertTrue(codeFilteredChildren == null || codeFilteredChildren.stream()
+                        .noneMatch(org -> child.getId().equals(org.getId())),
+                "campus code must not be a search field");
+
         orgInfoMapper.deleteById(child.getId()); // logical cleanup - shared DB
         assertNull(orgInfoMapper.selectById(child.getId()), "cleanup must hide the child");
     }

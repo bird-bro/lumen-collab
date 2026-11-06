@@ -1,6 +1,7 @@
 package org.birdbro.lumen.system.service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.birdbro.common.utils.TreeUtils;
 import org.birdbro.lumen.system.entity.OrgInfo;
@@ -34,7 +35,36 @@ public class OrgTreeService {
      * @return the root orgs with their nested children
      */
     public List<OrgInfo> orgTree() {
-        return build(orgInfoMapper.selectList(null));
+        return orgTree(null);
+    }
+
+    /**
+     * Loads and assembles the tree, then optionally narrows each root's campus
+     * children by display name. The root remains present for the hospital card;
+     * a campus code is deliberately not searchable.
+     *
+     * @param name optional case-insensitive campus-name substring
+     * @return the root orgs with their (optionally filtered) children
+     */
+    public List<OrgInfo> orgTree(String name) {
+        List<OrgInfo> tree = build(orgInfoMapper.selectList(null));
+        if (name == null || name.isBlank()) {
+            return tree;
+        }
+
+        String needle = name.trim().toLowerCase();
+        for (OrgInfo root : tree) {
+            List<OrgInfo> children = root.getChildren();
+            if (children == null) {
+                continue;
+            }
+            List<OrgInfo> matchingChildren = children.stream()
+                    .filter(campus -> campus.getName() != null
+                            && campus.getName().toLowerCase().contains(needle))
+                    .collect(Collectors.toList());
+            root.setChildren(matchingChildren.isEmpty() ? null : matchingChildren);
+        }
+        return tree;
     }
 
     /**
