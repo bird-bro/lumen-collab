@@ -26,7 +26,8 @@ remains, and the page route is added.
 controlled hospital/campus model. `GET /tree` SHALL return the hospital root and campuses
 with profile fields. `POST` SHALL create only a bootstrap hospital root or a campus under
 that hospital. `PUT` SHALL update profile fields and status only. `DELETE` SHALL be guarded
-by live dependents. The family remains gated by `system:org:list`.
+by live dependents. Reads are gated by `system:org:list`; the write verbs additionally
+require their `system:org:*` button perms.
 
 #### Scenario: Controlled tree query
 
@@ -150,3 +151,24 @@ the same campus but MAY repeat across campuses.
 - **WHEN** campuses A and B each have a department with code `radiology`
 - **THEN** both departments persist
 - **AND** querying each campus returns only its own department
+
+### Requirement: Department Logical Delete
+
+`DELETE /api/v1/system/org-deps/{id}` SHALL soft-delete the department and return success in
+the standard envelope; the row SHALL never be physically removed. It SHALL disappear from
+both read shapes, and because code uniqueness is scoped to live rows the freed code SHALL
+become reusable on the same campus. The endpoint requires the `system:dep:delete` button
+perm.
+
+#### Scenario: Delete hides the department and keeps the row
+
+- **WHEN** an authorized client deletes a department
+- **THEN** the envelope returns `code: "200"` with `data: true`
+- **AND** the row persists with `deleted = 1` (the EntityBase logical-delete contract)
+- **AND** neither `/list` nor `/page` returns the department afterwards
+
+#### Scenario: A deleted department's code is reusable
+
+- **WHEN** a client creates a new department with the same code on the same campus after the
+  original was deleted
+- **THEN** the create succeeds

@@ -164,6 +164,53 @@ class AuthOrgDepTests extends AuthIntegrationTestBase {
         softDeleteOrg(campusB);
     }
 
+    /**
+     * Delete semantics for the department family (org-management-redesign-api spec follow-up):
+     * {@code DELETE /org-deps/{id}} soft-deletes, disappears from both read shapes, and frees
+     * the campus-scoped code for reuse. Until now only the reverse direction had HTTP proof (the
+     * button-perm matrix denying the call without {@code system:dep:delete}); the suite's own
+     * cleanup reached for raw JDBC instead, which asserted nothing about the endpoint.
+     */
+    @Test
+    void departmentDeleteSoftDeletesHidesItFromBothReadsAndFreesTheCode() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusId = createCampus("科室删除院区_" + ts);
+        String code = "dep_delete_" + ts;
+        int depId = createDepartment(campusId, code, "待删除科室");
+
+        JsonNode beforeList = parse(exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/list?orgId=" + campusId, null, token));
+        assertNotNull(departmentWithCode(beforeList.path("data"), code),
+                "the fixture department must be listed before deletion");
+
+        JsonNode deleteBody = parse(exchangeJson(HttpMethod.DELETE,
+                ORG_DEPS_URL + "/" + depId, null, token));
+        assertEquals("200", deleteBody.path("code").asText(),
+                "the department delete must succeed: " + deleteBody);
+        assertTrue(deleteBody.path("data").asBoolean(), "the envelope must confirm the delete");
+
+        JsonNode afterList = parse(exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/list?orgId=" + campusId, null, token));
+        assertTrue(departmentWithCode(afterList.path("data"), code) == null,
+                "a deleted department must leave the list: " + afterList.path("data"));
+        JsonNode paged = parse(exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/page?pageNum=1&pageSize=100&keyword=" + code, null, token));
+        assertEquals(0, paged.path("data").path("total").asLong(-1),
+                "a deleted department must leave the page query too");
+
+        int stored = jdbcTemplate.queryForObject(
+                "SELECT deleted FROM system.org_dep WHERE id = ?", Integer.class, depId);
+        assertEquals(1, stored, "the row must be soft-deleted, never removed");
+
+        // Uniqueness is scoped to LIVE rows, so the code becomes reusable on the same campus.
+        int revivedId = createDepartment(campusId, code, "复用编码新科室");
+        assertTrue(revivedId > 0, "the freed code must be reusable within the same campus");
+
+        softDeleteDepartment(revivedId);
+        softDeleteOrg(campusId);
+    }
+
     private int defaultCampusId() {
         Integer id = jdbcTemplate.queryForObject(
                 "SELECT id FROM system.org_info WHERE up_id = 1 AND deleted = 0 "
