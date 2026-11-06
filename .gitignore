@@ -30,3 +30,6 @@ lumen-sev/lumen-system/src/main/resources/application-dev.yml
 # so runtime logs need this explicit repo rule instead.
 lumen-sev/logs/
 lumen-sev/*/logs/
+
+# Smoke-test runtime artifacts (lumen-system upload.home writes)
+lumen-sev/upload/

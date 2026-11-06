@@ -223,6 +223,20 @@ and parent SHALL not be edited in the form.
 - **WHEN** an administrator marks a different campus as the default campus
 - **THEN** the hospital has exactly one default campus after refresh
 
+<!-- synced from: org-status-toggle-web 2026-11-06 -->
+
+### Requirement: Organization Status Switch Uses Status Endpoint
+
+The organization campus table SHALL render status as a switch consistent with user
+management. Toggling the switch SHALL call `PUT /api/v1/system/orgs/{id}/status` with
+`status: 0` or `status: 1`, then refresh the organization tree.
+
+#### Scenario: Campus status toggle
+
+- **WHEN** an administrator flips an enabled campus switch off
+- **THEN** the client calls the dedicated status endpoint with `status: 0`
+- **AND** the refreshed tree determines the switch state
+
 ### Requirement: Department Campus Filter Tree
 
 The department page SHALL render a left hospital/campus tree as a filter. The tree SHALL
@@ -303,7 +317,6 @@ code SHALL remain unchanged.
 - **THEN** the backend rejection message appears on the code field
 - **AND** the dialog remains open
 
-
 <!-- synced from: button-perm-enforcement-web 2026-11-06 -->
 
 ### Requirement: Button-Level Affordance Gating
@@ -333,7 +346,6 @@ queries) carry no gated affordances.
 - **THEN** no action column renders (the page surface itself is route-gated by the
   page perm; the server remains authoritative either way)
 
-
 <!-- synced from: workstation-context-web 2026-11-06 - W-node model (user ruling
      2026-11-06: workstation = menu tree node type W, granted through roles; the
      per-user assignment requirement drafted in this change was dropped before
@@ -351,3 +363,42 @@ access flows through roles — the roles-page 菜单授权 tree covers W nodes).
 - **WHEN** an administrator creates an L1 node with the 工作站 type
 - **THEN** the node renders with the 工作站 type tag in the tree
 - **AND** no workstation assignment affordance exists in 用户管理
+
+<!-- synced from: org-logo-upload-web 2026-11-06 -->
+### Requirement: Organization Logo Upload Control
+
+The organization profile dialogs (hospital + campus) SHALL bind the logo field to an
+image upload control backed by `POST /api/v1/system/common/upload/image` (api spec §
+Common Image Upload Endpoint): an AntD picture-card Upload, one image, validated
+client-side (png/jpg/jpeg/webp, ≤2MB) BEFORE any request, with the successful
+response's `data.path` stored as the form's `logoUrl` value (the org-save contract is
+unchanged — still the `logoUrl` field of the org create/update body). The control
+SHOULD render the current value as the tile image; a legacy absolute `http(s)`
+value displays as-is, a stored relative `/profile/...` value resolves through the
+static read-back segment. The former `Logo 地址` URL text input SHALL NOT remain.
+
+#### Scenario: Upload round-trip fills the form value
+
+- **WHEN** an administrator picks a valid 1MB png in the logo tile and the upload
+  succeeds
+- **THEN** `uploadImage` was called exactly once and the form's `logoUrl` equals the
+  returned `data.path`
+- **AND** saving the dialog submits that path in the org body (existing endpoint)
+
+#### Scenario: Client-side validation rejects before any request
+
+- **WHEN** the picked file is a `.gif` (or >2MB)
+- **THEN** the rejection message surfaces and no network request is made
+
+#### Scenario: Existing logo renders as the tile image
+
+- **WHEN** the dialog opens for an org whose `logoUrl` is `/profile/avatar/.../x.png`
+- **THEN** the tile shows that image (resolved same-origin via the static segment)
+- **AND** an absolute `https://...` legacy value still renders as-is
+
+#### Scenario: Upload failure keeps the dialog usable
+
+- **WHEN** the upload request fails (backend `A0400` or transport `B0001`)
+- **THEN** the error message surfaces on the page
+- **AND** the previously stored `logoUrl` value is unchanged and the dialog stays
+  open for retry

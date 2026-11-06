@@ -6,6 +6,7 @@ typed API client seam, the dev-server boundary to the gateway, and the design-to
 rules that later page changes build on.
 
 ## Requirements
+
 ### Requirement: Production Build Integrity
 The web application SHALL build successfully with TypeScript strict mode enabled. Strict
 violations MUST be fixed, not suppressed, and the codebase MUST NOT weaken `strict` or add
@@ -81,22 +82,35 @@ entity IDs typed as strings. No endpoint path MAY be declared until it exists in
 - **AND** the missing contract is raised through a proposal rather than guessed at
 
 ### Requirement: Unified API Entry Boundary
-All backend requests SHALL go to the `/api/v1` base path. In development the dev server SHALL
-proxy `/api/v1` to the platform's unified API entry (nginx, port 80 in the hospital form) as
-recorded in `openspec/coordination/init-project-skeleton.md`. Frontend code MUST NOT address
-an individual service host or port.
+
+All backend requests SHALL go to the `/api/v1` base path. In development the dev
+server SHALL proxy `/api/v1` to the platform's unified API entry (nginx, port 80 in
+the hospital form) as recorded in `openspec/coordination/init-project-skeleton.md`.
+Frontend code MUST NOT address an individual service host or port. The ONE sanctioned
+segment outside `/api/v1` is the static upload read-back tree `/profile/**` (api spec
+§ Gateway Path Convention): the dev server SHALL proxy it to the same unified-entry
+target so stored upload paths resolve as same-origin `<img src>` in every dev form.
 
 #### Scenario: Dev-server request path
+
 - **WHEN** the dev server handles a request to `/api/v1/<anything>`
 - **THEN** it proxies the request to the unified API entry on its allocated port
 - **AND** no per-service port is targeted
 
+<!-- synced from: org-logo-upload-web 2026-11-06 (scenario inside "Unified API Entry Boundary") -->
+#### Scenario: Static read-back path
+
+- **WHEN** the dev server handles a request to `/profile/<anything>` (an `<img>`
+  resolving a stored upload path, e.g. the org logo)
+- **THEN** the same proxy entry target is used as for `/api/v1`
+- **AND** the direct-service preview override (`VITE_API_ENTRY_URL`) retargets it
+  identically
+
 #### Scenario: Service host appears in source
+
 - **WHEN** a source file hard-codes a backend service host or port
 - **THEN** the unified-entry boundary is violated
 - **AND** the call must be routed through the `/api/v1` base path instead
-
-<!-- synced from: web-foundation-auth-console 2026-11-05 -->
 
 ### Requirement: Design Token Theming
 Visual styling SHALL be driven by Ant Design 5 theme tokens carrying the single
@@ -173,7 +187,6 @@ the network layer, and the page SHALL be identifiable as a demo.
   layer
 - **AND** it is identifiable as a demo (not presented as backend-backed data)
 
-
 <!-- synced from: workstation-context-web 2026-11-06 - REVISED: stations derive from
      the granted tree's type-W nodes (the per-user grant machinery was torn down by
      workstation-w-nodes-api; see archive/workstation-context-web + workstation-w-nodes-api) -->
@@ -220,3 +233,34 @@ FIRST granted W node. Display rule (user spec 2026-11-06):
 - **WHEN** the user selects a workstation node whose subtree carries no leaf route
 - **THEN** the active station changes WITHOUT navigating (navigating to the index
   route would blank the page)
+
+<!-- synced from: org-logo-upload-web 2026-11-06 -->
+### Requirement: Multipart Upload Transport
+
+The client seam SHALL provide an additive multipart transport (`apiUpload`) beside
+the JSON `apiRequest`: it wraps one `File` in `FormData` (part name per the endpoint
+contract), sends the Bearer header, sets NO `Content-Type` (the browser's multipart
+boundary), and unwraps the same envelope — code `"200"` resolves `data`, `"204"`
+resolves null, `"203"` fires `onSessionExpired()` then throws, any other code throws
+`ApiError{code, msg}`. Only endpoints documented in the api spec MAY be called
+through it (the invented-endpoints rule applies unchanged).
+
+#### Scenario: Upload call shape
+
+- **WHEN** a client calls `apiUpload('/system/common/upload/image', file)`
+- **THEN** the request is a POST with a `FormData` body carrying the file under the
+  documented part name and an `Authorization: Bearer` header
+- **AND** no `Content-Type` header is set by the transport (browser sets the boundary)
+
+#### Scenario: Envelope semantics are shared
+
+- **WHEN** an upload response arrives with envelope codes `200` / `204` / `203` /
+  any `A`/`B` class
+- **THEN** the transport resolves/throws exactly as the JSON transport does for the
+  same code (including the `"203"` session-expiry callback)
+
+#### Scenario: No invented upload paths
+
+- **WHEN** a page needs to upload a file the api spec does not define
+- **THEN** no upload path is invented in `src/api/`
+- **AND** the missing contract is raised through a proposal (unchanged seam rule)

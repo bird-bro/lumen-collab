@@ -25,8 +25,8 @@ human-readable description. Base URL: `/api/v1`.
   describes the failure
 - **AND** `data` is null
 
-
 <!-- synced from: auth-rbac-foundation 2026-11-03 -->
+
 ### Requirement: Endpoint Documentation
 Each endpoint MUST be documented as a Requirement with WHEN/THEN scenarios. Add new
 Requirements for each resource. All endpoints live under `/api/v1/<service>/**` and respond
@@ -36,21 +36,33 @@ with the standard envelope (string `code`).
 - **WHEN** a client requests `GET /api/v1/[resource]`
 - **THEN** returns `code: "200"` with the typed payload in `data`
 
+<!-- synced from: org-logo-upload-api 2026-11-06 (adds the /profile/** static read-back segment) -->
 ### Requirement: Gateway Path Convention
+
 All endpoints MUST be exposed through the platform's unified API entry (nginx in the
 hospital form; Spring Cloud Gateway optional in the cloud form) under
 `/api/v1/<service>/**` (e.g. `/api/v1/patient/patients`,
-`/api/v1/radiology/exam-orders`). Individual services MUST NOT be called directly by the
-frontend.
+`/api/v1/radiology/exam-orders`). Individual services MUST NOT be called directly by
+the frontend. Uploaded static files are the ONE sanctioned segment outside
+`/api/v1`: the `/profile/**` tree is served by the owning service (v1: lumen-system)
+as anonymous GET read-back for uploaded files, and both the unified entry and the dev
+proxy MUST route it to the same owning service (coordination: org-logo-upload D7).
 
 #### Scenario: Service routing
-- **WHEN** the unified-entry routing contract is inspected (deployment config arrives with
-  the deferred `docker/` change; the frontend arrives with `init-web-skeleton`)
-- **THEN** every documented endpoint path lives under `/api/v1/<service>/**`
-- **AND** no contract, code, or config routes the frontend directly to a backend service
-  port
 
-<!-- synced from: auth-rbac-foundation 2026-11-03 -->
+- **WHEN** the unified-entry routing contract is inspected (deployment config arrives
+  with the deferred `docker/` change; the frontend arrives with `init-web-skeleton`)
+- **THEN** every documented endpoint path lives under `/api/v1/<service>/**`
+- **AND** no contract, code, or config routes the frontend directly to a backend
+  service port
+
+#### Scenario: Static read-back segment
+
+- **WHEN** a client GETs a stored upload path such as `/profile/avatar/2026/11/06/uuid.png`
+- **THEN** the owning service (v1: lumen-system) serves the file bytes anonymously —
+  no Authorization header, no envelope, direct `image/*` response
+- **AND** writes under `/profile/**` are not possible (read-only static mapping)
+
 ### Requirement: ID Serialization
 Entity IDs SHALL be Integer auto-increment (user decision 2026-11-02, OPS/随访 lineage; the
 former snowflake-bigint clause is withdrawn together with the data capability's delta in
@@ -61,6 +73,7 @@ this change). IDs SHALL serialize as JSON numbers.
 - **THEN** the JSON value is the Integer number `1`, never a string
 
 <!-- synced from: rename-auth-to-system 2026-11-04 -->
+
 ### Requirement: Authentication Endpoints
 `lumen-system` SHALL document and expose the auth endpoints as the platform's first concrete
 endpoints: `POST /api/v1/system/login` (credentials → JWT + profile) and
@@ -104,7 +117,6 @@ envelope. (Implemented surface - documentation sync of shipped `lumen-system` co
 #### Scenario: Password reset and enable toggle
 - **WHEN** an authenticated client calls the password-reset or enable endpoint for a user id
 - **THEN** it returns `code: "200"` and the mutation persists
-
 
 <!-- synced from: org-management-redesign-api 2026-11-06 (replaces "Org Tree Endpoints") -->
 
@@ -155,6 +167,28 @@ require their `system:org:*` button perms.
 - **AND** the organization and its dependents remain live
 
 <!-- synced from: org-management-redesign-api 2026-11-06 -->
+
+<!-- synced from: org-status-toggle-api 2026-11-06 -->
+
+### Requirement: Organization Status Toggle Endpoint
+
+`lumen-system` SHALL expose `PUT /api/v1/system/orgs/{id}/status` to set a live
+organization's lifecycle status. The request body SHALL contain `status` equal to `0`
+or `1`; any other value SHALL be rejected without mutation. The endpoint SHALL require
+the existing `system:org:update` authority and return a standard success envelope with
+`data: true`.
+
+#### Scenario: Valid status toggle
+
+- **WHEN** an authorized client sends `{"status":0}` to an existing organization
+- **THEN** the response is a standard `200` envelope with `data: true`
+- **AND** the organization status is persisted as `0`
+
+#### Scenario: Invalid status body
+
+- **WHEN** a client omits `status` or sends a value other than `0` or `1`
+- **THEN** the request is rejected
+- **AND** the stored organization status is unchanged
 
 ### Requirement: Existing Department List Compatibility
 
@@ -271,7 +305,6 @@ perm.
   original was deleted
 - **THEN** the create succeeds
 
-
 <!-- synced from: web-foundation-auth-console 2026-11-05 -->
 
 ### Requirement: Role Management Endpoints
@@ -298,7 +331,6 @@ scenario. (The other verbs are the implemented surface - documentation sync.)
 - **THEN** it returns `code: "200"` with the role payload in `data`
 - **AND** until the backend implements it, the dev mock serves this contract
 
-
 <!-- synced from: web-foundation-auth-console 2026-11-05 -->
 
 ### Requirement: Menu Tree Endpoint
@@ -308,7 +340,6 @@ hierarchy with each node's `perms` strings. (Implemented surface - documentation
 #### Scenario: Menu tree query
 - **WHEN** an authenticated client requests `GET /api/v1/system/menus/tree`
 - **THEN** it returns `code: "200"` with the directory/menu/button hierarchy and `perms` strings
-
 
 <!-- synced from: menu-management-api 2026-11-06 -->
 
@@ -368,7 +399,6 @@ login/me menu payloads are unchanged.
 - **THEN** the response is an `A`-class business error with a descriptive `msg`
 - **AND** the node and its children remain live
 
-
 <!-- synced from: workstation-w-nodes-api 2026-11-06 - REPLACES the per-user
      workstation-grant requirement (removed by the W-node correction; see
      archive/workstation-w-nodes-api delta) -->
@@ -398,3 +428,45 @@ The menu create/update validation SHALL accept the `W` type.
 - **WHEN** a client calls `PUT /api/v1/system/users/{id}/workstations`
 - **THEN** the endpoint does not exist (404)
 - **AND** `user_workstation` no longer exists as a table
+
+<!-- synced from: org-logo-upload-api 2026-11-06 -->
+### Requirement: Common Image Upload Endpoint
+
+lumen-system SHALL expose `POST /api/v1/system/common/upload/image` as the common
+image transport (OPS `CommonController.uploadImage` 1:1; coordination org-logo-upload
+D1–D5): authenticated callers only (no business permission bound — D3), one
+`file` multipart part, stored server-side under the configured upload root, answered
+with the standard envelope whose `data` is `{ "path": <stored path> }`. The endpoint is
+transport-only: it records nothing in any table (logo is a 1:1 column value; the
+sys_attach bookkeeping layer is a recorded future direction, D2).
+
+#### Scenario: Upload succeeds
+
+- **WHEN** an authenticated caller POSTs a valid image (≤2MB) as the `file` part
+- **THEN** the envelope answers `{ "code": "200", "msg": ..., "data": { "path": "/profile/avatar/<yyyy/MM/dd>/<uuid>.<ext>" } }`
+- **AND** the bytes exist on disk under `${upload.home}` at that relative path
+
+#### Scenario: Invalid image is rejected with A0400
+
+- **WHEN** the posted file's extension is outside `png/jpg/jpeg/webp`, exceeds 2MB,
+  or is empty
+- **THEN** the envelope answers with code `A0400` and a descriptive msg
+- **AND** no file is written to disk
+
+#### Scenario: Unauthenticated caller
+
+- **WHEN** a request without a valid token hits the endpoint
+- **THEN** the copied entry point answers the transport-auth semantic (`"203"`)
+  before any controller logic runs
+
+#### Scenario: Stored path is readable back anonymously
+
+- **WHEN** an upload has returned `data.path = /profile/avatar/.../x.png`
+- **THEN** `GET /profile/avatar/.../x.png` (no token) serves the identical bytes
+- **AND** the same path is stable for reuse as `<img src>` (the logo column value)
+
+#### Scenario: Other services are unaffected
+
+- **WHEN** a lumen service whose config does not define `upload.home` boots
+- **THEN** its `/profile/**` registration stays without locations (today's
+  OPS-parity behavior) and nothing about its request handling changes

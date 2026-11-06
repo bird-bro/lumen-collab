@@ -35,17 +35,34 @@
 # 2026-11-06: workstation-context-web archived (slot released); org-logo-upload-api took
 # the slot (backend-first of the org-logo-upload feature; Inline, 7 tasks, full mode,
 # contract hash f5b9f835 preflight-PASS; -web queued behind user-verified backend).
-phase: applying
-change: org-logo-upload-api
+# 2026-11-06: org-logo-upload-api verified PASS (verify.md 7/7 scenarios, 107/107 tests) and
+# ARCHIVED as 2026-11-06-org-logo-upload-api (specs synced: Gateway Path Convention modified +
+# Common Image Upload Endpoint added; adaptation #7 recorded in the coordination doc).
+# 2026-11-06: org-logo-upload-web verified PASS (verify.md 10/10, 244/244; TDD forced two
+# design fixes: controlled form control replaces the useWatch watcher - unnamed fields drop
+# from validateFields; no maxCount - it blocks re-pick-replace) and ARCHIVED as
+# 2026-11-06-org-logo-upload-web (specs synced: web-app-shell Unified API Entry Boundary
+# modified + Multipart Upload Transport added; web-system-console Logo Upload Control added).
+# FEATURE org-logo-upload COMPLETE - both changes PASS, gate satisfied, slot released.
+# 2026-11-06: org-status-toggle archived OUT OF BAND (cross-stack feature run from a
+# parallel root session, never held this slot - org-status-toggle-api + -web verified
+# PASS in the same /opsx:verify run: backend 2/2 scenarios, mvnw test exit 0, 26 classes;
+# web 1/1, pnpm build + 244/244. First L3 attempt was poisoned by the concurrent
+# org-logo-upload session mid-edit (upload.avatar placeholder) and was re-run clean on
+# the settled tree). Specs synced: api spec + Organization Status Toggle Endpoint,
+# web-system-console + Organization Status Switch Uses Status Endpoint (both ADDED).
+# FEATURE org-status-toggle COMPLETE - both changes PASS, gate satisfied.
+phase: archived
+change: org-status-toggle-web
 current_task: null
 execution_mode: Inline
-tasks_total: 7
-tasks_done: 0
+tasks_total: 3
+tasks_done: 3
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: 1ae2f93ddb4178c91d6796b16a2bbf7f98232e09b19b69664e5bbc557610d434
+artifacts_hash: 41b1a404c909317b890eb2737bd3c229cdfaf4be8df3eea4c817e2186477e47c
 contract_hash: null
 batches_completed: 0
 last_updated: 2026-11-06
