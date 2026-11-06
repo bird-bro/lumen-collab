@@ -39,6 +39,17 @@ public interface OrgService {
     Boolean update(Integer id, UpdateOrgRequest request);
 
     /**
+     * Sets the lifecycle status of a live organization ({@code 1} enabled /
+     * {@code 0} disabled). Unlike the partial profile update, this is a focused
+     * command so status changes can never accidentally carry other profile fields.
+     *
+     * @param id     the organization to update
+     * @param status the next lifecycle status
+     * @return {@code Boolean.TRUE} (see the update note on the envelope code)
+     */
+    Boolean setStatus(Integer id, Integer status);
+
+    /**
      * Logical delete - delegated to MyBatis-Plus {@code deleteById}, whose
      * {@code @TableLogic} renders it as {@code UPDATE deleted = 1}; the partial unique
      * landscape keeps nothing blocked behind the dead row.
@@ -55,4 +66,14 @@ public interface OrgService {
      * @return the root orgs with their nested children
      */
     List<OrgInfo> tree();
+
+    /**
+     * The org tree with an optional campus-name filter. The hospital root stays
+     * in the response so profile rendering remains possible; only its campus
+     * children are narrowed. Code is intentionally not a search field.
+     *
+     * @param name optional case-insensitive campus-name substring
+     * @return the filtered org tree
+     */
+    List<OrgInfo> tree(String name);
 }

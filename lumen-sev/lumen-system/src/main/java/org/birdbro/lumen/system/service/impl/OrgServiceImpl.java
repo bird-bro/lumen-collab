@@ -136,6 +136,20 @@ public class OrgServiceImpl implements OrgService {
     }
 
     @Override
+    public Boolean setStatus(Integer id, Integer status) {
+        requireLiveOrg(id, "org does not exist");
+        validateStatus(status);
+
+        // A focused patch: only the status column changes, independent of the
+        // generic profile-update compatibility path.
+        OrgInfo patch = new OrgInfo();
+        patch.setId(id);
+        patch.setStatus(status);
+        orgInfoMapper.updateById(patch);
+        return Boolean.TRUE;
+    }
+
+    @Override
     public Boolean delete(Integer id) {
         requireLiveOrg(id, "org does not exist");
         Long childCount = orgInfoMapper.selectCount(
@@ -159,6 +173,11 @@ public class OrgServiceImpl implements OrgService {
     @Override
     public List<OrgInfo> tree() {
         return orgTreeService.orgTree();
+    }
+
+    @Override
+    public List<OrgInfo> tree(String name) {
+        return orgTreeService.orgTree(name);
     }
 
     private Long countLiveRoots() {

@@ -120,6 +120,64 @@ class AuthOrgCrudTests extends AuthIntegrationTestBase {
         softDeleteOrg(campusId);
     }
 
+    @Test
+    void organizationStatusEndpointTogglesWithoutMutatingOtherFields() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusId = createCampus("状态院区_" + ts);
+        try {
+            JsonNode original = orgById(token, campusId);
+            assertEquals(1, original.path("status").asInt(-1),
+                    "the campus fixture must start enabled: " + original);
+
+            JsonNode disabled = parse(exchangeJson(HttpMethod.PUT,
+                    ORGS_URL + "/" + campusId + "/status", "{\"status\":0}", token));
+            assertEquals("200", disabled.path("code").asText(),
+                    "the status command must succeed: " + disabled);
+            assertTrue(disabled.path("data").asBoolean(false),
+                    "the status command must return Boolean.TRUE: " + disabled);
+
+            JsonNode changed = orgById(token, campusId);
+            assertEquals(0, changed.path("status").asInt(-1),
+                    "the explicit status endpoint must disable the campus: " + changed);
+            assertEquals(original.path("name").asText(), changed.path("name").asText(),
+                    "the status command must not alter profile fields");
+            assertEquals(original.path("code").asText(), changed.path("code").asText(),
+                    "the status command must not alter the stable code");
+
+            JsonNode enabled = parse(exchangeJson(HttpMethod.PUT,
+                    ORGS_URL + "/" + campusId + "/status", "{\"status\":1}", token));
+            assertEquals("200", enabled.path("code").asText(), "re-enable must succeed: " + enabled);
+            assertEquals(1, orgById(token, campusId).path("status").asInt(-1),
+                    "the explicit status endpoint must re-enable the campus");
+        } finally {
+            softDeleteOrg(campusId);
+        }
+    }
+
+    @Test
+    void organizationStatusEndpointRejectsInvalidStatus() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusId = createCampus("非法状态院区_" + ts);
+        try {
+            JsonNode missing = parse(exchangeJson(HttpMethod.PUT,
+                    ORGS_URL + "/" + campusId + "/status", "{}", token));
+            assertEquals("A0400", missing.path("code").asText(),
+                    "a missing status must be rejected: " + missing);
+
+            JsonNode outOfRange = parse(exchangeJson(HttpMethod.PUT,
+                    ORGS_URL + "/" + campusId + "/status", "{\"status\":2}", token));
+            assertEquals("A0400", outOfRange.path("code").asText(),
+                    "a non-0/1 status must be rejected: " + outOfRange);
+
+            assertEquals(1, orgById(token, campusId).path("status").asInt(-1),
+                    "invalid status requests must not mutate the campus");
+        } finally {
+            softDeleteOrg(campusId);
+        }
+    }
+
     private int createCampus(String name) throws Exception {
         String token = adminToken();
         ResponseEntity<String> response = exchangeJson(HttpMethod.POST, ORGS_URL,
@@ -143,6 +201,15 @@ class AuthOrgCrudTests extends AuthIntegrationTestBase {
         JsonNode body = parse(response);
         assertEquals("200", body.path("code").asText(), "the org tree query must succeed: " + body);
         return body;
+    }
+
+    private JsonNode orgById(String token, int id) throws Exception {
+        JsonNode tree = tree(token);
+        JsonNode hospital = rootWithName(tree.path("data"), "未命名医院");
+        assertNotNull(hospital, "the seeded hospital root must remain in the tree");
+        JsonNode campus = nodeWithId(hospital.path("children"), id);
+        assertNotNull(campus, "the fixture campus must remain in the tree");
+        return campus;
     }
 
     private void softDeleteOrg(int id) {

@@ -10,6 +10,7 @@ import io.swagger.annotations.ApiOperation;
 import org.birdbro.common.annotation.Log;
 
 import org.birdbro.lumen.system.dto.CreateOrgRequest;
+import org.birdbro.lumen.system.dto.SetOrgStatusRequest;
 import org.birdbro.lumen.system.dto.UpdateOrgRequest;
 import org.birdbro.lumen.system.entity.OrgInfo;
 import org.birdbro.lumen.system.service.OrgService;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.prepost.PreAuthorize;
 
@@ -71,6 +73,16 @@ public class OrgController {
         return orgService.update(id, request);
     }
 
+    /** Sets the lifecycle status ({@code 1} enabled / {@code 0} disabled). */
+    @Log(title = "机构管理", type = "修改")
+    @ApiOperation("启用/停用机构")
+    @PreAuthorize("hasAuthority('system:org:update')") // button-perm pin (same org mutation authority; no new seed)
+    @PutMapping("/{id}/status")
+    public Boolean setStatus(@PathVariable Integer id,
+            @Valid @RequestBody SetOrgStatusRequest request) {
+        return orgService.setStatus(id, request.getStatus());
+    }
+
     /** Logical delete ({@code @TableLogic}: {@code UPDATE deleted = 1}). */
     @Log(title = "机构管理", type = "删除")
     @ApiOperation("逻辑删除机构")
@@ -80,10 +92,15 @@ public class OrgController {
         return orgService.delete(id);
     }
 
-    /** The assembled org tree (roots = {@code upId = 0}, children nested by {@code upId}). */
-    @ApiOperation("机构树（upId 装配，多根）")
+    /** The assembled org tree; an optional {@code name} filters campus children only. */
+    @ApiOperation("机构树（upId 装配，多根；name 仅过滤院区）")
     @GetMapping("/tree")
+    public List<OrgInfo> tree(@RequestParam(name = "name", required = false) String name) {
+        return orgService.tree(name);
+    }
+
+    /** Kept for existing callers; the HTTP endpoint exposes the optional name overload. */
     public List<OrgInfo> tree() {
-        return orgService.tree();
+        return tree(null);
     }
 }
