@@ -91,5 +91,6 @@ Feature done = ALL registered changes verify PASS -> archive each.
 
 **Feature closed 2026-11-06** — both registered changes verify PASS and archived;
 `auth-rbac` carries § Button-Level Permission Enforcement (seed + pins), `web-system-console`
-carries § Button-Level Affordance Gating. Open gap recorded: orgs 设为默认 has no F node
-(design D7a of the web change) - for the org-redesign owners to define.
+carries § Button-Level Affordance Gating. D7a gap RESOLVED same day: 设为默认 turned out
+to ride `PUT /orgs/{id}` (already pinned `system:org:update`, covered by the 编辑院区 F
+node) — the frontend button now gates on `system:org:update`; no new F node was needed.

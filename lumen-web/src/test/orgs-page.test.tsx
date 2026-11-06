@@ -170,7 +170,7 @@ describe('org page - hospital card and campus table render (delta: Hospital and 
 
     // Left card: key profile fields visible.
     expect(screen.getByText('示例医院')).toBeInTheDocument()
-    expect(screen.getByText('HOSP-001')).toBeInTheDocument()
+    expect(screen.getByText('ID')).toBeInTheDocument()
     expect(screen.getByText('上海市测试路100号')).toBeInTheDocument()
     expect(screen.getByText(/张管理/)).toBeInTheDocument()
 
@@ -394,7 +394,7 @@ describe('org page - first-run completion (delta: First-run Organization Profile
     renderPage()
     await waitForCampusRow('总院区')
 
-    await user.click(screen.getByRole('button', { name: '编辑医院' }))
+    await user.click(screen.getByRole('button', { name: '编辑' }))
     await user.clear(screen.getByLabelText('机构名称'))
     await user.type(screen.getByLabelText('机构名称'), '协和医院')
     await user.clear(screen.getByLabelText('机构代码'))
@@ -418,7 +418,7 @@ describe('org page - perms gating (design D6)', () => {
     await waitForCampusRow('总院区')
 
     expect(screen.queryByRole('button', { name: '新增院区' })).toBeNull()
-    expect(screen.queryByRole('button', { name: '编辑医院' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '编辑' })).toBeNull()
     expect(screen.queryByTitle('编辑院区')).toBeNull()
     expect(screen.queryByTitle('删除院区')).toBeNull()
     expect(screen.queryByTitle('设为默认')).toBeNull()
@@ -434,8 +434,24 @@ describe('orgs page - button-level gating (button-perm-enforcement-web)', () => 
     renderPage()
     await screen.findByText('示例医院')
     expect(screen.queryByRole('button', { name: /新增院区/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '编辑医院' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑' })).not.toBeInTheDocument()
     expect(screen.queryByTitle('删除院区')).not.toBeInTheDocument()
+  })
+
+  it('gates 设为默认 by system:org:update (it is an updateOrg call - D7a resolution)', async () => {
+    // page + create only: 设为默认 must stay hidden (it rides PUT /orgs/{id})
+    useAuthStore.getState().setSession({ perms: ['system:org:list', 'system:org:create'] })
+    renderPage()
+    await screen.findByText('示例医院')
+    expect(screen.queryAllByTitle('编辑院区').length).toBe(0)
+    expect(screen.queryAllByTitle('设为默认').length).toBe(0)
+    expect(screen.getByRole('button', { name: /新增院区/ })).toBeInTheDocument()
+
+    // + update: both the edit and set-default affordances appear
+    useAuthStore.getState().setSession({ perms: ['system:org:list', 'system:org:create', 'system:org:update'] })
+    renderPage()
+    await screen.findByText('示例医院')
+    expect(screen.getAllByTitle('设为默认').length).toBeGreaterThan(0)
   })
 
   it('reveals the campus affordances when their button perms are granted', async () => {
@@ -443,7 +459,7 @@ describe('orgs page - button-level gating (button-perm-enforcement-web)', () => 
     renderPage()
     await screen.findByText('示例医院')
     expect(screen.getByRole('button', { name: /新增院区/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '编辑医院' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '编辑' })).toBeInTheDocument()
     expect(screen.getAllByTitle('删除院区').length).toBeGreaterThan(0)
   })
 })

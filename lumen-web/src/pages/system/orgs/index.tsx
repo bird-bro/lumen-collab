@@ -15,6 +15,7 @@ import {
 import {
   BankOutlined,
   EnvironmentOutlined,
+  IdcardOutlined,
   MailOutlined,
   PhoneOutlined,
   TagOutlined,
@@ -79,10 +80,12 @@ function ProfileFact({
   icon,
   label,
   value,
+  isLast = false,
 }: {
   icon: ReactNode
   label: string
   value: string
+  isLast?: boolean
 }) {
   const { token } = theme.useToken()
 
@@ -90,11 +93,11 @@ function ProfileFact({
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '20px 66px minmax(0, 1fr)',
+        gridTemplateColumns: '20px 72px minmax(0, 1fr)',
         alignItems: 'flex-start',
         gap: 8,
         padding: '9px 0',
-        borderBottom: `1px dashed ${token.colorBorderSecondary}`,
+        borderBottom: isLast ? 'none' : `1px dashed ${token.colorBorderSecondary}`,
       }}
     >
       <span
@@ -146,15 +149,38 @@ function HospitalProfileCard({
 }) {
   const { token } = theme.useToken()
 
+  const profileFacts = [
+    {
+      key: 'identity',
+      icon: <IdcardOutlined />,
+      label: 'ID',
+      value: `${hospital.id}`,
+    },
+    ...(hospital.shortName
+      ? [{ key: 'shortName', icon: <TagOutlined />, label: '简称', value: hospital.shortName }]
+      : []),
+    ...(hospital.address
+      ? [{ key: 'address', icon: <EnvironmentOutlined />, label: '地址', value: hospital.address }]
+      : []),
+    ...(hospital.contact
+      ? [{ key: 'contact', icon: <UserOutlined />, label: '联系人', value: hospital.contact }]
+      : []),
+    ...(hospital.phone
+      ? [{ key: 'phone', icon: <PhoneOutlined />, label: '电话', value: hospital.phone }]
+      : []),
+    ...(hospital.email
+      ? [{ key: 'email', icon: <MailOutlined />, label: '邮箱', value: hospital.email }]
+      : []),
+  ]
+
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0, flexDirection: 'column', padding: '14px 14px 16px' }}>
+    <div style={{ display: 'flex', flex: 1, minHeight: 0, flexDirection: 'column' }}>
       <div
         style={{
-          position: 'relative',
-          padding: 12,
-          borderRadius: token.borderRadiusLG,
-          border: `1px solid ${token.colorPrimaryBorder}`,
-          background: `linear-gradient(135deg, ${token.colorPrimaryBg}, ${token.colorBgContainer})`,
+          flex: '0 0 auto',
+          padding: '16px 16px 14px',
+          background: `linear-gradient(155deg, ${token.colorPrimaryBg}, ${token.colorBgContainer})`,
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -186,52 +212,26 @@ function HospitalProfileCard({
             >
               {hospital.name}
             </div>
-            <div
-              style={{
-                marginTop: 4,
-                fontSize: token.fontSizeSM,
-                lineHeight: '20px',
-                color: token.colorTextSecondary,
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {hospital.code}
-            </div>
           </div>
         </div>
-        <div style={{ marginTop: 10 }}>
-          <Tag
-            bordered={false}
-            color={hospital.status === 1 ? 'blue' : undefined}
-            style={{ marginInlineEnd: 0 }}
-          >
-            {hospital.status === 1 ? '启用' : '停用'}
-          </Tag>
-        </div>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, marginTop: 6, overflowY: 'auto' }}>
-        {hospital.shortName ? (
-          <ProfileFact icon={<TagOutlined />} label="简称" value={hospital.shortName} />
-        ) : null}
-        {hospital.address ? (
-          <ProfileFact icon={<EnvironmentOutlined />} label="地址" value={hospital.address} />
-        ) : null}
-        {hospital.contact ? (
-          <ProfileFact icon={<UserOutlined />} label="联系人" value={hospital.contact} />
-        ) : null}
-        {hospital.phone ? (
-          <ProfileFact icon={<PhoneOutlined />} label="电话" value={hospital.phone} />
-        ) : null}
-        {hospital.email ? (
-          <ProfileFact icon={<MailOutlined />} label="邮箱" value={hospital.email} />
-        ) : null}
+      <div style={{ flex: 1, minHeight: 0, padding: '10px 16px 16px', overflowY: 'auto' }}>
+        {profileFacts.map((fact, index) => (
+          <ProfileFact
+            key={fact.key}
+            icon={fact.icon}
+            label={fact.label}
+            value={fact.value}
+            isLast={index === profileFacts.length - 1}
+          />
+        ))}
       </div>
 
-      <div style={{ flex: '0 0 auto' }}>
+      <div style={{ flex: '0 0 auto', padding: '12px 16px 16px' }}>
         {canManage ? (
-          <Button block style={{ marginTop: 12 }} aria-label="编辑医院" onClick={onEdit}>
-            编辑医院
+          <Button block style={{ marginTop: 12 }} aria-label="编辑" onClick={onEdit}>
+            编辑
           </Button>
         ) : null}
         {showFirstRunHint ? (
@@ -243,7 +243,7 @@ function HospitalProfileCard({
             }}
             type="info"
             showIcon
-            message="首次部署:请通过「编辑医院」完善医院信息,并核对默认院区。"
+            message="首次部署:请编辑完善医院信息。"
           />
         ) : null}
       </div>
@@ -452,10 +452,25 @@ export default function OrgsPage() {
     {
       title: '院区 / 代码',
       dataIndex: 'name',
-      width: 220,
+      width: 240,
       render: (_: unknown, row: OrgNode) => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-          <span>{row.name}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <span
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {row.name}
+            </span>
+            {row.isDefault === 1 ? (
+              <Tag color="blue" bordered={false} style={{ marginInlineEnd: 0, flex: '0 0 auto' }}>
+                默认院区
+              </Tag>
+            ) : null}
+          </div>
           <span
             style={{
               fontSize: token.fontSizeSM,
@@ -470,20 +485,17 @@ export default function OrgsPage() {
       ),
     },
     {
-      title: '默认',
-      dataIndex: 'isDefault',
-      width: 90,
-      render: (isDefault: number) =>
-        isDefault === 1 ? <Tag color="blue">默认院区</Tag> : <span style={{ color: token.colorTextTertiary }}>—</span>,
-    },
-    {
       title: '状态',
       dataIndex: 'status',
-      width: 80,
+      width: 90,
       align: 'center',
       render: (status: number) =>
         status === 1 ? (
-          <Tag bordered={false} color="blue" style={{ marginInlineEnd: 0 }}>
+          <Tag
+            bordered={false}
+            color="blue"
+            style={{ marginInlineEnd: 0, fontSize: token.fontSize }}
+          >
             启用
           </Tag>
         ) : (
@@ -491,6 +503,7 @@ export default function OrgsPage() {
             bordered={false}
             style={{
               marginInlineEnd: 0,
+              fontSize: token.fontSize,
               color: token.colorTextSecondary,
               background: token.colorBgContainer,
               borderColor: token.colorBorder,
@@ -610,13 +623,15 @@ export default function OrgsPage() {
                 ? {
                     width: ACTION_COLUMN_WIDTH,
                     render: (campus) => [
-                      <ConsoleAction
-                        key="default"
-                        label="设为默认"
-                        icon="star"
-                        disabled={campus.isDefault === 1}
-                        onClick={() => void setDefaultCampus(campus)}
-                      />,
+                      canUpdateOrg ? (
+                        <ConsoleAction
+                          key="default"
+                          label="设为默认"
+                          icon="star"
+                          disabled={campus.isDefault === 1}
+                          onClick={() => void setDefaultCampus(campus)}
+                        />
+                      ) : null,
                       canUpdateOrg ? (
                         <ConsoleAction
                           key="edit"
