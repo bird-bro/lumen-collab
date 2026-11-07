@@ -42,7 +42,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * </ol>
  *
  * <p>Shared long-lived database: every name/value carries a timestamp suffix and created
- * rows are logically deleted afterwards.</p>
+ * rows are hard-deleted afterwards (user ruling 2026-11-07: soft-deleted test rows pile
+ * up and poison bug triage).</p>
  *
  * @author birdbro
  */
@@ -175,7 +176,7 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
         assertEquals(java.util.Collections.singletonList("乙_" + ts), remaining,
                 "the logically deleted detail must vanish from the live by-id list");
 
-        jdbcTemplate.update("UPDATE public.dict_detail SET deleted = 1 WHERE id IN (?, ?)",
+        jdbcTemplate.update("DELETE FROM public.dict_detail WHERE id IN (?, ?)",
                 firstId, secondId);
         cleanupCatal(catalId);
     }
@@ -203,7 +204,7 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
         int secondId = reCreateBody.path("data").asInt(-1);
         assertTrue(secondId > 0 && secondId != firstId, "the re-created catalog gets a fresh id");
 
-        jdbcTemplate.update("UPDATE public.dict_catal SET deleted = 1 WHERE id = ?", secondId);
+        jdbcTemplate.update("DELETE FROM public.dict_catal WHERE id = ?", secondId);
         cleanupCatal(firstId);
     }
 
@@ -218,8 +219,10 @@ class AuthDictCrudTests extends AuthIntegrationTestBase {
         return id;
     }
 
+    /** HARD-delete cleanup (user ruling 2026-11-07), details before the catalog. */
     private void cleanupCatal(int id) {
-        jdbcTemplate.update("UPDATE public.dict_catal SET deleted = 1 WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM public.dict_detail WHERE ca_id = ?", id);
+        jdbcTemplate.update("DELETE FROM public.dict_catal WHERE id = ?", id);
     }
 
     private String adminToken() throws Exception {

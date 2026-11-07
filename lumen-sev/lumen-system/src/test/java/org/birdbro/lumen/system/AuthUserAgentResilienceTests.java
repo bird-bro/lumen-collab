@@ -101,7 +101,7 @@ class AuthUserAgentResilienceTests extends AuthIntegrationTestBase {
                 Integer.class, runUserId());
         assertTrue(logRows != null && logRows >= 1,
                 "the @Log row must land even with an unversioned UA");
-        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE id = ?", createdId);
+        jdbcTemplate.update("DELETE FROM system.org_info WHERE id = ?", createdId);
     }
 
     private String adminToken() throws Exception {

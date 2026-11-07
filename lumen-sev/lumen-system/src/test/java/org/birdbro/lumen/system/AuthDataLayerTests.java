@@ -106,8 +106,10 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
         assertEquals(Integer.valueOf(0), inSystem,
                 "no system.dict_catal shadow table may exist - the unqualified name must resolve to public");
 
-        dictCatalService.removeById(catal.getId()); // logical cleanup - shared DB
-        assertNull(dictCatalService.getById(catal.getId()), "cleanup must hide the catalog");
+        // HARD cleanup (user ruling 2026-11-07): plain JDBC DELETE - removeById is the
+        // @TableLogic soft delete the ruling retires for test residue.
+        jdbcTemplate.update("DELETE FROM public.dict_catal WHERE id = ?", catal.getId());
+        assertNull(dictCatalService.getById(catal.getId()), "cleanup must remove the catalog");
     }
 
     @Test
@@ -170,6 +172,10 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
                 Integer.class, user.getId());
         assertEquals(Integer.valueOf(1), physicalDeleted,
                 "deleteById must UPDATE deleted = 1, not remove the row");
+
+        // The soft-deleted row was the ASSERTION SUBJECT; it must not become residue
+        // (user ruling 2026-11-07): the shared database carries no dead test rows.
+        jdbcTemplate.update("DELETE FROM system.user_info WHERE id = ?", user.getId());
     }
 
     @Test
@@ -221,8 +227,10 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
                         .noneMatch(org -> child.getId().equals(org.getId())),
                 "campus code must not be a search field");
 
-        orgInfoMapper.deleteById(child.getId()); // logical cleanup - shared DB
-        assertNull(orgInfoMapper.selectById(child.getId()), "cleanup must hide the child");
+        // HARD cleanup (user ruling 2026-11-07): plain JDBC DELETE, not the @TableLogic
+        // soft delete the ruling retires for test residue.
+        jdbcTemplate.update("DELETE FROM system.org_info WHERE id = ?", child.getId());
+        assertNull(orgInfoMapper.selectById(child.getId()), "cleanup must remove the child");
     }
 
     @Test

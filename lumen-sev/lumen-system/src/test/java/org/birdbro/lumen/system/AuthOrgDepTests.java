@@ -20,7 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Campus-scoped department management proof (org-management-redesign-api): ownership,
  * campus code uniqueness, immutable codes, and the paginated table query are driven through
- * the real API. Timestamped fixtures and logical deletes keep the shared database clean.
+ * the real API. Timestamped fixtures, hard-deleted afterwards (user ruling 2026-11-07:
+ * soft-deleted test rows pile up and poison bug triage).
  */
 class AuthOrgDepTests extends AuthIntegrationTestBase {
 
@@ -207,7 +208,11 @@ class AuthOrgDepTests extends AuthIntegrationTestBase {
         int revivedId = createDepartment(campusId, code, "复用编码新科室");
         assertTrue(revivedId > 0, "the freed code must be reusable within the same campus");
 
+        // HARD cleanup (user ruling 2026-11-07): revivedId is live, depId was
+        // soft-deleted by the endpoint above - the hard DELETE takes both, so the
+        // campus row loses every org_dep reference before its own delete.
         softDeleteDepartment(revivedId);
+        softDeleteDepartment(depId);
         softDeleteOrg(campusId);
     }
 
@@ -287,11 +292,13 @@ class AuthOrgDepTests extends AuthIntegrationTestBase {
     }
 
     private void softDeleteDepartment(int id) {
-        jdbcTemplate.update("UPDATE system.org_dep SET deleted = 1 WHERE id = ?", id);
+        // HARD deletes (user ruling 2026-11-07: soft-deleted test rows pile up and
+        // poison bug triage); departments before their campus (org_dep.org_id FK).
+        jdbcTemplate.update("DELETE FROM system.org_dep WHERE id = ?", id);
     }
 
     private void softDeleteOrg(int id) {
-        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.org_info WHERE id = ?", id);
     }
 
     private String adminToken() throws Exception {

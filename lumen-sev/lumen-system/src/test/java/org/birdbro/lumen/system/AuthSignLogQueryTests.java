@@ -312,15 +312,16 @@ class AuthSignLogQueryTests extends AuthIntegrationTestBase {
                 Integer.class, "登录日志_b2probe_" + ts, "b2signlogmenu_" + ts);
     }
 
-    /** Logical-delete cleanup so failed runs leave no live probe grant chain behind. */
+    /** HARD-delete cleanup (user ruling 2026-11-07) so failed runs leave no probe grant chain. */
     private void cleanupRoleAndUser(int roleId, int userId) {
         if (roleId > 0) {
-            jdbcTemplate.update("UPDATE system.role_menu SET deleted = 1 WHERE role_id = ?", roleId);
-            jdbcTemplate.update("UPDATE system.user_role SET deleted = 1 WHERE role_id = ?", roleId);
-            jdbcTemplate.update("UPDATE system.role_info SET deleted = 1 WHERE id = ?", roleId);
+            jdbcTemplate.update("DELETE FROM system.role_menu WHERE role_id = ?", roleId);
+            jdbcTemplate.update("DELETE FROM system.user_role WHERE role_id = ?", roleId);
+            jdbcTemplate.update("DELETE FROM system.role_info WHERE id = ?", roleId);
         }
         if (userId > 0) {
-            jdbcTemplate.update("UPDATE system.user_info SET deleted = 1 WHERE id = ?", userId);
+            jdbcTemplate.update("DELETE FROM system.user_role WHERE user_id = ?", userId);
+            jdbcTemplate.update("DELETE FROM system.user_info WHERE id = ?", userId);
         }
     }
 

@@ -283,16 +283,17 @@ class AuthRoleMenuTests extends AuthIntegrationTestBase {
         return userId;
     }
 
-    /** Logical-delete cleanup of everything the flow created (shared DB hygiene). */
+    /** HARD-delete cleanup of everything the flow created (user ruling 2026-11-07). */
     private void cleanupRoleAndUser(int roleId, int userId) {
-        jdbcTemplate.update("UPDATE system.role_menu SET deleted = 1 WHERE role_id = ?", roleId);
-        jdbcTemplate.update("UPDATE system.user_role SET deleted = 1 WHERE role_id = ?", roleId);
-        jdbcTemplate.update("UPDATE system.role_info SET deleted = 1 WHERE id = ?", roleId);
+        jdbcTemplate.update("DELETE FROM system.role_menu WHERE role_id = ?", roleId);
+        jdbcTemplate.update("DELETE FROM system.user_role WHERE role_id = ?", roleId);
+        jdbcTemplate.update("DELETE FROM system.role_info WHERE id = ?", roleId);
         cleanupUser(userId);
     }
 
     private void cleanupUser(int userId) {
-        jdbcTemplate.update("UPDATE system.user_info SET deleted = 1 WHERE id = ?", userId);
+        jdbcTemplate.update("DELETE FROM system.user_role WHERE user_id = ?", userId);
+        jdbcTemplate.update("DELETE FROM system.user_info WHERE id = ?", userId);
     }
 
     private ResponseEntity<String> postJson(String url, String json) {

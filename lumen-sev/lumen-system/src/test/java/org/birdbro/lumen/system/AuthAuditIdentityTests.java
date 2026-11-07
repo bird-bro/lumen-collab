@@ -77,8 +77,10 @@ class AuthAuditIdentityTests extends AuthIntegrationTestBase {
                 "create_by must be the run admin's id - the JWT principal must reach MetaObjectConfig"
                         + " (bridge filter) and fill the audit column; actual: " + createBy);
 
-        // Logical cleanup (shared DB): hide the row after the evidence is captured.
-        jdbcTemplate.update("UPDATE system.user_info SET deleted = 1 WHERE id = ?", createdId);
+        // HARD cleanup (shared DB, user ruling 2026-11-07): remove the row after the
+        // evidence is captured, bindings first.
+        jdbcTemplate.update("DELETE FROM system.user_role WHERE user_id = ?", createdId);
+        jdbcTemplate.update("DELETE FROM system.user_info WHERE id = ?", createdId);
     }
 
     private ResponseEntity<String> postJson(String url, String json) {

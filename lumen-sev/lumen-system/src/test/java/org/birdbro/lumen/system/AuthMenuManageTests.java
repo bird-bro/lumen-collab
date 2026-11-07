@@ -33,9 +33,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * ({@code A0400} envelopes), UPDATE never touching grants, and delete cleaning the
  * node's {@code role_menu} bindings so a deleted button stops granting its perms.</p>
  *
- * <p>Shared long-lived database: timestamp-suffixed titles and perms strings, logical
- * delete cleanup. The seeded console tree gives stable C-type parents (menu 9 =
- * 角色管理, menu 15 = 系统配置).</p>
+ * <p>Shared long-lived database: timestamp-suffixed titles and perms strings, HARD-delete
+ * cleanup (user ruling 2026-11-07 - soft-deleted test rows pile up and poison bug triage).
+ * The seeded console tree gives stable C-type parents (menu 9 = 角色管理, menu 15 =
+ * 系统配置).</p>
  *
  * @author birdbro
  */
@@ -308,10 +309,10 @@ class AuthMenuManageTests extends AuthIntegrationTestBase {
         return null;
     }
 
-    /** Logical-delete cleanup for a created node and any of its role_menu rows. */
+    /** HARD-delete cleanup (user ruling 2026-11-07) for a created node and any of its role_menu rows. */
     private void cleanupMenu(int menuId) {
-        jdbcTemplate.update("UPDATE system.role_menu SET deleted = 1 WHERE menu_id = ?", menuId);
-        jdbcTemplate.update("UPDATE system.menu_info SET deleted = 1 WHERE id = ?", menuId);
+        jdbcTemplate.update("DELETE FROM system.role_menu WHERE menu_id = ?", menuId);
+        jdbcTemplate.update("DELETE FROM system.menu_info WHERE id = ?", menuId);
     }
 
     private String adminToken() throws Exception {

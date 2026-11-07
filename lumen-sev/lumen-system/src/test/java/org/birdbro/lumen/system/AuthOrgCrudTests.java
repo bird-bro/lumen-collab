@@ -21,7 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Controlled organization management proof (org-management-redesign-api): hospital and
  * campus create/update/delete guards are driven through the real servlet context with the
  * run-scoped admin token. The shared database keeps the live seeded hospital root, so
- * these tests exercise controlled campuses and clean up their own fixtures.
+ * these tests exercise controlled campuses and hard-delete their own fixtures (user
+ * ruling 2026-11-07: soft-deleted test rows pile up and poison bug triage).
  */
 class AuthOrgCrudTests extends AuthIntegrationTestBase {
 
@@ -116,7 +117,7 @@ class AuthOrgCrudTests extends AuthIntegrationTestBase {
         assertEquals("A0400", campusDelete.path("code").asText(),
                 "a campus with live departments cannot be deleted: " + campusDelete);
 
-        jdbcTemplate.update("UPDATE system.org_dep SET deleted = 1 WHERE id = ?", depId);
+        jdbcTemplate.update("DELETE FROM system.org_dep WHERE id = ?", depId);
         softDeleteOrg(campusId);
     }
 
@@ -213,7 +214,9 @@ class AuthOrgCrudTests extends AuthIntegrationTestBase {
     }
 
     private void softDeleteOrg(int id) {
-        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE id = ?", id);
+        // HARD delete (user ruling 2026-11-07) - the fixture campus owns no departments
+        // at sweep time (every test path deletes/moves them first), so the FK holds.
+        jdbcTemplate.update("DELETE FROM system.org_info WHERE id = ?", id);
     }
 
     private String adminToken() throws Exception {

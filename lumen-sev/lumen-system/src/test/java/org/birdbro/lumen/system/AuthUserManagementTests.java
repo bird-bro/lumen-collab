@@ -25,7 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * the NEW password), and enable/disable (a disabled user's login is rejected
  * {@code A0202}, re-enabling restores it). Driven through the real servlet context with
  * the admin token. Shared long-lived database: unique timestamp-suffixed usernames,
- * logical-delete cleanup.
+ * hard-deleted cleanup (user ruling 2026-11-07: soft-deleted test rows pile up and
+ * poison bug triage).
  *
  * @author birdbro
  */
@@ -194,8 +195,10 @@ class AuthUserManagementTests extends AuthIntegrationTestBase {
         return createdId;
     }
 
+    /** HARD-delete cleanup (user ruling 2026-11-07), bindings before the user row. */
     private void cleanupUser(int id) {
-        jdbcTemplate.update("UPDATE system.user_info SET deleted = 1 WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.user_role WHERE user_id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.user_info WHERE id = ?", id);
     }
 
     private ResponseEntity<String> postJson(String url, String json) {

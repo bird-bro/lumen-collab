@@ -48,19 +48,25 @@ import org.springframework.test.context.DynamicPropertySource;
  *       identity through {@link #runAdminLoginBody()} instead of the real admin: sign
  *       rows, {@code @Log} rows, and audit columns attribute to {@link #RUN_ACCOUNT},
  *       never to {@code admin}.</li>
- *   <li>{@code @AfterAll sweepRunResidue} - one JDBC transaction that logically deletes
- *       everything the run and its fixtures left behind: the run account's and the
- *       fixture families' log/audit rows, leaked fixture users (with their
- *       {@code user_role} bindings), and leaked fixture roles (with their
- *       {@code role_menu} bindings).</li>
+ *   <li>{@code @AfterAll sweepRunResidue} - one JDBC transaction that PHYSICALLY deletes
+ *       (hard {@code DELETE}, user ruling 2026-11-07 - the shared database must not
+ *       accumulate soft-deleted test rows, they poison bug triage) everything the run
+ *       and its fixtures left behind: the run account's and the fixture families'
+ *       log/audit rows, leaked fixture users (with their {@code user_role} bindings),
+ *       leaked fixture roles (with their {@code role_menu} bindings), leaked fixture
+ *       menus, leaked fixture dict catalogs/details, and leaked fixture orgs and
+ *       departments (bindings before owners, so the V1 FKs never trip).</li>
  * </ol>
  *
- * <p>Test-owned namespace - REAL users/roles must NEVER take these names, the sweep
- * deletes live rows matching them: fixture accounts are the {@link #ACCOUNT_PREFIXES}
- * families plus the {@code ua-probe} probe account; fixture roles are the
- * {@link #ROLE_NAME_PREFIXES} families. {@code AuthLoginTests} deliberately stays on the
- * REAL admin (it tests the seeded-admin login contract itself) and is the one accepted
- * residue - roughly two {@code public.log_sign} rows per run under {@code admin}.</p>
+ * <p>Test-owned namespace - REAL users/roles/orgs/dicts/menus must NEVER take these
+ * names, the sweep hard-deletes every row matching them (live or soft-deleted):
+ * fixture accounts are the {@link #ACCOUNT_PREFIXES} families plus the {@code ua-probe}
+ * probe account; fixture roles are the {@link #ROLE_NAME_PREFIXES} families; fixture
+ * orgs/departments/dicts/menus are the {@link #ORG_NAME_PREFIXES}/{@link #ORG_CODE_PREFIXES}
+ * /{@link #DEP_CODE_PREFIXES}/{@link #CATAL_NAME_PREFIXES}/{@link #MENU_TITLE_PREFIXES}
+ * families. {@code AuthLoginTests} deliberately stays on the REAL admin (it tests the
+ * seeded-admin login contract itself) and is the one accepted residue - roughly two
+ * {@code public.log_sign} rows per run under {@code admin}.</p>
  *
  * <p>Ordering note (probe-verified 2026-11-05): a static {@code @BeforeAll} runs BEFORE
  * the Spring context refreshes, so the FIRST test class in a JVM may reach the ensure
@@ -156,25 +162,67 @@ public abstract class AuthIntegrationTestBase {
 
     /**
      * Fixture-account namespace owned by the tests, sweep-targetable. REAL users must
-     * NEVER take these prefixes - the {@code @AfterAll} sweep logically deletes live rows
-     * matching them. {@code b2*} covers the b2-prefixed sign/log fixture accounts;
-     * {@code no.such.user.} is AuthLoginTests' unknown-account probe (its failure rows
-     * are swept even though that suite stays on the real admin); {@code ua-probe} is
-     * AuthUserAgentResilienceTests' probe account (its rows are swept, not left in place).
+     * NEVER take these prefixes - the {@code @AfterAll} sweep hard-deletes every row
+     * matching them, live or soft-deleted (user ruling 2026-11-07). {@code b2*} covers
+     * the b2-prefixed sign/log fixture accounts; {@code no.such.user.} is
+     * AuthLoginTests' unknown-account probe (its failure rows are swept even though that
+     * suite stays on the real admin); {@code ua-probe} is AuthUserAgentResilienceTests'
+     * probe account. When a suite adds a new fixture-account family its prefix lands
+     * HERE - the sweep is the SAFETY NET for interrupted runs, never the primary
+     * cleanup (suites delete their own fixtures inline).
      */
     static final String[] ACCOUNT_PREFIXES = { "b2", "dup_u_", "pw_u_", "en_u_", "replace_u_",
             "role_del_u_", "audit_u_", "single_u_", "noperm_u_", "city_u_", "menuperm_u_",
-            "btnmatrix_", "no.such.user." };
+            "btnmatrix_", "no.such.user.", "mgmt_u_", "audit_user_", "wsdel_u_", "wsgrant_u_",
+            "wsboot_u_", "wstarget_u_", "wsnoperm_u_", "wsdual_u_", "mp.smoke.", "itadmin_" };
 
     /**
      * Fixture-role namespace owned by the tests, sweep-targetable (the Chinese literals
-     * match the fixture role names in AuthRoleMenuTests/AuthPermEnforcementTests). REAL
-     * roles must NEVER take these prefixes - the sweep logically deletes live roles
-     * matching them, together with their role_menu bindings; bound fixture users go with
-     * the account sweep.
+     * match the fixture role names in AuthRoleMenuTests/AuthPermEnforcementTests/
+     * AuthSignLogQueryTests). REAL roles must NEVER take these prefixes - the sweep
+     * hard-deletes live roles matching them, together with their role_menu bindings;
+     * bound fixture users go with the account sweep.
      */
     static final String[] ROLE_NAME_PREFIXES = { "报告审核员_", "单页角色_", "无权角色_",
-            "无权菜单角色_", "denied_role_" };
+            "无权菜单角色_", "denied_role_", "临时角色", "全量替换角色_", "按钮矩阵", "矩阵目标用户",
+            "仅日志角色_", "登录日志查询角色_", "仅登录日志角色_", "无权城市角色_" };
+
+    /**
+     * Fixture-org namespace (hospital campuses + throwaway probe orgs), sweep-targetable.
+     * REAL orgs must NEVER take these prefixes.
+     */
+    static final String[] ORG_NAME_PREFIXES = { "守卫院区_", "院区子机构_", "东院区", "占用院区_",
+            "状态院区_", "非法状态院区_", "第二根_", "科室编码A院区_", "科室编码B院区_",
+            "分页A院区_", "分页B院区_", "科室删除院区_", "停用院区_", "迁出院区_",
+            "编码不可变", "按钮矩阵院区", "按钮矩阵机构", "按钮矩阵科室", "日志机构_",
+            "UA探针机构_", "ut.smoke." };
+
+    /**
+     * Fixture-org CODE namespace (the V16 codes are set explicitly by some fixtures;
+     * generated CAMPUS- codes of swept orgs die with their rows, no prefix needed).
+     */
+    static final String[] ORG_CODE_PREFIXES = { "UT-SMOKE-", "CAMPUS_T_" };
+
+    /**
+     * Fixture-department namespace (codes; the display names ride the owning campus).
+     */
+    static final String[] DEP_CODE_PREFIXES = { "ut_mtx_dep_", "dep_guard_", "dep_shared_",
+            "dep_immutable_", "dep_page_", "dep_delete_", "dep_disabled_", "dep_move_",
+            "dep_hospital_" };
+
+    /**
+     * Fixture-dict namespace (catalog display names; details ride their catalog via
+     * ca_id, swept with it).
+     */
+    static final String[] CATAL_NAME_PREFIXES = { "数据层往返目录_", "明细目录_", "复用目录_",
+            "批量二目录_", "按钮矩阵目录" };
+
+    /**
+     * Fixture-menu namespace (titles and perms strings; button perms carry the
+     * {@code ut.} needle the API denies through).
+     */
+    static final String[] MENU_TITLE_PREFIXES = { "ut", "按钮矩阵", "ut矩阵", "登录日志_b2probe_" };
+    static final String[] MENU_PERMS_PREFIXES = { "ut.", "ut.mtx:" };
 
     /** Id of the run-admin user row; null until the identity is ensured. */
     private static volatile Long runUserId;
@@ -199,16 +247,23 @@ public abstract class AuthIntegrationTestBase {
     }
 
     /**
-     * Per-class exit: one JDBC transaction that logically deletes the run's residue from
-     * the shared database, in dependency-safe order (bindings before owners):
+     * Per-class exit: one JDBC transaction that PHYSICALLY deletes the run's residue
+     * from the shared database (user ruling 2026-11-07: soft-deleted sweep rows pile up
+     * and poison bug triage - the sweep is a hard {@code DELETE}), in dependency-safe
+     * order (bindings before owners, so the V1 FKs never trip):
      * <ol>
      *   <li>{@code public.log_sign} / {@code public.log_info}: the run account's, the
-     *       fixture families', and {@code ua-probe}'s live rows ({@code deleted = 1};
-     *       no {@code update_time} touch - the log tables have no audit block);</li>
+     *       fixture families', and {@code ua-probe}'s rows (live or soft-deleted - a
+     *       past run's dead rows go too);</li>
+     *   <li>{@code system.role_menu} bindings of the fixture roles AND fixture menus;</li>
      *   <li>{@code system.user_role} bindings of the run/fixture users;</li>
      *   <li>{@code system.user_info}: the run and fixture users themselves;</li>
-     *   <li>{@code system.role_menu} bindings of the fixture roles;</li>
-     *   <li>{@code system.role_info}: the fixture roles themselves.</li>
+     *   <li>{@code system.role_info}: the fixture roles themselves;</li>
+     *   <li>{@code system.menu_info}: the fixture menus themselves;</li>
+     *   <li>{@code public.dict_detail} / {@code public.dict_catal}: fixture details
+     *       ride their swept catalogs (ca_id);</li>
+     *   <li>{@code system.org_dep}: fixture departments (before their campus);</li>
+     *   <li>{@code system.org_info}: the fixture orgs themselves.</li>
      * </ol>
      * A failure fails the class EXPLICITLY (never a silent skip) - leftover residue is
      * exactly the shared-database pollution this hook exists to prevent, and the next
@@ -299,42 +354,74 @@ public abstract class AuthIntegrationTestBase {
         }
     }
 
-    /** The sweep itself: five statements, one transaction, dependency-safe order. */
+    /**
+     * The sweep itself: hard {@code DELETE}s, one transaction, dependency-safe order
+     * (bindings before owners - V1 FKs: role_menu → role_info/menu_info,
+     * user_role → user_info/role_info, dict_detail → dict_catal by convention,
+     * org_dep → org_info). No {@code deleted = 0} filter on the sweep targets: rows a
+     * previous run soft-deleted before an interrupted cleanup get swept all the same -
+     * THAT backlog is what the 2026-11-07 ruling exists to purge.
+     */
     private static void doSweepResidue() throws SQLException {
         try (Connection connection = openTestServerConnection()) {
             connection.setAutoCommit(false);
             try (Statement statement = connection.createStatement()) {
-                // 1. Log/audit rows (the log tables carry `deleted` but no update_time).
+                // 1. Log/audit rows of the run + fixture families (no audit block - plain
+                //    DELETE, no update_time touch).
                 int signRows = statement.executeUpdate(
-                        "UPDATE public.log_sign SET deleted = 1 WHERE deleted = 0 AND ("
+                        "DELETE FROM public.log_sign WHERE ("
                                 + accountResiduePredicate("account") + ")");
                 int infoRows = statement.executeUpdate(
-                        "UPDATE public.log_info SET deleted = 1 WHERE deleted = 0 AND ("
+                        "DELETE FROM public.log_info WHERE ("
                                 + accountResiduePredicate("account") + ")");
-                // 2. Bindings of the run/fixture users (the inner select has no deleted
-                //    filter on purpose: bindings to already-dead fixture users go too).
-                int userRoleRows = statement.executeUpdate(
-                        "UPDATE system.user_role SET deleted = 1, update_time = CURRENT_TIMESTAMP "
-                        + "WHERE deleted = 0 AND user_id IN (SELECT id FROM system.user_info WHERE "
-                        + accountResiduePredicate("username") + ")");
-                // 3. The run and fixture users themselves.
-                int userRows = statement.executeUpdate(
-                        "UPDATE system.user_info SET deleted = 1, update_time = CURRENT_TIMESTAMP "
-                        + "WHERE deleted = 0 AND (" + accountResiduePredicate("username") + ")");
-                // 4. Bindings of the fixture roles.
+                // 2. role_menu bindings of fixture roles AND fixture menus (V1 FK).
                 int roleMenuRows = statement.executeUpdate(
-                        "UPDATE system.role_menu SET deleted = 1, update_time = CURRENT_TIMESTAMP "
-                        + "WHERE deleted = 0 AND role_id IN (SELECT id FROM system.role_info "
-                        + "WHERE deleted = 0 AND (" + roleResiduePredicate("name") + "))");
+                        "DELETE FROM system.role_menu WHERE role_id IN (SELECT id FROM "
+                                + "system.role_info WHERE (" + roleResiduePredicate("name") + ")) "
+                        + "OR menu_id IN (SELECT id FROM system.menu_info WHERE ("
+                                + menuTitleResiduePredicate("title") + " OR "
+                                + prefixLikePredicate("perms", MENU_PERMS_PREFIXES) + "))");
+                // 3. user_role bindings of the run/fixture users.
+                int userRoleRows = statement.executeUpdate(
+                        "DELETE FROM system.user_role WHERE user_id IN (SELECT id FROM "
+                                + "system.user_info WHERE ("
+                                + accountResiduePredicate("username") + "))");
+                // 4. The run and fixture users themselves.
+                int userRows = statement.executeUpdate(
+                        "DELETE FROM system.user_info WHERE ("
+                                + accountResiduePredicate("username") + ")");
                 // 5. The fixture roles themselves.
                 int roleRows = statement.executeUpdate(
-                        "UPDATE system.role_info SET deleted = 1, update_time = CURRENT_TIMESTAMP "
-                        + "WHERE deleted = 0 AND (" + roleResiduePredicate("name") + ")");
+                        "DELETE FROM system.role_info WHERE (" + roleResiduePredicate("name") + ")");
+                // 6. The fixture menus themselves.
+                int menuRows = statement.executeUpdate(
+                        "DELETE FROM system.menu_info WHERE ("
+                                + menuTitleResiduePredicate("title")
+                                + " OR " + prefixLikePredicate("perms", MENU_PERMS_PREFIXES) + ")");
+                // 7. Fixture dict details ride their swept catalogs (ca_id), then catalogs.
+                int detailRows = statement.executeUpdate(
+                        "DELETE FROM public.dict_detail WHERE ca_id IN (SELECT id FROM "
+                                + "public.dict_catal WHERE ("
+                                + prefixLikePredicate("name", CATAL_NAME_PREFIXES) + "))");
+                int catalRows = statement.executeUpdate(
+                        "DELETE FROM public.dict_catal WHERE ("
+                                + prefixLikePredicate("name", CATAL_NAME_PREFIXES) + ")");
+                // 8. Fixture departments before their campus (org_dep.org_id FK).
+                int depRows = statement.executeUpdate(
+                        "DELETE FROM system.org_dep WHERE ("
+                                + prefixLikePredicate("code", DEP_CODE_PREFIXES) + ") "
+                        + "OR org_id IN (SELECT id FROM system.org_info WHERE ("
+                                + orgResiduePredicate() + "))");
+                // 9. The fixture orgs themselves.
+                int orgRows = statement.executeUpdate(
+                        "DELETE FROM system.org_info WHERE (" + orgResiduePredicate() + ")");
                 connection.commit();
-                System.out.println("[system-test-hook] swept run residue - log_sign=" + signRows
-                        + " log_info=" + infoRows + " user_role=" + userRoleRows
-                        + " user_info=" + userRows + " role_menu=" + roleMenuRows
-                        + " role_info=" + roleRows);
+                System.out.println("[system-test-hook] hard-swept run residue - log_sign=" + signRows
+                        + " log_info=" + infoRows + " role_menu=" + roleMenuRows
+                        + " user_role=" + userRoleRows + " user_info=" + userRows
+                        + " role_info=" + roleRows + " menu_info=" + menuRows
+                        + " dict_detail=" + detailRows + " dict_catal=" + catalRows
+                        + " org_dep=" + depRows + " org_info=" + orgRows);
             } catch (SQLException e) {
                 connection.rollback();
                 throw e;
@@ -361,13 +448,33 @@ public abstract class AuthIntegrationTestBase {
 
     /** SQL fragment matching the fixture-role namespace (LIKE prefixes, escaped). */
     private static String roleResiduePredicate(String column) {
+        return prefixLikePredicate(column, ROLE_NAME_PREFIXES);
+    }
+
+    /** SQL fragment over system.org_info for the fixture org namespace (name + code). */
+    private static String orgResiduePredicate() {
+        return "(" + prefixLikePredicate("name", ORG_NAME_PREFIXES)
+                + " OR " + prefixLikePredicate("code", ORG_CODE_PREFIXES) + ")";
+    }
+
+    /** SQL fragment matching the fixture-menu title namespace (LIKE prefixes, escaped). */
+    private static String menuTitleResiduePredicate(String column) {
+        return prefixLikePredicate(column, MENU_TITLE_PREFIXES);
+    }
+
+    /**
+     * SQL fragment: {@code column LIKE 'prefix%' ESCAPE '\\'} OR-joined over the given
+     * fixture-prefix family. Every prefix escapes to a literal-prefix match - no
+     * wildcard accidents.
+     */
+    private static String prefixLikePredicate(String column, String[] prefixes) {
         StringBuilder predicate = new StringBuilder();
-        for (int i = 0; i < ROLE_NAME_PREFIXES.length; i++) {
+        for (int i = 0; i < prefixes.length; i++) {
             if (i > 0) {
                 predicate.append(" OR ");
             }
             predicate.append(column).append(" LIKE '")
-                    .append(likePrefixPattern(ROLE_NAME_PREFIXES[i])).append("%' ESCAPE '\\'");
+                    .append(likePrefixPattern(prefixes[i])).append("%' ESCAPE '\\'");
         }
         return predicate.toString();
     }

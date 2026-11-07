@@ -243,8 +243,8 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
         assertEquals(Integer.valueOf(1), stillLive,
                 "the denied delete must leave the probe node live");
 
-        jdbcTemplate.update("UPDATE system.role_menu SET deleted = 1 WHERE menu_id = ?", probeId);
-        jdbcTemplate.update("UPDATE system.menu_info SET deleted = 1 WHERE id = ?", probeId);
+        jdbcTemplate.update("DELETE FROM system.role_menu WHERE menu_id = ?", probeId);
+        jdbcTemplate.update("DELETE FROM system.menu_info WHERE id = ?", probeId);
         cleanupRoleAndUser(roleId, userId);
     }
 
@@ -405,18 +405,23 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
                 "DELETE /dicts/detail/{id}",
                 token -> exchangeJson(HttpMethod.DELETE, DETAIL_URL + "/" + thrDelDetailId, null, token));
 
-        // cleanup: everything the matrix created or touched (logical deletes)
-        jdbcTemplate.update("UPDATE system.user_info SET deleted = 1 WHERE username LIKE 'btnmatrix\\_%' ESCAPE '\\'");
-        jdbcTemplate.update("UPDATE system.role_menu SET deleted = 1 WHERE role_id IN (SELECT id FROM system.role_info WHERE name LIKE '按钮矩阵%')");
-        jdbcTemplate.update("UPDATE system.role_menu SET deleted = 1 WHERE menu_id IN (SELECT id FROM system.menu_info WHERE title LIKE 'ut矩阵%' OR title LIKE '按钮矩阵%')");
-        jdbcTemplate.update("UPDATE system.user_role SET deleted = 1 WHERE role_id IN (SELECT id FROM system.role_info WHERE name LIKE '按钮矩阵%')");
-        jdbcTemplate.update("UPDATE system.role_info SET deleted = 1 WHERE name LIKE '按钮矩阵%'");
-        jdbcTemplate.update("UPDATE system.menu_info SET deleted = 1 WHERE title LIKE 'ut矩阵%' OR title LIKE '按钮矩阵%' OR perms LIKE 'ut.mtx%'");
-        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE name LIKE '按钮矩阵%'");
-        jdbcTemplate.update("UPDATE system.org_dep SET deleted = 1 WHERE name LIKE '按钮矩阵%' OR code LIKE 'ut_mtx_dep_%'");
-        jdbcTemplate.update("UPDATE system.org_info SET deleted = 1 WHERE name LIKE '按钮矩阵院区%'");
-        jdbcTemplate.update("UPDATE public.dict_catal SET deleted = 1 WHERE name LIKE '按钮矩阵%'");
-        jdbcTemplate.update("UPDATE public.dict_detail SET deleted = 1 WHERE value LIKE '按钮矩阵%'");
+        // cleanup: everything the matrix created or touched - HARD deletes (user ruling
+        // 2026-11-07: soft-deleted sweep rows pile up and poison bug triage), bindings
+        // before owners so the V1 FKs never trip (user_role/user_info last among users;
+        // role_menu before role_info and menu_info; org_dep before org_info).
+        jdbcTemplate.update("DELETE FROM system.role_menu WHERE role_id IN (SELECT id FROM system.role_info WHERE name LIKE '按钮矩阵%')");
+        jdbcTemplate.update("DELETE FROM system.role_menu WHERE menu_id IN (SELECT id FROM system.menu_info WHERE title LIKE 'ut矩阵%' OR title LIKE '按钮矩阵%')");
+        jdbcTemplate.update("DELETE FROM system.user_role WHERE role_id IN (SELECT id FROM system.role_info WHERE name LIKE '按钮矩阵%')");
+        jdbcTemplate.update("DELETE FROM system.user_role WHERE user_id IN (SELECT id FROM system.user_info WHERE username LIKE 'btnmatrix\\_%' ESCAPE '\\')");
+        jdbcTemplate.update("DELETE FROM system.role_info WHERE name LIKE '按钮矩阵%'");
+        jdbcTemplate.update("DELETE FROM system.menu_info WHERE title LIKE 'ut矩阵%' OR title LIKE '按钮矩阵%' OR perms LIKE 'ut.mtx%'");
+        jdbcTemplate.update("DELETE FROM system.org_dep WHERE org_id IN (SELECT id FROM system.org_info WHERE name LIKE '按钮矩阵院区%')");
+        jdbcTemplate.update("DELETE FROM system.org_dep WHERE name LIKE '按钮矩阵%' OR code LIKE 'ut_mtx_dep_%'");
+        jdbcTemplate.update("DELETE FROM system.org_info WHERE name LIKE '按钮矩阵%'");
+        jdbcTemplate.update("DELETE FROM public.dict_detail WHERE ca_id IN (SELECT id FROM public.dict_catal WHERE name LIKE '按钮矩阵%')");
+        jdbcTemplate.update("DELETE FROM public.dict_detail WHERE value LIKE '按钮矩阵%'");
+        jdbcTemplate.update("DELETE FROM public.dict_catal WHERE name LIKE '按钮矩阵%'");
+        jdbcTemplate.update("DELETE FROM system.user_info WHERE username LIKE 'btnmatrix\\_%' ESCAPE '\\'");
     }
 
     /** The deny-then-pass proof for ONE write endpoint (see the matrix javadoc). */
@@ -552,11 +557,13 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
         return userId;
     }
 
+    /** HARD-delete cleanup (user ruling 2026-11-07), bindings before owners (V1 FKs). */
     private void cleanupRoleAndUser(int roleId, int userId) {
-        jdbcTemplate.update("UPDATE system.role_menu SET deleted = 1 WHERE role_id = ?", roleId);
-        jdbcTemplate.update("UPDATE system.user_role SET deleted = 1 WHERE role_id = ?", roleId);
-        jdbcTemplate.update("UPDATE system.role_info SET deleted = 1 WHERE id = ?", roleId);
-        jdbcTemplate.update("UPDATE system.user_info SET deleted = 1 WHERE id = ?", userId);
+        jdbcTemplate.update("DELETE FROM system.role_menu WHERE role_id = ?", roleId);
+        jdbcTemplate.update("DELETE FROM system.user_role WHERE role_id = ?", roleId);
+        jdbcTemplate.update("DELETE FROM system.role_info WHERE id = ?", roleId);
+        jdbcTemplate.update("DELETE FROM system.user_role WHERE user_id = ?", userId);
+        jdbcTemplate.update("DELETE FROM system.user_info WHERE id = ?", userId);
     }
 
     private ResponseEntity<String> postJson(String url, String json) {
