@@ -19,6 +19,7 @@ import org.birdbro.lumen.system.mapper.RoleInfoMapper;
 import org.birdbro.lumen.system.mapper.UserInfoMapper;
 import org.birdbro.lumen.system.mapper.UserRoleMapper;
 import org.birdbro.lumen.system.service.UserInfoService;
+import org.birdbro.lumen.system.service.support.LoginLockoutService;
 import org.birdbro.lumen.system.service.support.PasswordCipherHelper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -69,6 +70,14 @@ public class UserInfoServiceImpl implements UserInfoService {
      */
     @Autowired
     private PasswordCipherHelper passwordCipherHelper;
+
+    /**
+     * Additive DI (never-modify rule; documented precedent {@code LogController}): the
+     * lockout-state clearer joins as a field (login-lockout task 2.3) - the admin reset
+     * doubles as the emergency unlock channel.
+     */
+    @Autowired
+    private LoginLockoutService loginLockoutService;
 
     @Override
     @Transactional
@@ -130,6 +139,10 @@ public class UserInfoServiceImpl implements UserInfoService {
                 .mustChangePassword(1) // the user must change it at the next login
                 .build();
         userInfoMapper.updateById(patch);
+        // Emergency unlock channel (login-lockout task 2.3, design D6): the admin reset
+        // clears the target account's failure counter and lock key - zero new endpoints,
+        // the reset flow doubles as the unlock (auto-expiry remains the normal path).
+        loginLockoutService.clear(user.getUsername());
         return Boolean.TRUE;
     }
 

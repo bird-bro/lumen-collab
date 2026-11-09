@@ -63,17 +63,42 @@
 # Inline, 9 tasks; TDD: interop fixed vector red->green before the helper, integration
 # a-f before service wiring; blocking red lines per contract: zero common/framework
 # edits, one bom pin only).
-phase: applying
-change: password-transport-encryption-api
+# 2026-11-09: role-list-api PROPOSED (backend gap endpoint GET /system/roles/list +
+# MenuManageService dissolution per the 2026-11-06 ruling; 随访 reference; Batch Inline,
+# 7 tasks; validate PASS, guard preflight PASS, contract artifacts hash 01922b3d99bdfc49
+# 91c556922952ffc289e8afc79d62839d3cce5fd742b1014c - RE-STORE at slot handoff: the
+# propose-time ensure-contract-fresh overwrote this slot's artifacts_hash once and was
+# hand-restored to the password-transport slot value). QUEUED - did NOT touch the slot
+# keys below (password-transport-encryption-api holds it in a parallel session); slot
+# handoff happens at this change's /opsx:apply.
+# 2026-11-09: role-list-api TOOK THE SLOT at /opsx:apply (user 继续 after DP-3 approval;
+# password-transport-encryption 双特征 archived + committed 56e7f9a ahead of it - stale
+# slot keys replaced; artifacts hash 01922b3d99bdfc4991c556922952ffc289e8afc79d62839d3cc
+# e5fd742b1014c re-stored per the QUEUED note). Batch Inline, 7 tasks.
+# 2026-11-09: role-list-api ARCHIVED (2026-11-09-role-list-api; verify PASS 7/7 scenarios,
+# L1+L3 green 127 tests; specs synced: api Role Management Endpoints gap retired + 2 list
+# scenarios, web-system-console mock qualifier dropped; MenuManageService ruling executed,
+# naming.md precedent swapped). Slot released - login-lockout (parallel session, 0/8) may
+# take it at its own /opsx:apply.
+phase: archived
+change: role-list-api
 current_task: null
-execution_mode: Inline
-tasks_total: 9
-tasks_done: 11
+execution_mode: Batch Inline
+tasks_total: 7
+tasks_done: 7
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: a3e4ad688a8b584eb24d21b44f3c2f78c0a878cc016d2a24b483451cc6e74c88
+artifacts_hash: 37391ed0171d8e4b8ed15d724f3fa2cce2e345a5fc0bab02d7842a2630023a23
 contract_hash: null
 batches_completed: 0
-last_updated: 2026-11-09
+last_updated: 2026-11-0# 2026-11-09: login-lockout PROPOSED (single-stack lumen-system brute-force defense -
+# the second finding of the 2026-11-09 security review; user-ruled params 5 fails /
+# 15-min window / 30-min auto-expiry lock; account-level only - hospital NAT rules out
+# IP limiting; only A0210 counts, A0400/A0201 never; admin reset clears = emergency
+# unlock, zero new endpoints; A0211 reused verbatim, zero common/framework edits,
+# frontend zero-change; OPS dormant parts wired: A0211 code + UserLogin lock hook + Redis
+# infra. Inline, 6 tasks, contract fresh, validate PASS, guard preflight PASS).
+# QUEUED - did NOT touch the slot keys below; slot handoff at /opsx:apply.
+9

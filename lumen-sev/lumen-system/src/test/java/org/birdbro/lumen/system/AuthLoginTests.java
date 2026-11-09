@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -205,6 +206,183 @@ class AuthLoginTests extends AuthIntegrationTestBase {
         assertTrue(permStrings.contains("system:user:list"), "perms must carry the user-management string");
         assertTrue(permStrings.contains("system:log:list"),
                 "perms must carry the log-query string: " + permStrings);
+    }
+
+    // ===================== login lockout (login-lockout task 2.1, design T1-T4) =====================
+    // Probes use the pw_u_ fixture family (already in the base's sweep namespace) — the
+    // real-password probes are created through the admin endpoint and their passwords
+    // may be freely reset, never touching RUN_ACCOUNT or the seeded admin.
+
+    private static final String PROBE_PASSWORD = "lock-pass-123";
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    /** Creates a live probe user through the admin endpoint; returns its username. */
+    private String createProbeUser(String username) throws Exception {
+        ResponseEntity<String> adminLogin = postJson(LOGIN_URL, runAdminLoginBody());
+        String adminToken = parse(adminLogin).path("data").path("token").asText("");
+        ResponseEntity<String> created = postJsonAuthed("/api/v1/system/users",
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword(PROBE_PASSWORD)
+                        + "\",\"name\":\"lockout probe\"}", adminToken);
+        assertEquals("200", parse(created).path("code").asText(),
+                "the probe user must be created: " + created.getBody());
+        return username;
+    }
+
+    private ResponseEntity<String> postJsonAuthed(String url, String json, String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Authorization", "Bearer " + token); // Constants.TOKEN_PREFIX
+        return restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(json, headers), String.class);
+    }
+
+    private String wrongAttempts(String username, int times) throws Exception {
+        String lastCode = null;
+        for (int i = 0; i < times; i++) {
+            ResponseEntity<String> response = postJson(LOGIN_URL, loginBody(username, "wrong-" + i));
+            lastCode = parse(response).path("code").asText();
+        }
+        return lastCode;
+    }
+
+    @Test
+    void failureThresholdLocksAndNextAttemptAnswersA0211EvenWithCorrectPassword() throws Exception {
+        String probe = createProbeUser("pw_u_lock_th_" + System.currentTimeMillis());
+        try {
+            // max-attempts (5) wrong passwords: each answers A0210 — the THRESHOLD
+            // attempt itself is still a wrong-try answer (spec).
+            assertEquals("A0210", wrongAttempts(probe, 5),
+                    "the 5th wrong try still answers A0210, not A0211");
+
+            // The NEXT attempt — even the CORRECT password — is the lock answer.
+            ResponseEntity<String> correct = postJson(LOGIN_URL, loginBody(probe, PROBE_PASSWORD));
+            JsonNode body = parse(correct);
+            assertEquals("A0211", body.path("code").asText(),
+                    "a locked account rejects the correct password before any BCrypt round");
+            assertFalse(body.hasNonNull("data"), "no token is issued while locked");
+        } finally {
+            stringRedisTemplate.delete("login:fail:" + probe);
+            stringRedisTemplate.delete("login:lock:" + probe);
+        }
+    }
+
+    @Test
+    void unknownAccountProbesNeverCreateLockKeys() throws Exception {
+        String unknown = "no.such.user." + System.currentTimeMillis(); // unique - shared DB
+        ResponseEntity<String> response = postJson(LOGIN_URL, loginBody(unknown, "whatever"));
+
+        assertEquals("A0201", parse(response).path("code").asText(),
+                "an unknown account still maps to A0201");
+        assertFalse(Boolean.TRUE.equals(stringRedisTemplate.hasKey("login:fail:" + unknown)),
+                "an unknown username creates NO failure counter");
+        assertFalse(Boolean.TRUE.equals(stringRedisTemplate.hasKey("login:lock:" + unknown)),
+                "an unknown username can never be locked");
+    }
+
+    @Test
+    void plaintextAttemptsDoNotCountTowardLockout() throws Exception {
+        String probe = "pw_u_lock_pt_" + System.currentTimeMillis();
+        try {
+            // A0400 (transport failure) must leave the counter untouched — the fail key
+            // never comes into existence for a username that only sent plaintext.
+            ResponseEntity<String> response = postJson(LOGIN_URL,
+                    "{\"username\":\"" + probe + "\",\"password\":\"admin123\"}");
+            assertEquals("A0400", parse(response).path("code").asText());
+            assertFalse(Boolean.TRUE.equals(stringRedisTemplate.hasKey("login:fail:" + probe)),
+                    "a transport-format failure does NOT count toward lockout");
+        } finally {
+            stringRedisTemplate.delete("login:fail:" + probe);
+            stringRedisTemplate.delete("login:lock:" + probe);
+        }
+    }
+
+    @Test
+    void successfulLoginClearsTheFailureCounter() throws Exception {
+        String probe = createProbeUser("pw_u_lock_sc_" + System.currentTimeMillis());
+        try {
+            wrongAttempts(probe, 4); // sub-threshold
+            ResponseEntity<String> success = postJson(LOGIN_URL, loginBody(probe, PROBE_PASSWORD));
+            assertEquals("200", parse(success).path("code").asText(), "sub-threshold account logs in fine");
+
+            assertFalse(Boolean.TRUE.equals(stringRedisTemplate.hasKey("login:fail:" + probe)),
+                    "success clears the counter — earlier failures never accumulate");
+
+            // The full threshold is needed AGAIN from zero: 5 fresh wrongs lock, so the
+            // 6th attempt answers A0211 (with only 4 old + 1 new, it would already lock).
+            wrongAttempts(probe, 5);
+            ResponseEntity<String> next = postJson(LOGIN_URL, loginBody(probe, PROBE_PASSWORD));
+            assertEquals("A0211", parse(next).path("code").asText(),
+                    "the counter restarted from zero after the successful login");
+        } finally {
+            stringRedisTemplate.delete("login:fail:" + probe);
+            stringRedisTemplate.delete("login:lock:" + probe);
+        }
+    }
+
+    @Test
+    void adminPasswordResetUnlocksALockedAccount() throws Exception {
+        String probe = createProbeUser("pw_u_lock_rs_" + System.currentTimeMillis());
+        try {
+            wrongAttempts(probe, 5);
+            assertEquals("A0211", parse(postJson(LOGIN_URL, loginBody(probe, PROBE_PASSWORD)))
+                    .path("code").asText(), "precondition: the probe is locked");
+
+            // Admin reset (emergency unlock channel, design D6) — then the NEW password
+            // logs in immediately.
+            ResponseEntity<String> adminLogin = postJson(LOGIN_URL, runAdminLoginBody());
+            String adminToken = parse(adminLogin).path("data").path("token").asText("");
+            ResponseEntity<String> listed = restTemplate.exchange("/api/v1/system/users/list",
+                    HttpMethod.GET, new HttpEntity<>(authedJsonHeaders(adminToken)), String.class);
+            JsonNode users = parse(listed).path("data");
+            int probeId = -1;
+            for (JsonNode u : users) {
+                if (probe.equals(u.path("username").asText())) {
+                    probeId = u.path("uid").asInt();
+                }
+            }
+            assertTrue(probeId > 0, "the probe user id must resolve for the reset call");
+            ResponseEntity<String> reset = restTemplate.exchange(
+                    "/api/v1/system/users/" + probeId + "/password", HttpMethod.PUT,
+                    new HttpEntity<>("{\"newPassword\":\"" + encryptTestPassword("reset-pass-456") + "\"}",
+                            authedJsonHeaders(adminToken)), String.class);
+            assertEquals("200", parse(reset).path("code").asText(), "the admin reset must succeed");
+
+            ResponseEntity<String> recovered = postJson(LOGIN_URL, loginBody(probe, "reset-pass-456"));
+            assertEquals("200", parse(recovered).path("code").asText(),
+                    "the reset cleared the lock — the account logs in immediately");
+        } finally {
+            stringRedisTemplate.delete("login:fail:" + probe);
+            stringRedisTemplate.delete("login:lock:" + probe);
+        }
+    }
+
+    @Test
+    void plantedShortTtlLockExpiresAndTheAccountRecovers() throws Exception {
+        String probe = createProbeUser("pw_u_lock_ex_" + System.currentTimeMillis());
+        try {
+            // Design T2 at the LOGIN level: the gate reads the KEY. Plant a 2s lock
+            // directly — A0211 while present, normal loop after TTL.
+            stringRedisTemplate.opsForValue().set("login:lock:" + probe, "1",
+                    java.time.Duration.ofSeconds(2));
+            ResponseEntity<String> locked = postJson(LOGIN_URL, loginBody(probe, PROBE_PASSWORD));
+            assertEquals("A0211", parse(locked).path("code").asText());
+
+            Thread.sleep(2500);
+            ResponseEntity<String> recovered = postJson(LOGIN_URL, loginBody(probe, PROBE_PASSWORD));
+            assertEquals("200", parse(recovered).path("code").asText(),
+                    "the TTL elapsed — the normal login loop resumes");
+        } finally {
+            stringRedisTemplate.delete("login:fail:" + probe);
+            stringRedisTemplate.delete("login:lock:" + probe);
+        }
+    }
+
+    private HttpHeaders authedJsonHeaders(String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Authorization", "Bearer " + token);
+        return headers;
     }
 
     private ResponseEntity<String> postJson(String url, String json) {

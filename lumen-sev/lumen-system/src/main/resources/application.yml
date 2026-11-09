@@ -83,6 +83,17 @@ lumen:
     password-crypto:
       key-id: sm2-v1
       sm2-private-key:
+    # Login failure lockout (login-lockout, user rulings 2026-11-09): per-account
+    # brute-force defense wired from the dormant OPS parts (A0211 verbatim; the
+    # framework limitScript bean stays unconsumed - design D3). NON-sensitive values,
+    # safe to commit: max-attempts = wrong-password (A0210) failures allowed per fixed
+    # window; window-minutes = that window; lock-minutes = auto-expiry lock duration.
+    # Only A0210 counts (A0400/A0201 never); success clears; admin password reset
+    # clears too (emergency unlock channel). Override per environment via dev yml/env.
+    login-lockout:
+      max-attempts: 5
+      window-minutes: 15
+      lock-minutes: 30
 
 # XSS filter - demanded by framework/config/FilterConfig (@Value xss.*).
 xss:

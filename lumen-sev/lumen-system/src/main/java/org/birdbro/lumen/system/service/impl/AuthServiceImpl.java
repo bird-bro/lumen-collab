@@ -27,6 +27,7 @@ import org.birdbro.lumen.system.mapper.RoleMenuMapper;
 import org.birdbro.lumen.system.mapper.UserInfoMapper;
 import org.birdbro.lumen.system.service.AuthService;
 import org.birdbro.lumen.system.service.support.MenuTreeService;
+import org.birdbro.lumen.system.service.support.LoginLockoutService;
 import org.birdbro.lumen.system.service.support.PasswordCipherHelper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -87,6 +88,15 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private PasswordCipherHelper passwordCipherHelper;
 
+    /**
+     * Additive DI (never-modify rule; documented precedent {@code LogController}): the
+     * per-account brute-force lockout gate joins as a field (login-lockout task 2.2) —
+     * the copied A0211 error code is thrown HERE, the Redis key model lives in the
+     * support service.
+     */
+    @Autowired
+    private LoginLockoutService loginLockoutService;
+
     @Override
     public LoginResponse login(String username, String rawPassword) {
         // Transport decryption FIRST (password-transport-encryption-api task 2.4,
@@ -110,9 +120,23 @@ public class AuthServiceImpl implements AuthService {
             if (!Integer.valueOf(1).equals(user.getEnable())) {
                 throw new BusinessException(ExceptionEnum.ERROR_A0202);
             }
+            // Login lockout gate (login-lockout task 2.2, design D4): AFTER the account
+            // lookup (an unknown username can never be locked) and BEFORE the BCrypt
+            // round (a locked account costs one Redis GET, not one slow hash). The
+            // copied A0211 constant is REUSED verbatim - a locked account answers A0211
+            // regardless of the submitted password until the lock expires.
+            if (loginLockoutService.isLocked(username)) {
+                throw new BusinessException(ExceptionEnum.ERROR_A0211);
+            }
             if (!passwordEncoder.matches(raw, user.getPassword())) {
+                // Only the wrong-password path counts toward lockout (user ruling):
+                // record BEFORE the throw; the threshold attempt itself still answers
+                // A0210 - the lock starts biting from the NEXT attempt (spec).
+                loginLockoutService.recordFailure(username);
                 throw new BusinessException(ExceptionEnum.ERROR_A0210);
             }
+            // Success clears the counter (spec: earlier failures never accumulate).
+            loginLockoutService.clear(username);
 
             UserSign sign = new UserSign();
             sign.setUid(user.getId());
