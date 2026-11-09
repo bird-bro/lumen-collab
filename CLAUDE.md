@@ -59,7 +59,7 @@ Open-source medical imaging collaboration platform (brand: LumenCollab) that pai
 - No cross-domain - each agent writes only its own stack
 - Never modify existing methods - use overloading
 - Dangerous ops (`rm -rf`, `git push --force`, `git reset --hard`) gated by sandbox/approval or .claude/settings.json deny list
-- Chinese proposal intro - after `/opsx:propose` artifacts, write `docs/proposals/<name>.zh.md` (Chinese overview incl. proposal explanation, file paths+roles, next-step action suggestions, flow plan; non-authoritative disclaimer header; `openspec/` English stays source of truth). `<name>` = change name, or feature name for cross-stack.
+- Chinese proposal intro - do NOT auto-generate. Write `docs/proposals/<name>.zh.md` only on explicit user request for a stakeholder summary: <=20 lines covering problem, approved approach, impact, deployment order, and authoritative links; never duplicate implementation details. `openspec/` English stays source of truth.
 
 ### Session Commands
 `/resume` · `/branch` · `/rewind`

@@ -18,7 +18,7 @@
 | 斜杠命令用法 | `.claude/commands/opsx/` | 英文 |
 | 验证 skill/命令 | Claude: `.claude/commands/opsx/verify.md`; Codex: `.codex/skills/openspec-verify/` | 英文 |
 | 构建测试配置（验证用） | `openspec/verify.config.yaml` | 英文 |
-| 提案中文介绍 | `docs/proposals/<name>.zh.md` | 中文 |
+| 提案中文介绍（按需，仅用户明确要求） | `docs/proposals/<name>.zh.md` | 中文 |
 | 本人类导览 | `docs/GUIDE.zh.md`（本文件） | 中文 |
 
 ## 日常工作流（中文口语版）
