@@ -25,6 +25,24 @@
         <dependency>
             <groupId>org.birdbro</groupId>
             <artifactId>common</artifactId>
+            <!-- OPS common carries bcprov-jdk16 1.46 (RSAUtils' provider registration
+                 only - lumen-system never calls it). Hutool SM2 (password-crypto)
+                 needs the modern provider; the two jars share org.bouncycastle packages,
+                 so jdk16 is EXCLUDED here to keep exactly ONE BC on this service's
+                 classpath (password-transport-encryption-api D9; common/pom.xml and
+                 every other module are untouched). -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.bouncycastle</groupId>
+                    <artifactId>bcprov-jdk16</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- Modern BouncyCastle provider for Hutool 5.8.20 SM2 (password-transport-
+             encryption-api, coordination D9). Version managed by lumen-bom's additive pin. -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
         </dependency>
 
         <!-- web (Servlet stack - no reactive deps may enter) -->

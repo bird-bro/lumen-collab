@@ -299,7 +299,7 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
         expectDenyThenPass(adminToken, roleId, username, new int[]{1, 14, 2}, "system:user:create",
                 "POST /users",
                 token -> exchangeJson(HttpMethod.POST, USERS_URL,
-                        "{\"username\":\"btnmatrix_w_" + ts + "\",\"password\":\"audit-pass-123\","
+                        "{\"username\":\"btnmatrix_w_" + ts + "\",\"password\":\"" + encryptTestPassword("audit-pass-123") + "\","
                                 + "\"name\":\"矩阵直建用户\",\"roleIds\":[]}", token));
         // D2 semantics (spec scenario "Button perm alone authorizes the write"): the
         // role currently holds ONLY the bare create-button node - its list read stays
@@ -315,7 +315,7 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
         expectDenyThenPass(adminToken, roleId, username, new int[]{1, 14, 2}, "system:user:reset-pwd",
                 "PUT /users/{id}/password",
                 token -> exchangeJson(HttpMethod.PUT, USERS_URL + "/" + thrUserId + "/password",
-                        "{\"newPassword\":\"NewPass1!23\"}", token));
+                        "{\"newPassword\":\"" + encryptTestPassword("NewPass1!23") + "\"}", token));
         expectDenyThenPass(adminToken, roleId, username, new int[]{1, 14, 2}, "system:user:enable",
                 "PUT /users/{id}/enable",
                 token -> exchangeJson(HttpMethod.PUT, USERS_URL + "/" + thrUserId + "/enable",
@@ -524,8 +524,8 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
 
     private String loginToken(String username) throws Exception {
         ResponseEntity<String> loginResponse = postJson(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\""
-                        + (RUN_ACCOUNT.equals(username) ? ADMIN_TEST_PASSWORD : "audit-pass-123") + "\"}");
+                loginBody(username,
+                        RUN_ACCOUNT.equals(username) ? ADMIN_TEST_PASSWORD : "audit-pass-123"));
         JsonNode loginBody = parse(loginResponse);
         assertEquals("200", loginBody.path("code").asText(), "login must hand out the token");
         String token = loginBody.path("data").path("token").asText("");
@@ -547,7 +547,7 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
     private int createUserWithRoles(String token, String username, String name, int roleId)
             throws Exception {
         ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, USERS_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"audit-pass-123\","
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("audit-pass-123") + "\","
                         + "\"name\":\"" + name + "\",\"roleIds\":[" + roleId + "]}", token);
         JsonNode createBody = parse(createResponse);
         assertEquals("200", createBody.path("code").asText(),

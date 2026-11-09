@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,6 +42,7 @@ class AuthLoginTests extends AuthIntegrationTestBase {
 
     private static final String LOGIN_URL = "/api/v1/system/login";
     private static final String ME_URL = "/api/v1/system/me";
+    private static final String AUTH_KEY_URL = "/api/v1/system/auth-key";
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -50,7 +52,7 @@ class AuthLoginTests extends AuthIntegrationTestBase {
 
     @Test
     void validAdminLoginReturnsTokenAndProfile() throws Exception {
-        ResponseEntity<String> response = postJson(LOGIN_URL, "{\"username\":\"admin\",\"password\":\"admin123\"}");
+        ResponseEntity<String> response = postJson(LOGIN_URL, loginBody("admin", ADMIN_TEST_PASSWORD));
 
         assertEquals(200, response.getStatusCodeValue(), "login responds over HTTP 200 (envelope transport)");
         JsonNode body = parse(response);
@@ -70,7 +72,10 @@ class AuthLoginTests extends AuthIntegrationTestBase {
 
     @Test
     void wrongPasswordRejectedWithA0210() throws Exception {
-        ResponseEntity<String> response = postJson(LOGIN_URL, "{\"username\":\"admin\",\"password\":\"totally-wrong\"}");
+        // The wrong password still travels ENCRYPTED (a format failure would be A0400,
+        // not A0210 - the clean cutover keeps the wrong-password semantic for decryptable
+        // values only).
+        ResponseEntity<String> response = postJson(LOGIN_URL, loginBody("admin", "totally-wrong"));
 
         assertEquals(200, response.getStatusCodeValue());
         JsonNode body = parse(response);
@@ -84,12 +89,60 @@ class AuthLoginTests extends AuthIntegrationTestBase {
     void unknownUserRejectedWithA0201() throws Exception {
         String unknown = "no.such.user." + System.currentTimeMillis(); // unique - shared DB
         ResponseEntity<String> response = postJson(LOGIN_URL,
-                "{\"username\":\"" + unknown + "\",\"password\":\"whatever\"}");
+                loginBody(unknown, "whatever"));
 
         assertEquals(200, response.getStatusCodeValue());
         JsonNode body = parse(response);
         assertEquals("A0201", body.path("code").asText(), "an unknown account must map to the A0201 code");
         assertFalse(body.hasNonNull("data"));
+    }
+
+    @Test
+    void plaintextPasswordRejectedWithA0400BeforeAccountLookup() throws Exception {
+        // The clean cutover (password-transport-encryption-api): ANY non-ciphertext
+        // password field is a request-parameter failure, NOT a login attempt. It must
+        // short-circuit BEFORE the account query - the unknown username below must not
+        // leak A0201 (no account-existence signal through the format gate).
+        String unknown = "no.such.user." + System.currentTimeMillis(); // unique - shared DB
+        ResponseEntity<String> response = postJson(LOGIN_URL,
+                "{\"username\":\"" + unknown + "\",\"password\":\"admin123\"}");
+
+        assertEquals(200, response.getStatusCodeValue());
+        JsonNode body = parse(response);
+        assertEquals("A0400", body.path("code").asText(),
+                "a plaintext password field must be rejected as a request-parameter error");
+        assertFalse(body.hasNonNull("data"));
+        assertNotEquals("A0201", body.path("code").asText(),
+                "the format gate must fire before the account lookup - no enumeration signal");
+    }
+
+    @Test
+    void tamperedCiphertextRejectedWithA0400() throws Exception {
+        String wire = encryptTestPassword(ADMIN_TEST_PASSWORD);
+        String tampered = wire.substring(0, wire.length() - 1)
+                + (wire.endsWith("0") ? "1" : "0"); // flip the last hex nibble
+        ResponseEntity<String> response = postJson(LOGIN_URL,
+                "{\"username\":\"admin\",\"password\":\"" + tampered + "\"}");
+
+        assertEquals(200, response.getStatusCodeValue());
+        JsonNode body = parse(response);
+        assertEquals("A0400", body.path("code").asText(), "tampered ciphertext must not decrypt");
+        assertFalse(body.hasNonNull("data"));
+    }
+
+    @Test
+    void authKeyEndpointIsAnonymousAndCarriesTheDerivedPoint() throws Exception {
+        ResponseEntity<String> response = restTemplate.getForEntity(AUTH_KEY_URL, String.class);
+
+        assertEquals(200, response.getStatusCodeValue());
+        JsonNode body = parse(response);
+        assertEquals("200", body.path("code").asText(),
+                "the key endpoint must be anonymous - no token, no 203 envelope");
+        assertEquals("sm2-test", body.path("data").path("keyId").asText(),
+                "keyId comes from the test profile config");
+        String publicKey = body.path("data").path("publicKey").asText("");
+        assertEquals(130, publicKey.length(), "the point is 04||x||y - 130 hex chars");
+        assertTrue(publicKey.startsWith("04"), "the uncompressed point marker is present");
     }
 
     @Test
@@ -109,7 +162,7 @@ class AuthLoginTests extends AuthIntegrationTestBase {
 
     @Test
     void meWithAdminTokenReturnsProfileMenusAndPerms() throws Exception {
-        ResponseEntity<String> loginResponse = postJson(LOGIN_URL, "{\"username\":\"admin\",\"password\":\"admin123\"}");
+        ResponseEntity<String> loginResponse = postJson(LOGIN_URL, loginBody("admin", ADMIN_TEST_PASSWORD));
         JsonNode loginBody = parse(loginResponse);
         assertEquals("200", loginBody.path("code").asText(), "the token source (login) must succeed first");
         String token = loginBody.path("data").path("token").asText("");

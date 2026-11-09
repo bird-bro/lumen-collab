@@ -51,7 +51,7 @@ class AuthUserManagementTests extends AuthIntegrationTestBase {
         String username = "mgmt_u_" + ts; // unique - shared DB
 
         ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, USERS_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"plain-pass-123\","
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("plain-pass-123") + "\","
                         + "\"name\":\"管理用户\"}", token);
         JsonNode createBody = parse(createResponse);
         assertEquals("200", createBody.path("code").asText(), "the create must succeed: " + createBody);
@@ -86,14 +86,14 @@ class AuthUserManagementTests extends AuthIntegrationTestBase {
         String username = "dup_u_" + ts; // unique - shared DB
 
         ResponseEntity<String> firstResponse = exchangeJson(HttpMethod.POST, USERS_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"first-pass-123\","
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("first-pass-123") + "\","
                         + "\"name\":\"重复用户\"}", token);
         JsonNode firstBody = parse(firstResponse);
         assertEquals("200", firstBody.path("code").asText(), "the FIRST create must succeed: " + firstBody);
         int createdId = firstBody.path("data").asInt(-1);
 
         ResponseEntity<String> secondResponse = exchangeJson(HttpMethod.POST, USERS_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"second-pass-123\","
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("second-pass-123") + "\","
                         + "\"name\":\"重复用户\"}", token);
         assertEquals(200, secondResponse.getStatusCodeValue());
         JsonNode secondBody = parse(secondResponse);
@@ -117,20 +117,20 @@ class AuthUserManagementTests extends AuthIntegrationTestBase {
 
         ResponseEntity<String> resetResponse = exchangeJson(HttpMethod.PUT,
                 USERS_URL + "/" + createdId + "/password",
-                "{\"newPassword\":\"new-pass-456\"}", token);
+                "{\"newPassword\":\"" + encryptTestPassword("new-pass-456") + "\"}", token);
         JsonNode resetBody = parse(resetResponse);
         assertEquals("200", resetBody.path("code").asText(),
                 "the admin password reset must succeed: " + resetBody);
 
         // The OLD password no longer matches - the hash was REPLACED, not added to.
         JsonNode oldLoginBody = parse(postJson(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"old-pass-123\"}"));
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("old-pass-123") + "\"}"));
         assertEquals("A0210", oldLoginBody.path("code").asText(),
                 "the old password must be rejected after the admin reset");
 
         // The NEW password logs in, and the reset forced the must-change flag.
         JsonNode newLoginBody = parse(postJson(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"new-pass-456\"}"));
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("new-pass-456") + "\"}"));
         assertEquals("200", newLoginBody.path("code").asText(),
                 "the new password must log in (BCrypt re-encode proven end-to-end): "
                         + newLoginBody);
@@ -155,7 +155,7 @@ class AuthUserManagementTests extends AuthIntegrationTestBase {
                 "the disable must succeed: " + disableBody);
 
         JsonNode disabledLoginBody = parse(postJson(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"enable-pass-123\"}"));
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("enable-pass-123") + "\"}"));
         assertEquals("A0202", disabledLoginBody.path("code").asText(),
                 "a disabled user's login must be rejected with the copied A0202 envelope");
 
@@ -166,7 +166,7 @@ class AuthUserManagementTests extends AuthIntegrationTestBase {
                 "the re-enable must succeed: " + enableBody);
 
         JsonNode enabledLoginBody = parse(postJson(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"enable-pass-123\"}"));
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("enable-pass-123") + "\"}"));
         assertEquals("200", enabledLoginBody.path("code").asText(),
                 "re-enabling must restore the login");
 
@@ -185,7 +185,7 @@ class AuthUserManagementTests extends AuthIntegrationTestBase {
     /** Creates a user through the endpoint and returns the new id. */
     private int createUser(String token, String username, String password) throws Exception {
         ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, USERS_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"" + password + "\","
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword(password) + "\","
                         + "\"name\":\"管理用户\"}", token);
         JsonNode createBody = parse(createResponse);
         assertEquals("200", createBody.path("code").asText(),

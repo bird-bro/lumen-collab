@@ -27,6 +27,8 @@ import org.birdbro.lumen.system.mapper.RoleMenuMapper;
 import org.birdbro.lumen.system.mapper.UserInfoMapper;
 import org.birdbro.lumen.system.service.AuthService;
 import org.birdbro.lumen.system.service.support.MenuTreeService;
+import org.birdbro.lumen.system.service.support.PasswordCipherHelper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -76,8 +78,26 @@ public class AuthServiceImpl implements AuthService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    /**
+     * Additive DI (never-modify rule; documented precedent {@code LogController}): the
+     * existing constructor stays byte-identical, the password-cipher helper joins as a
+     * field (password-transport-encryption-api task 2.4) - its {@code decrypt} turns the
+     * request's SM2 ciphertext into the raw value the existing BCrypt line consumes.
+     */
+    @Autowired
+    private PasswordCipherHelper passwordCipherHelper;
+
     @Override
     public LoginResponse login(String username, String rawPassword) {
+        // Transport decryption FIRST (password-transport-encryption-api task 2.4,
+        // coordination D4/D5): the request's password field arrives as SM2 ciphertext;
+        // a format failure throws A0400 HERE - before the account query, so plaintext
+        // probing cannot enumerate accounts and wrong-password counters stay clean.
+        // {@code rawPassword} now names the CIPHERTEXT (the parameter signature is
+        // unchanged; javadoc carries the semantic). Additive field DI below
+        // (never-modify rule); the BCrypt match line is untouched except for feeding it
+        // the DECRYPTED value.
+        String raw = passwordCipherHelper.decrypt(rawPassword);
         // Resolved BEFORE the try: the failure branches know the account row (when it
         // exists) for the sign-event uid. TableLogic appends deleted = 0, so a logically
         // deleted account is "unknown".
@@ -90,7 +110,7 @@ public class AuthServiceImpl implements AuthService {
             if (!Integer.valueOf(1).equals(user.getEnable())) {
                 throw new BusinessException(ExceptionEnum.ERROR_A0202);
             }
-            if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+            if (!passwordEncoder.matches(raw, user.getPassword())) {
                 throw new BusinessException(ExceptionEnum.ERROR_A0210);
             }
 

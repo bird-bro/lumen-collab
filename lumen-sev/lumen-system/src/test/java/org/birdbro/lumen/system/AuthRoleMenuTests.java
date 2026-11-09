@@ -102,7 +102,7 @@ class AuthRoleMenuTests extends AuthIntegrationTestBase {
 
         // 4. Log in AS THAT USER.
         JsonNode loginBody = parse(postJson(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"audit-pass-123\"}"));
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("audit-pass-123") + "\"}"));
         assertEquals("200", loginBody.path("code").asText(),
                 "the new user must be able to log in: " + loginBody);
         String userToken = loginBody.path("data").path("token").asText("");
@@ -148,7 +148,7 @@ class AuthRoleMenuTests extends AuthIntegrationTestBase {
         exchangeJson(HttpMethod.PUT, ROLES_URL + "/" + roleId + "/menus",
                 "{\"menuIds\":[2]}", adminToken);
         JsonNode firstLogin = parse(postJson(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"audit-pass-123\"}"));
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("audit-pass-123") + "\"}"));
         assertEquals("200", firstLogin.path("code").asText());
         String firstToken = firstLogin.path("data").path("token").asText("");
         JsonNode firstMe = parse(exchangeJson(HttpMethod.GET, "/api/v1/system/me", null, firstToken));
@@ -166,7 +166,7 @@ class AuthRoleMenuTests extends AuthIntegrationTestBase {
                 "the re-assignment must succeed");
 
         JsonNode secondLogin = parse(postJson(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"audit-pass-123\"}"));
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("audit-pass-123") + "\"}"));
         assertEquals("200", secondLogin.path("code").asText());
         String secondToken = secondLogin.path("data").path("token").asText("");
         JsonNode secondMe = parse(exchangeJson(HttpMethod.GET, "/api/v1/system/me", null, secondToken));
@@ -237,7 +237,7 @@ class AuthRoleMenuTests extends AuthIntegrationTestBase {
 
         // And the bound user no longer receives the granted perms.
         JsonNode userLogin = parse(postJson(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"audit-pass-123\"}"));
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("audit-pass-123") + "\"}"));
         assertEquals("200", userLogin.path("code").asText(),
                 "the user itself still logs in (the account is untouched)");
         JsonNode userMe = parse(exchangeJson(HttpMethod.GET, "/api/v1/system/me", null,
@@ -273,7 +273,7 @@ class AuthRoleMenuTests extends AuthIntegrationTestBase {
     private int createUserWithRoles(String token, String username, String name, int roleId)
             throws Exception {
         ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, USERS_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"audit-pass-123\","
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("audit-pass-123") + "\","
                         + "\"name\":\"" + name + "\",\"roleIds\":[" + roleId + "]}", token);
         JsonNode createBody = parse(createResponse);
         assertEquals("200", createBody.path("code").asText(),

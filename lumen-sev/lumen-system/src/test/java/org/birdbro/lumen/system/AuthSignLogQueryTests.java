@@ -272,7 +272,7 @@ class AuthSignLogQueryTests extends AuthIntegrationTestBase {
 
     private String loginToken(String username, String password) throws Exception {
         ResponseEntity<String> loginResponse = postJson(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}");
+                loginBody(username, password));
         JsonNode loginBody = parse(loginResponse);
         assertEquals("200", loginBody.path("code").asText(), "login must hand out the token: " + loginBody);
         String token = loginBody.path("data").path("token").asText("");
@@ -294,7 +294,7 @@ class AuthSignLogQueryTests extends AuthIntegrationTestBase {
     private int createUserWithRoles(String token, String username, String name, int roleId)
             throws Exception {
         ResponseEntity<String> createResponse = exchangeJson(HttpMethod.POST, USERS_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"audit-pass-123\","
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("audit-pass-123") + "\","
                         + "\"name\":\"" + name + "\",\"roleIds\":[" + roleId + "]}", token);
         JsonNode createBody = parse(createResponse);
         assertEquals("200", createBody.path("code").asText(),

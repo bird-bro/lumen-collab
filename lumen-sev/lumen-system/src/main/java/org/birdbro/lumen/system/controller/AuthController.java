@@ -5,10 +5,13 @@ import javax.validation.Valid;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 
+import org.birdbro.lumen.system.dto.AuthKeyResponse;
 import org.birdbro.lumen.system.dto.LoginRequest;
 import org.birdbro.lumen.system.dto.LoginResponse;
 import org.birdbro.lumen.system.dto.MeResponse;
 import org.birdbro.lumen.system.service.AuthService;
+import org.birdbro.lumen.system.service.support.PasswordCipherHelper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,6 +45,14 @@ public class AuthController {
     }
 
     /**
+     * Additive DI (never-modify rule; documented precedent {@code LogController}): the
+     * existing constructor stays byte-identical, the password-crypto helper joins as a
+     * field (password-transport-encryption-api task 2.3).
+     */
+    @Autowired
+    private PasswordCipherHelper passwordCipherHelper;
+
+    /**
      * Issues the JWT for valid credentials (envelope carries token + profile + menus +
      * perms); A-class envelopes A0201/A0202/A0210 for unknown/disabled/wrong-password.
      */
@@ -49,6 +60,23 @@ public class AuthController {
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request.getUsername(), request.getPassword());
+    }
+
+    /**
+     * The SM2 key distribution for password transport encryption
+     * (password-transport-encryption-api task 2.3, coordination D3): ANONYMOUS (the
+     * login page fetches the key before it can produce a login body; the permit-all
+     * entry lives beside /login in the committed application.yml). Returns the
+     * configured key id and the DERIVED public point - the private key never leaves
+     * the server.
+     */
+    @ApiOperation("密码加密公钥分发（匿名）：keyId + SM2 公钥点")
+    @GetMapping("/auth-key")
+    public AuthKeyResponse authKey() {
+        return AuthKeyResponse.builder()
+                .keyId(passwordCipherHelper.getKeyId())
+                .publicKey(passwordCipherHelper.getPublicKeyHex())
+                .build();
     }
 
     /** Profile + menu tree + perms set of the JWT-authenticated principal. */

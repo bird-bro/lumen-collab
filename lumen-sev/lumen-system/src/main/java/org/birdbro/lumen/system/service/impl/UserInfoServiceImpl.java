@@ -19,6 +19,8 @@ import org.birdbro.lumen.system.mapper.RoleInfoMapper;
 import org.birdbro.lumen.system.mapper.UserInfoMapper;
 import org.birdbro.lumen.system.mapper.UserRoleMapper;
 import org.birdbro.lumen.system.service.UserInfoService;
+import org.birdbro.lumen.system.service.support.PasswordCipherHelper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,6 +61,15 @@ public class UserInfoServiceImpl implements UserInfoService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    /**
+     * Additive DI (never-modify rule; documented precedent {@code LogController}): the
+     * existing constructor stays byte-identical, the password-cipher helper joins as a
+     * field (password-transport-encryption-api task 2.4) - create and admin-reset decrypt
+     * their SM2 ciphertext fields before the untouched BCrypt encode.
+     */
+    @Autowired
+    private PasswordCipherHelper passwordCipherHelper;
+
     @Override
     @Transactional
     public Integer createUser(CreateUserRequest request) {
@@ -80,7 +91,10 @@ public class UserInfoServiceImpl implements UserInfoService {
 
         UserInfo user = new UserInfo();
         BeanUtil.copyProperties(request, user, true);
-        user.setPassword(passwordEncoder.encode(request.getPassword())); // hash replaces the copied plain text
+        // The initial password arrives as SM2 ciphertext (password-transport-encryption-api
+        // task 2.4) - decrypt to the raw value BEFORE the untouched BCrypt encode. A format
+        // failure is A0400 from the helper, before any row is written.
+        user.setPassword(passwordEncoder.encode(passwordCipherHelper.decrypt(request.getPassword()))); // hash replaces the decrypted raw text
         // must_change_password defaults 0 and enable defaults 1 (V1 column defaults).
         userInfoMapper.insert(user);
 
@@ -110,7 +124,9 @@ public class UserInfoServiceImpl implements UserInfoService {
 
         UserInfo patch = UserInfo.builder()
                 .id(user.getId())
-                .password(passwordEncoder.encode(newPassword))
+                // The replacement arrives as SM2 ciphertext (password-transport-encryption-api
+                // task 2.4) - decrypt BEFORE the untouched BCrypt encode.
+                .password(passwordEncoder.encode(passwordCipherHelper.decrypt(newPassword)))
                 .mustChangePassword(1) // the user must change it at the next login
                 .build();
         userInfoMapper.updateById(patch);

@@ -266,6 +266,19 @@
                 <artifactId>bcprov-jdk16</artifactId>
                 <version>1.46</version>
             </dependency>
+            <!-- bouncycastle MODERN provider (password-transport-encryption-api D9):
+                 Hutool 5.8.20's SM2 (C1C3C2 mode selector, SM3digest) needs BC >= 1.5x APIs
+                 that bcprov-jdk16 1.46 lacks (its SM2Engine has no Mode constructor).
+                 1.78.1 = jdk18on line (targets JDK 1.8+, Java 11 OK). This is ONE additive
+                 lumen pin - the OPS bcprov-jdk16 entry above stays verbatim; consumers
+                 declare exactly ONE of the two (a module that adds jdk18on must exclude
+                 jdk16 from common: same org.bouncycastle packages, dual jars = classpath
+                 order hell). -->
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>1.78.1</version>
+            </dependency>
             <!-- HL7 v2 (HAPI, not HAPI FHIR) -->
             <dependency>
                 <groupId>ca.uhn.hapi</groupId>

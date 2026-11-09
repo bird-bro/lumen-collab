@@ -66,6 +66,23 @@ swagger:
 security:
   permit-all:
     - /api/v1/system/login
+    # The SM2 public-key distribution for password transport encryption (coordinate D3):
+    # the login page must fetch the key BEFORE it can produce a login body, so the key
+    # endpoint is anonymous like /login itself.
+    - /api/v1/system/auth-key
+
+# Password transport encryption (password-transport-encryption-api, coordination D2):
+# SM2 keypair, STATIC per deployment. key-id identifies the active key (rotation hook);
+# sm2-private-key is the 32-byte raw scalar D as 64-char hex - SENSITIVE CONFIG (design
+# D8): the committed empty default FAILS STARTUP by design (PasswordCipherHelper
+# fail-fast); real values ship via env var / the gitignored application-dev.yml, NEVER
+# committed. Generate a keypair: sm2.generateKeyPairHex() (sm-crypto) or Hutool
+# SmUtil.sm2() - public key is derived from D, never configured.
+lumen:
+  security:
+    password-crypto:
+      key-id: sm2-v1
+      sm2-private-key:
 
 # XSS filter - demanded by framework/config/FilterConfig (@Value xss.*).
 xss:

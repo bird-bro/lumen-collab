@@ -65,7 +65,7 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
 
         // Login SUCCESS (scenario 10): one log_sign row with type SUCCESS(10), uid, account.
         ResponseEntity<String> successResponse = postJsonWithUa(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"sign-pass-123\"}");
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("sign-pass-123") + "\"}");
         JsonNode successBody = parse(successResponse);
         assertEquals("200", successBody.path("code").asText(), "the fresh user login must succeed: " + successBody);
         String jwt = successBody.path("data").path("token").asText("");
@@ -91,7 +91,7 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
 
         // Login FAILURE (wrong password, scenario 10): type FAIL(11) with the attempt uid.
         ResponseEntity<String> wrongResponse = postJsonWithUa(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"totally-wrong\"}");
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("totally-wrong") + "\"}");
         JsonNode wrongBody = parse(wrongResponse);
         assertEquals("A0210", wrongBody.path("code").asText(),
                 "the wrong-password login must still be rejected with the A0210 envelope (wiring must not change behavior)");
@@ -119,7 +119,7 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
         int uid = createUser(adminToken, username, "out-pass-123");
 
         ResponseEntity<String> loginResponse = postJsonWithUa(LOGIN_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"out-pass-123\"}");
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("out-pass-123") + "\"}");
         JsonNode loginBody = parse(loginResponse);
         assertEquals("200", loginBody.path("code").asText(), "the fresh user login must succeed: " + loginBody);
         String jwt = loginBody.path("data").path("token").asText("");
@@ -154,7 +154,7 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
     /** Creates a live user through the admin endpoint and returns its id. */
     private int createUser(String adminToken, String username, String password) throws Exception {
         ResponseEntity<String> createResponse = postJsonWithUa(USERS_URL,
-                "{\"username\":\"" + username + "\",\"password\":\"" + password + "\",\"name\":\"sign 日志\"}",
+                "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword(password) + "\",\"name\":\"sign 日志\"}",
                 adminToken);
         JsonNode createBody = parse(createResponse);
         assertEquals("200", createBody.path("code").asText(), "the fresh user create must succeed: " + createBody);

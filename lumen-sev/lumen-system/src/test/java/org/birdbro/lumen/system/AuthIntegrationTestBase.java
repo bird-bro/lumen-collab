@@ -160,6 +160,42 @@ public abstract class AuthIntegrationTestBase {
      */
     static final String ADMIN_TEST_PASSWORD = "admin123";
 
+    // ===================== password transport encryption (task 2.2) =====================
+    // The clean cutover (password-transport-encryption-api) rejects plaintext password
+    // fields with A0400, so EVERY request body a suite sends must carry SM2 ciphertext.
+    // These statics mirror the frontend flow exactly: sm-crypto doEncrypt(msg, pub, 1)
+    // output + the "04" point marker = the wire format (coordination D4); the values
+    // match application-test.yml and PasswordCipherHelperTest's fixed vector.
+
+    /** The fixed test scalar D - identical to application-test.yml (TEST ONLY). */
+    static final String TEST_SM2_PRIVATE_D =
+            "56d66802243a734aba690c6f2553ca69c87e8e78f9b282a19686d7fe1683cd83";
+
+    /** The derived public point of TEST_SM2_PRIVATE_D (04||x||y, 130 hex chars). */
+    static final String TEST_SM2_PUBLIC_POINT =
+            "0440025ec765361018ae5c5e603f9e55354e5aa2e1fcab3d541d7e6f560b40039f7d"
+                    + "a1972abc804eb41b0332bb04f348b3baa7009091d150c4a77763efdfd8d553";
+
+    /**
+     * Encrypts a raw password into the WIRE format the backend's
+     * {@code PasswordCipherHelper} accepts (SM2 C1C3C2 hex, standard 04-prefixed point
+     * encoding) under the fixed test keypair. Hutool emits the 04 marker itself - no
+     * manual prepend needed here (unlike sm-crypto, whose native output is markerless).
+     */
+    static String encryptTestPassword(String raw) {
+        return cn.hutool.crypto.SmUtil.sm2(TEST_SM2_PRIVATE_D, TEST_SM2_PUBLIC_POINT)
+                .encryptHex(raw, cn.hutool.crypto.asymmetric.KeyType.PublicKey).toLowerCase();
+    }
+
+    /**
+     * Encrypted login request body for ANY account - the drop-in replacement for the
+     * former hand-built {@code {"username":..,"password":<plaintext>}} literals.
+     */
+    static String loginBody(String username, String rawPassword) {
+        return "{\"username\":\"" + username + "\",\"password\":\""
+                + encryptTestPassword(rawPassword) + "\"}";
+    }
+
     /**
      * Fixture-account namespace owned by the tests, sweep-targetable. REAL users must
      * NEVER take these prefixes - the {@code @AfterAll} sweep hard-deletes every row
@@ -283,10 +319,11 @@ public abstract class AuthIntegrationTestBase {
      * Login request body for the run-scoped admin - the drop-in replacement for the
      * former {@code {"username":"admin","password":"admin123"}} bodies, so the login
      * loop's sign row attributes to {@link #RUN_ACCOUNT} instead of the real admin.
+     * The password travels ENCRYPTED since the transport-encryption cutover (task 2.2).
      */
     static String runAdminLoginBody() {
         doEnsureRunAdminIdentity();
-        return "{\"username\":\"" + RUN_ACCOUNT + "\",\"password\":\"" + ADMIN_TEST_PASSWORD + "\"}";
+        return loginBody(RUN_ACCOUNT, ADMIN_TEST_PASSWORD);
     }
 
     /**

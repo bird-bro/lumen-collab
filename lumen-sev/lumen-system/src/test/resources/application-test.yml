@@ -19,3 +19,21 @@
 # The spring.profiles.active=dev default of application.yml is overridden by
 # @ActiveProfiles("test"), so the gitignored application-dev.yml is NOT loaded in
 # tests - the dynamic properties remain the only datasource source of truth.
+
+# Password-transport-encryption test keypair (password-transport-encryption-api task
+# 1.2 - coordination D2). TEST-ONLY material, committed on purpose: this SM2 scalar D
+# protects nothing (the test server holds no real credentials; the seeded admin's
+# documented test credential is public by design). Production values are generated per
+# deployment and ship via env vars / the gitignored application-dev.yml - NEVER here.
+# The interop fixed vector (sm-crypto C1C3C2 output, frontend library 0.3.13, plaintext
+# "Test@12345") lives beside it as the PasswordCipherHelperTest literal:
+#   cipher 9d84ff0341ff1c0dcd95fcfb8ca1ce8025a60a7290d3f3dd4ab67b6f61b880baa4b0d6a1cb
+#          006873964ec2b196ff4518be41561a4001edfb9c84a6e6a117b601c0a3de3b85516bf0385f
+#          d95582a3bc16939fab0249f2927bd7e44c4b3c667b82c2dc36c530eafa3120fb
+#   (wire format = "04" + this hex - the standard uncompressed-point marker the
+#   frontend prepends; see coordination D4 as refined during apply)
+lumen:
+  security:
+    password-crypto:
+      key-id: sm2-test
+      sm2-private-key: 56d66802243a734aba690c6f2553ca69c87e8e78f9b282a19686d7fe1683cd83

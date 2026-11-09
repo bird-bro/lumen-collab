@@ -54,7 +54,7 @@ class AuthAuditIdentityTests extends AuthIntegrationTestBase {
 
         String username = "audit_user_" + System.currentTimeMillis(); // unique - shared DB
         ResponseEntity<String> createResponse = restTemplate.exchange(USERS_URL, HttpMethod.POST,
-                entity("{\"username\":\"" + username + "\",\"password\":\"audit-pass-123\","
+                entity("{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("audit-pass-123") + "\","
                         + "\"name\":\"audit identity\"}", token), String.class);
 
         assertEquals(200, createResponse.getStatusCodeValue());
