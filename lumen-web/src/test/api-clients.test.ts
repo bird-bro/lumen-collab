@@ -86,6 +86,37 @@ function lastCall(fetchMock: { mock: { calls: unknown[][] } }): { url: string; i
   return { url: call[0] as string, init: call[1] as RequestInit }
 }
 
+/** Fixed TEST public point - the same literal the backend test resources pin. */
+const TEST_PUBLIC_POINT =
+  '0440025ec765361018ae5c5e603f9e55354e5aa2e1fcab3d541d7e6f560b40039f7d' +
+  'a1972abc804eb41b0332bb04f348b3baa7009091d150c4a77763efdfd8d553'
+
+/**
+ * Path-aware stub for the encryption era (password-transport-encryption-web task
+ * 2.3): password-bearing clients fetch `GET /system/auth-key` BEFORE the operation
+ * POST/PUT, so the stub routes the key endpoint to the fixed TEST keypair and every
+ * other call to `impl`. `lastCall`-style call[0] still refers to the auth-key fetch -
+ * use `lastCallBySuffix` for the operation call.
+ */
+function stubOkWithAuthKey(data: unknown): { mock: { calls: unknown[][] } } {
+  const fetchMock = vi.fn(async (url: unknown) => ({
+    json: async () => {
+      if (String(url).endsWith('/system/auth-key')) {
+        return { timestamp: '2026-11-04 10:00:00.000', code: '200', msg: 'OK', data: { keyId: 'sm2-test', publicKey: TEST_PUBLIC_POINT } }
+      }
+      return { timestamp: '2026-11-04 10:00:00.000', code: '200', msg: 'OK', data }
+    },
+  }))
+  vi.stubGlobal('fetch', fetchMock)
+  return fetchMock
+}
+
+function lastCallBySuffix(fetchMock: { mock: { calls: unknown[][] } }, suffix: string): { url: string; init: RequestInit } {
+  const call = fetchMock.mock.calls.find(([url]) => String(url).endsWith(suffix))
+  expect(call, `expected a fetch call ending with ${suffix}`).toBeTruthy()
+  return { url: call?.[0] as string, init: call?.[1] as RequestInit }
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -132,25 +163,35 @@ describe('users client (task 4.3)', () => {
     expect(data[0].uid).toBe(1)
   })
 
-  it('createUser posts /system/users and unwraps the new numeric id', async () => {
-    const fetchMock = stubOk(3)
+  it('createUser posts /system/users with the ENCRYPTED password and unwraps the new numeric id', async () => {
+    const fetchMock = stubOkWithAuthKey(3)
     const body = { username: 'op2', password: 'pw', name: '操作员2', roleIds: [1] }
     const data = await createUser(body)
-    const { url, init } = lastCall(fetchMock)
+    const { url, init } = lastCallBySuffix(fetchMock, '/system/users')
     expect(url).toBe('/api/v1/system/users')
     expect(init.method).toBe('POST')
-    expect(init.body).toBe(JSON.stringify(body))
+    const wireBody = JSON.parse(String(init.body)) as { username: string; password: string; name: string; roleIds: number[] }
+    expect(wireBody.username).toBe('op2')
+    expect(wireBody.name).toBe('操作员2')
+    expect(wireBody.roleIds).toEqual([1])
+    // The initial password travels as SM2 ciphertext - never the typed value.
+    expect(wireBody.password).toMatch(/^04[0-9a-f]+$/)
+    expect(wireBody.password).not.toBe('pw')
+    expect(String(init.body)).not.toContain('"pw"')
     expect(data).toBe(3)
     expect(typeof data).toBe('number')
   })
 
-  it('resetPassword puts /system/users/{id}/password with the newPassword body', async () => {
-    const fetchMock = stubOk(true)
+  it('resetPassword puts /system/users/{id}/password with the ENCRYPTED newPassword body', async () => {
+    const fetchMock = stubOkWithAuthKey(true)
     const data = await resetPassword(5, 'n3wPass')
-    const { url, init } = lastCall(fetchMock)
+    const { url, init } = lastCallBySuffix(fetchMock, '/system/users/5/password')
     expect(url).toBe('/api/v1/system/users/5/password')
     expect(init.method).toBe('PUT')
-    expect(init.body).toBe(JSON.stringify({ newPassword: 'n3wPass' }))
+    const wireBody = JSON.parse(String(init.body)) as { newPassword: string }
+    expect(wireBody.newPassword).toMatch(/^04[0-9a-f]+$/)
+    expect(wireBody.newPassword).not.toBe('n3wPass')
+    expect(String(init.body)).not.toContain('"n3wPass"')
     expect(data).toBe(true)
   })
 

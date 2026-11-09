@@ -7,6 +7,7 @@ import { ApiError } from '@/api/client'
 import { login as authLogin } from '@/api/auth'
 import { firstGrantedRoute } from '@/routes/menu-paths'
 import { useAuthStore } from '@/stores/auth'
+import { encryptPassword, invalidateKeyCache } from '@/utils/password-cipher'
 import headLogo from './head.png'
 import loginBg from './login-bg.svg'
 
@@ -80,7 +81,11 @@ export default function LoginPage() {
     setError(null)
     setSubmitting(true)
     try {
-      const data = await authLogin(values)
+      // Password transport encryption (password-transport-encryption-web task 2.2,
+      // coordination D4/D8): the typed password is SM2-encrypted BEFORE the body is
+      // built - the typed value never reaches the wire. The key arrives from the
+      // anonymous /auth-key endpoint (cached module-level in the util).
+      const data = await authLogin({ ...values, password: await encryptPassword(values.password) })
       useAuthStore.getState().setSession({
         token: data.token,
         profile: data.profile,
@@ -89,7 +94,12 @@ export default function LoginPage() {
       })
       navigate(firstGrantedRoute(data.menus) ?? '/', { replace: true })
     } catch (err) {
-      // The OPS login shows the failure INLINE (.error-info), msg verbatim.
+      // The OPS login shows the failure INLINE (.error-info), msg verbatim. An A0400
+      // (stale key after a server-side rotation) drops the cached key so the NEXT
+      // submit refetches - one bounded self-heal step, no auto-retry (design D3).
+      if (err instanceof ApiError && err.code === 'A0400') {
+        invalidateKeyCache()
+      }
       setError(err instanceof ApiError ? err.msg : '登录失败，请稍后重试')
     } finally {
       setSubmitting(false)

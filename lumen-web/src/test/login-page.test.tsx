@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import LoginPage from '@/pages/login'
 import { useAuthStore } from '@/stores/auth'
 import { themeConfig } from '@/theme'
+import { invalidateKeyCache } from '@/utils/password-cipher'
 import type { MenuNode } from '@/api/types'
 
 /**
@@ -65,6 +66,26 @@ function stubFetch(impl: (...args: unknown[]) => Promise<unknown>) {
   return fetchMock
 }
 
+/**
+ * Path-aware transport stub for the encryption era (password-transport-encryption-web
+ * task 2.1): the login page now fetches `GET /system/auth-key` BEFORE it can produce
+ * the login POST, so the stub routes by URL - the key endpoint answers the fixed TEST
+ * keypair (the same literal the backend test resources pin), everything else (the
+ * login POST) goes to `impl`.
+ */
+const TEST_PUBLIC_POINT =
+  '0440025ec765361018ae5c5e603f9e55354e5aa2e1fcab3d541d7e6f560b40039f7d' +
+  'a1972abc804eb41b0332bb04f348b3baa7009091d150c4a77763efdfd8d553'
+
+function stubAuthFetch(loginImpl: (...args: unknown[]) => Promise<unknown>) {
+  return stubFetch(async (url, init) => {
+    if (String(url).endsWith('/system/auth-key')) {
+      return okEnvelope({ keyId: 'sm2-test', publicKey: TEST_PUBLIC_POINT })
+    }
+    return loginImpl(url, init)
+  })
+}
+
 function renderLogin() {
   return render(
     <ConfigProvider theme={themeConfig}>
@@ -82,12 +103,15 @@ beforeEach(() => {
   vi.unstubAllGlobals()
   localStorage.clear()
   useAuthStore.getState().clear()
+  // The util's key cache is MODULE-level (by design, valid for the session); each test
+  // stands in for a FRESH page load, so the cache starts cold here.
+  invalidateKeyCache()
 })
 
 describe('LoginPage (web-foundation-auth-console 5.2)', () => {
   it('stores the session and routes to the first granted menu route on valid credentials', async () => {
     const user = userEvent.setup()
-    const fetchMock = stubFetch(async () =>
+    const fetchMock = stubAuthFetch(async () =>
       okEnvelope({ token: 't-login', profile: ADMIN_PROFILE, menus: ADMIN_MENUS, perms: ['system:org:list'] }),
     )
     renderLogin()
@@ -102,15 +126,22 @@ describe('LoginPage (web-foundation-auth-console 5.2)', () => {
     expect(useAuthStore.getState().menus).toHaveLength(1)
     expect(useAuthStore.getState().perms).toContain('system:org:list')
 
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const loginCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/system/login'))
+    const [url, init] = loginCall as unknown as [string, RequestInit]
     expect(url).toBe('/api/v1/system/login')
     expect(init.method).toBe('POST')
-    expect(JSON.parse(String(init.body))).toEqual({ username: 'admin', password: 'admin123' })
+    const wireBody = JSON.parse(String(init.body)) as { username: string; password: string }
+    expect(wireBody.username).toBe('admin')
+    // The wire carries SM2 ciphertext (04-prefixed C1C3C2 hex) - the typed password
+    // must not appear anywhere in the body (password-transport-encryption D4/D8).
+    expect(wireBody.password).toMatch(/^04[0-9a-f]+$/)
+    expect(wireBody.password).not.toBe('admin123')
+    expect(String(init.body)).not.toContain('"admin123"')
   })
 
   it('surfaces the A-class msg, keeps the visitor on /login and stores no session on a wrong password', async () => {
     const user = userEvent.setup()
-    stubFetch(async () => failEnvelope('A0210', '用户密码错误'))
+    stubAuthFetch(async () => failEnvelope('A0210', '用户密码错误'))
     renderLogin()
 
     await user.type(screen.getByPlaceholderText('账号'), 'admin')
@@ -127,7 +158,7 @@ describe('LoginPage (web-foundation-auth-console 5.2)', () => {
 
   it('submits on Enter in the password field exactly like the button', async () => {
     const user = userEvent.setup()
-    const fetchMock = stubFetch(async () =>
+    const fetchMock = stubAuthFetch(async () =>
       okEnvelope({ token: 't-enter', profile: ADMIN_PROFILE, menus: ADMIN_MENUS, perms: [] }),
     )
     renderLogin()
@@ -135,7 +166,8 @@ describe('LoginPage (web-foundation-auth-console 5.2)', () => {
     await user.type(screen.getByPlaceholderText('账号'), 'admin')
     await user.type(screen.getByPlaceholderText('密码'), 'admin123{enter}')
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    // auth-key fetch + login POST (the key is fetched before the first credential body exists).
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2), { timeout: 3000 })
     expect(await screen.findByText('CONSOLE_ORGS_MARKER')).toBeInTheDocument()
     expect(useAuthStore.getState().token).toBe('t-enter')
   })
@@ -143,7 +175,7 @@ describe('LoginPage (web-foundation-auth-console 5.2)', () => {
   it('shows a loading state on the submit button while the request is in flight', async () => {
     const user = userEvent.setup()
     let resolveLogin: (value: unknown) => void = () => undefined
-    stubFetch(
+    stubAuthFetch(
       () =>
         new Promise((resolve) => {
           resolveLogin = resolve
@@ -158,5 +190,32 @@ describe('LoginPage (web-foundation-auth-console 5.2)', () => {
     expect(await screen.findByRole('button', { name: /登录中/ })).toBeInTheDocument()
     resolveLogin(okEnvelope({ token: 't-slow', profile: ADMIN_PROFILE, menus: ADMIN_MENUS, perms: [] }))
     expect(await screen.findByText('CONSOLE_ORGS_MARKER')).toBeInTheDocument()
+  })
+
+  it('refetches the key after an A0400 rejection so the next submit self-heals (no page reload)', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn(async (url: unknown) => {
+      if (String(url).endsWith('/system/auth-key')) {
+        return okEnvelope({ keyId: 'sm2-test', publicKey: TEST_PUBLIC_POINT })
+      }
+      return failEnvelope('A0400', '用户请求参数错误：密码解密失败，请刷新页面后重试')
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderLogin()
+
+    await user.type(screen.getByPlaceholderText('账号'), 'admin')
+    await user.type(screen.getByPlaceholderText('密码'), 'admin123')
+    await user.click(screen.getByRole('button', { name: /登\s*录/ }))
+
+    expect(await screen.findByText('用户请求参数错误：密码解密失败，请刷新页面后重试')).toBeInTheDocument()
+    expect(screen.queryByText('CONSOLE_ORGS_MARKER')).not.toBeInTheDocument()
+
+    // The retry (fresh key, still an A0400-stubbed login) proves a second /auth-key
+    // fetch happened - the cache was invalidated by the rejection (design D3).
+    await user.click(screen.getByRole('button', { name: /登\s*录/ }))
+    await waitFor(() => {
+      const keyFetches = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/system/auth-key'))
+      expect(keyFetches.length).toBeGreaterThanOrEqual(2)
+    })
   })
 })
