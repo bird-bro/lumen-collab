@@ -2,6 +2,8 @@ package org.birdbro.lumen.system.controller;
 
 import javax.validation.Valid;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 
@@ -9,9 +11,13 @@ import org.birdbro.common.annotation.Log;
 
 import org.birdbro.lumen.system.dto.AssignRoleMenusRequest;
 import org.birdbro.lumen.system.dto.CreateRoleRequest;
+import org.birdbro.lumen.system.dto.RoleItemDto;
+import org.birdbro.lumen.system.dto.RoleListQuery;
+import org.birdbro.lumen.system.dto.SetRoleEnableRequest;
 import org.birdbro.lumen.system.dto.UpdateRoleRequest;
 import org.birdbro.lumen.system.service.RoleService;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -79,6 +85,17 @@ public class RoleController {
         return roleService.delete(id);
     }
 
+    /**
+     * Paged list (role-list-api, the api spec's former gap endpoint): name/type
+     * filters, id-ascending rows carrying the {@code menuIds} grant echo. Sits under
+     * the class-level {@code system:role:list} page gate.
+     */
+    @ApiOperation("角色分页列表（名称/类型过滤，行内 menuIds 授权回显）")
+    @GetMapping("/list")
+    public IPage<RoleItemDto> list(RoleListQuery query) {
+        return roleService.page(query);
+    }
+
     /** FULL-REPLACE menu assignment: the given ids become the role's complete grant set. */
     @Log(title = "角色管理", type = "授权")
     @ApiOperation("角色-菜单全量分配（全量替换语义）")
@@ -87,5 +104,19 @@ public class RoleController {
     public Boolean assignMenus(@PathVariable Integer id,
             @Valid @RequestBody AssignRoleMenusRequest request) {
         return roleService.assignMenus(id, request);
+    }
+
+    /**
+     * Sets the lifecycle flag ({@code 1} enabled / {@code 0} disabled) - the
+     * org-status-toggle mirror (role-type-dict-api D7; same mutation authority as the
+     * profile update, no new seed). Store/display/toggle ONLY: no behavioral wiring.
+     */
+    @Log(title = "角色管理", type = "修改")
+    @ApiOperation("启用/停用角色")
+    @PreAuthorize("hasAuthority('system:role:update')") // button-perm pin (same role mutation authority; no new seed)
+    @PutMapping("/{id}/enable")
+    public Boolean setEnable(@PathVariable Integer id,
+            @Valid @RequestBody SetRoleEnableRequest request) {
+        return roleService.setEnable(id, request.getEnable());
     }
 }

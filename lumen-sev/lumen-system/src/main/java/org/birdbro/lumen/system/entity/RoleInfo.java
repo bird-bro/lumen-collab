@@ -37,4 +37,9 @@ public class RoleInfo extends EntityBase {
 
     /** Free-text remark. */
     private String remark;
+
+    /** Lifecycle flag (role-type-dict-api D7): 1 enabled / 0 disabled; born enabled
+     * (V24 column default) - toggled via {@code PUT /roles/{id}/enable}. Store/display
+     * only in this change: NO behavioral wiring (no perm recalc / login rejection). */
+    private Integer enable;
 }

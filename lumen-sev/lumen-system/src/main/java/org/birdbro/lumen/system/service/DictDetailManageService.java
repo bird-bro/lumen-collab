@@ -5,6 +5,7 @@ import java.util.List;
 import org.birdbro.lumen.system.entity.DictDetailEntity;
 import org.birdbro.lumen.system.dto.DetailCreate;
 import org.birdbro.lumen.system.dto.DetailModify;
+import org.birdbro.lumen.system.dto.DictItemDto;
 
 /**
  * Dictionary-detail management (system-data task 3.1): create/update/delete over the
@@ -34,4 +35,14 @@ public interface DictDetailManageService {
      * catalog {@code code} column is gone).
      */
     List<DictDetailEntity> listByCaId(Integer caId);
+
+    /**
+     * Label lookup by catalog NAME (role-type-dict-api; the {@code /items/{catalogName}}
+     * endpoint): resolves the LIVE + ENABLED catalog by its unique name (V12 made the
+     * name the only handle), then returns its LIVE, ENABLED details as the slim
+     * {@code {code, value}[]} projection sorted by {@code sort} ascending. An unknown
+     * or disabled catalog resolves to an EMPTY list - never an error (coordination
+     * D2: a mis-named consumer cannot break a page).
+     */
+    List<DictItemDto> listEnabledItemsByName(String name);
 }

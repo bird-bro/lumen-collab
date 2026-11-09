@@ -9,7 +9,7 @@ import io.swagger.annotations.ApiOperation;
 import org.birdbro.common.core.pojo.user.MenuTree;
 import org.birdbro.lumen.system.dto.CreateMenuRequest;
 import org.birdbro.lumen.system.dto.UpdateMenuRequest;
-import org.birdbro.lumen.system.service.MenuManageService;
+import org.birdbro.lumen.system.service.MenuService;
 import org.birdbro.lumen.system.service.support.MenuTreeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,7 +27,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
  * menu-management-api): the full menu tree (the {@code menu_info} upId tree assembled
  * into the copied {@code MenuTree} contract by the Batch 2 {@code MenuTreeService}) for
  * administration screens, plus the node lifecycle family (create / full-field update /
- * guarded delete) served by {@code MenuManageService}. The login/me flows use the
+ * guarded delete) served by {@code MenuService} (renamed from MenuManageService by
+ * role-list-api - the role_menu binding writes moved to the RoleService family). The login/me flows use the
  * USER-SCOPED variant ({@code AuthServiceImpl#menuTree}); the tree endpoint is the
  * unscoped whole tree. Token-guarded by the copied security chain (no
  * {@code WebSecurityCustomizer} addition); the copied {@code GlobalResponseAdvice}
@@ -48,12 +49,14 @@ public class MenuController {
     private final MenuTreeService menuTreeService;
 
     /**
-     * The management family's service, joined by ADDITIVE DI (an {@code @Autowired}
-     * field - the documented LogController precedent, lumen-sev CLAUDE.md 2026-11-05)
-     * so this constructor stays byte-identical under the never-modify rule.
+     * The management family's service (role-list-api renamed MenuManageService to
+     * MenuService; the field type swap is that sanctioned re-point), still joined by
+     * ADDITIVE DI (an {@code @Autowired} field - the documented LogController
+     * precedent, lumen-sev CLAUDE.md 2026-11-05) so this constructor stays
+     * byte-identical under the never-modify rule.
      */
     @Autowired
-    private MenuManageService menuManageService;
+    private MenuService menuService;
 
     public MenuController(MenuTreeService menuTreeService) {
         this.menuTreeService = menuTreeService;
@@ -77,7 +80,7 @@ public class MenuController {
     @PreAuthorize("hasAuthority('system:menu:create')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PostMapping
     public Integer create(@Valid @RequestBody CreateMenuRequest request) {
-        return menuManageService.create(request);
+        return menuService.create(request);
     }
 
     /**
@@ -88,7 +91,7 @@ public class MenuController {
     @PreAuthorize("hasAuthority('system:menu:update')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id, @Valid @RequestBody UpdateMenuRequest request) {
-        return menuManageService.update(id, request);
+        return menuService.update(id, request);
     }
 
     /**
@@ -99,6 +102,6 @@ public class MenuController {
     @PreAuthorize("hasAuthority('system:menu:delete')") // button-perm pin (D2: the method annotation replaces the class page gate for this action)
     @DeleteMapping("/{id}")
     public Boolean delete(@PathVariable Integer id) {
-        return menuManageService.delete(id);
+        return menuService.delete(id);
     }
 }

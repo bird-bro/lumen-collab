@@ -1,5 +1,6 @@
 package org.birdbro.lumen.system.service.impl;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import cn.hutool.core.bean.BeanUtil;
@@ -12,6 +13,7 @@ import org.birdbro.lumen.system.entity.DictCatalEntity;
 import org.birdbro.lumen.system.entity.DictDetailEntity;
 import org.birdbro.lumen.system.dto.DetailCreate;
 import org.birdbro.lumen.system.dto.DetailModify;
+import org.birdbro.lumen.system.dto.DictItemDto;
 import org.birdbro.lumen.system.service.IDictCatalService;
 import org.birdbro.lumen.system.service.IDictDetailService;
 import org.birdbro.lumen.system.service.DictDetailManageService;
@@ -91,6 +93,32 @@ public class DictDetailManageServiceImpl implements DictDetailManageService {
     @Override
     public List<DictDetailEntity> listByCaId(Integer caId) {
         return dictDetailService.listByCaId(caId);
+    }
+
+    @Override
+    public List<DictItemDto> listEnabledItemsByName(String name) {
+        // Resolve the LIVE + ENABLED catalog by its unique name (V12: the name is the
+        // only handle). Unknown/disabled -> empty list, never an error (D2).
+        DictCatalEntity catal = dictCatalService.getOne(
+                new LambdaQueryWrapper<DictCatalEntity>()
+                        .eq(DictCatalEntity::getName, name)
+                        .eq(DictCatalEntity::getEnable, 1),
+                false);
+        if (catal == null) {
+            return new ArrayList<>();
+        }
+        // listByCaId already orders LIVE details by sort asc; project the slim pair
+        // keeping only ENABLED rows (a disabled vocabulary entry leaves the lookup).
+        List<DictItemDto> items = new ArrayList<>();
+        for (DictDetailEntity detail : dictDetailService.listByCaId(catal.getId())) {
+            if (detail.getEnable() != null && detail.getEnable() == 1) {
+                DictItemDto item = new DictItemDto();
+                item.setCode(detail.getCode());
+                item.setValue(detail.getValue());
+                items.add(item);
+            }
+        }
+        return items;
     }
 
     /** Resolves the LIVE catalog behind a caId ({@code @TableLogic} hides deleted ones). */

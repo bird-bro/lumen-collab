@@ -221,7 +221,8 @@ public abstract class AuthIntegrationTestBase {
      */
     static final String[] ROLE_NAME_PREFIXES = { "报告审核员_", "单页角色_", "无权角色_",
             "无权菜单角色_", "denied_role_", "临时角色", "全量替换角色_", "按钮矩阵", "矩阵目标用户",
-            "仅日志角色_", "登录日志查询角色_", "仅登录日志角色_", "无权城市角色_" };
+            "仅日志角色_", "登录日志查询角色_", "仅登录日志角色_", "无权城市角色_",
+            "回显角色", "名单过滤_", "启停角色_" };
 
     /**
      * Fixture-org namespace (hospital campuses + throwaway probe orgs), sweep-targetable.

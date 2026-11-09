@@ -5,44 +5,47 @@ import java.util.List;
 import java.util.Map;
 
 import cn.hutool.core.bean.BeanUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
 import org.birdbro.lumen.system.dto.CreateMenuRequest;
 import org.birdbro.lumen.system.dto.UpdateMenuRequest;
 import org.birdbro.lumen.system.entity.MenuInfo;
-import org.birdbro.lumen.system.entity.RoleMenu;
 import org.birdbro.lumen.system.mapper.MenuInfoMapper;
-import org.birdbro.lumen.system.mapper.RoleMenuMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Menu node lifecycle management (menu-management-api): create / update / delete behind
- * the {@code /api/v1/system/menus} family, beside (never inside) the read-side
+ * Menu node lifecycle management (menu-management-api; renamed from the former
+ * {@code MenuManageService} 寄住 form by role-list-api per the 2026-11-06 ruling):
+ * create / update / delete behind the {@code /api/v1/system/menus} family, beside
+ * (never inside) the read-side
  * {@link org.birdbro.lumen.system.service.support.MenuTreeService}. Tree integrity is
  * SERVICE-level - {@code menu_info} has no
  * self-FK, so every structural guard reads one live-node map per request (console-scale
  * data; the same map serves parent validation, the cycle walk and delete's child check
  * with zero extra queries).
  *
- * <p>Recorded decisions (see the change's design.md D1-D5):</p>
+ * <p>The {@code role_menu} binding writes this class used to host (the create-time
+ * admin auto-grant and the delete-time binding cleanup) now live in their true domain -
+ * {@code RoleService#grantNewMenuToAdmin} / {@code RoleService#unbindMenu} (user ruling
+ * 2026-11-06: 授权/绑定本质是角色域逻辑; role-list-api design D4). This service calls
+ * them inside its own transactions, so the write stays atomic exactly as before.
+ * Recorded decisions (menu-management-api design.md D1-D5):</p>
  * <ol>
  *   <li><b>Auto-grant on create</b> - lumen keeps the explicit {@code role_menu} model
- *       (no {@code *:*:*} wildcard), so every new node is inserted into the admin role's
- *       grant (role 1) in the same transaction, guarded by a NOT-EXISTS live-binding
- *       check (V5 seed discipline; keeps a re-run idempotent). UPDATE never touches
- *       grants.</li>
+ *       (no {@code *:*:*} wildcard), so every new node is granted to the admin role
+ *       (role 1) in the same transaction (delegated to the role family). UPDATE never
+ *       touches grants.</li>
  *   <li><b>Rejections are {@code A0400}</b> - unknown/non-live parent, button ({@code F})
  *       parent (buttons are leaves), {@code upId} = self or inside the node's own
  *       descendant subtree (cycle), and deleting a node with live children. A type flip
  *       to {@code F} while children are live is rejected as the back-door leaf
  *       violation.</li>
  *   <li><b>Delete = guarded soft delete + binding cleanup</b> - {@code deleteById}
- *       renders {@code UPDATE deleted = 1} via {@code @TableLogic} (same shape as
- *       {@code RoleServiceImpl.delete}), and the node's {@code role_menu} rows are
- *       soft-cleaned so a deleted button stops granting its perms. No cascade: live
- *       children block the delete.</li>
+ *       renders {@code UPDATE deleted = 1} via {@code @TableLogic}, and the node's
+ *       {@code role_menu} rows are soft-cleaned (delegated to the role family) so a
+ *       deleted button stops granting its perms. No cascade: live children block the
+ *       delete.</li>
  * </ol>
  *
  * <p>Cycle detection walks UP the {@code upId} chain from the candidate parent: the
@@ -51,20 +54,17 @@ import org.springframework.transaction.annotation.Transactional;
  * @author birdbro
  */
 @Service
-public class MenuManageService {
-
-    /** The admin role (role 1) every new node is auto-granted to. */
-    private static final int ADMIN_ROLE_ID = 1;
+public class MenuService {
 
     /** Node type: button - a leaf that must never gain children. */
     private static final String TYPE_BUTTON = "F";
 
     private final MenuInfoMapper menuInfoMapper;
-    private final RoleMenuMapper roleMenuMapper;
+    private final RoleService roleService;
 
-    public MenuManageService(MenuInfoMapper menuInfoMapper, RoleMenuMapper roleMenuMapper) {
+    public MenuService(MenuInfoMapper menuInfoMapper, RoleService roleService) {
         this.menuInfoMapper = menuInfoMapper;
-        this.roleMenuMapper = roleMenuMapper;
+        this.roleService = roleService;
     }
 
     /**
@@ -84,7 +84,7 @@ public class MenuManageService {
         MenuInfo menu = new MenuInfo();
         BeanUtil.copyProperties(request, menu, true);
         menuInfoMapper.insert(menu);
-        autoGrantAdmin(menu.getId());
+        roleService.grantNewMenuToAdmin(menu.getId());
         return menu.getId();
     }
 
@@ -138,7 +138,7 @@ public class MenuManageService {
             throw new BusinessException(ExceptionEnum.ERROR_A0400, "存在下级节点，请先处理下级再删除");
         }
         menuInfoMapper.deleteById(id);
-        roleMenuMapper.delete(new LambdaQueryWrapper<RoleMenu>().eq(RoleMenu::getMenuId, id));
+        roleService.unbindMenu(id);
         return true;
     }
 
@@ -198,22 +198,5 @@ public class MenuManageService {
             }
         }
         return false;
-    }
-
-    /**
-     * The auto-grant: role 1 owns every new node (explicit {@code role_menu} grants, no
-     * wildcard), inserted only when no live binding exists yet (NOT-EXISTS guard - the
-     * V5 seed discipline keeps a re-run idempotent).
-     */
-    private void autoGrantAdmin(Integer menuId) {
-        Long existing = roleMenuMapper.selectCount(new LambdaQueryWrapper<RoleMenu>()
-                .eq(RoleMenu::getRoleId, ADMIN_ROLE_ID)
-                .eq(RoleMenu::getMenuId, menuId));
-        if (existing == 0) {
-            roleMenuMapper.insert(RoleMenu.builder()
-                    .roleId(ADMIN_ROLE_ID)
-                    .menuId(menuId)
-                    .build());
-        }
     }
 }
