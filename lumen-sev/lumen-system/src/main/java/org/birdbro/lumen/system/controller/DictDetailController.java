@@ -11,6 +11,7 @@ import org.birdbro.common.annotation.Log;
 import org.birdbro.lumen.system.entity.DictDetailEntity;
 import org.birdbro.lumen.system.dto.DetailCreate;
 import org.birdbro.lumen.system.dto.DetailModify;
+import org.birdbro.lumen.system.dto.DictItemDto;
 import org.birdbro.lumen.system.service.DictDetailManageService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -84,5 +85,21 @@ public class DictDetailController {
     @GetMapping("/list")
     public List<DictDetailEntity> list(@RequestParam("caId") Integer caId) {
         return dictDetailManageService.listByCaId(caId);
+    }
+
+    /**
+     * Label lookup by catalog NAME (role-type-dict-api): the enabled catalog's live
+     * details as the slim {@code {code, value}[]} projection, sort ascending. Method-level
+     * {@code isAuthenticated()} OVERRIDES the class page gate - the consumers are role
+     * managers holding only {@code system:role:list} (the dict gate would 403 them), and
+     * a read-only classification lookup is the same authenticated-only class as the city
+     * reference queries (auth-rbac; coordination D2). An unknown/disabled catalog name
+     * resolves to an empty list - never an error.
+     */
+    @ApiOperation("按目录名取启用明细（瘦投影 code+value，仅认证；未知目录返回空数组）")
+    @GetMapping("/items/{catalogName}")
+    @PreAuthorize("isAuthenticated()")
+    public List<DictItemDto> itemsByName(@PathVariable("catalogName") String catalogName) {
+        return dictDetailManageService.listEnabledItemsByName(catalogName);
     }
 }
