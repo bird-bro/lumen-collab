@@ -10,7 +10,7 @@ import { usePerm } from '@/utils/perm'
 import {
   ConsoleAction,
   ConsoleAddButton,
-  ConsolePanel,
+  ConsolePage,
   ConsolePagination,
   ConsoleQueryButton,
   ConsoleTable,
@@ -305,7 +305,7 @@ export default function UsersPage() {
   return (
     <div style={{ height: '100%' }}>
       {messageHolder}
-      <ConsolePanel>
+      <ConsolePage>
         <ConsoleToolRow
           trailing={
             canCreate ? (
@@ -372,7 +372,7 @@ export default function UsersPage() {
           showSizeChanger={false}
           onChange={(next) => setPage(next)}
         />
-      </ConsolePanel>
+      </ConsolePage>
 
       <Drawer
         open={createOpen}

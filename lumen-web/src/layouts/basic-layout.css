@@ -305,13 +305,29 @@
   text-align: center;
 }
 
+/* OPS row chrome (ops_web table.scss + var.scss, ported per user review
+   2026-11-09): every row's bottom border is the primary tinted to 15%
+   (OPS --table-border rgb(22 125 255 / 15%)) and even rows carry the striped
+   fill (OPS --table-background-striped). Both values resolve from BasicLayout's
+   token pipeline (no colors in this file); color-mix composites the ruling
+   over the plain AND the striped background. AntD's hover fill out-specifies
+   the stripe (the hovered row goes plain, like OPS's hover reset), and the
+   current-row chrome below out-specifies both. */
+.lumen-console-table .ant-table-tbody > tr > td {
+  border-bottom-color: color-mix(in srgb, var(--lumen-row-line) 15%, transparent);
+}
+.lumen-console-table .ant-table-tbody > tr:nth-child(even) > td {
+  background: var(--lumen-row-striped);
+}
+
 /* Selected (current) row - the OPS dict-page highlight-current-row chrome
    (ops_web table.scss tr.current-row): the action primary frames the row with
    a 5px left accent bar on the first cell and a 1px right line on the last.
    The top line is an inset shadow - AntD tds carry no border-top and a real
-   one would shift the row 1px - while the bottom line REPLACES the gray split
-   border (border-bottom-color). The cleared background also out-specifies the
-   AntD hover fill, so the selected row stays flat under the cursor, as in OPS. */
+   one would shift the row 1px - while the bottom line REPLACES the 15%-primary
+   row ruling above (later source, equal-or-higher specificity). The cleared
+   background also out-specifies the AntD hover fill and the zebra stripe, so
+   the selected row stays flat under the cursor, as in OPS. */
 .lumen-console-table .ant-table-tbody > tr.lumen-console-row-current > td {
   background: var(--lumen-row-current-bg);
   border-bottom-color: var(--lumen-row-current-bar);

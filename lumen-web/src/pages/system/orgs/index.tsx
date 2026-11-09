@@ -34,6 +34,7 @@ import { LogoUploadField } from './logo-upload'
 import {
   ConsoleAction,
   ConsoleAddButton,
+  ConsolePage,
   ConsolePanel,
   ConsoleQueryButton,
   ConsoleTable,
@@ -697,7 +698,7 @@ export default function OrgsPage() {
           </ConsolePanel>
         }
       >
-        <ConsolePanel>
+        <ConsolePage>
           <ConsoleToolRow
             trailing={
               canCreateCampus && hospital ? (
@@ -768,7 +769,7 @@ export default function OrgsPage() {
             }
             onRefresh={() => void reload()}
           />
-        </ConsolePanel>
+        </ConsolePage>
       </ConsoleWorkArea>
 
       <Drawer

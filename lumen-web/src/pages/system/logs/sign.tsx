@@ -6,7 +6,7 @@ import { ApiError } from '@/api/client'
 import type { LogSignItem, Page } from '@/api/types'
 import { usePerm } from '@/utils/perm'
 import {
-  ConsolePanel,
+  ConsolePage,
   ConsolePagination,
   ConsoleQueryButton,
   ConsoleTable,
@@ -107,7 +107,7 @@ export default function SignLogsPage() {
   return (
     <div style={{ height: '100%' }}>
       {messageHolder}
-      <ConsolePanel>
+      <ConsolePage>
         <ConsoleToolRow>
           <Input
             allowClear
@@ -156,7 +156,7 @@ export default function SignLogsPage() {
             setPageSize(size)
           }}
         />
-      </ConsolePanel>
+      </ConsolePage>
     </div>
   )
 }

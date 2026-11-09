@@ -18,7 +18,7 @@ import { usePerm } from '@/utils/perm'
 import {
   ConsoleAction,
   ConsoleAddButton,
-  ConsolePanel,
+  ConsolePage,
   ConsolePagination,
   ConsoleQueryButton,
   ConsoleTable,
@@ -280,7 +280,7 @@ export default function DictsPage() {
     <div style={{ height: '100%', display: 'flex', gap: 6 }}>
       {messageHolder}
       <div style={{ flex: '0 0 460px', width: 460, minWidth: 0, display: 'flex' }}>
-      <ConsolePanel>
+      <ConsolePage>
         <ConsoleToolRow
           trailing={
             canCatalCreate ? (
@@ -393,11 +393,11 @@ export default function DictsPage() {
             setCatalPageSize(size)
           }}
         />
-      </ConsolePanel>
+      </ConsolePage>
       </div>
 
       <div style={{ flex: '1 1 0', minWidth: 0, display: 'flex' }}>
-      <ConsolePanel>
+      <ConsolePage>
         <ConsoleToolRow
           trailing={
             canDetailCreate ? (
@@ -509,7 +509,7 @@ export default function DictsPage() {
             setDetailPageSize(size)
           }}
         />
-      </ConsolePanel>
+      </ConsolePage>
       </div>
 
       <Drawer

@@ -1,35 +1,37 @@
-import { TeamOutlined } from '@ant-design/icons'
 import {
   Button,
-  Checkbox,
   Drawer,
   Form,
   Input,
   Popconfirm,
-  Space,
+  Select,
+  Switch,
   Spin,
   Tag,
+  Tree,
   Typography,
   message,
   theme,
 } from 'antd'
-import type { TableColumnsType } from 'antd'
+import type { TableColumnsType, TreeDataNode } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   assignRoleMenus,
   createRole,
   deleteRole,
   listRoles,
+  toggleRoleEnable,
   updateRole,
 } from '@/api/roles'
 import { menuTree } from '@/api/menus'
 import { ApiError } from '@/api/client'
-import type { MenuNode, Page, RoleItem } from '@/api/types'
+import type { DictItem, MenuNode, Page, RoleItem } from '@/api/types'
+import { dictItemsByName, resolveDictLabel, ROLE_TYPE_DICT_NAME } from '@/utils/dict-items'
 import { usePerm } from '@/utils/perm'
 import {
   ConsoleAction,
   ConsoleAddButton,
-  ConsolePanel,
+  ConsolePage,
   ConsolePagination,
   ConsoleQueryButton,
   ConsoleTable,
@@ -44,17 +46,24 @@ import {
  * whose checkable tree full-replaces the grant and whose reopen shows exactly
  * the saved set.
  *
+ * List columns (user review 2026-11-09): 序号 id lead column, 类型 as its own
+ * styled column (blue system / cyan business), a bounded ellipsis remark, the
+ * orgs/deps stacked 创建人 / 创建时间 audit cell - and NO 授权菜单数 column
+ * (ruled a weak signal; the grant echo still feeds the assignment dialog).
+ *
  * Data: `roles/list` is the api-delta GAP endpoint (IPage, unimplemented in
  * the backend until the follow-up); its rows may carry the `menuIds` grant
  * echo that drives the assignment dialog's initial checked keys (recorded in
  * `RoleItem.menuIds`).
  *
- * Assignment strategy (recorded per the brief): every node is checkable -
- * directories, menus and buttons (a button grant is what publishes a `perms`
- * string to the role). On save the checked set is UNIONed with the ancestors
- * of every checked node so the posted grant keeps a coherent tree (a granted
- * page whose group dirs are missing would not render in the user's menu
- * tree). The PUT is FULL-REPLACE: the posted set IS the role's complete grant.
+ * Assignment strategy (2026-11-09 form): the grant tree is an AntD Tree with
+ * cascade conduction - checking a parent selects its whole subtree, unchecking
+ * a leaf half-checks the ancestor path (rc-tree conduction semantics; the
+ * independent-toggle take is retired). On save the checked set is UNIONed with
+ * the ancestors of every checked node so the posted grant keeps a coherent
+ * tree (a granted page whose group dirs are missing would not render in the
+ * user's menu tree). The PUT is FULL-REPLACE: the posted set IS the role's
+ * complete grant.
  */
 
 interface CreateValues {
@@ -83,47 +92,20 @@ function withAncestors(tree: MenuNode[], checked: Set<number>): number[] {
   return [...result].sort((a, b) => a - b)
 }
 
-const TYPE_LABELS: Record<string, string> = { M: '目录', C: '页面', F: '按钮', W: '工作站' }
+/** MenuNode -> rc-tree data: string keys (rc-tree keys are strings), plain
+ * titles - no type tags (user ruling 2026-11-09: they read as clutter). */
+function toTreeData(nodes: MenuNode[]): TreeDataNode[] {
+  return nodes.map((node) => ({
+    key: String(node.mid),
+    title: node.title,
+    children: node.children ? toTreeData(node.children) : undefined,
+  }))
+}
 
-/**
- * The grant tree as a nested checkbox list (batch 6b): AntD `Tree`'s checkbox
- * mechanics (key stringification + cascade conduction) fight the full-replace
- * contract, so the dialog composes AntD `Checkbox` per node instead - each
- * node is independently toggled (checkStrict semantics made explicit), and
- * `withAncestors` unions the ancestors on save for a coherent grant.
- */
-function GrantTree({
-  nodes,
-  checked,
-  onToggle,
-  depth = 0,
-}: {
-  nodes: MenuNode[]
-  checked: Set<number>
-  onToggle: (mid: number) => void
-  depth?: number
-}) {
-  return (
-    <>
-      {nodes.map((node) => (
-        <div key={node.mid} style={{ paddingInlineStart: depth * 20 }}>
-          <Checkbox
-            checked={checked.has(node.mid)}
-            onChange={() => onToggle(node.mid)}
-            aria-label={node.title}
-          >
-            <Space size={6}>
-              <span>{node.title}</span>
-              {node.type !== 'C' ? <Tag style={{ marginInlineEnd: 0 }}>{TYPE_LABELS[node.type] ?? node.type}</Tag> : null}
-            </Space>
-          </Checkbox>
-          {node.children ? (
-            <GrantTree nodes={node.children} checked={checked} onToggle={onToggle} depth={depth + 1} />
-          ) : null}
-        </div>
-      ))}
-    </>
-  )
+/** mids of the first two levels - the tree opens expanded through level 3
+ * (user ruling 2026-11-09). */
+function expandToLevel3(nodes: MenuNode[]): string[] {
+  return nodes.flatMap((node) => [String(node.mid), ...(node.children ?? []).map((child) => String(child.mid))])
 }
 
 export default function RolesPage() {
@@ -146,8 +128,18 @@ export default function RolesPage() {
   const [query, setQuery] = useState('')
   const [messageApi, messageHolder] = message.useMessage()
   const [saving, setSaving] = useState(false)
+  // The 「角色类型」 dict items (role-type-dict-web D4): loaded ONCE on mount -
+  // the resolver's session cache dedupes, and a failed fetch degrades to raw
+  // codes with one message (the page never blocks).
+  const [roleTypeItems, setRoleTypeItems] = useState<DictItem[]>([])
 
   const [createOpen, setCreateOpen] = useState(false)
+  // The drawer 类型 Select options come straight from the 「角色类型」 dict
+  // (option value = the numeric code the backend stores, label = dict value).
+  const roleTypeOptions = roleTypeItems.map((item) => ({
+    value: item.code as number,
+    label: item.value ?? String(item.code),
+  }))
   const [editTarget, setEditTarget] = useState<RoleItem | null>(null)
   const [assignTarget, setAssignTarget] = useState<RoleItem | null>(null)
   const [assignTree, setAssignTree] = useState<MenuNode[] | null>(null)
@@ -181,6 +173,15 @@ export default function RolesPage() {
     void reload(page, pageSize)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, pageSize])
+
+  useEffect(() => {
+    dictItemsByName(ROLE_TYPE_DICT_NAME)
+      .then(setRoleTypeItems)
+      .catch((error: unknown) => {
+        messageApi.error(error instanceof ApiError ? error.msg : '角色类型字典加载失败')
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const queryMounted = useRef(false)
   useEffect(() => {
@@ -267,6 +268,24 @@ export default function RolesPage() {
     setAssignTree(null)
   }, [])
 
+  /**
+   * Enable toggle (role-type-dict-web D7): posts the command, then ALWAYS re-lists -
+   * success echoes the persisted value, failure surfaces the backend message and the
+   * re-list restores the switch (no optimistic flip).
+   */
+  const toggleEnable = useCallback(
+    async (row: RoleItem, enable: number) => {
+      try {
+        await toggleRoleEnable(row.id, enable)
+        await reload()
+      } catch (error) {
+        messageApi.error(error instanceof ApiError ? error.msg : '启停角色失败')
+        await reload()
+      }
+    },
+    [messageApi, reload],
+  )
+
   const submitAssign = useCallback(async () => {
     if (!assignTarget || !assignTree) return
     setSaving(true)
@@ -287,36 +306,93 @@ export default function RolesPage() {
 
   const columns: TableColumnsType<RoleItem> = [
     {
-      title: '角色名称',
-      dataIndex: 'name',
-      width: 200,
-      render: (name: string, row: RoleItem) => (
-        <Space size={6}>
-          <TeamOutlined style={{ color: token.colorTextSecondary }} />
-          <span>{name}</span>
-          {row.type != null ? <Tag style={{ marginInlineEnd: 0 }}>{row.type}</Tag> : null}
-        </Space>
-      ),
-    },
-    { title: '备注', dataIndex: 'remark', render: (remark: string | null) => remark ?? '—' },
-    {
-      title: '授权菜单数',
-      key: 'grants',
-      width: 110,
-      render: (_: unknown, row: RoleItem) => (
-        <Typography.Text style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {row.menuIds?.length ?? '—'}
-        </Typography.Text>
-      ),
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      width: 180,
-      render: (createTime: string) => (
+      // 序号 = role id (user request 2026-11-09: a stable row number, the id is it).
+      title: '序号',
+      dataIndex: 'id',
+      width: 70,
+      align: 'center',
+      render: (id: number) => (
         <Typography.Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {createTime}
+          {id}
         </Typography.Text>
+      ),
+    },
+    {
+      // No leading icon, no inline tag (user rulings 2026-11-09) - the type
+      // moved to its own styled column below; the width carries long names.
+      title: '名称',
+      dataIndex: 'name',
+      width: 260,
+    },
+    {
+      // 类型 from the 「角色类型」 dict (role-type-dict-web D4): label = dict value
+      // matched by code, raw-number fallback for a dict miss. Chrome generalizes
+      // the 2026-11-09 ruling: code 10 blue, everything else cyan.
+      title: '类型',
+      dataIndex: 'type',
+      width: 110,
+      align: 'center',
+      render: (type: number | null) => {
+        if (type == null) return '—'
+        return (
+          <Tag
+            color={type === 10 ? 'blue' : 'cyan'}
+            bordered={false}
+            style={{ marginInlineEnd: 0, fontSize: token.fontSize }}
+          >
+            {resolveDictLabel(roleTypeItems, type)}
+          </Tag>
+        )
+      },
+    },
+    {
+      // 状态 switch (role-type-dict-web D7): the orgs/deps chrome, centered -
+      // the org-status-toggle mirror with the enable vocabulary.
+      title: '状态',
+      dataIndex: 'enable',
+      width: 90,
+      align: 'center',
+      render: (enable: number, row: RoleItem) => (
+        <Switch
+          checked={enable === 1}
+          disabled={!canUpdate}
+          aria-label={`启用 ${row.name}`}
+          checkedChildren="✓"
+          unCheckedChildren="✕"
+          onChange={(checked) => void toggleEnable(row, checked ? 1 : 0)}
+        />
+      ),
+    },
+    // Bounded instead of stretching across the rest of the row; long remarks
+    // truncate (user request 2026-11-09).
+    { title: '备注', dataIndex: 'remark', width: 220, ellipsis: true, render: (remark: string | null) => remark ?? '—' },
+    {
+      // Stacked audit cell per the orgs/deps precedent; the API exposes the
+      // audit creator as a numeric UID, so the cell keeps `UID n` without
+      // inventing a client-side join (user request 2026-11-09: width 120 -
+      // the timestamp line ellipsizes like the creator line at this width).
+      title: '创建人 / 创建时间',
+      dataIndex: 'createTime',
+      width: 120,
+      render: (_: unknown, row: RoleItem) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {row.createBy === null ? '—' : `UID ${row.createBy}`}
+          </span>
+          <span
+            style={{
+              fontSize: token.fontSizeSM,
+              lineHeight: '18px',
+              color: token.colorTextTertiary,
+              fontVariantNumeric: 'tabular-nums',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {row.createTime}
+          </span>
+        </div>
       ),
     },
   ]
@@ -324,7 +400,7 @@ export default function RolesPage() {
   return (
     <div style={{ height: '100%' }}>
       {messageHolder}
-      <ConsolePanel>
+      <ConsolePage>
         <ConsoleToolRow
           trailing={
             canCreate ? (
@@ -352,7 +428,6 @@ export default function RolesPage() {
           actions={
             canManage
               ? {
-                  width: 150,
                   render: (row) => [
                     canAssign ? (
                       <ConsoleAction
@@ -417,7 +492,7 @@ export default function RolesPage() {
             setPageSize(size)
           }}
         />
-      </ConsolePanel>
+      </ConsolePage>
 
       <Drawer
         open={createOpen}
@@ -445,10 +520,17 @@ export default function RolesPage() {
             <Input placeholder="角色名称" autoComplete="off" />
           </Form.Item>
           <Form.Item name="type" label="类型" initialValue={10}>
-            <Input type="number" min={1} placeholder="种子默认 10" />
+            {/* Dict-driven (role-type-dict-web D4): the vocabulary is operator-
+                maintained in 字典管理; value = the numeric code, unchanged on the
+                wire. Empty options = the dict never loaded - the round-trip
+                still posts (the int is accepted as-is, backend D5). */}
+            <Select options={roleTypeOptions} placeholder="角色类型" aria-label="类型" />
           </Form.Item>
           <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={2} placeholder="选填" />
+            {/* Height pinned at 130px (user request 2026-11-09) - textareas are
+                user-resizable in the browser; the inline height keeps the rest
+                state deterministic. */}
+            <Input.TextArea rows={2} placeholder="选填" style={{ height: 130 }} />
           </Form.Item>
         </Form>
       </Drawer>
@@ -475,10 +557,10 @@ export default function RolesPage() {
             <Input autoComplete="off" />
           </Form.Item>
           <Form.Item name="type" label="类型">
-            <Input type="number" min={1} />
+            <Select options={roleTypeOptions} placeholder="角色类型" aria-label="类型" />
           </Form.Item>
           <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={2} />
+            <Input.TextArea rows={2} style={{ height: 130 }} />
           </Form.Item>
         </Form>
       </Drawer>
@@ -499,25 +581,27 @@ export default function RolesPage() {
           </div>
         }
       >
-        <p style={{ margin: '0 0 12px', fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
-          勾选集即该角色的<b>全量授权</b>(保存为全量替换);保存后重开弹窗将回显服务器保存的授权集。
-        </p>
         {assignLoading || !assignTree ? (
           <div style={{ textAlign: 'center', padding: 32 }}>
             <Spin />
           </div>
         ) : (
-          <GrantTree
-            nodes={assignTree}
-            checked={checked}
-            onToggle={(mid) =>
-              setChecked((prev) => {
-                const next = new Set(prev)
-                if (next.has(mid)) next.delete(mid)
-                else next.add(mid)
-                return next
-              })
-            }
+          // AntD Tree with cascade conduction (user ruling 2026-11-09: check a
+          // parent selects its subtree, unchecking a leaf half-checks the
+          // ancestor path - the checkStrictly take is retired). `withAncestors`
+          // still unions ancestors on save, so a half-checked dir with any
+          // checked descendant stays granted and the FULL-REPLACE contract
+          // keeps posting a coherent set.
+          <Tree
+            checkable
+            blockNode
+            defaultExpandedKeys={expandToLevel3(assignTree)}
+            checkedKeys={[...checked].map(String)}
+            onCheck={(keys) => {
+              const checkedKeys = Array.isArray(keys) ? keys : keys.checked
+              setChecked(new Set(checkedKeys.map((key) => Number(key))))
+            }}
+            treeData={toTreeData(assignTree)}
           />
         )}
       </Drawer>

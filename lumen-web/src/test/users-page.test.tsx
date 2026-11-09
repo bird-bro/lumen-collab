@@ -50,6 +50,7 @@ const LI = user({ uid: 3, username: 'lwb', name: '李文博', createTime: '2026-
 function role(partial: Partial<RoleItem> & { id: number; name: string }): RoleItem {
   return {
     type: 11,
+    enable: 1,
     remark: null,
     createBy: null,
     createTime: '2026-11-04 09:00:00',

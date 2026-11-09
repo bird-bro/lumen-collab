@@ -9,6 +9,7 @@ import { usePerm } from '@/utils/perm'
 import {
   ConsoleAction,
   ConsoleAddButton,
+  ConsolePage,
   ConsolePanel,
   ConsolePagination,
   ConsoleQueryButton,
@@ -368,7 +369,7 @@ export default function DepsPage() {
     <div style={{ height: '100%' }}>
       {messageHolder}
       <ConsoleWorkArea aside={aside}>
-        <ConsolePanel>
+        <ConsolePage>
           <ConsoleToolRow
             trailing={
               canCreate ? (
@@ -454,7 +455,7 @@ export default function DepsPage() {
             showSizeChanger={false}
             onChange={(next) => setPageNum(next)}
           />
-        </ConsolePanel>
+        </ConsolePage>
       </ConsoleWorkArea>
 
       <Drawer

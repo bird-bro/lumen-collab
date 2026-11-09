@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   ConsoleAction,
+  ConsolePage,
   ConsolePagination,
   ConsolePanel,
   ConsoleTable,
@@ -67,6 +68,11 @@ describe('console page chrome (web-foundation-auth-console 6.1-6.3 shared layer)
     ) // no trailing action
     const row = container.firstElementChild as HTMLElement
     expect(row).toHaveStyle({ display: 'flex', 'justify-content': 'space-between' })
+    // The query row is its own white card beside the table card (user ruling
+    // 2026-11-09: two independent panels on the gray page).
+    expect(row.style.background).toBe('rgb(255, 255, 255)')
+    expect(row.style.borderRadius).toBe('6px')
+    expect(row.style.padding).toBe('10px')
     expect(row.firstElementChild).toHaveTextContent('查询')
 
     const withTrailing = renderWithTheme(
@@ -76,6 +82,40 @@ describe('console page chrome (web-foundation-auth-console 6.1-6.3 shared layer)
       </ConsoleToolRow>,
     )
     expect(withTrailing.container.firstElementChild?.lastElementChild).toHaveTextContent('新建科室')
+  })
+
+  it('ConsolePage is the transparent page container: query row and carded table float on the page background (OPS hpage pattern, user ruling 2026-11-09)', () => {
+    const { container } = renderWithTheme(
+      <ConsolePage>
+        <div>PAGE_CHILD</div>
+      </ConsolePage>,
+    )
+    const page = container.firstElementChild as HTMLElement
+    expect(page.style.background).toBe('transparent')
+    expect(page.style.display).toBe('flex')
+    expect(page.style.flexDirection).toBe('column')
+    expect(page.style.gap).toBe('6px')
+  })
+
+  it('floats the table on a padded white card - OPS .hpage-table padding 10px, radius, shadow (user ruling 2026-11-09)', () => {
+    const { container } = renderWithTheme(
+      <ConsolePage>
+        <ConsoleTable<Row>
+          rowKey={(row) => row.id}
+          dataSource={ROWS}
+          columns={[{ title: '科室名称', dataIndex: 'name' }]}
+        />
+      </ConsolePage>,
+    )
+    const table = container.querySelector<HTMLElement>('.lumen-console-table')
+    const card = table?.parentElement
+    expect(card?.style.padding).toBe('10px')
+    expect(card?.style.borderRadius).toBe('6px')
+    expect(card?.style.background).toBe('rgb(255, 255, 255)')
+    // flex: 1 stretches the card to the panel bottom - short lists stay white
+    // instead of exposing the gray tint below the last row (2026-11-09).
+    expect(card?.style.flex).toBe('1 1 0%')
+    expect(table?.style.margin).toBe('')
   })
 
   it('ConsoleTable renders the 操作 header with a refresh icon button that fires onRefresh', async () => {
@@ -128,6 +168,10 @@ describe('console page chrome (web-foundation-auth-console 6.1-6.3 shared layer)
     const { rerender } = renderWithTheme(
       <ConsolePagination total={25} current={1} pageSize={10} onChange={() => undefined} />,
     )
+    const pager = document.querySelector('.ant-pagination')?.closest('div[style]') as HTMLElement | null
+    // The pager is its own white card on the gray page (OPS has-pagination).
+    expect(pager?.style.background).toBe('rgb(255, 255, 255)')
+    expect(pager?.style.borderRadius).toBe('6px')
     expect(screen.getByText('共 25 条')).toBeInTheDocument()
     rerender(
       <ConfigProvider theme={themeConfig}>

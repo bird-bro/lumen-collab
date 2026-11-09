@@ -375,7 +375,8 @@ export default function MenusPage() {
       </span>
     ),
     key: 'actions',
-    width: 150,
+    // 120px console-wide action-column width (user request 2026-11-09).
+    width: 120,
     align: 'center',
     render: (_: unknown, node: MenuNode) => (
       // Space gap > the console-shell size-6: icon-only targets sit close enough

@@ -1,10 +1,10 @@
 import {
-  ApartmentOutlined,
   DeleteOutlined,
   EditOutlined,
-  KeyOutlined,
+  LockOutlined,
   PlusOutlined,
   ReloadOutlined,
+  SafetyCertificateOutlined,
   SearchOutlined,
   StarOutlined,
 } from '@ant-design/icons'
@@ -25,7 +25,9 @@ import type { ReactNode } from 'react'
  *
  * Hex discipline (`specs/web-design-system` § OPS Palette Tokens): no color
  * literal appears in this file - every value reads the AntD token pipeline via
- * `theme.useToken()`, and zebra striping / header colors stay on the existing
+ * `theme.useToken()`; the header tint stays on component tokens while the row
+ * chrome (OPS-parity zebra + 15%-primary ruling, 2026-11-09) lives in
+ * basic-layout.css via the `--lumen-row-*` vars registered in BasicLayout.
  * Table component tokens in `src/theme/tokens.ts` (brief: 不动).
  */
 
@@ -35,10 +37,47 @@ export const CONSOLE_ASIDE_WIDTH = 360
 /** Prototype `.pager{height:60px}` (rev.6: pagination centered, 60px row). */
 const PAGER_HEIGHT = 60
 
+/** OPS `.hpage-card` surface (user ruling 2026-11-09): white, radius 6, soft
+ * shadow - the query row, the table and the pager each sit on it as an
+ * independent panel over the gray page background. */
+const cardSurface = (token: ReturnType<typeof theme.useToken>['token']) =>
+  ({
+    background: token.colorBgContainer,
+    borderRadius: 6,
+    boxShadow: '0 4px 8px rgba(50, 50, 50, 0.15)',
+  }) as const
+
+/**
+ * Transparent page container (OPS `.hpage-*` pattern, user ruling 2026-11-09):
+ * the query card, the table card and the pager card are independent panels
+ * floating on the gray Layout.Content background - `ConsolePage` owns NO
+ * surface of its own, just the 6px rhythm between them. Card-bearing asides
+ * (orgs hospital profile / deps org tree) and the menus tree page keep the
+ * single-card `ConsolePanel` instead.
+ */
+export function ConsolePage({ children }: { children: ReactNode }) {
+  return (
+    <section
+      style={{
+        height: '100%',
+        flex: 1,
+        minWidth: 0,
+        background: 'transparent',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+      }}
+    >
+      {children}
+    </section>
+  )
+}
+
 /**
  * OPS compact content card (prototype `.panel`): a bordered white card with a
  * hairline shadow and NO title block - brief 「无页头标题块;内容区直接
- * 工具行 → 表格 → 分页」.
+ * 工具行 → 表格 → 分页」. Still the chrome for card-bearing asides and the
+ * menus tree page; standard list pages use `ConsolePage` above.
  */
 export function ConsolePanel({ children }: { children: ReactNode }) {
   const { token } = theme.useToken()
@@ -80,6 +119,9 @@ export function ConsoleWorkArea({ aside, children }: { aside: ReactNode; childre
 /**
  * Tool row (console-shell.html `.search`, org-deps.html `.tool-row`): query
  * controls LEFT, the primary add action RIGHT (`.push{margin-left:auto}`).
+ * Its own white card on the cardSurface chrome - query panel and table panel
+ * read as two independent cards (user ruling 2026-11-09, superseding the
+ * transparent-search take: the OPS reference carries a background here too).
  */
 export function ConsoleToolRow({ children, trailing }: { children: ReactNode; trailing?: ReactNode }) {
   const { token } = theme.useToken()
@@ -91,8 +133,8 @@ export function ConsoleToolRow({ children, trailing }: { children: ReactNode; tr
         alignItems: 'center',
         gap: 12,
         flexWrap: 'wrap',
-        padding: `${token.paddingSM}px ${token.paddingMD}px`,
-        borderBottom: `1px solid ${token.colorSplit}`,
+        ...cardSurface(token),
+        padding: 10,
       }}
     >
       <Space wrap size={12} style={{ flex: 1, minWidth: 0 }}>
@@ -143,10 +185,16 @@ export function ConsoleQueryButton({
 const ACTION_ICONS = {
   edit: EditOutlined,
   remove: DeleteOutlined,
-  /** 重置密码 - the prototype's key glyph (console-shell.html `.act title="重置密码"`). */
-  key: KeyOutlined,
-  /** 菜单授权 - the role-assignment tree glyph (role-menus.html `.act title="菜单授权"`). */
-  assign: ApartmentOutlined,
+  /** 重置密码 - the closed-padlock glyph (user ruling 2026-11-09: the former
+   * key glyph read as a magnifier at 14px and collided with the query button). */
+  key: LockOutlined,
+  /** 菜单授权 - the shield-with-check glyph, the AntD-ecosystem standard for
+   * grant/permission verbs (user ruling 2026-11-09: the former key glyph -
+   * ported from the 随访 role page's `<Key />` - was indistinguishable from
+   * `SearchOutlined` at 14px; the apartment tree glyph had already been ruled
+   * out as "org structure", not "grant"). `key` (重置密码) shares neither
+   * glyph now but stays a separate verb - the two never co-occupy one table. */
+  assign: SafetyCertificateOutlined,
   /** 设为默认 - the star reads as the canonical/default marker. */
   star: StarOutlined,
 } as const
@@ -277,21 +325,27 @@ export function ConsoleTable<RowType extends object>({
     : []
 
   return (
-    <Table<RowType>
-      rowKey={rowKey}
-      className="lumen-console-table"
-      columns={[...columns, ...actionColumns]}
-      dataSource={dataSource}
-      loading={loading}
-      pagination={false}
-      size="middle"
-      onRow={onRow}
-      rowClassName={
-        selectedRowKey == null
-          ? undefined
-          : (row) => (rowKey(row) === selectedRowKey ? 'lumen-console-row-current' : '')
-      }
-    />
+    // The OPS `.hpage-table` card on the shared surface chrome, 10px padding;
+    // `flex: 1` stretches it to the panel bottom so short lists stay white
+    // instead of exposing the gray page tint below the last row (user ruling
+    // 2026-11-09).
+    <div style={{ ...cardSurface(token), padding: 10, minWidth: 0, flex: 1 }}>
+      <Table<RowType>
+        rowKey={rowKey}
+        className="lumen-console-table"
+        columns={[...columns, ...actionColumns]}
+        dataSource={dataSource}
+        loading={loading}
+        pagination={false}
+        size="middle"
+        onRow={onRow}
+        rowClassName={
+          selectedRowKey == null
+            ? undefined
+            : (row) => (rowKey(row) === selectedRowKey ? 'lumen-console-row-current' : '')
+        }
+      />
+    </div>
   )
 }
 
@@ -299,6 +353,9 @@ export function ConsoleTable<RowType extends object>({
  * Centered ~60px pager row (prototype `.pager{justify-content:center;height:60px}`
  * + the OPS `共 N 条` counter). Renders nothing when `total` is 0 - a page with
  * no rows has nothing to page through (the table's own empty state shows).
+ * Own white-card chrome on the gray page background (OPS `.hpage-table.has-pagination`
+ * keeps the pager inside the card surface; the sibling-card form keeps the
+ * shell's page-owned pagination API without restructuring every page).
  */
 export function ConsolePagination({
   total,
@@ -325,7 +382,7 @@ export function ConsolePagination({
         justifyContent: 'center',
         gap: 10,
         height: PAGER_HEIGHT,
-        borderTop: `1px solid ${token.colorSplit}`,
+        ...cardSurface(token),
         padding: `0 ${token.paddingMD}px`,
         marginTop: 'auto',
       }}

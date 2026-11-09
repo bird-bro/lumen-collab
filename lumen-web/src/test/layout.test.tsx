@@ -179,6 +179,10 @@ describe('three-zone shell metrics (web-foundation-auth-console 5.4)', () => {
 
     const content = container.querySelector<HTMLElement>('.ant-layout-content')
     expect(content?.style.padding).toBe('5px')
+    // The console page background is the gray layout tint (the theme pins
+    // colorBgLayout to the OPS page tint), so the query rows and white table
+    // cards float on non-white (2026-11-09).
+    expect(content?.style.background).toBe('rgb(243, 245, 247)')
   })
 
   it('renders the rail L1 entries from the store menu tree (not a hard-coded list)', () => {
@@ -210,6 +214,19 @@ describe('three-zone shell metrics (web-foundation-auth-console 5.4)', () => {
     // The left selection bar color is injected from the token pipeline.
     const menu = document.querySelector<HTMLElement>('.lumen-side-menu')
     expect(menu?.style.getPropertyValue('--lumen-menu-active-bar')).toBe('#3178fc')
+  })
+
+  it('registers the console-table zebra + row-line vars from the token pipeline (OPS parity 2026-11-09)', () => {
+    seedAdminSession()
+    renderShell('/system/orgs')
+
+    const layout = document.querySelector<HTMLElement>('.ant-layout')
+    // Row ruling = the primary itself (CSS color-mix applies the 15% alpha,
+    // mirroring OPS --table-border rgb(22 125 255 / 15%)); the stripe follows
+    // colorFillTertiary - AntD 5.29's alpha fill (4% black over white reads
+    // like the OPS light stripe, and composites/adapts instead of pinning).
+    expect(layout?.style.getPropertyValue('--lumen-row-line')).toBe('#3178fc')
+    expect(layout?.style.getPropertyValue('--lumen-row-striped')).toBe('rgba(0,0,0,0.04)')
   })
 
   it('switches the active rail entry and navigates to its first leaf on click (multi-station session)', async () => {

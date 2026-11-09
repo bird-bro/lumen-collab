@@ -252,6 +252,14 @@ export function BasicLayout() {
           // Console-table current-row chrome (OPS dict-page highlight-current-row).
           '--lumen-row-current-bar': token.colorPrimary,
           '--lumen-row-current-bg': token.colorBgContainer,
+          // Console-table zebra + row ruling (OPS parity, user review
+          // 2026-11-09): the line var is the raw primary - basic-layout.css
+          // color-mixes it to the 15% alpha of OPS --table-border so it
+          // composites over both the plain and striped fills; the stripe
+          // follows colorFillTertiary (AntD's alpha fill reads like the OPS
+          // light stripe and auto-adapts in dark - no dark override needed).
+          '--lumen-row-line': token.colorPrimary,
+          '--lumen-row-striped': token.colorFillTertiary,
           // Mini-rail highlight color: previously only the expanded Menu
           // defined this var, so the collapsed rail's active color resolved
           // to inherited near-black (user-reported color mismatch).
@@ -482,7 +490,11 @@ export function BasicLayout() {
               </button>
             )}
           </Layout.Sider>
-          <Layout.Content style={{ padding: CONTENT_PADDING, minWidth: 0 }}>
+          {/* Gray page tint (the theme pins colorBgLayout to the OPS page
+              tint): the query rows and white table cards float on non-white. */}
+          <Layout.Content
+            style={{ padding: CONTENT_PADDING, minWidth: 0, background: token.colorBgLayout }}
+          >
             <Suspense
               fallback={
                 <Spin

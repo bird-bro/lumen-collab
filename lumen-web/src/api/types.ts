@@ -243,6 +243,8 @@ export interface RoleItem {
   name: string;
   type: number;
   remark: string | null;
+  /** Lifecycle flag (role-type-dict-web D7): 1 enabled / 0 disabled - display only. */
+  enable: number;
   createBy: number | null;
   createTime: string;
   updateBy: number | null;
@@ -286,6 +288,17 @@ export interface CreateDictCatalBody {
 }
 
 export type UpdateDictCatalBody = Partial<CreateDictCatalBody>;
+
+/**
+ * Slim dict item projection (role-type-dict-web): the label-lookup pair served by
+ * `GET /system/dicts/detail/items/{catalogName}` - the numeric `code` consumers
+ * store plus the V9 single-text display `value`. NOT the full DictDetail row
+ * (tag/flag/color/audit stay server-side).
+ */
+export interface DictItem {
+  code: number | null;
+  value: string | null;
+}
 
 /**
  * Dict detail row (backend V9 shape): `value` is the single text field (display +

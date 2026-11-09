@@ -30,6 +30,15 @@ export function updateRole(id: number, body: UpdateRoleBody): Promise<boolean> {
   return apiRequest<boolean>(`/system/roles/${id}`, { method: 'PUT', body });
 }
 
+/**
+ * PUT /system/roles/{id}/enable - the lifecycle toggle (role-type-dict-web D7,
+ * the setOrgStatus mirror): body {enable: 0|1}, strict rejection otherwise,
+ * returns true. Requires the system:role:update authority server-side.
+ */
+export function toggleRoleEnable(id: number, enable: number): Promise<boolean> {
+  return apiRequest<boolean>(`/system/roles/${id}/enable`, { method: 'PUT', body: { enable } });
+}
+
 /** DELETE /system/roles/{id} - cascades unbind user_role and role_menu rows. */
 export function deleteRole(id: number): Promise<boolean> {
   return apiRequest<boolean>(`/system/roles/${id}`, { method: 'DELETE' });

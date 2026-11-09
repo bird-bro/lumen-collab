@@ -7,6 +7,7 @@
 import { apiRequest } from './client';
 import type {
   CityDict,
+  DictItem,
   CreateDictCatalBody,
   CreateDictDetailBody,
   DictCatal,
@@ -102,4 +103,20 @@ export function listCityDicts(params: { level?: number; upId?: number }): Promis
   })
   CITY_DICT_CACHE.set(key, request)
   return request
+}
+
+/**
+ * GET /system/dicts/detail/items/{catalogName} - the label-lookup endpoint
+ * (role-type-dict-web): the enabled catalog's live details as the slim
+ * `{code, value}[]` projection, sort ascending. The catalog name rides the
+ * path RAW (the recorded cross-stack contract - pre-encoded %XX segments land
+ * on the security entry point; the fetch layer encodes automatically). An
+ * unknown or disabled catalog resolves to an empty array, never an error.
+ * Cached per name - use `dictItemsByName` from `@/utils/dict-items` (session
+ * cache) for page consumers; this raw client is the uncached transport.
+ */
+export function fetchDictItemsByName(catalogName: string): Promise<DictItem[]> {
+  return apiRequest<DictItem[]>(`/system/dicts/detail/items/${catalogName}`, {
+    method: 'GET',
+  });
 }
