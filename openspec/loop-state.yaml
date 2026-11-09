@@ -52,17 +52,28 @@
 # the settled tree). Specs synced: api spec + Organization Status Toggle Endpoint,
 # web-system-console + Organization Status Switch Uses Status Endpoint (both ADDED).
 # FEATURE org-status-toggle COMPLETE - both changes PASS, gate satisfied.
-phase: archived
-change: org-status-toggle-web
+# 2026-11-09: password-transport-encryption PROPOSED (cross-stack feature from the
+# user's login-plaintext security review: SM2 国密 transport encryption per user final
+# ruling 2026-11-09; static-config keypair, clean cutover A0400, 3 password endpoints;
+# coordination doc openspec/coordination/password-transport-encryption.md, decisions
+# D1-D9; password-transport-encryption-api + -web, both Inline, contracts fresh,
+# validate PASS, guard preflight PASS). QUEUED - did NOT touch the slot keys below;
+# slot handoff happens at this feature's /opsx:apply (backend first, then web).
+# 2026-11-09: password-transport-encryption-api TOOK THE SLOT at /opsx:apply (full mode,
+# Inline, 9 tasks; TDD: interop fixed vector red->green before the helper, integration
+# a-f before service wiring; blocking red lines per contract: zero common/framework
+# edits, one bom pin only).
+phase: applying
+change: password-transport-encryption-api
 current_task: null
 execution_mode: Inline
-tasks_total: 3
-tasks_done: 3
+tasks_total: 9
+tasks_done: 11
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: 41b1a404c909317b890eb2737bd3c229cdfaf4be8df3eea4c817e2186477e47c
+artifacts_hash: a3e4ad688a8b584eb24d21b44f3c2f78c0a878cc016d2a24b483451cc6e74c88
 contract_hash: null
 batches_completed: 0
-last_updated: 2026-11-06
+last_updated: 2026-11-09
