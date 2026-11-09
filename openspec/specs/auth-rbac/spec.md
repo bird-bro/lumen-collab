@@ -250,9 +250,11 @@ menus and gate buttons. Every management endpoint family SHALL enforce its page-
 permission string server-side (login/me excluded): users→`system:user:list`,
 roles→`system:role:list`, menus→`system:menu:list`, orgs→`system:org:list`,
 deps→`system:dep:list`, dicts→`system:dict:list`, logs→`system:log:list`. City reference
-queries stay authenticated-only (reference data any role may read). Button-level
-granularity (per-button F-node gating) is the recorded follow-up once workstation job
-roles exist - this requirement pins page-level granularity only.
+queries and the dict items lookup by catalog name stay authenticated-only (read-only
+reference data any role may read — the lookup consumers are role managers holding only
+`system:role:list`). Button-level granularity (per-button F-node gating) is the recorded
+follow-up once workstation job roles exist - this requirement pins page-level granularity
+only.
 
 #### Scenario: Role-menu assignment
 - **WHEN** an administrator assigns menus to a role
@@ -274,6 +276,14 @@ roles exist - this requirement pins page-level granularity only.
 - **WHEN** the seeded administrator (whose role owns every menu) calls any management
   endpoint family
 - **THEN** the request executes normally - the permission set covers all seven families
+
+#### Scenario: Dict items lookup stays authenticated-only
+- **WHEN** a user holding only `system:role:list` calls
+  `GET /api/v1/system/dicts/items/{catalogName}`
+- **THEN** the call succeeds without any dict permission string
+- **AND** an unauthenticated call is still rejected
+
+<!-- synced from: role-type-dict-api 2026-11-09 -->
 
 ### Requirement: Seed Data
 The Flyway migrations SHALL include idempotent seed data: the default administrator

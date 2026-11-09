@@ -81,19 +81,20 @@
 # naming.md precedent swapped). Slot released - login-lockout (parallel session, 0/8) may
 # take it at its own /opsx:apply.
 phase: archived
-change: role-list-api
+change: role-type-dict-web
 current_task: null
 execution_mode: Batch Inline
-tasks_total: 7
-tasks_done: 7
+tasks_total: 10
+tasks_done: 10
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: 37391ed0171d8e4b8ed15d724f3fa2cce2e345a5fc0bab02d7842a2630023a23
+artifacts_hash: 7257d6ca6f5d57841ac34c6064a9232f4cd752c7adedce726f5301779e1b92d1
 contract_hash: null
 batches_completed: 0
-last_updated: 2026-11-0# 2026-11-09: login-lockout PROPOSED (single-stack lumen-system brute-force defense -
+last_updated: 2026-11-09
+# 2026-11-09: login-lockout PROPOSED (single-stack lumen-system brute-force defense -
 # the second finding of the 2026-11-09 security review; user-ruled params 5 fails /
 # 15-min window / 30-min auto-expiry lock; account-level only - hospital NAT rules out
 # IP limiting; only A0210 counts, A0400/A0201 never; admin reset clears = emergency
@@ -101,4 +102,39 @@ last_updated: 2026-11-0# 2026-11-09: login-lockout PROPOSED (single-stack lumen-
 # frontend zero-change; OPS dormant parts wired: A0211 code + UserLogin lock hook + Redis
 # infra. Inline, 6 tasks, contract fresh, validate PASS, guard preflight PASS).
 # QUEUED - did NOT touch the slot keys below; slot handoff at /opsx:apply.
-9
+# 2026-11-09: role-type-dict PROPOSED (cross-stack feature: role_info.type vocabulary
+# moves to the dict catalog 「角色类型」 per user ruling 2026-11-09 — V23 seed (catalog
+# 1020 + code 10 系统角色 / 11 RCP角色 per RoleConstants) + authenticated-only by-name
+# items endpoint in the api change; dict-driven 类型 column + drawer Select with raw-code
+# fallback in the web change; coordination doc openspec/coordination/role-type-dict.md
+# D1-D6. Both Batch Inline; validate PASS x2; contracts fresh — role-type-dict-api
+# artifacts hash 4144c4fb6f3970db90759698f0cfe25276da0d04f9e425d55d5347bf0a296288,
+# role-type-dict-web artifacts hash c3566eb91d2fdbb4ba3672f88aa5f0763e545ecb2bafcc4cd7acf2d0
+# cc1a5f66 — RE-STORE the right one at this feature's slot handoff (the propose-time
+# ensure-contract-fresh runs overwrote each other in the single slot; slot keys below
+# restored to the pre-propose role-list-api-archived values). QUEUED - backend first
+# (no-mock ruling), then web; login-lockout (parallel session) may take the slot first.
+# 2026-11-09 (late): role-type-dict scope EXTENDED per user review - D7 role enable
+# field (V24 role_info.enable DEFAULT 1 + PUT /roles/{id}/enable toggle mirroring
+# org-status-toggle; 状态 switch column on the web side; NO behavioral wiring -
+# store/display/toggle only). Contracts rebuilt, validate PASS x2, AI sections
+# refilled. Hashes ABOVE ARE STALE - current: role-type-dict-api
+# 9438e17b05f3cae000f6f6359d251366d5c433767d711f19e91e0776b7840769,
+# role-type-dict-web
+# fa894e75d2385c3ece961119b8651e883bdf9b1eccac59726a4e79458f49afb2 - RE-STORE the
+# right one at slot handoff.
+# 2026-11-09: role-type-dict-api ARCHIVED (2026-11-09-role-type-dict-api; verify PASS
+# 10/10, L1+L3 145/145; specs synced: api Role Management Endpoints enable+toggle +
+# Dict Items Lookup By Catalog Name ADDED, system-data Role Type Dict Catalog, data
+# Role Enable Column, auth-rbac dict lookup authenticated-only; V23/V24 migrations on
+# the shared test DB).
+# 2026-11-09: role-type-dict-web ARCHIVED (2026-11-09-role-type-dict-web; verify PASS
+# 10/10, L1+L3 279/279; specs synced: web-system-console Role Management and Menu
+# Assignment MODIFIED - dict-driven 类型 labels + drawer Selects + 状态 enable switch).
+# FEATURE role-type-dict COMPLETE - both changes PASS, gate SATISFIED, slot released.
+# 2026-11-09: role-type-dict-web VERIFIED (verify.md PASS 10/10 scenarios, L1+L3
+# green 279/279; drawer Selects, dict column, enable switch; remark 130px pin
+# recorded as an out-of-band user ruling). Phase gate passed; tasks 10/10.
+# 2026-11-09: role-type-dict-api VERIFIED (verify.md PASS 10/10 scenarios, L1+L3
+# green 145/145; URL-encoding contract + Flyway history repair recorded in verify.md
+# notes). Phase gate applying->verifying passed; tasks 10/10.
