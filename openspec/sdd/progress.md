@@ -569,3 +569,11 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
   user's standing cleanup order - titles were 100% suite CRUD); log_sign admin 152 left
   (mixed real logins + pre-hook test logins, hook guarantees no new accumulation except
   AuthLoginTests ~2/run). follow-up CLOSED.
+
+## audit-log-unify-api (SDD, 4 batches) — Started 2026-11-10
+- Preflight: contract fresh (hash ca106d78), guard proposing->applying PASS, loop-state
+  phase=applying change=audit-log-unify-api mode=SDD. Branch dev (no worktree rule).
+- Batch 1 (1.1-1.3 schema + LogTypes): V25 applied on the shared test PG (layout
+  verified live), LogTypes + unit test green, RED evidence recorded; reactor 9
+  interim failures all mapped to Batches 2/3/4 (log_sign-family tests + String-type
+  write path) per the batch plan; report audit-log-unify-api-b1-report.md.

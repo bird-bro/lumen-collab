@@ -405,10 +405,20 @@ public abstract class AuthIntegrationTestBase {
             connection.setAutoCommit(false);
             try (Statement statement = connection.createStatement()) {
                 // 1. Log/audit rows of the run + fixture families (no audit block - plain
-                //    DELETE, no update_time touch).
-                int signRows = statement.executeUpdate(
-                        "DELETE FROM public.log_sign WHERE ("
-                                + accountResiduePredicate("account") + ")");
+                //    DELETE, no update_time touch). The log_sign sweep is guarded:
+                //    V25 (audit-log-unify-api) DROPPED the family, so the relation may
+                //    legitimately be absent on every current database (full re-target of
+                //    the sign suites is batch 4 - until then the sweep must survive both
+                //    shapes).
+                int signRows = 0;
+                java.sql.ResultSet signTable = statement.executeQuery(
+                        "SELECT to_regclass('public.log_sign')");
+                if (signTable.next() && signTable.getObject(1) != null) {
+                    signRows = statement.executeUpdate(
+                            "DELETE FROM public.log_sign WHERE ("
+                                    + accountResiduePredicate("account") + ")");
+                }
+                signTable.close();
                 int infoRows = statement.executeUpdate(
                         "DELETE FROM public.log_info WHERE ("
                                 + accountResiduePredicate("account") + ")");

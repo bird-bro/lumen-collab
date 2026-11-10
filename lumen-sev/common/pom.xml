@@ -99,6 +99,14 @@
             <artifactId>commons-compress</artifactId>
         </dependency>
 
+        <!-- test: plain-JUnit unit proofs only (LogTypesTest) - version managed by
+             the Boot train via lumen-bom's spring-boot-dependencies import -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
 
     </dependencies>
 
