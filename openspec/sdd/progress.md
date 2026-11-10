@@ -577,3 +577,32 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
   verified live), LogTypes + unit test green, RED evidence recorded; reactor 9
   interim failures all mapped to Batches 2/3/4 (log_sign-family tests + String-type
   write path) per the batch plan; report audit-log-unify-api-b1-report.md.
+- Implementer DONE_WITH_CONCERNS (commit 26e9c40; V25 24→25 green, psql 8/8, LogTypes 4/4).
+  Deviation: log_info.type held 18 real label rows → guarded CASE (five labels→codes,
+  unknown→NULL) instead of the design's literal NULLIF USING; recorded in report, ledger
+  disposition pending reviewer. Reactor mid-flight failures map to Batches 2/3/4 (expected)
+  + 4 flaky admin-login (pass solo, shared-server contention). Reviewer dispatched.
+- Reviewer: APPROVED (independent JDBC spot-checks; deviation verdict ACCEPT → ledger #2
+  one-sentence addendum). Important #1: V25 section-2 idempotence header overclaims —
+  re-applying the ALTER on already-integer column errors (btrim(integer)); fix = DO-block
+  gate on information_schema.data_type='character varying', rides with Batch 2's commit.
+  Minors: GREEN count 14 vs 13 (evidence hygiene), 1.3 RED manufactured (disclosed,
+  acceptable for constants class), stale method name fourSystemTables..., FQN ResultSet.
+- Batch 1 CLOSED (tasks 1.1-1.3 checked, 3/12). Deviation ACCEPTED → ledger #2 addendum
+  appended to coordination doc.
+- Batch 2 (2.1-2.4 write path retarget + reviewer's V25 idempotence fix): Dispatched
+  (implementer running; brief audit-log-unify-api-b2-brief.md; checksum procedure =
+  history-row delete + re-apply, BLOCKED if impossible).
+- Implementer b2 DONE_WITH_CONCERNS: 2.1/2.3 RED (PG 570 errors exactly as briefed),
+  2.2/2.4 GREEN (AuthAuditLogWriteTests 2/2), zero-touch callers compile-verified;
+  V25 DO-block fix applied + history-row delete/re-apply procedure run (checksum
+  1666894264→954461499, flyway-calculator MATCH). Deviation found by implementer probe:
+  hutool 5.8.20 copyProperties boolean overload is ignoreCase NOT ignoreError —
+  String→Integer copy THROWS on 新增 (design D3 "silent null" premise false); fix =
+  CopyOptions.setIgnoreProperties("type") + codeOf override (same single-translation-
+  point shape, recorded in b2 report). Reactor 147: 3F+3E all Batch 3/4 (log_sign
+  queries + /sign 500 + String-type filter); String write-path breakage from b1
+  RESOLVED (AuthOperationLogTests green). Report audit-log-unify-api-b2-report.md.
+  tasks 4/12.
+- [Wait] tasks.md checkbox total was 11 in the brief but openspec counts 12 (api) —
+  verified: tasks.md has 12 checkboxes (4+4+2+2 batches); brief said 11, miscount only.

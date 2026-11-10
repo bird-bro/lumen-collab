@@ -47,7 +47,7 @@ public class LogInfoEntity implements Serializable {
 
     @ApiModelProperty("类型")
     @TableField("type")
-    private String type;
+    private Integer type;
 
     @TableField("uid")
     private Integer uid;

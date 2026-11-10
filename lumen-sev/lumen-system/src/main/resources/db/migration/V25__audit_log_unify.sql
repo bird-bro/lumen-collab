@@ -10,7 +10,9 @@
 --      only smoke-test residue; the sign write path retargets to log_info in b2).
 --   2. Re-type log_info.type varchar(255) -> integer (D2: String at the @Log
 --      annotation edge, Integer code at rest; the code vocabulary is LogTypes 1~5 +
---      Constants.SUCCESS/FAIL/SIGN_OUT = 10/11/12 verbatim).
+--      Constants.SUCCESS/FAIL/SIGN_OUT = 10/11/12 verbatim). Wrapped b2 in a DO block
+--      gated on the column's current data_type - a re-run on an already-integer column
+--      is a true no-op (the bare ALTER's trim() would error on integer).
 --   3. Menu convergence (D6 one page): menu 12 日志查询 -> 审计日志, re-parented from
 --      系统配置 (15) into 安全 (16), sort 3; menu 17 登录日志 soft-deletes and its
 --      role_menu grants hard-DELETE (V22 node-retirement precedent - a grant pointing
@@ -20,10 +22,17 @@
 --      (the segments the write path already emits), value = display text, sort 1-8.
 --      Consumed by-name via the existing ungated GET /dicts/items/{catalogName}.
 --
--- IDEMPOTENCE (V5/V6/V12 shared-DB discipline): guarded statements throughout - a
--- re-run (or a hand-applied hot run followed by the Flyway run) is a no-op, and fresh
--- databases converge on the same shape. V3-V24 are NEVER rewritten (the standing
--- never-rewrite ruling) - this script rolls forward.
+-- IDEMPOTENCE (V5/V6/V12 shared-DB discipline, reviewer-verified b2): EVERY section
+-- re-runs as a true no-op on the converged shape, and fresh databases converge on the
+-- same shape. Section 1: DROP ... IF EXISTS / a pg_class-guarded DO block. Section 2:
+-- the ALTER re-type sits inside a DO block gated on the column's CURRENT data_type
+-- (b1's bare ALTER errored on re-run - trim() cannot take an already-integer column -
+-- so the gate skips it once type IS integer). Section 3: guarded WHERE on both the
+-- UPDATEs and the grant DELETE (a second pass deletes zero rows). Section 4:
+-- ON CONFLICT (id) DO NOTHING seeds + a setval tail that re-converges to MAX(id).
+-- V3-V24 are NEVER rewritten (the standing never-rewrite ruling) - this script rolls
+-- forward; the b1-applied shared test DB re-ran this exact file under Flyway after a
+-- history-row delete (house procedure) to prove every section's no-op.
 --
 -- TYPE-CARRY DEVIATION (recorded): the design's literal USING
 -- NULLIF(trim(type),'')::integer ERRORS on any non-numeric label string, and the
@@ -60,16 +69,30 @@ END
 $drop_log_sign_seq$;
 
 -- ================= 2) re-type log_info.type to integer (coordination D2) =================
-ALTER TABLE public.log_info ALTER COLUMN type TYPE integer
-    USING CASE
-        WHEN trim(type) ~ '^[0-9]{1,9}$' THEN trim(type)::integer   -- numeric rows carry through
-        WHEN type = '新增'     THEN 1
-        WHEN type = '修改'     THEN 2
-        WHEN type = '删除'     THEN 3
-        WHEN type = '授权'     THEN 4
-        WHEN type = '重置密码' THEN 5
-        ELSE NULL                                                  -- unmapped label degrades, never fails
-    END;
+-- The re-type is gated on the column's CURRENT data_type (b2 idempotence fix): on an
+-- already-integer column the bare ALTER's USING trim() errors (btrim(integer) - the
+-- reviewer proved the re-run FAILS b1's shape), so the DO block skips it - a hand
+-- re-run on the shared DB is a true no-op. The CASE below is the b1-applied body
+-- VERBATIM (never retype it - checksum discipline on the shared-DB re-apply).
+
+DO $retype$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema = 'public' AND table_name = 'log_info'
+                 AND column_name = 'type' AND data_type = 'character varying') THEN
+        ALTER TABLE public.log_info ALTER COLUMN type TYPE integer
+            USING CASE
+                WHEN trim(type) ~ '^[0-9]{1,9}$' THEN trim(type)::integer   -- numeric rows carry through
+                WHEN type = '新增'     THEN 1
+                WHEN type = '修改'     THEN 2
+                WHEN type = '删除'     THEN 3
+                WHEN type = '授权'     THEN 4
+                WHEN type = '重置密码' THEN 5
+                ELSE NULL                                                  -- unmapped label degrades, never fails
+            END;
+    END IF;
+END
+$retype$;
 
 -- ================= 3) menu convergence (coordination D4/D6) =================
 -- The unified page: menu 12 retitles, re-parents into 安全 (16), and takes the
