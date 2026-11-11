@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.*;
 
@@ -81,6 +82,13 @@ public class LogInfoEntity implements Serializable {
     @TableField("url")
     private String url;
 
+    /**
+     * 会话凭证锚点列（V25 起接住 sign 事件的 token 锚点——audit-log-unify 设计 D5，
+     * 取代已删除 log_sign.token 的 D7 双保险同款：查询路径 select 排除此列 + 未选列
+     * 的 null 由 {@code NON_NULL} 从响应 JSON 中整体略去，凭证材料零出现在管理端
+     * 响应里；legacy XML 路径（getLogInfoPage 裸 SQL）本就不选该列，行为不变。
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @TableField("session")
     private String session;
 
