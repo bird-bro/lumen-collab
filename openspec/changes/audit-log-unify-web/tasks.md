@@ -17,5 +17,5 @@
 
 ## Batch 3 — Verify
 
-- [ ] 3.1 `pnpm test` + `pnpm build` green; smoke against the real backend (both event families visible; menu shows 审计日志 under 安全)
-- [ ] 3.2 User UI confirmation → coordination registry checkmarks
+- [x] 3.1 `pnpm test` + `pnpm build` green; smoke against the real backend (both event families visible; menu shows 审计日志 under 安全)
+- [x] 3.2*  User UI confirmation → coordination registry checkmarks

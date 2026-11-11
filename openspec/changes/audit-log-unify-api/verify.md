@@ -24,7 +24,7 @@ verify:
 |:---|:---|:---|
 | L1 构建 | ✓ PASS | `./mvnw compile -q` 全 reactor 成功（JDK 11） |
 | L2 规格对齐 | 15/15 已实现 | def 分区场景已由专属测试闭环（见下） |
-| L3 测试 | ✓ PASS | 全 reactor BUILD SUCCESS：lumen-system 151/151（含新增 def-partition 断言，AuthSystemDataMigrationTests 14/14）+ common 4/4 = 155/155，0 失败 0 错误（AuthAuditLogQueryTests 4/4、AuthSignLogTests 2/2、AuthUserAgentResilienceTests 3/3） |
+| L3 测试 | ✓ PASS | 全 reactor BUILD SUCCESS：lumen-system 151/151 + common 4/4 = 155/155，0 失败 0 错误。web-smoke 二轮复核（IDE 加载 NON_NULL entity 后）：session 键从 20 行响应整体消失、双族混合（10×12/11×5/1/2/3）、type=11 过滤 6 hits 全 11、/sign 404 |
 
 ## 场景对齐详情
 

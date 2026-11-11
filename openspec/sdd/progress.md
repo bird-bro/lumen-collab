@@ -681,3 +681,37 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
   survived the source deletion (incremental compile never cleans removed resources) and
   MyBatis's classpath*:mapper/**/*.xml scan choked on it. Fix: rm the stale target file;
   full reactor re-running. (Not a code bug — build-hygiene; a clean mvn would not hit it.)
+- Batch 4 CLOSED (12/12; commits 5ac8c6e + de26178 + e97892b). Full reactor 156/156
+  BUILD SUCCESS (the 3 "failures" were stale surefire reports of the deleted class).
+  Phase gate applying→verifying PASS. NEXT: /opsx:verify audit-log-unify-api (L1/L3
+  per verify.config), then the web change.
+- [verify CLOSED 2026-11-10] audit-log-unify-api PASS: L1 ✓ / L2 15/15 / L3 155/155
+  (151 lumen-system incl. the new def-partition assertion + 4 common). The PARTIAL
+  closed with AuthSystemDataMigrationTests.writeIntoAnUnpartitionedYearLands... (
+  179901 → log_info_def, finally-hard-delete + residue-zero). Commits da8b5d9 (first
+  credential) + cae1a3a (PASS refresh). READY FOR ARCHIVE.
+- [web b1+b2 CLOSED 2026-11-10] commit 1d2fa11. Client convergence (LogItem.type number
+  + account filter; LogSign family types/client deleted; TS2322 RED→GREEN) + unified
+  page (merged columns, dict Select 审计日志类型, em-dash cells, degrade-on-failure;
+  tests 8/8) + sign.tsx//sign route/menu-paths deletion. tsc 0 + vitest 277/277 +
+  build OK. SMOKE PENDING: the IDE-launched lumen-system (PID 19177) serves the OLD
+  LogController (NoSuchMethod list(6-arg) on /logs 500) — user restarting in IDEA;
+  smoke = real-backend 3 checks (both families visible / 审计日志 menu / dict labels).
+  Redis shared-server timeouts (2×) also seen during login attempts — transient, retry
+  pattern worked.
+- [web smoke 2026-11-10, after user's IDEA restart (new PID 68401)] Check results:
+  ①menu ✓ (审计日志 path=log upId=16 perms=system:log:list; signlog perm gone from admin)
+  ②A0421 ✓ (type=abc → A0421 参数格式不匹配). ③session-column: select-exclusion works
+  (SQL lacks session; all values NULL) BUT the JSON key still serializes as "session":
+  null — LogInfoEntity.session lacked the @JsonInclude(NON_NULL) half of the D5 double-
+  guard (the deleted LogSignEntity.token precedent had BOTH halves). FIX APPLIED:
+  NON_NULL + javadoc added to the entity (framework installed via -am install).
+  ④dict lookup: /dicts/items/{name} 404s — that's the STALE api-spec path; the code +
+  frontend + role-type-dict archive all use /dicts/detail/items/{name} (200, 8 items
+  correct). Noted as a spec-sync correction for archive. NEEDS: one more IDEA restart
+  to load the NON_NULL entity; then session-key smoke re-check.
+- [web smoke ROUND 2 2026-11-10] after the user's second IDEA restart (PID 72757,
+  fresh framework jar w/ NON_NULL): session KEY absent from all 20 rows ✓; both
+  families visible (ops 1/2/3 + sign 10×12/11×5) ✓; type=11 filter 6 hits all-11 ✓;
+  /sign 404 ✓. SMOKE COMPLETE. 3.1 checked. Remaining: 3.2 user UI confirmation
+  (browser pass) → verify both changes → archive both → coordination gate.
