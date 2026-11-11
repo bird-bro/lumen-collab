@@ -84,8 +84,8 @@ phase: applying
 change: audit-log-unify-api
 current_task: null
 execution_mode: SDD
-tasks_total: 10
-tasks_done: 10
+tasks_total: 12
+tasks_done: 12
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
