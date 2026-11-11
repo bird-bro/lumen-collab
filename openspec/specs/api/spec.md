@@ -416,7 +416,11 @@ unimplemented 2026-11-03, served by the dev mock) is retired by this change.
 
 ### Requirement: Dict Items Lookup By Catalog Name
 
-`lumen-system` SHALL expose a read-only lookup `GET /api/v1/system/dicts/items/{catalogName}`
+<!-- synced-path correction: audit-log-unify-api 2026-11-10 — the role-type-dict
+     archive recorded `/dicts/items/{catalogName}` but the wired endpoint (commit
+     925c852), the frontend client, and that change's own archived verify all use
+     `/dicts/detail/items/{catalogName}`; the spec now matches the implementation -->
+`lumen-system` SHALL expose a read-only lookup `GET /api/v1/system/dicts/detail/items/{catalogName}`
 that resolves one dict catalog by its unique `name` and returns its live, enabled
 details as a slim `{code, value}[]` (the V9/V12 single-text model) in the standard
 envelope. The endpoint is for label-resolution consumers such as the role console and is
@@ -424,13 +428,13 @@ authenticated-only (no permission string — see auth-rbac).
 
 #### Scenario: Items returned for a known catalog
 
-- **WHEN** an authenticated client requests `GET /api/v1/system/dicts/items/角色类型`
+- **WHEN** an authenticated client requests `GET /api/v1/system/dicts/detail/items/角色类型`
 - **THEN** the envelope carries `code: "200"` with the catalog's live enabled
   details as `{code, value}[]` in `data`, ordered by `sort` ascending
 
 #### Scenario: Unknown catalog resolves to an empty list
 
-- **WHEN** an authenticated client requests `GET /api/v1/system/dicts/items/不存在目录`
+- **WHEN** an authenticated client requests `GET /api/v1/system/dicts/detail/items/不存在目录`
 - **THEN** the envelope carries `code: "200"` with an empty `data` array
 
 #### Scenario: Disabled details are excluded

@@ -1,0 +1,10 @@
+# File ownership - audit-log-unify-api (backend audit-log unify)
+- lumen-sev/lumen-system/src/main/resources/db/migration/V25__audit_log_unify.sql
+- lumen-sev/common/src/main/java/org/birdbro/common/Constants/LogTypes.java
+- lumen-sev/framework/src/main/resources/mapper/LogInfoMapper.xml
+- lumen-sev/framework/src/main/java/org/birdbro/framework/log/service/ILogInfoService.java
+- lumen-sev/framework/src/main/java/org/birdbro/framework/log/service/impl/LogInfoServiceImpl.java
+- lumen-sev/framework/src/main/java/org/birdbro/framework/log/service/impl/LogSignInsertServiceImpl.java
+- lumen-sev/framework/src/main/java/org/birdbro/framework/manager/factory/AsyncFactory.java
+- lumen-sev/lumen-system/src/main/java/org/birdbro/lumen/system/controller/LogController.java
+- lumen-sev/lumen-system/src/test/java/org/birdbro/lumen/system/

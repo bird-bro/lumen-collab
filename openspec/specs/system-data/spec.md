@@ -78,89 +78,118 @@ rows.
   keys 1/0 in `code`
 
 ### Requirement: Operation Log Recording
-The `public.log_info` table (append-only operation log of the copied `LogInfoEntity`
-lineage: `dateYm`, title, descr, type, uid, account, actionTime, spent, method, url,
-session, mobile, ip - no audit block) SHALL receive rows through the copied machinery:
-`@Log`-annotated write endpoints record via `LogAspect` + `AsyncFactory.recordAction`,
-with operator identity from the audit bridge.
+<!-- synced from: audit-log-unify-api 2026-11-10 (absorbs the former Sign Event
+     Recording requirement — sign events are log_info rows now, V25 dropped log_sign) -->
+The `public.log_info` table (append-only audit log: `date_ym`, title, descr, `type`
+INTEGER, uid, account, actionTime, spent, method, url, session, mobile, ip, os, browser,
+engine, record, param, result, exception, app — no audit block) SHALL receive rows for
+BOTH event families through the copied machinery: `@Log`-annotated write endpoints record
+operation events via `LogAspect` + `AsyncFactory.recordAction`, and the login/logout flow
+records sign events (login success/failure, logout) into the SAME table. The `type`
+column carries Integer codes: operations 1=新增 2=修改 3=删除 4=授权 5=重置密码; sign
+events 10=登录成功 11=登录失败 12=登出 (the copied `Constants` pair extended by the
+platform). The annotation-declared String type is translated to its code exactly once,
+in the operation-log insert path; a sign event passes its code through unchanged. The
+sign event's session-token anchor (UUID, never the JWT) SHALL be written to the `session`
+column and SHALL NOT appear in any admin query response.
 
 #### Scenario: Annotated endpoint writes an operation log
-- **WHEN** an authenticated administrator calls a `@Log`-annotated write endpoint
-- **THEN** a `public.log_info` row appears with that user's `uid`/`account` and the
-  request's method/url
-
-### Requirement: Sign Event Recording
-Sign events SHALL be recorded in `public.log_sign` symmetrically: login success and
-failure SHALL call `AsyncFactory.recordForSign` from the login flow, and logout recording
-is already wired by the copied `LogoutSuccessHandlerImpl` - the V3 tables make both live.
+- **WHEN** an authenticated administrator calls a `@Log(type = "新增")`-annotated write
+  endpoint
+- **THEN** a `public.log_info` row appears with that user's `uid`/`account`, the
+  request's method/url, and `type = 1`
 
 #### Scenario: Login records a sign event
 - **WHEN** a login attempt succeeds or fails against the login endpoint
-- **THEN** a `public.log_sign` row appears with the account, event type, and action time
+- **THEN** a `public.log_info` row appears with the account, the event code
+  (10 success / 11 failure), and action time
+
+#### Scenario: Logout records a sign event
+- **WHEN** an authenticated session logs out
+- **THEN** a `public.log_info` row appears with `type = 12`
+
+#### Scenario: Credential anchor never reaches admin responses
+- **WHEN** any admin query endpoint returns log rows
+- **THEN** no row carries the `session` column value (the credential anchor stays
+  server-side)
 
 ### Requirement: System Log Tables
-The `public.log_info` and `public.log_sign` tables SHALL be declaratively partitioned by
-`RANGE (date_ym)` (the int yyyymm key column) with yearly child partitions
-(`log_info_2026`/`log_info_2027`/..., bounds `FROM (YYYY00) TO (YYYY99)`) mirroring the OPS
-reference database layout, PLUS a default partition `log_info_def` / `log_sign_def` as the
-write safety net for years without a pre-created child (user decision 2026-11-05 - a
-deliberate deviation from the reference, which has none). The primary keys SHALL become
-composite `(id, date_ym)` (PostgreSQL requires the partition key in every unique
-constraint); `id` remains the global identity sequence so entity-level reads and the
-append-write path are unchanged. Existing rows SHALL be carried into the partitioned layout
-by the conversion migration. The tables stay append-only.
+<!-- synced from: audit-log-unify-api 2026-11-10 (log_sign half dropped by V25) -->
+The `public.log_info` table SHALL be declaratively partitioned by `RANGE (date_ym)`
+(the int yyyymm key column) with yearly child partitions (`log_info_2026`/`log_info_2027`/
+..., bounds `FROM (YYYY00) TO (YYYY99)`) PLUS a default partition `log_info_def` as the
+write safety net for years without a pre-created child. The primary key SHALL remain
+composite `(id, date_ym)`; `id` remains the global identity sequence so entity-level
+reads and the append-write path are unchanged. The tables stay append-only.
+
+`public.log_sign` SHALL BE DROPPED (roll-forward migration: partitioned parent,
+yearly children, default partition, any parked-conversion residue, and the id sequence).
+No data migration is performed — the early-stage table holds no data worth keeping
+(user ruling 2026-11-10).
 
 #### Scenario: Log table exists on fresh database
 - **WHEN** a fresh database receives the migrations
-- **THEN** `public.log_info` and `public.log_sign` exist in the `public` schema as
-  partitioned tables keyed `RANGE (date_ym)`
-- **AND** yearly partitions for 2026 and 2027 exist plus one default partition per table
+- **THEN** `public.log_info` exists in the `public` schema as a partitioned table keyed
+  `RANGE (date_ym)` with yearly partitions for 2026 and 2027 plus one default partition
+- **AND** `public.log_info.type` is `integer`
+
+#### Scenario: log_sign is gone
+- **WHEN** the migration chain completes on any database
+- **THEN** no `log_sign` relation remains in the `public` schema (parent, partitions,
+  parked residue, and sequence all absent)
 
 #### Scenario: Rows survive the conversion
-- **WHEN** the partition conversion migration runs on a database that already has log rows
+- **WHEN** the partition conversion migration runs on a database that already has
+  log_info rows
 - **THEN** every previously visible row remains readable through the parent table
 
 #### Scenario: Write into an unpartitioned year lands in the default partition
-- **WHEN** a sign or operation event writes a row whose `date_ym` year has no child partition
-- **THEN** the row lands in that table's default partition instead of the write failing
+- **WHEN** a sign or operation event writes a row whose `date_ym` year has no child
+  partition
+- **THEN** the row lands in `log_info_def` instead of the write failing
 
-<!-- synced from: sign-log-query 2026-11-05 (supersedes the rename-auth-to-system wording) -->
+<!-- synced from: audit-log-unify-api 2026-11-10 (supersedes the sign-log-query wording) -->
 
 ### Requirement: Log Query Endpoint
-The service SHALL expose a paged log query under `/api/v1/system/logs` (filters: `type`,
-`uid`, `dateYm`; ordered by `actionTime` descending) for administration screens. The
-operation-log WRITE path (`LogAspect` + `AsyncFactory` + entities/mappers/service) stays in
-the shared `framework` library - every `@Log`-using service records through it; the
-`lumen-system` service hosts the admin query facade.
+The service SHALL expose the SINGLE paged audit-log query under `/api/v1/system/logs`
+(filters: `type` Integer, `uid`, `account`, `dateYm`; ordered by `actionTime` descending,
+`id` descending tie-break), gated server-side by `system:log:list`. Responses SHALL
+select-exclude the `session` column — credential material never reaches admin screens
+(supersedes the sign-log-query token-column exclusion with the equivalent guarantee on
+the new anchor column). The sign-log endpoint `GET /api/v1/system/logs/sign` and the
+`system:signlog:list` permission are REMOVED (supersedes sign-log-query D4 — the
+sensitivity split collapsed: both event families carry the same UA/IP columns). The
+operation-log WRITE path (`LogAspect` + `AsyncFactory` + entities/mappers/service) stays
+in the shared `framework` library; `lumen-system` hosts the admin query facade. There is
+deliberately no mutation endpoint.
 
 #### Scenario: Query operation logs
-- **WHEN** an authenticated administrator queries the log endpoint
-- **THEN** `log_info` rows return newest-first with the requested filters applied
+- **WHEN** an administrator holding `system:log:list` queries the log endpoint with any
+  combination of the filters
+- **THEN** `log_info` rows (both event families) return newest-first with the filters
+  applied
 
-<!-- synced from: rename-auth-to-system 2026-11-04 -->
+#### Scenario: Account filter matches sign and operation rows
+- **WHEN** the `account` filter is applied
+- **THEN** rows from BOTH event families whose account matches return (sign-page parity)
 
-### Requirement: Sign Log Query Endpoint
-The service SHALL expose a paged sign-log query under `/api/v1/system/logs/sign` (filters:
-`account`, `uid`, `dateYm`; ordered by `actionTime` descending) reading `public.log_sign`,
-gated server-side by the page permission `system:signlog:list` - independent of the
-operation-log permission (a role may hold one without the other). Responses SHALL NOT
-include the `token` column (credential material never reaches admin screens). The change is
-additive: the existing `GET /api/v1/system/logs` contract is unchanged, and there is
-deliberately no mutation endpoint for either log table.
+#### Scenario: Integer type filter
+- **WHEN** the `type` filter carries an Integer code (e.g. 11)
+- **THEN** only rows with that code return; a non-integer value is rejected as a bad
+  request parameter
 
-#### Scenario: Query sign logs
-- **WHEN** an administrator holding `system:signlog:list` queries the sign-log endpoint
-- **THEN** `log_sign` rows return newest-first with the requested filters applied
-- **AND** no row carries a `token` field
+#### Scenario: Sign-log endpoint is gone
+- **WHEN** any client calls `GET /api/v1/system/logs/sign`
+- **THEN** the endpoint no longer exists (404)
 
-#### Scenario: Sign-log permission is enforced server-side
-- **WHEN** a request without the `system:signlog:list` authority reaches the sign-log endpoint
-- **THEN** the service rejects it (forbidden) even when the caller holds `system:log:list`
-
-<!-- synced from: sign-log-query 2026-11-05 -->
+#### Scenario: Session column excluded
+- **WHEN** audit rows are returned by the endpoint
+- **THEN** no row carries a `session` field
 
 ### Requirement: Shared Placement in the Public Schema
-The four system-data tables SHALL live in the `public` schema of the `lumen` database and
+<!-- synced from: audit-log-unify-api 2026-11-10 (four → three: V25 dropped log_sign) -->
+The three system-data tables (`log_info`, `dict_catal`, `dict_detail`) SHALL live in the
+`public` schema of the `lumen` database and
 SHALL be created by lumen-system's Flyway migration with explicit `public.` qualification;
 every service connection SHALL resolve the unqualified entity names via
 `search_path = <service-schema>, public` (the `ice.` prefix of the copied entities is

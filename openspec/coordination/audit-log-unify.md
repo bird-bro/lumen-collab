@@ -112,6 +112,17 @@ the recommendations below)
 
 ## Gate
 
+**SATISFIED 2026-11-10** — both changes verify PASS and are archived as
+`2026-11-10-audit-log-unify-{api,web}`; specs synced (system-data: Operation Log
+Recording absorbs Sign Event Recording + sign scenarios / System Log Tables log_sign
+drop / Log Query Endpoint unified; web-system-console: merged audit-page requirement,
+Sign-in Log Query retired; api spec `/dicts/items` → `/dicts/detail/items` path
+correction recorded). Verify credentials: api L2 15/15 L3 155/155; web L2 6/6 L3
+277/277 + build + real-backend smoke 4/4 (session-key absence re-verified after the
+`LogInfoEntity.session` `@JsonInclude(NON_NULL)` fix, commit `0f621f1` — found BY the
+web smoke, fixed backend-side). Git commits are a separate track (b1 26e9c40 →
+ebadbbd). Outstanding user-side: the browser UI pass on the merged 审计日志 page
+(web 3.2 asterisk). Backend first; the frontend built against the REAL backend
+(no mock layer, user ruling 2026-11-05).
+
 Feature done = ALL registered changes verify PASS → archive each.
-Backend first; the frontend builds against the REAL backend (no mock layer,
-user ruling 2026-11-05).

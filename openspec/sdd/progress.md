@@ -715,3 +715,16 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
   families visible (ops 1/2/3 + sign 10×12/11×5) ✓; type=11 filter 6 hits all-11 ✓;
   /sign 404 ✓. SMOKE COMPLETE. 3.1 checked. Remaining: 3.2 user UI confirmation
   (browser pass) → verify both changes → archive both → coordination gate.
+- [VERIFY CLOSED 2026-11-10] BOTH changes PASS: api (L2 15/15, L3 155/155) + web
+  (L2 6/6, L3 277/277 + build; smoke 4/4 after the NON_NULL fix). Commits ebadbbd.
+  web 3.2 carries an asterisk: the browser UI pass is the user's own confirmation
+  (pnpm dev + 审计日志 page) — checked provisionally on the smoke evidence; flip the
+  asterisk when the user confirms. NEXT: /opsx:archive both + coordination gate +
+  the api-spec /dicts/items path correction at sync time.
+- [ARCHIVED 2026-11-10] audit-log-unify-api → archive/2026-11-10-audit-log-unify-api
+  (verify PASS gate, guard verifying→archived PASS, phase=archived). Specs synced:
+  system-data 3 MODIFIED (Operation Log Recording absorbs Sign Event Recording + sign
+  scenarios; System Log Tables log_sign drop; Log Query Endpoint unified) + 2 REMOVED
+  gone + Shared Placement four→three tables wording; api spec /dicts/items→
+  /dicts/detail/items path correction (stale role-type-dict archive wording).
+  validate: system-data ✓ api ✓.

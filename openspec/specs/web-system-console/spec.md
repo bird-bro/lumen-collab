@@ -180,38 +180,42 @@ edit, delete).
 <!-- synced from: web-foundation-auth-console 2026-11-05 -->
 
 ### Requirement: Operation Log Query
-The console SHALL provide a paged operation-log view of `GET /api/v1/system/logs` with the
-documented filters (`type`, `uid`, `dateYm`), newest first, and no write affordances
-(append-only data).
+<!-- synced from: audit-log-unify-web 2026-11-10 (the merged audit page; the former
+     Sign-in Log Query requirement is retired with the /sign endpoint and menu 17) -->
+The console SHALL provide a SINGLE paged audit-log view of `GET /api/v1/system/logs` at
+the route `/system/logs`, reachable as the 审计日志 menu entry in the 安全 group
+(supersedes the separate 日志查询 / 登录日志 entries), gated by `system:log:list`,
+rows newest first, no write affordances (append-only data). The page SHALL show BOTH
+event families in one table with: 时间, 类别 (dict-driven label from the
+「审计日志类型」 catalog, raw-code fallback), 标题 (title; sign rows carry
+Sign-IN/Sign-OUT), 描述, 操作人, IP, 操作系统, 浏览器, and the operation-only
+方法/URL columns rendering — for sign rows. The filter bar SHALL offer: 类别
+(dict-driven Select of the audit type codes), 操作人ID (uid), 账号 (account), and
+月份 (dateYm); filters AND-combine server-side. The page SHALL NOT render any
+`session` field (credential anchor, server-excluded).
 
 #### Scenario: Filtered log query
-- **WHEN** an administrator queries logs with a type or month filter
-- **THEN** matching rows return newest-first and paging works
+- **WHEN** an administrator queries the audit page with any filter combination
+- **THEN** rows from both event families return newest-first with paging
+
+#### Scenario: Dict-driven category filter and labels
+- **WHEN** the page loads the 「审计日志类型」 dict
+- **THEN** the 类别 filter is a Select of the catalog's items and the 类别 column
+  renders the matching label
+- **AND** when the dict fetch fails or lacks an entry, the column degrades to the raw
+  code and one error message surfaces — the page never blocks
+
+#### Scenario: Sign rows show em-dash for operation-only columns
+- **WHEN** the table renders a sign-family row (type 10/11/12)
+- **THEN** the 方法/URL cells show — ; an operation row's cells show the values
 
 #### Scenario: Read-only surface
-- **WHEN** the log page renders
-- **THEN** it offers no mutation controls for log rows
-
-### Requirement: Sign-in Log Query
-The console SHALL provide a paged sign-in log view of `GET /api/v1/system/logs/sign` at the
-route `/system/logs/sign`, reachable as the 登录日志 menu entry in the 安全 group (sibling
-of 日志查询), with the documented filters (`account`, `uid`, `dateYm`), newest first, and
-no write affordances (append-only data). The page SHALL render the audit columns: 账号,
-事件, 描述, IP, 操作系统, 浏览器, 操作时间.
-
-#### Scenario: Filtered sign-log query
-- **WHEN** an administrator queries the sign-in log page with an account or month filter
-- **THEN** matching rows return newest-first and paging works
-
-#### Scenario: Read-only surface
-- **WHEN** the sign-in log page renders
+- **WHEN** the audit page renders
 - **THEN** it offers no mutation controls for log rows
 
 #### Scenario: Menu-driven visibility follows the page permission
-- **WHEN** a signed-in user's permission set lacks `system:signlog:list`
-- **THEN** the 登录日志 menu entry is not visible to that user
-
-<!-- synced from: sign-log-query 2026-11-05 -->
+- **WHEN** a signed-in user's permission set lacks `system:log:list`
+- **THEN** the 审计日志 menu entry is not visible to that user
 
 ### Requirement: Hospital Profile and Campus Table Management
 
