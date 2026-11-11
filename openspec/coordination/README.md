@@ -8,7 +8,7 @@
 1. **Create the parent** - copy `_template.md` to `<feature>.md`, fill the shared design/decisions.
 2. **Per stack** - in each stack run `openspec new change <name> --goal "<feature>"` (soft-tagged).
 3. **Register** - list each per-stack change in `<feature>.md`'s change registry table.
-4. **Gate** - the feature is done when ALL registered changes verify PASS (`openspec/verify.config.yaml`); archive each.
+4. **Gate** - verify each stack independently; defer archive until ALL registered changes have `verify.md overall = PASS` (or user-confirmed `PASS_WITH_ISSUES`), then preflight all credentials and batch-archive them.
 
 ## Open all stacks together
 ```bash

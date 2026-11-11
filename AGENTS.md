@@ -49,17 +49,24 @@ Open-source medical imaging collaboration platform (brand: LumenCollab) that pai
 1. Parent: create `openspec/coordination/<feature>.md` (shared design/decisions + change registry)
 2. Per stack (parallel): `openspec new change <name> --goal "<feature>"` (soft-tagged to the feature)
 3. Implement each in its own stack (cross-domain ban unchanged; backend first - the frontend builds against the real API, no mock layer); coordinate via the coordination doc
-4. Gate: feature done = ALL registered changes verify PASS (`openspec/verify.config.yaml`) -> archive each
+4. Gate: verify each stack independently; defer archive until ALL registered changes have verify.md overall = PASS, then batch-archive them
    Single-stack: skip coordination; plain `openspec new change`. Open all stacks: `openspec workset open lumen-collab --tool code`.
 
 ### AI Coding Rules
 - Spec first - read `openspec/specs/` before writing code
-- UI prototype first (new pages only) - `frontend-design` skill before `/opsx:apply`; existing-page edits skip the prototype
+- UI prototype first (new pages only) - validate with text/DOM checks and confirm visuals with the user; no automatic screenshots (screenshots only on explicit user request and if the model supports images); existing-page edits skip the prototype
 - TDD - Superpowers auto-enforces
 - No cross-domain - each agent writes only its own stack
 - Never modify existing methods - use overloading
 - Dangerous ops (`rm -rf`, `git push --force`, `git reset --hard`) gated by sandbox/approval or .claude/settings.json deny list
 - Chinese proposal intro - do NOT auto-generate. Write `docs/proposals/<name>.zh.md` only on explicit user request for a stakeholder summary: <=20 lines covering problem, approved approach, impact, deployment order, and authoritative links; never duplicate implementation details. `openspec/` English stays source of truth.
+
+### Token Discipline
+- Read only the current change, affected stack guidance, and relevant spec sections; use targeted search, not whole-repo scans.
+- Redirect build/test output to files; report exit code + counts + log path. Quote only key failure lines, never full logs.
+- During apply, run affected tests; run the configured suite during verify.
+- Ask clarifications in one batch (max 3); do not ask serial one-off questions.
+- On resume, read loop-state/progress/tasks first; do not re-read archives or unrelated changes.
 
 ### Session Commands
 `/resume` · `/branch` · `/rewind`

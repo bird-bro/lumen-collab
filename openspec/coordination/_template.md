@@ -7,7 +7,8 @@
 [Business reason for the cross-stack feature]
 
 ## Shared Design
-[API contracts / data model / error codes negotiated across stacks - single source of truth]
+[API contracts / data model / error codes negotiated across stacks - single source of truth.
+Do NOT duplicate these details in per-stack proposals; per-stack artifacts reference this file.]
 
 ## Decisions
 - [Decision] - [rationale] - [date]
@@ -19,4 +20,5 @@
 | frontend | [change name] | proposing | - |
 
 ## Gate
-Feature done = ALL registered changes verify PASS -> archive each.
+Verify each stack independently. When ALL registered changes have an acceptable verify credential
+(`PASS`, or user-confirmed `PASS_WITH_ISSUES`), preflight all credentials and batch-archive them.

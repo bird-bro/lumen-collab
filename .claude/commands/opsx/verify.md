@@ -51,7 +51,7 @@ Three-layer verification for an OpenSpec change. Confirms the implementation act
    - `root.path` (or `actionContext.allowedEditRoots[0]`) - project root, to locate `openspec/verify.config.yaml` (see step 4) and per-stack `CLAUDE.md`
    - `actionContext.allowedEditRoots` / stack hints - which stacks are affected
 
-   **Scope guard:** `actionContext.mode` is `repo-local` for normal changes (OpenSpec 1.6.0 removed the `workspace-planning` mode). If a change spans multiple stacks, identify all affected stacks from `allowedEditRoots`, the change's `design.md`, or `tasks.md` stack tags - do not run builds against stacks the change does not touch.
+   **Scope guard:** `actionContext.mode` is `repo-local` for normal changes (the `workspace-planning` mode was removed from OpenSpec). If a change spans multiple stacks, identify all affected stacks from `allowedEditRoots`, the change's `design.md`, or `tasks.md` stack tags - do not run builds against stacks the change does not touch.
 
 3. **Validate artifacts first (fail fast)**
 
@@ -79,12 +79,14 @@ Three-layer verification for an OpenSpec change. Confirms the implementation act
 
 5. **L1 - Build check (per affected stack)**
 
-   For each affected stack, run its build command **inside that stack's `dir`**:
+   For each affected stack, run its build command **inside that stack's `dir`** and keep raw output out of the model context:
    ```bash
-   cd "<stack-dir>" && <build-cmd>
+   mkdir -p <changeRoot>/logs
+   cd "<stack-dir>" && <build-cmd> > <changeRoot>/logs/build-<stack-id>.log 2>&1; echo "exit=$?"
    ```
-   - Capture exit code and tail of output.
-   - Record `L1 = PASS` (exit 0) or `L1 = FAIL` (non-zero) with the failing output.
+   - On PASS, report only the command, exit code, and log path.
+   - On FAIL, inspect with `tail -n 50` / `grep -iE 'error|failed|exception'`; quote only the key lines, not the whole log.
+   - Record `L1 = PASS` (exit 0) or `L1 = FAIL` (non-zero).
    - If a stack has no build command, record `L1 = SKIP`.
 
 6. **L2 - Spec alignment (reviewer-style, agent-driven)**
@@ -92,6 +94,7 @@ Three-layer verification for an OpenSpec change. Confirms the implementation act
    This is the core layer. It is NOT a CLI call - it is a semantic audit you perform.
 
    a. **Read every delta spec** from `artifactPaths.specs.existingOutputPaths`. Extract each `## Scenario:` block and its WHEN/THEN clauses. These scenarios ARE the verification cases.
+      - For MODIFIED-heavy changes, run `openspec show <name> --diff` first: the delta restates every kept scenario verbatim, so the full delta hides what actually changed - `--diff` isolates the real per-requirement edits (ADDED in full, REMOVED/RENAMED as authored). Also use it to recover a REMOVED requirement's original text when checking "the behavior is actually gone".
    b. **For each scenario**, search the affected stacks' code for implementation evidence:
       - Use `rg` to find the code path(s) the scenario describes (e.g., a route handler, a component, a service method).
       - Read the matched code to confirm it actually fulfills the WHEN/THEN.
@@ -107,12 +110,14 @@ Three-layer verification for an OpenSpec change. Confirms the implementation act
 
 7. **L3 - Test execution (per affected stack)**
 
-   For each affected stack with a non-null test command, run it inside that stack's `dir`:
+   For each affected stack with a non-null test command, run it inside that stack's `dir` and keep raw output out of the model context:
    ```bash
-   cd "<stack-dir>" && <test-cmd>
+   cd "<stack-dir>" && <test-cmd> > <changeRoot>/logs/test-<stack-id>.log 2>&1; echo "exit=$?"
    ```
-   - Record `L3 = PASS` (exit 0) with pass/fail counts, or `L3 = FAIL` with the failing test names.
-   - Stacks with `test: null` record `L3 = SKIP` (e.g., "仅 stack-a 有 Vitest，其他子项目报 SKIP").
+   - Prefer the smallest affected test set during task-level apply; this verify step may run the configured suite.
+   - On PASS, report pass/fail counts (if available), exit code, and log path.
+   - On FAIL, inspect with `tail -n 50` / `grep -iE 'FAIL|ERROR|AssertionError|failed'`; name only failing tests and quote key error lines.
+   - Stacks with `test: null` record `L3 = SKIP` (e.g., "only stack-a has Vitest; other stacks report SKIP").
 
 8. **Compute overall status**
 
@@ -144,29 +149,31 @@ Three-layer verification for an OpenSpec change. Confirms the implementation act
 
     Match the report format below. Then:
     - `FAIL` → list blocking issues, suggest `/opsx:apply <name>` to fix
-    - `PASS_WITH_ISSUES` → list PARTIALs, ask "要我修复吗?" → if yes, hand off to `/opsx:apply`
+    - `PASS_WITH_ISSUES` → list PARTIALs, ask "Fix now?" → if yes, hand off to `/opsx:apply`
     - `PASS` → suggest `/opsx:archive <name>`
 
 **Output (report)**
 
+Keep this report compact: no raw logs, no full source excerpts, and cite evidence as `file:line`.
+
 ```
-## 验证结果: <change-name>
+## Verification: <change-name>
 
 ### <stack-id>
-| 层级 | 状态 | 详情 |
+| Layer | Status | Detail |
 |:---|:---|:---|
-| L1 构建 | ✓ PASS | <build-cmd> 成功 |
-| L2 规格对齐 | 5/6 已实现 | 1 PARTIAL |
-| L3 测试 | ✓ PASS | 4/4 测试通过 |
+| L1 build | PASS | <build-cmd>; exit=0; logs/build-<stack-id>.log |
+| L2 spec | 5/6 | 1 PARTIAL |
+| L3 tests | PASS | <test-cmd>; exit=0; logs/test-<stack-id>.log |
 
-### 场景对齐详情
-| 场景 | 状态 | 证据 |
+### Scenario alignment
+| Scenario | Status | Evidence |
 |:---|:---|:---|
-| 提交报修单 | ✓ 已实现 | repair.vue:42-58 |
-| 提交后刷新列表 | ⚠ PARTIAL | 缺少刷新逻辑 |
+| Submit repair request | IMPLEMENTED | repair.vue:42-58 |
+| Refresh list after submit | PARTIAL | missing refresh call |
 
-总体: PASS_WITH_ISSUES
-要我修复那个 PARTIAL 吗?
+Overall: PASS_WITH_ISSUES
+Fix the PARTIAL now?
 ```
 
 **Guardrails**

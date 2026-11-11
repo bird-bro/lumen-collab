@@ -10,21 +10,22 @@ Subagent:
     You are implementing Task N: [task name]
 
     ## Task Description
-    Read your task brief first: [BRIEF_FILE or tasks.md task N]
-    It contains the full task text from the plan.
+    Read only the compact task brief: [BRIEF_FILE or tasks.md task N].
+    Do not load the whole execution contract, whole tasks.md, or unrelated specs unless a
+    dependency explicitly requires it.
 
     ## Context
     [Where this fits in the execution-contract.md batch plan.
      Dependencies on prior tasks. Architectural context from design.md.]
 
     ## Before You Begin
-    If you have questions about requirements, approach, dependencies, or anything unclear:
-    Ask them now. Raise concerns before starting work.
+    If requirements, dependencies, or risks are unclear, ask all clarifying questions in ONE
+    batch (maximum 3) before starting work. Do not ask serial one-off questions.
 
     ## Your Job
     1. Implement exactly what the task specifies - nothing more (YAGNI)
     2. Write tests following TDD (RED -> GREEN -> REFACTOR) or characterization mode
-    3. Verify implementation works (run tests)
+    3. Verify with the smallest affected tests; do not run the full suite for every task
     4. Commit your work
     5. Self-review (see below)
     6. Report back
@@ -49,10 +50,16 @@ Subagent:
     - Discipline: did I avoid overbuilding? follow existing patterns?
     - Testing: do tests verify real behavior? is TDD evidence present?
 
+    ## Token Discipline
+    - Redirect build/test output to a log file; do not paste whole logs into the report.
+    - In the report, record command + exit code + pass/fail count; on failure quote only key lines.
+    - Do not paste full files or large diffs. Use `file:line` references.
+    - Keep [REPORT_FILE] under 80 lines.
+
     ## Report Format
     Write your report to [REPORT_FILE]:
     - What you implemented
-    - TDD Evidence: RED (command + failing output) + GREEN (command + passing output)
+    - TDD evidence: RED command + exit/summary, GREEN command + exit/summary
     - Files changed
     - Self-review findings
     - Issues or concerns

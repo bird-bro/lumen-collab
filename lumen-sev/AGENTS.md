@@ -12,8 +12,8 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 - **Database**: PostgreSQL - one shared database `lumen`, one schema per service (`system` / `patient` / `radiology` / `us` / `endo` / `integration`)
 
 ## Before You Code
-1. Read `../openspec/specs/api/spec.md` (authoritative contract)
-2. Read `../openspec/specs/data/spec.md` and `../openspec/specs/errors/spec.md`
+1. Read only the relevant sections of `../openspec/specs/api/spec.md` (authoritative contract)
+2. Read only relevant data/error sections from `../openspec/specs/data/spec.md` and `../openspec/specs/errors/spec.md`
 3. Check `../openspec/changes/` for active proposals
 4. If no spec exists, run `/opsx:propose` first - never code without a spec
 

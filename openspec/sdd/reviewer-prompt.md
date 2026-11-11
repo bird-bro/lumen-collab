@@ -16,7 +16,10 @@ Subagent:
     - Spec: [SPEC_FILE or specs/ path]
     - Execution contract: openspec/changes/[change]/execution-contract.md
 
-    Review the diff (git diff [BASE_SHA]..[HEAD_SHA]) against the spec.
+    Review only the affected diff:
+    1. `git diff --stat [BASE_SHA]..[HEAD_SHA]`
+    2. `git diff [BASE_SHA]..[HEAD_SHA] -- <affected paths>`
+    Do not read full unrelated files or paste full diffs. Cite `file:line`.
 
     ## Part 1: Spec Compliance
     Compare the diff against what was requested:
@@ -41,20 +44,14 @@ Subagent:
     - Minor: nice to have (polish, coverage could be broader)
 
     ## Output Format
-    ### Spec Compliance
-    - Compliant | Issues found: [what, with file:line]
+    Keep the review under 30 lines. Do not include empty headings or generic praise.
 
-    ### Strengths
-    [What was done well? Be specific.]
-
-    ### Issues
-    #### Critical (Must Fix)
-    #### Important (Should Fix)
-    #### Minor (Nice to Have)
-
-    ### Assessment
-    Task quality: Approved | Needs fixes
-    Reasoning: [1-2 sentence technical assessment]
+    Spec compliance: Compliant | Issues found
+    Issues:
+    - Critical: [what, with file:line]
+    - Important: [what, with file:line]
+    - Minor: [what, with file:line]
+    Assessment: Approved | Needs fixes - [1 sentence]
 ```
 
 Placeholders: [task name], [REPORT_FILE], [BASE_SHA], [HEAD_SHA], [SPEC_FILE], [MODEL]
