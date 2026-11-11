@@ -606,3 +606,54 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
   tasks 4/12.
 - [Wait] tasks.md checkbox total was 11 in the brief but openspec counts 12 (api) —
   verified: tasks.md has 12 checkboxes (4+4+2+2 batches); brief said 11, miscount only.
+- Batch 2 implementer DONE_WITH_CONCERNS (commit 9a2ee81; 4 tasks red→green,
+  AuthAuditLogWriteTests new; V25 DO-block fix + full history-row procedure checksum-
+  proven). Deviation: hutool 5.8.20 copyProperties 3rd arg = ignoreCase NOT ignoreError
+  — String→Integer copy THROWS on labels (D3 "silent-null" premise false); fix =
+  setIgnoreProperties("type") + codeOf override (D3 shape intact). Flyway history in
+  `system` schema (brief said public) — recorded. Reactor 147: 3F+3E all Batch 3/4-owned;
+  b1 String write-path breakage RESOLVED. Reviewer dispatched (two deviation verdicts).
+- Batch 2 reviewer: APPROVED. Deviation (a) ACCEPT — hutool premise verified 3 ways
+  (bytecode + probe: "新增" throws NumberFormatException, "2" eagerly converts bypassing
+  codeOf); fix behavior-preserving; DESIGN D3 WORDING AMEND required (silent-null →
+  eager-convert-or-throw; copy excludes type; codeOf sole path) in design.md/coordination
+  D3/LogTypes javadoc/execution contract. (b) record-only: flyway history lives in
+  system schema. V25 checksums independently reproduced (954461499 MATCH, b1 blob
+  1666894264 = reported pre-state). 18 label rows intact as codes + 3 sign residue.
+  Minors: def-partition write edge case has NO owning task (flag for 4.2/verify);
+  stale silent-null wording in 4 files; SpringUtils vs @Resource cosmetic.
+- Batch 2 CLOSED (tasks 2.1-2.4 checked, 7/12). D3 wording amended in coordination +
+  design + execution contract (hutool eager-convert-or-throw); contract hash refreshed
+  (bad4368b). LogTypes javadoc + SpringUtils→@Resource minors ride with Batch 4 (its
+  family edits those classes anyway).
+- Batch 3 (3.1-3.2 query convergence): Dispatched (implementer running; brief
+  audit-log-unify-api-b3-brief.md; reactor target = strictly the Batch-4 failure set).
+- [TAKEOVER 2026-11-10] Batch 3 implementer hit 3 API timeouts (investigation phase
+  twice on the A-code fork, ruling issued both times), no RED tests / code / commits
+  produced (git diff on b3 file set = empty; only its brief exists). User ruled 接管 -
+  agent stopped, parent session drives Batch 3 directly (Batch Inline mode for this
+  batch). Parallel-session note: unrelated org-dep edits in the working tree (another
+  session) - stage b3 files by explicit path only.
+- [b3 takeover RED evidence] AuthAuditLogQueryTests RED confirmed twice:
+  run 1 (plain -pl, STALE framework jar from ~/.m2 11-07 predating b2!) → 2F+2E incl.
+  BadSqlGrammar; run 2 (-am, fresh classes) → 4F clean: account filter returned 33
+  (endpoint ignores the param today), type filter 500 (String overload vs Integer
+  column), non-integer type → 500 not A-class, /sign → 200. MyBatis param-log proves
+  the b2 write path live: 修改→2(Integer), sign 11/12(Integer) + anchor→session(String).
+  hutool premise re-probed from the exact classpath jar: boolean overload THROWS on
+  新增 / EAGERLY converts "10" (bypassing codeOf); setIgnoreProperties("type") copy
+  leaves type null both ways — b2 fix verified correct.
+- [b3 takeover] GREEN: AuthAuditLogQueryTests 4/4 (unified endpoint: account matches
+  BOTH families w/ Total:2, Integer type filter, A0421 for non-integer type - copied
+  handler's actual MethodArgumentTypeMismatch mapping per ruling, /sign 404, session
+  column absent from SELECT per MyBatis SQL log). Sweep fixed to hard-DELETE (ruling
+  2026-11-07) - removeById soft-delete was wrong, replaced with marker-keyed JDBC
+  DELETE (b3.audit./b3.filter. account prefix + b3-% title + 'b3 %' descr). Full
+  reactor dispatched in background.
+- [b3 reactor] 153 tests, 4F+3E, ALL Batch-4-owned as predicted: AuthLogQueryTests 1F
+  (String type filter → A0421 now — the old test sends the old String contract),
+  AuthSignLogQueryTests 3F (/sign gone + perm-gate proofs), AuthSignLogTests 2E +
+  AuthUserAgentResilienceTests 1E (log_sign direct queries). NOTHING un-mapped.
+  Note: reactor exit was mvn-failure (mvn <args> resume line) — the "exit code 0" in
+  the notification is the background-shell wrapper's, not mvn's; verdict read from
+  surefire. These 7 are exactly task 4.2's re-target list.

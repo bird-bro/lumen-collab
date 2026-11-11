@@ -82,4 +82,27 @@ public class LogInfoServiceImpl extends ServiceImpl<LogInfoMapper, LogInfoEntity
                 .orderByDesc(LogInfoEntity::getId)
         );
     }
+
+    /**
+     * 审计日志统一查询（audit-log-unify-api design D5/D8；b3）：Integer type / uid /
+     * account / dateYm 全部可选过滤，ordering 与 deleted=0 同款；select 排除 session
+     * 列（D5：登录事件的凭证锚点只存不出——取代 sign-log-query D7 的 token 列排除，
+     * 同保证换新列）。account 过滤用 StrUtil.isNotBlank（空串视同未传）。
+     */
+    @Override
+    public IPage<LogInfoEntity> getPage(Integer pageNum, Integer pageSize, Integer type, Integer uid, String account, Integer dateYm) {
+        Page<LogInfoEntity> page = new Page<>(
+                pageNum == null ? 1 : Math.max(1, pageNum),
+                pageSize == null ? 20 : Math.max(1, pageSize));
+        return this.page(page, Wrappers.<LogInfoEntity>lambdaQuery()
+                .select(LogInfoEntity.class, field -> !"session".equals(field.getColumn()))
+                .eq(type != null, LogInfoEntity::getType, type)
+                .eq(uid != null, LogInfoEntity::getUid, uid)
+                .eq(StrUtil.isNotBlank(account), LogInfoEntity::getAccount, account)
+                .eq(dateYm != null, LogInfoEntity::getDateYm, dateYm)
+                .apply("deleted = 0")
+                .orderByDesc(LogInfoEntity::getActionTime)
+                .orderByDesc(LogInfoEntity::getId)
+        );
+    }
 }
