@@ -18,8 +18,8 @@
 
 ## Batch 3 — Query endpoint convergence
 
-- [ ] 3.1 Red: unified query tests — account filter matches both families; Integer type filter; ordering actionTime DESC, id DESC tie-break; `session` excluded from rows; non-integer type → A0400; `GET /logs/sign` → 404
-- [ ] 3.2 Add service overload `getPage(pageNum, pageSize, Integer type, uid, account, dateYm)` with select-exclusion of `session`; rewire `LogController.list` (Integer type + account param, MAX_PAGE_SIZE cap kept); remove `sign(...)` + the field-injected `ILogSignService` — green
+- [x] 3.1 Red: unified query tests — account filter matches both families; Integer type filter; ordering actionTime DESC, id DESC tie-break; `session` excluded from rows; non-integer type → A0400; `GET /logs/sign` → 404
+- [x] 3.2 Add service overload `getPage(pageNum, pageSize, Integer type, uid, account, dateYm)` with select-exclusion of `session`; rewire `LogController.list` (Integer type + account param, MAX_PAGE_SIZE cap kept); remove `sign(...)` + the field-injected `ILogSignService` — green
 
 ## Batch 4 — Deletion + sweep
 
