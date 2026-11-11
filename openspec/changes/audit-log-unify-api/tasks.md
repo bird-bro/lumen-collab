@@ -23,6 +23,6 @@
 
 ## Batch 4 — Deletion + sweep
 
-- [ ] 4.1 Delete `LogSignEntity`, `LogSignMapper.java/.xml`, `ILogSignService`, `LogSignServiceImpl`, `LogSignMapper.xml`; keep `common` `LogSign` POJO (transport type)
-- [ ] 4.2 Re-target the 5 auth test classes (AuthSignLogTests, AuthSignLogQueryTests, AuthUserAgentResilienceTests, AuthSystemDataMigrationTests, AuthIntegrationTestBase) — fixtures hard-DELETE from log_info with the base prefix
-- [ ] 4.3 Full reactor: `./mvnw test -q` green; update coordination ledger checkmarks if any deviation emerged
+- [x] 4.1 Delete `LogSignEntity`, `LogSignMapper.java/.xml`, `ILogSignService`, `LogSignServiceImpl`, `LogSignMapper.xml`; keep `common` `LogSign` POJO (transport type)
+- [x] 4.2 Re-target the 5 auth test classes (AuthSignLogTests, AuthSignLogQueryTests, AuthUserAgentResilienceTests, AuthSystemDataMigrationTests, AuthIntegrationTestBase) — fixtures hard-DELETE from log_info with the base prefix
+- [x] 4.3 Full reactor: `./mvnw test -q` green; update coordination ledger checkmarks if any deviation emerged

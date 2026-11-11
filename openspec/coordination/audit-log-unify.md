@@ -86,8 +86,13 @@ the recommendations below)
    additive `account`-filter overload; type filter re-typed Integer.
 4. Copied log_sign code family DELETED (entity/mapper/service/impl + 2 XML):
    they reference a dropped table — dead code resurrects as runtime errors.
-   Recorded per adaptation discipline; upstream sync loses these lines
-   cleanly (they will not exist upstream-side conflicts).
+   REFINED per b4 execution (2026-11-10): the insert half SURVIVES renamed as
+   `LogSignInsertService`/`LogSignInsertServiceImpl` (framework/log/service/) —
+   deleting `ILogSignService` outright would sever `AsyncFactory.recordForSign`'s
+   `SpringUtils.getBean` chain and break the zero-touch promise to
+   `AuthServiceImpl`; the query half died with the dropped table. The
+   `AsyncFactory` change is import + getBean type + comment only (call shape
+   byte-identical). Upstream sync loses the old lines cleanly.
 5. `LogController`: `/sign` endpoint + `ILogSignService` field retired;
    class javadoc updated. (Additive/substractive, never-modify respected.)
 

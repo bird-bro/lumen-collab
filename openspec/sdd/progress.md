@@ -664,3 +664,20 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
   log_sign code family keep common LogSign POJO; re-target AuthSignLogTests/
   AuthSignLogQueryTests/AuthUserAgentResilienceTests/AuthLogQueryTests to log_info;
   def-partition edge case pickup per b2 review Minor; full reactor green).
+- [b4 progress] 4.1 done: log_sign family DELETED (5 files: Entity/Mapper.java/Mapper.xml/
+  ILogSignService/LogSignServiceImpl); NEW LogSignInsertService + impl (the insert half
+  survives as the AsyncFactory dependency — rename-not-gut: deleting ILogSignService
+  outright would break recordForSign's getBean; ledger #4 amended accordingly). common
+  LogSign POJO kept. AsyncFactory: ONLY import + getBean type + comment changed (signature
+  byte-identical). LogTypes javadoc de-staled (hutool probe wording). 4.2 partial:
+  AuthSignLogTests 2/2 green (log_info + title= + session IS NOT NULL),
+  AuthUserAgentResilienceTests 3/3 green (log_info), AuthLogQueryTests 1/1 green
+  (Integer type=1 + marker-a1 match fix — test-side bug), AuthSignLogQueryTests DELETED
+  (endpoint + dual-perm scenario retired by D4; /sign-404 covered in
+  AuthAuditLogQueryTests); base ROLE_NAME_PREFIXES javadoc updated (prefix list kept
+  for shared-DB history purge). 4.3: full reactor running (monitor armed).
+- [b4 debug #1] Full reactor FAILED with ~30 classes ALL erroring on context load:
+  root cause = STALE BUILD ARTIFACT — framework/target/classes/mapper/LogSignMapper.xml
+  survived the source deletion (incremental compile never cleans removed resources) and
+  MyBatis's classpath*:mapper/**/*.xml scan choked on it. Fix: rm the stale target file;
+  full reactor re-running. (Not a code bug — build-hygiene; a clean mvn would not hit it.)
