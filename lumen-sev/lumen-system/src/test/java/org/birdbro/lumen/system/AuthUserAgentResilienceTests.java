@@ -57,10 +57,10 @@ class AuthUserAgentResilienceTests extends AuthIntegrationTestBase {
                     "ua-probe", 10, "login", "no-UA probe");
             task.run(); // RED before adaptation (10): NPE inside the copied parse chain
             Integer rows = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM public.log_sign WHERE account = 'ua-probe'",
+                    "SELECT COUNT(*) FROM public.log_info WHERE account = 'ua-probe'",
                     Integer.class);
             assertTrue(rows != null && rows >= 1,
-                    "a UA-less sign event must still land in public.log_sign");
+                    "a UA-less sign event must still land in public.log_info (the unified audit table since V25)");
         } finally {
             RequestContextHolder.resetRequestAttributes();
         }

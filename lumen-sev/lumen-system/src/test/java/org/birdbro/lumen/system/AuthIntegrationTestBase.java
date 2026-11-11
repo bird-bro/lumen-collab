@@ -214,8 +214,10 @@ public abstract class AuthIntegrationTestBase {
 
     /**
      * Fixture-role namespace owned by the tests, sweep-targetable (the Chinese literals
-     * match the fixture role names in AuthRoleMenuTests/AuthPermEnforcementTests/
-     * AuthSignLogQueryTests). REAL roles must NEVER take these prefixes - the sweep
+     * match the fixture role names in AuthRoleMenuTests/AuthPermEnforcementTests; the
+     * three sign-log role families stay LISTED after AuthSignLogQueryTests' deletion
+     * (audit-log-unify-api b4) so the sweep still purges their historical rows from
+     * the shared DB). REAL roles must NEVER take these prefixes - the sweep
      * hard-deletes live roles matching them, together with their role_menu bindings;
      * bound fixture users go with the account sweep.
      */

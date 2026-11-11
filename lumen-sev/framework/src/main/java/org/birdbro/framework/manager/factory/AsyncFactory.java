@@ -13,7 +13,7 @@ import org.birdbro.common.utils.IpUtils;
 import org.birdbro.common.utils.ServletUtils;
 import org.birdbro.common.utils.SpringUtils;
 import org.birdbro.framework.log.service.ILogInfoService;
-import org.birdbro.framework.log.service.ILogSignService;
+import org.birdbro.framework.log.service.LogSignInsertService;
 
 import java.util.Date;
 import java.util.TimerTask;
@@ -81,8 +81,11 @@ public class AsyncFactory {
                         .actionTime(new Date())
                         .type(status)
                         .build();
-                // 插入数据
-                SpringUtils.getBean(ILogSignService.class).insert(logSign);
+                // 插入数据 (audit-log-unify-api b4: the LogSign transport POJO stays;
+                // the translation to the log_info row lives in the ONE retargeted insert
+                // — LogSignInsertService — since the ILogSignService interface is deleted
+                // with its dropped-table family. Call shape: SpringUtils.getBean, unchanged.)
+                SpringUtils.getBean(LogSignInsertService.class).insert(logSign);
             }
         };
     }

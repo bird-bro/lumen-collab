@@ -21,10 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Sign-event wiring proof (system-data tasks 3.4 / 4.5, spec scenario 10): the login loop
- * writes {@code public.log_sign} rows for the SUCCESS and WRONG-PASSWORD events
+ * writes {@code public.log_info} sign rows for the SUCCESS and WRONG-PASSWORD events
  * (symmetric to the copied logout handler's {@code Constants.SIGN_OUT} event), and the
  * logout through the copied {@code LogoutSuccessHandlerImpl} chain lands its row too -
- * proving adaptation (7) end-to-end (de-{@code ice.} entities over the V3 table).
+ * proving adaptation (7) end-to-end (de-{@code ice.} entities (over log_info since V25) over the log_info table).
  *
  * <p>Everything here is asynchronous ({@code AsyncManager}) - the assertions POLL via
  * {@link AuthAsyncPoll}. The sign events are keyed to a freshly created user (unique
@@ -63,7 +63,7 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
         String username = "b2sign_" + System.currentTimeMillis(); // unique - shared DB
         int uid = createUser(adminToken, username, "sign-pass-123");
 
-        // Login SUCCESS (scenario 10): one log_sign row with type SUCCESS(10), uid, account.
+        // Login SUCCESS (scenario 10): one log_info sign row with type SUCCESS(10), uid, account.
         ResponseEntity<String> successResponse = postJsonWithUa(LOGIN_URL,
                 "{\"username\":\"" + username + "\",\"password\":\"" + encryptTestPassword("sign-pass-123") + "\"}");
         JsonNode successBody = parse(successResponse);
@@ -73,21 +73,22 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
         AtomicBoolean successRowPresent = new AtomicBoolean(false);
         AuthAsyncPoll.until(() -> {
             Integer count = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM public.log_sign WHERE account = ? AND type = 10 AND uid = ?",
+                    "SELECT COUNT(*) FROM public.log_info WHERE account = ? AND type = 10 AND uid = ?",
                     Integer.class, username, uid);
             successRowPresent.set(count != null && count > 0);
             return successRowPresent.get();
         }, "the login-success sign row (account " + username + ", type 10, uid " + uid
-                + ") never landed in public.log_sign");
+                + ") never landed in public.log_info");
 
-        // The success row carries the Sign-IN msg and the session anchor (the UserLogin
-        // token - a UUID, not the JWT).
+        // The success row carries the Sign-IN title and the session anchor (the UserLogin
+        // token - a UUID, not the JWT), which lands in the session column post-V25
+        // (the former log_sign.token column is gone; audit-log-unify D5).
         Integer tokenCarriers = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM public.log_sign WHERE account = ? AND type = 10 "
-                + "AND msg = 'Sign-IN' AND token IS NOT NULL AND descr LIKE ?",
+                "SELECT COUNT(*) FROM public.log_info WHERE account = ? AND type = 10 "
+                + "AND title = 'Sign-IN' AND session IS NOT NULL AND descr LIKE ?",
                 Integer.class, username, "%登录成功%");
         assertEquals(Integer.valueOf(1), tokenCarriers,
-                "the success row must carry msg Sign-IN, a non-null session token anchor, and the success descr");
+                "the success row must carry the Sign-IN title, a non-null session token anchor, and the success descr");
 
         // Login FAILURE (wrong password, scenario 10): type FAIL(11) with the attempt uid.
         ResponseEntity<String> wrongResponse = postJsonWithUa(LOGIN_URL,
@@ -100,13 +101,13 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
         AtomicBoolean failureRowPresent = new AtomicBoolean(false);
         AuthAsyncPoll.until(() -> {
             Integer count = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM public.log_sign WHERE account = ? AND type = 11 AND uid = ? "
-                    + "AND msg = 'Sign-IN'",
+                    "SELECT COUNT(*) FROM public.log_info WHERE account = ? AND type = 11 AND uid = ? "
+                    + "AND title = 'Sign-IN'",
                     Integer.class, username, uid);
             failureRowPresent.set(count != null && count > 0);
             return failureRowPresent.get();
         }, "the wrong-password sign row (account " + username + ", type 11, uid " + uid
-                + ") never landed in public.log_sign");
+                + ") never landed in public.log_info");
 
         jdbcTemplate.update("DELETE FROM system.user_role WHERE user_id = ?", uid);
         jdbcTemplate.update("DELETE FROM system.user_info WHERE id = ?", uid);
@@ -125,7 +126,7 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
         String jwt = loginBody.path("data").path("token").asText("");
 
         // Sign-OUT through the copied handler chain (POST /api/sign/out with the token) -
-        // adaptation (7) in action: the copied handler + de-ice. entities write the V3 row.
+        // adaptation (7) in action: the copied handler + de-ice. entities write the log_info row.
         ResponseEntity<String> outResponse = postJsonWithUaToken(SIGN_OUT_URL, jwt);
         JsonNode outBody = parse(outResponse);
         assertEquals("200", outBody.path("code").asText(), "the sign-out must succeed: " + outBody);
@@ -133,17 +134,17 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
         AtomicBoolean outRowPresent = new AtomicBoolean(false);
         AuthAsyncPoll.until(() -> {
             Integer count = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM public.log_sign WHERE account = ? AND type = 12 AND uid = ?",
+                    "SELECT COUNT(*) FROM public.log_info WHERE account = ? AND type = 12 AND uid = ?",
                     Integer.class, username, uid);
             outRowPresent.set(count != null && count > 0);
             return outRowPresent.get();
         }, "the sign-out row (account " + username + ", type SIGN_OUT 12, uid " + uid
-                + ") never landed in public.log_sign - the copied logout chain must append it");
+                + ") never landed in public.log_info - the copied logout chain must append it");
 
         // The logout row keeps the copied handler's msg/descr wording.
         Integer worded = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM public.log_sign WHERE account = ? AND type = 12 "
-                + "AND msg = 'Sign-OUT' AND descr LIKE ?",
+                "SELECT COUNT(*) FROM public.log_info WHERE account = ? AND type = 12 "
+                + "AND title = 'Sign-OUT' AND descr LIKE ?",
                 Integer.class, username, "%退出成功%");
         assertEquals(Integer.valueOf(1), worded, "the logout row must carry the copied handler's wording");
 

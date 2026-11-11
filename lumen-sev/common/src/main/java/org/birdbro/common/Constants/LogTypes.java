@@ -11,9 +11,12 @@ import cn.hutool.core.util.StrUtil;
  *
  * <p>The translation String → Integer happens at exactly ONE point —
  * {@code LogInfoServiceImpl.insert} calling {@link #codeOf(String)} AFTER the
- * {@code BeanUtil.copyProperties} copy (the copy would silently null the String→Integer
- * field-type mismatch). Unknown/blank labels degrade to {@code null} — a future
- * {@code @Log} annotation label without a mapping never breaks the write path.</p>
+ * {@code BeanUtil.copyProperties} copy (b2 probe: hutool 5.8.20's boolean overload
+ * EAGERLY converts numeric strings and THROWS on labels — the copy therefore
+ * EXCLUDES the type field via {@code CopyOptions.setIgnoreProperties("type")};
+ * {@code codeOf} is the only assignment path). Unknown/blank labels degrade to
+ * {@code null} — a future {@code @Log} annotation label without a mapping never
+ * breaks the write path.</p>
  *
  * @author birdbro
  */
