@@ -88,6 +88,24 @@ public class OrgDepServiceImpl implements OrgDepService {
     }
 
     @Override
+    public Boolean setStatus(Integer id, Integer status) {
+        OrgDep current = orgDepMapper.selectById(id);
+        if (current == null) {
+            throw new BusinessException(ExceptionEnum.ERROR_B0031,
+                    "department id " + id + " does not exist");
+        }
+        validateStatus(status);
+
+        // A focused patch: only the status column changes, independent of the
+        // generic profile-update path (mirrors OrgServiceImpl.setStatus).
+        OrgDep patch = new OrgDep();
+        patch.setId(id);
+        patch.setStatus(status);
+        orgDepMapper.updateById(patch);
+        return Boolean.TRUE;
+    }
+
+    @Override
     public Boolean delete(Integer id) {
         // @TableLogic turns this into UPDATE deleted = 1 (EntityBase contract).
         orgDepMapper.deleteById(id);

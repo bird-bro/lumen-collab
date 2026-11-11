@@ -170,6 +170,57 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
         cleanupRoleAndUser(roleId, userId);
     }
 
+    /**
+     * Button-level deny on the V26 write endpoints (user-edit-delete-profile-api, the
+     * verify api-17 gap): `PUT /users/{id}` (system:user:update) and
+     * `DELETE /users/{id}` (system:user:delete) are METHOD-pinned - a perm-less
+     * authenticated caller is denied A0301 BEFORE any controller logic runs, so no
+     * profile column moves and no row is deleted even when the body/id are valid.
+     */
+    @Test
+    void permLessUserIsDeniedOnTheNewUserWriteEndpoints() throws Exception {
+        String adminToken = adminToken();
+        long ts = System.currentTimeMillis();
+        String roleName = "无权角色_" + ts;
+        String username = "noperm_u_" + ts;
+
+        int roleId = createRole(adminToken, roleName);
+        int userId = createUserWithRoles(adminToken, username, roleName, roleId);
+        // The denial TARGET: a live admin-granted user (id != the perm-less caller).
+        int targetId = createUserWithRoles(adminToken, "noperm_target_" + ts, "拒绝目标", roleId);
+
+        String userToken = loginToken(username);
+        try {
+            // PUT /users/{id}: the denial fires before the controller - the target's
+            // name stays untouched (a valid body would otherwise rename it).
+            JsonNode updateBody = parse(exchangeJson(HttpMethod.PUT,
+                    USERS_URL + "/" + targetId, "{\"name\":\"改名尝试_" + ts + "\"}", userToken));
+            assertEquals("A0301", updateBody.path("code").asText(),
+                    "a perm-less profile update must be denied: " + updateBody);
+            var row = jdbcTemplate.queryForMap(
+                    "SELECT name FROM system.user_info WHERE id = ?", targetId);
+            assertEquals("拒绝目标", row.get("name"),
+                    "the denied update must not reach the controller (no column moves)");
+
+            // DELETE /users/{id}: denied, the row stays live.
+            JsonNode deleteBody = parse(exchangeJson(HttpMethod.DELETE,
+                    USERS_URL + "/" + targetId, null, userToken));
+            assertEquals("A0301", deleteBody.path("code").asText(),
+                    "a perm-less delete must be denied: " + deleteBody);
+            Integer deleted = jdbcTemplate.queryForObject(
+                    "SELECT deleted FROM system.user_info WHERE id = ?", Integer.class, targetId);
+            assertEquals(Integer.valueOf(0), deleted,
+                    "the denied delete must not reach the controller (the row stays live)");
+        } finally {
+            cleanupRoleAndUser(roleId, userId);
+            // the second fixture user rides the same family prefix (noperm_u_); its
+            // role binding goes with the role sweep, the row itself hard-deletes here
+            // before the role (the V1 user_role FK).
+            jdbcTemplate.update("DELETE FROM system.user_role WHERE user_id = ?", targetId);
+            jdbcTemplate.update("DELETE FROM system.user_info WHERE id = ?", targetId);
+        }
+    }
+
     /** City reference data stays authenticated-only - any valid token reads it. */
     @Test
     void cityStaysAuthenticatedOnly() throws Exception {

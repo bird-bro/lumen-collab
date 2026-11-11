@@ -7,7 +7,7 @@ import org.birdbro.common.core.pojo.LogInfo;
 import org.birdbro.common.core.pojo.LogSign;
 import org.birdbro.common.utils.DateUtils;
 import org.birdbro.framework.log.service.ILogInfoService;
-import org.birdbro.framework.log.service.ILogSignService;
+import org.birdbro.framework.log.service.LogSignInsertService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>Rows are seeded through the framework services with per-run unique markers
  * (shared long-lived DB - keyed assertions, never global counts); sign rows go
- * through the b2-retargeted {@code ILogSignService.insert} so both the operation
+ * through the b2-retargeted {@code LogSignInsertService.insert} so both the operation
  * and the sign write path are exercised end-to-end. Fixtures hard-DELETE in the
  * finally block (smoke-test sweep ruling).</p>
  *
@@ -62,7 +62,7 @@ class AuthAuditLogQueryTests extends AuthIntegrationTestBase {
     private ILogInfoService logInfoService;
 
     @Autowired
-    private ILogSignService logSignService;
+    private LogSignInsertService logSignService;
 
     private final List<Integer> seededIds = new ArrayList<>();
 

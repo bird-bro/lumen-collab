@@ -54,7 +54,8 @@ class AuthSchemaMigrationTests extends AuthIntegrationTestBase {
                 "phone", "email", "logo_url", "sort", "is_default"));
         columns.put("org_dep", Arrays.asList("org_id", "code", "name", "status"));
         columns.put("user_info", Arrays.asList("username", "password",
-                "must_change_password", "enable", "name"));
+                "must_change_password", "enable", "name", "phone", "email", "gender",
+                "title", "dep_id", "modalitys", "rep_audit", "signature"));
         columns.put("role_info", Arrays.asList("name", "type", "remark"));
         columns.put("user_role", Arrays.asList("user_id", "role_id"));
         // V22 dropped the evolution-added workstation column (the W-node correction);

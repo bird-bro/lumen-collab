@@ -8,7 +8,7 @@ import org.birdbro.common.core.pojo.LogInfo;
 import org.birdbro.common.core.pojo.LogSign;
 import org.birdbro.common.utils.DateUtils;
 import org.birdbro.framework.log.service.ILogInfoService;
-import org.birdbro.framework.log.service.ILogSignService;
+import org.birdbro.framework.log.service.LogSignInsertService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -42,7 +42,7 @@ class AuthAuditLogWriteTests extends AuthIntegrationTestBase {
     private ILogInfoService logInfoService;
 
     @Autowired
-    private ILogSignService logSignService;
+    private LogSignInsertService logSignService;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;

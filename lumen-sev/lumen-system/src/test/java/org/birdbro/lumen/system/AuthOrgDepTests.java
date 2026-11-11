@@ -265,6 +265,88 @@ class AuthOrgDepTests extends AuthIntegrationTestBase {
         softDeleteOrg(campusId);
     }
 
+    /**
+     * The dedicated department status command (department-status-toggle: mirrors the
+     * org endpoint {@code PUT /orgs/{id}/status}) - toggles only the status column,
+     * leaving name/code/orgId untouched, and re-enables.
+     */
+    @Test
+    void departmentStatusEndpointTogglesWithoutMutatingOtherFields() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusId = createCampus("科室状态院区_" + ts);
+        int depId = createDepartment(campusId, "dep_status_" + ts, "状态切换科室");
+        try {
+            JsonNode before = parse(exchangeJson(HttpMethod.GET,
+                    ORG_DEPS_URL + "/list?orgId=" + campusId, null, token));
+            JsonNode original = departmentWithCode(before.path("data"), "dep_status_" + ts);
+            assertNotNull(original, "the fixture department must be listed");
+            assertEquals(1, original.path("status").asInt(-1),
+                    "the fixture department must start enabled");
+
+            JsonNode disabled = parse(exchangeJson(HttpMethod.PUT,
+                    ORG_DEPS_URL + "/" + depId + "/status", "{\"status\":0}", token));
+            assertEquals("200", disabled.path("code").asText(),
+                    "the status command must succeed: " + disabled);
+            assertTrue(disabled.path("data").asBoolean(false),
+                    "the status command must return Boolean.TRUE: " + disabled);
+
+            JsonNode afterDisable = parse(exchangeJson(HttpMethod.GET,
+                    ORG_DEPS_URL + "/list?orgId=" + campusId, null, token));
+            JsonNode changed = departmentWithCode(afterDisable.path("data"), "dep_status_" + ts);
+            assertNotNull(changed, "a disabled department must stay listed");
+            assertEquals(0, changed.path("status").asInt(-1),
+                    "the explicit status endpoint must disable the department: " + changed);
+            assertEquals(original.path("name").asText(), changed.path("name").asText(),
+                    "the status command must not alter the name");
+            assertEquals(original.path("code").asText(), changed.path("code").asText(),
+                    "the status command must not alter the immutable code");
+            assertEquals(original.path("orgId").asInt(-1), changed.path("orgId").asInt(-1),
+                    "the status command must not alter the owning campus");
+
+            JsonNode enabled = parse(exchangeJson(HttpMethod.PUT,
+                    ORG_DEPS_URL + "/" + depId + "/status", "{\"status\":1}", token));
+            assertEquals("200", enabled.path("code").asText(), "re-enable must succeed: " + enabled);
+            JsonNode afterEnable = parse(exchangeJson(HttpMethod.GET,
+                    ORG_DEPS_URL + "/list?orgId=" + campusId, null, token));
+            assertEquals(1,
+                    departmentWithCode(afterEnable.path("data"), "dep_status_" + ts).path("status").asInt(-1),
+                    "the explicit status endpoint must re-enable the department");
+        } finally {
+            softDeleteDepartment(depId);
+            softDeleteOrg(campusId);
+        }
+    }
+
+    /** Bean-validation rejects a missing or out-of-range status before the service runs. */
+    @Test
+    void departmentStatusEndpointRejectsInvalidStatus() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusId = createCampus("科室非法状态院区_" + ts);
+        int depId = createDepartment(campusId, "dep_status_bad_" + ts, "非法状态科室");
+        try {
+            JsonNode missing = parse(exchangeJson(HttpMethod.PUT,
+                    ORG_DEPS_URL + "/" + depId + "/status", "{}", token));
+            assertEquals("A0400", missing.path("code").asText(),
+                    "a missing status must be rejected: " + missing);
+
+            JsonNode outOfRange = parse(exchangeJson(HttpMethod.PUT,
+                    ORG_DEPS_URL + "/" + depId + "/status", "{\"status\":2}", token));
+            assertEquals("A0400", outOfRange.path("code").asText(),
+                    "a non-0/1 status must be rejected: " + outOfRange);
+
+            JsonNode after = parse(exchangeJson(HttpMethod.GET,
+                    ORG_DEPS_URL + "/list?orgId=" + campusId, null, token));
+            assertEquals(1,
+                    departmentWithCode(after.path("data"), "dep_status_bad_" + ts).path("status").asInt(-1),
+                    "invalid status requests must not mutate the department");
+        } finally {
+            softDeleteDepartment(depId);
+            softDeleteOrg(campusId);
+        }
+    }
+
     private int defaultCampusId() {
         Integer id = jdbcTemplate.queryForObject(
                 "SELECT id FROM system.org_info WHERE up_id = 1 AND deleted = 0 "

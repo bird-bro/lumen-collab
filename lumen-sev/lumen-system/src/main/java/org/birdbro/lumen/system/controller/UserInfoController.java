@@ -12,8 +12,11 @@ import org.birdbro.common.annotation.Log;
 import org.birdbro.lumen.system.dto.CreateUserRequest;
 import org.birdbro.lumen.system.dto.ResetPasswordRequest;
 import org.birdbro.lumen.system.dto.SetEnableRequest;
+import org.birdbro.lumen.system.dto.UpdateUserRequest;
+import org.birdbro.lumen.system.dto.UserDetailDto;
 import org.birdbro.lumen.system.dto.UserItemDto;
 import org.birdbro.lumen.system.service.UserInfoService;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,6 +76,46 @@ public class UserInfoController {
     @GetMapping("/list")
     public List<UserItemDto> list() {
         return userInfoService.listUsers();
+    }
+
+    /**
+     * Lists every live user with the profile payload (user-edit-delete-profile-api task
+     * 2.1): the V26 profile columns plus the batch-resolved roleNames/depName. The
+     * richer read the console page consumes; the plain {@link #list()} stays for the
+     * existing consumers (never-modify).
+     */
+    @ApiOperation("用户列表（含档案与角色/科室名）")
+    @GetMapping("/list/profile")
+    public List<UserItemDto> listWithProfile() {
+        return userInfoService.listUsersWithProfile();
+    }
+
+    /** Returns one user's full profile detail - the edit dialog's echo (task 2.2). */
+    @ApiOperation("用户档案详情")
+    @GetMapping("/{id}")
+    public UserDetailDto detail(@PathVariable Integer id) {
+        return userInfoService.getUserDetail(id);
+    }
+
+    /** Partial-updates the user's profile (task 3.2); roleIds present = full-replace. */
+    @Log(title = "用户管理", type = "修改")
+    @ApiOperation("编辑用户档案（roleIds 全量替换绑定）")
+    @PreAuthorize("hasAuthority('system:user:update')") // button-perm pin (V26 F node, the V15/V21 discipline)
+    @PutMapping("/{id}")
+    public Boolean update(@PathVariable Integer id, @Valid @RequestBody UpdateUserRequest request) {
+        return userInfoService.updateUser(id, request);
+    }
+
+    /**
+     * Logically deletes the user and unbinds its roles (task 3.3); self and the seed
+     * admin reject A-class service-side (the 双保护 ruling).
+     */
+    @Log(title = "用户管理", type = "删除")
+    @ApiOperation("删除用户（逻辑删除 + 角色解绑）")
+    @PreAuthorize("hasAuthority('system:user:delete')") // button-perm pin (V26 F node, the V15/V21 discipline)
+    @DeleteMapping("/{id}")
+    public Boolean delete(@PathVariable Integer id) {
+        return userInfoService.deleteUser(id);
     }
 
     /** Admin password reset: BCrypt re-encode + {@code must_change_password = 1}. */

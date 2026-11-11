@@ -37,6 +37,16 @@ public interface OrgDepService {
     Boolean update(Integer id, UpdateOrgDepRequest request);
 
     /**
+     * Sets only the lifecycle status (dedicated command, mirroring the org family's
+     * {@code PUT /orgs/{id}/status}) - the focused patch touches no other column.
+     *
+     * @param id     the department to toggle
+     * @param status {@code 1} enabled, {@code 0} disabled
+     * @return {@code Boolean.TRUE}
+     */
+    Boolean setStatus(Integer id, Integer status);
+
+    /**
      * Logically deletes a department.
      *
      * @param id the department to delete

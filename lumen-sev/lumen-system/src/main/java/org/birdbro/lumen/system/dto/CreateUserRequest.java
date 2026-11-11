@@ -34,4 +34,33 @@ public class CreateUserRequest {
 
     @ApiModelProperty("Optional roles to bind at creation (each must exist; inserted as user_role rows)")
     private List<Integer> roleIds;
+
+    // ===================== the V26 profile fields (user-edit-delete-profile-api) =====================
+    // The console's one-drawer create submits the full profile form in one call -
+    // BeanUtil.copyProperties(request, user, true) binds these 1:1 onto the row; a
+    // dead depId rejects A0400 service-side (the same rule the update path enforces).
+
+    @ApiModelProperty("Phone number (V26; absent = NULL)")
+    private String phone;
+
+    @ApiModelProperty("Email (V26; absent = NULL)")
+    private String email;
+
+    @ApiModelProperty("Dict 性别 catalog code (V26; absent = NULL)")
+    private Integer gender;
+
+    @ApiModelProperty("Dict 职称 catalog code (V26; absent = NULL)")
+    private Integer title;
+
+    @ApiModelProperty("Owning department org_dep.id (V26; must be live - A0400 on a miss; absent = NULL)")
+    private Integer depId;
+
+    @ApiModelProperty("Exam-type visibility, CSV of dict 检查类型 codes (V26; absent = NULL)")
+    private String modalitys;
+
+    @ApiModelProperty("Report-workflow authority tier, dict 审核权限 code (V26; absent = NULL)")
+    private Integer repAudit;
+
+    @ApiModelProperty("Report-signature image path (V26; absent = NULL)")
+    private String signature;
 }

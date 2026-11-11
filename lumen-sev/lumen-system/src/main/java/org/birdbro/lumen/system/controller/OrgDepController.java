@@ -13,6 +13,7 @@ import org.birdbro.common.annotation.Log;
 
 import org.birdbro.lumen.system.dto.CreateOrgDepRequest;
 import org.birdbro.lumen.system.dto.OrgDepPageQuery;
+import org.birdbro.lumen.system.dto.SetDepStatusRequest;
 import org.birdbro.lumen.system.dto.UpdateOrgDepRequest;
 import org.birdbro.lumen.system.entity.OrgDep;
 import org.birdbro.lumen.system.service.OrgDepService;
@@ -74,6 +75,16 @@ public class OrgDepController {
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id, @Valid @RequestBody UpdateOrgDepRequest request) {
         return orgDepService.update(id, request);
+    }
+
+    /** Sets the lifecycle status ({@code 1} enabled / {@code 0} disabled). */
+    @Log(title = "科室管理", type = "修改")
+    @ApiOperation("启用/停用科室")
+    @PreAuthorize("hasAuthority('system:dep:update')") // button-perm pin (same dep mutation authority; no new seed)
+    @PutMapping("/{id}/status")
+    public Boolean setStatus(@PathVariable Integer id,
+            @Valid @RequestBody SetDepStatusRequest request) {
+        return orgDepService.setStatus(id, request.getStatus());
     }
 
     /** Logical delete ({@code @TableLogic}: {@code UPDATE deleted = 1}). */

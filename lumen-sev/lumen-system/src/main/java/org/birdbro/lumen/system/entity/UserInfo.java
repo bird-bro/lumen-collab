@@ -44,4 +44,28 @@ public class UserInfo extends EntityBase {
 
     /** Display name. */
     private String name;
+
+    /** Phone number (user-edit-delete-profile-api V26; nullable - pre-existing rows). */
+    private String phone;
+
+    /** Email (nullable). */
+    private String email;
+
+    /** Dict 性别 catalog code (V26, dict lookup resolves the label; nullable). */
+    private Integer gender;
+
+    /** Dict 职称 catalog code (nullable). */
+    private Integer title;
+
+    /** Owning department (org_dep.id FK, V26; nullable). */
+    private Integer depId;
+
+    /** Exam-type visibility, CSV of dict 检查类型 codes (the RCP lineage shape; nullable). */
+    private String modalitys;
+
+    /** Report-workflow authority tier, dict 审核权限 code (nullable = no tier). */
+    private Integer repAudit;
+
+    /** Report-signature image path (the common upload's stored path; nullable). */
+    private String signature;
 }
