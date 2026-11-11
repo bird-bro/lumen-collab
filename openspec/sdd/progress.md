@@ -728,3 +728,11 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
   gone + Shared Placement four→three tables wording; api spec /dicts/items→
   /dicts/detail/items path correction (stale role-type-dict archive wording).
   validate: system-data ✓ api ✓.
+- [FEATURE COMPLETE 2026-11-10] audit-log-unify ARCHIVED both changes (commit 4c8d5a5):
+  api → 2026-11-10-audit-log-unify-api, web → 2026-11-10-audit-log-unify-web. Gate
+  SATISFIED. Full commit train: 26e9c40(b1) → 9a2ee81(b2) → d5d3427/1b4de3c(b3) →
+  5ac8c6e/de26178/e97892b(b4) → cae1a3a(def-partition) → da8b5d9(verify api) →
+  1d2fa11(web b1+b2) → 0f621f1(NON_NULL) → ebadbbd(verify web) → 4c8d5a5(archive+sync).
+  Process notes: implementer subagents abandoned after repeated API timeouts (B3/B4/web
+  driven directly by the parent session); two stale-surefire-report footguns recorded;
+  -am stale-jar footgun recorded in b3 report.
