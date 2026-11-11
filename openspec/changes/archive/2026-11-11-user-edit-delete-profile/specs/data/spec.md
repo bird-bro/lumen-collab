@@ -5,23 +5,26 @@
 ### Requirement: User Profile Columns
 
 `user_info` SHALL carry the profile columns (V26 migration): `phone varchar(32)`,
-`email varchar(128)`, `gender integer`, `title integer`, `dep_id integer` references
-`org_dep(id)`, `modalitys varchar(128)` (CSV of 检查类型 dict codes), `rep_audit
-integer` (one 审核权限 dict code), and `signature varchar(255)` (the common-upload
-stored path) — all nullable, no defaults.
+`email varchar(128)`, `gender integer`, `title integer`, `dep_id integer`,
+`modalitys varchar(128)` (CSV of 检查类型 dict codes), `rep_audit integer` (one
+审核权限 dict code), and `signature varchar(255)` (the common-upload stored path) —
+all nullable, no defaults, audit block as the physical table tail.
 
 #### Scenario: Profile columns added without breaking existing rows
 
 - **WHEN** the V26 migration runs against a database holding pre-existing users
 - **THEN** every existing row keeps its identity and gains NULL profile columns
-- **AND** the migration is guarded (idempotent column adds)
+- **AND** the migration is guarded (idempotent), the audit block stays the table tail
+  (the V17/V24 binding-design order the schema test pins)
 
 #### Scenario: Department anchor references a live department
 
-- **WHEN** a user row carries a `dep_id`
-- **THEN** the value references a live `org_dep` row (a logically deleted department's
-  id may remain on historical rows; the read path renders deleted departments as an
-  empty label, not an error)
+- **WHEN** a user write carries a `dep_id`
+- **THEN** the service validates the department live and rejects a miss with an
+  A-class error (the V1 binding design keeps `user_info` at zero physical FKs -
+  integrity is service-level, the org_info no-self-FK precedent)
+- **AND** a user row whose department was later logically deleted renders the read
+  path as an empty label, not an error
 
 #### Scenario: Gender and title store dict codes
 

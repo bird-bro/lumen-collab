@@ -41,6 +41,14 @@ D5/D6).
 - **THEN** the user is created with the BCrypt hash of the DECRYPTED initial password and
   `code: "200"` with the new user id in `data`
 
+#### Scenario: Create carries the profile fields
+
+- **WHEN** the create body additionally carries profile fields (`phone`, `email`,
+  `gender`, `title`, `depId`, `modalitys`, `repAudit`, `signature`)
+- **THEN** they bind 1:1 onto the new row in the same transaction (a `depId` that
+  misses a live department rejects `A0400` and no row is created); absent fields
+  stay NULL — the console's one-drawer create submits the full form in one call
+
 #### Scenario: Duplicate username
 
 - **WHEN** the posted username already exists live

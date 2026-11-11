@@ -83,3 +83,46 @@ the lifecycle flag rendered by the console's 状态 column and toggled by
 - **WHEN** the enable toggle endpoint posts `0` for a role
 - **THEN** `role_info.enable` reads `0` afterwards and the row remains live
   (the logical-delete column is untouched)
+
+### Requirement: User Profile Columns
+`user_info` SHALL carry the profile columns (V26 migration): `phone varchar(32)`,
+`email varchar(128)`, `gender integer`, `title integer`, `dep_id integer`,
+`modalitys varchar(128)` (CSV of 检查类型 dict codes), `rep_audit integer` (one
+审核权限 dict code), and `signature varchar(255)` (the common-upload stored path) —
+all nullable, no defaults, audit block as the physical table tail.
+
+#### Scenario: Profile columns added without breaking existing rows
+
+- **WHEN** the V26 migration runs against a database holding pre-existing users
+- **THEN** every existing row keeps its identity and gains NULL profile columns
+- **AND** the migration is guarded (idempotent), the audit block stays the table tail
+  (the V17/V24 binding-design order the schema test pins)
+
+#### Scenario: Department anchor references a live department
+
+- **WHEN** a user write carries a `dep_id`
+- **THEN** the service validates the department live and rejects a miss with an
+  A-class error (the V1 binding design keeps `user_info` at zero physical FKs -
+  integrity is service-level, the org_info no-self-FK precedent)
+- **AND** a user row whose department was later logically deleted renders the read
+  path as an empty label, not an error
+
+#### Scenario: Gender and title store dict codes
+
+- **WHEN** a user row stores `gender`, `title`, or `rep_audit`
+- **THEN** the stored value is the dict detail's numeric `code` (e.g. gender 100401 男,
+  jobTitle 100505 技师), resolvable through `GET /api/v1/system/dicts/items/{catalogName}`
+
+#### Scenario: Exam-type visibility stores a CSV of codes
+
+- **WHEN** a user row stores `modalitys`
+- **THEN** the value is a comma-separated list of 检查类型 dict `code`s (the RCP
+  lineage's CSV shape — `CT,MR,US`), each resolvable through the dict lookup
+
+#### Scenario: Signature stores a served path
+
+- **WHEN** a user row stores `signature`
+- **THEN** the value is a relative image path under the common upload root, served
+  back through the `/profile/**` static segment (the logo precedent — no byte column)
+
+<!-- synced from: user-edit-delete-profile-api 2026-11-11 -->

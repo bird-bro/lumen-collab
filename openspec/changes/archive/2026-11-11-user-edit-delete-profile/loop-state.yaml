@@ -1,0 +1,19 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+# Phases: proposing -> applying -> verifying -> archived | abandoned (terminal).
+#   debugging side-path: applying -> debugging (3-strike) -> applying | proposing (rewind)
+# Copy into each change directory: openspec/changes/<name>/loop-state.yaml.
+# The global openspec/loop-state.yaml is the legacy shared default - prefer this file.
+phase: archived
+change: user-edit-delete-profile
+current_task: null
+tasks_total: 11
+tasks_done: 11
+retry_count: 0
+debt_count: 0
+debug_attempts: 0
+workflow_mode: full
+artifacts_hash: 0099c924c5448f9e86bacb16bb538b2a8833a4b8f3bfb2b69dbac0882c77543f
+contract_hash: null
+execution_mode: Batch Inline
+batches_completed: 0
+last_updated: 2026-11-10
