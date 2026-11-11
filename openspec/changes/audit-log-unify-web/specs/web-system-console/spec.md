@@ -44,15 +44,31 @@ Sign-IN/Sign-OUT), 描述, 操作人, IP, 操作系统, 浏览器, and the opera
 ## REMOVED Requirements
 
 ### Requirement: Operation Log Query (standalone 日志查询 page)
-**Reason**: Merged into the unified Audit Log Query requirement — same endpoint, same
+The console SHALL NO LONGER provide a standalone 日志查询 page — the merged audit page
+(MODIFIED Operation Log Query above) is its successor at the same route.
+
+**Reason**: Merged into the unified audit-log requirement — same endpoint, same
 permission, one page (coordination audit-log-unify D6).
 **Migration**: The route `/system/logs` and component `system/log/index` are UNCHANGED;
 the merged page is the successor. Filters carry over (type becomes the Integer-code
 Select, uid, dateYm; account joins).
 
+#### Scenario: The old standalone page no longer exists as a separate surface
+- **WHEN** an administrator visits `/system/logs` after this change
+- **THEN** the unified audit page renders (both event families) — no separate
+  日志查询 surface remains
+
 ### Requirement: Sign-in Log Query (登录日志 page)
+The console SHALL NO LONGER provide the 登录日志 page — the sign family is visible in
+the unified audit page (MODIFIED Operation Log Query above).
+
 **Reason**: Backend endpoint and permission retired by `audit-log-unify-api`
 (coordination D4/D8); the sign family is visible in the unified page.
 **Migration**: Account/uid/dateYm filters carry into the unified page; sign events are
 narrowed by 类别 codes 10/11/12. The `/system/logs/sign` route and the
 `system:signlog:list` visibility rule disappear with menu 17.
+
+#### Scenario: The 登录日志 route and menu entry are gone
+- **WHEN** an administrator opens the console after this change
+- **THEN** `/system/logs/sign` matches no route (404) and the menu tree carries no
+  登录日志 entry

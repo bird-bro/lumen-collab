@@ -18,8 +18,9 @@ import { useAuthStore } from '@/stores/auth'
  *   guard redirects), whose index child redirects to the FIRST route the
  *   user's menu tree grants;
  * - `/system/**` - the lazily-loaded console routes (design D8; batch 6
- *   replaced the placeholder modules in place; sign-log-query b4 adds the
- *   `/system/logs/sign` sibling of the operation-log page);
+ *   replaced the placeholder modules in place; audit-log-unify-web 2.3
+ *   retired the `/system/logs/sign` sibling — the unified audit page
+ *   covers both event families);
  * - the three department routes, lazily loaded, unchanged.
  *
  * Department route modules are lazily loaded so each department ships as its
@@ -34,7 +35,6 @@ const RolesPage = lazy(() => import('@/pages/system/roles'))
 const MenusPage = lazy(() => import('@/pages/system/menus'))
 const DictsPage = lazy(() => import('@/pages/system/dicts'))
 const LogsPage = lazy(() => import('@/pages/system/logs'))
-const SignLogsPage = lazy(() => import('@/pages/system/logs/sign'))
 const RadiologyPage = lazy(() => import('@/pages/radiology'))
 const UltrasoundPage = lazy(() => import('@/pages/ultrasound'))
 const EndoscopyPage = lazy(() => import('@/pages/endoscopy'))
@@ -82,7 +82,6 @@ export const appRoutes: RouteObject[] = [
       { path: 'system/menus', element: <MenusPage /> },
       { path: 'system/dicts', element: <DictsPage /> },
       { path: 'system/logs', element: <LogsPage /> },
-      { path: 'system/logs/sign', element: <SignLogsPage /> },
       { path: 'radiology', element: <RadiologyPage /> },
       { path: 'ultrasound', element: <UltrasoundPage /> },
       { path: 'endoscopy', element: <EndoscopyPage /> },

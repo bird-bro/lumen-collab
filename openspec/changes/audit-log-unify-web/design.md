@@ -4,6 +4,16 @@
 > `audit-log-unify-api` lands FIRST; this change builds against the real merged
 > endpoint (no mock layer ruling).
 
+## Decisions
+
+D-web-1 one page one table (superset columns, em-dash for cross-family gaps) ·
+D-web-2 dict-driven 类别 Select + column labels via the existing `useDictItems`
+hook (role-type-dict D4 fallback pattern verbatim: fetch failure → one message.error
++ raw-code fallback, never blocks) · D-web-3 client convergence (single `LogItem`,
+`type: number`, `account` filter; `LogSignItem`/`listSignLogs` deleted) · D-web-4
+`sign.tsx`/`/sign` route/menu-path mapping deleted with the retired backend surface ·
+D-web-5 existing-page edit — UI-prototype gate skipped.
+
 ## Page shape — one page, one table
 
 `pages/system/logs/index.tsx` becomes the 审计日志 page (route/component

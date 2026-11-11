@@ -3,7 +3,7 @@ import { apiUpload, configureApiClient } from '@/api/client'
 import { login, me } from '@/api/auth'
 import { createUser, enableUser, listUsers, resetPassword } from '@/api/users'
 import { createOrg, deleteOrg, orgTree, setOrgStatus, updateOrg } from '@/api/orgs'
-import { createDep, deleteDep, listDeps, pageDep, updateDep } from '@/api/org-deps'
+import { createDep, deleteDep, listDeps, pageDep, setDepStatus, updateDep } from '@/api/org-deps'
 import { assignRoleMenus, createRole, deleteRole, listRoles, updateRole } from '@/api/roles'
 import { createMenu, menuTree, removeMenu, updateMenu } from '@/api/menus'
 import type { CreateMenuBody, UpdateMenuBody } from '@/api/types'
@@ -17,7 +17,7 @@ import {
   updateCatal,
   updateDetail,
 } from '@/api/dicts'
-import { listLogs, listSignLogs } from '@/api/logs'
+import { listLogs } from '@/api/logs'
 
 /**
  * Typed per-resource clients (batch 4 of web-foundation-auth-console, task
@@ -317,6 +317,15 @@ describe('org-deps client (task 4.3)', () => {
     expect(deleteUrl).toBe('/api/v1/system/org-deps/4')
     expect(deleteInit.method).toBe('DELETE')
   })
+
+  it('setDepStatus puts /system/org-deps/{id}/status and unwraps true', async () => {
+    const fetchMock = stubOk(true)
+    expect(await setDepStatus(4, 0)).toBe(true)
+    const { url, init } = lastCall(fetchMock)
+    expect(url).toBe('/api/v1/system/org-deps/4/status')
+    expect(init.method).toBe('PUT')
+    expect(init.body).toBe(JSON.stringify({ status: 0 }))
+  })
 })
 
 describe('roles client (task 4.3)', () => {
@@ -533,25 +542,28 @@ describe('dicts client (task 4.3)', () => {
   })
 })
 
-describe('logs client (task 4.3)', () => {
-  it('listLogs GETs /system/logs with the page/pageSize/type/uid/dateYm query and unwraps the IPage shape', async () => {
+describe('audit-logs client (audit-log-unify-web 1.1 — unified endpoint)', () => {
+  it('listLogs GETs /system/logs with the page/pageSize/numeric-type/uid/account/dateYm query and unwraps the IPage shape', async () => {
     const fetchMock = stubOk({
       records: [
-        { id: 3, dateYm: 202611, title: '用户管理', descr: '重置用户密码', type: '重置密码', uid: 1, account: 'admin', actionTime: '2026-11-03 16:20:11', spent: 34, method: 'PUT', name: 'resetPassword', pack: 'org.birdbro.lumen.system.controller.UserInfoController', url: '/api/v1/system/users/2/password', session: null, mobile: false, ip: '127.0.0.1', os: 'Mac OS X', browser: 'Chrome', engine: 'Blink', record: 0, param: '{"newPassword":"******"}', result: 'true', exception: null, app: 'lumen-system', createTime: '2026-11-03 16:20:11' },
+        // The unified row: an operation-family row carries the Integer code (1 = 新增
+        // via the backend's codeOf translation); sign rows carry 10/11/12.
+        { id: 3, dateYm: 202611, title: '用户管理', descr: '重置用户密码', type: 5, uid: 1, account: 'admin', actionTime: '2026-11-03 16:20:11', spent: 34, method: 'PUT', name: 'resetPassword', pack: 'org.birdbro.lumen.system.controller.UserInfoController', url: '/api/v1/system/users/2/password', mobile: false, ip: '127.0.0.1', os: 'Mac OS X', browser: 'Chrome', engine: 'Blink', record: 0, param: '{"newPassword":"******"}', result: 'true', exception: null, app: 'lumen-system', createTime: '2026-11-03 16:20:11' },
       ],
       total: 1,
       size: 20,
       current: 1,
       pages: 1,
     })
-    const page = await listLogs({ page: 1, pageSize: 20, type: '重置密码', uid: 1, dateYm: 202611 })
+    const page = await listLogs({ page: 1, pageSize: 20, type: 5, uid: 1, account: 'admin', dateYm: 202611 })
     const { url, init } = lastCall(fetchMock)
     expect(url).toBe(
-      '/api/v1/system/logs?page=1&pageSize=20&type=%E9%87%8D%E7%BD%AE%E5%AF%86%E7%A0%81&uid=1&dateYm=202611',
+      '/api/v1/system/logs?page=1&pageSize=20&type=5&uid=1&account=admin&dateYm=202611',
     )
     expect(init.method).toBe('GET')
     expect(page.records).toHaveLength(1)
     expect(page.records[0].actionTime).toBe('2026-11-03 16:20:11')
+    expect(page.records[0].type).toBe(5)
     expect(page.total).toBe(1)
   })
 
@@ -662,36 +674,6 @@ describe('org-deps client page query (org-management-redesign-web 1.2)', () => {
     await updateDep(5, { name: '病理科2', status: 0 })
     const { init } = lastCall(fetchMock)
     expect(init.body).toBe(JSON.stringify({ name: '病理科2', status: 0 }))
-  })
-})
-
-describe('sign-logs client (sign-log-query b4, task 4.1)', () => {
-  it('listSignLogs GETs /system/logs/sign with the page/pageSize/account/uid/dateYm query and unwraps the IPage shape', async () => {
-    const fetchMock = stubOk({
-      records: [
-        { id: 1, dateYm: 202611, msg: '登录成功', descr: '登录成功', type: 1, uid: 1, account: 'admin', actionTime: '2026-11-04 10:00:00', mobile: false, ip: '127.0.0.1', os: 'Mac OS X', browser: 'Chrome', engine: 'Blink', session: null, app: 'lumen-system', deleted: 0, createTime: '2026-11-04 10:00:02' },
-      ],
-      total: 1,
-      size: 20,
-      current: 1,
-      pages: 1,
-    })
-    const page = await listSignLogs({ page: 1, pageSize: 20, account: 'admin', uid: 1, dateYm: 202611 })
-    const { url, init } = lastCall(fetchMock)
-    expect(url).toBe('/api/v1/system/logs/sign?page=1&pageSize=20&account=admin&uid=1&dateYm=202611')
-    expect(init.method).toBe('GET')
-    expect(page.records).toHaveLength(1)
-    expect(page.records[0].actionTime).toBe('2026-11-04 10:00:00')
-    // Design D7: credential material never serializes to the console.
-    expect(page.records[0]).not.toHaveProperty('token')
-    expect(page.total).toBe(1)
-  })
-
-  it('listSignLogs sends only the paging keys when the optional filters are omitted', async () => {
-    const fetchMock = stubOk({ records: [], total: 0, size: 20, current: 1, pages: 0 })
-    await listSignLogs({ page: 1, pageSize: 20 })
-    const { url } = lastCall(fetchMock)
-    expect(url).toBe('/api/v1/system/logs/sign?page=1&pageSize=20')
   })
 })
 

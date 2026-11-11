@@ -15,6 +15,9 @@ const ITEMS_CACHE = new Map<string, Promise<DictItem[]>>();
 /** The 「角色类型」 catalog name - the recorded cross-stack contract (V23 seed). */
 export const ROLE_TYPE_DICT_NAME = '角色类型';
 
+/** The 「审计日志类型」 catalog name - audit-log-unify D7 (V25 seed, codes 1-5 + 10/11/12). */
+export const AUDIT_LOG_TYPE_DICT_NAME = '审计日志类型';
+
 /**
  * The catalog's enabled items by NAME, session-cached (dedupes concurrent
  * calls, survives route remounts within the session).

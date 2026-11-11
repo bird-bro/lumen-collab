@@ -29,7 +29,6 @@ const CONSOLE_ROUTE_BY_COMPONENT: Record<string, string> = {
   'system/menu/index': '/system/menus',
   'system/dict/index': '/system/dicts',
   'system/log/index': '/system/logs',
-  'system/log/sign': '/system/logs/sign',
 };
 
 /**
