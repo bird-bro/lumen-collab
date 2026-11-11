@@ -6,7 +6,7 @@
 verify:
   change: audit-log-unify-api
   date: 2026-11-10
-  overall: PASS_WITH_ISSUES   # L1+L3 green; 1 PARTIAL (def-partition probe-verified, no dedicated test)
+  overall: PASS   # 2026-11-10 refresh: def-partition dedicated test added (AuthSystemDataMigrationTests 14/14)
   stacks:
     backend:
       L1: PASS
@@ -16,15 +16,15 @@ verify:
 
 # 验证结果: audit-log-unify-api
 
-> 生成时间: 2026-11-10 · 总体: **PASS_WITH_ISSUES**（14/15 场景 IMPLEMENTED，1 PARTIAL）
+> 生成时间: 2026-11-10 · 总体: **PASS**（15/15 场景 IMPLEMENTED；2026-11-10 二次刷新——def 分区专属断言补齐后由 PASS_WITH_ISSUES 升级）
 
 ## backend
 
 | 层级 | 状态 | 详情 |
 |:---|:---|:---|
 | L1 构建 | ✓ PASS | `./mvnw compile -q` 全 reactor 成功（JDK 11） |
-| L2 规格对齐 | 14/15 已实现 | 1 PARTIAL（def 分区写路径无专属自动化断言——活库探针已实证） |
-| L3 测试 | ✓ PASS | 全 reactor BUILD SUCCESS：lumen-system 150/150（本轮 log 级聚合并剔除 2 个已删类的陈旧报告）+ common 4/4（LogTypesTest）= 154/154，0 失败 0 错误（AuthAuditLogQueryTests 4/4、AuthSignLogTests 2/2、AuthUserAgentResilienceTests 3/3、AuthSystemDataMigrationTests 13/13） |
+| L2 规格对齐 | 15/15 已实现 | def 分区场景已由专属测试闭环（见下） |
+| L3 测试 | ✓ PASS | 全 reactor BUILD SUCCESS：lumen-system 151/151（含新增 def-partition 断言，AuthSystemDataMigrationTests 14/14）+ common 4/4 = 155/155，0 失败 0 错误（AuthAuditLogQueryTests 4/4、AuthSignLogTests 2/2、AuthUserAgentResilienceTests 3/3） |
 
 ## 场景对齐详情
 
@@ -37,7 +37,7 @@ verify:
 | Log table exists on fresh database | ✓ 已实现 | V25 + 活库实测：log_info relkind='p' RANGE (date_ym)，children 2026/2027/def（psql pg_inherits 三行）；AuthSystemDataMigrationTests:269（type integer） |
 | log_sign is gone | ✓ 已实现 | V25:55-56（DROP CASCADE + parked）+ AuthSystemDataMigrationTests:242-263（5 关系 + 序列 pg_class 双查全 0）+ 活库 `relname LIKE 'log_sign%'`=0 |
 | Rows survive the conversion | ✓ 已实现 | V13 转换 + V25 re-type 活库实证：18 标签行全数以码值存活（1×3, 2×11, 3×1, 4×3——b2 reviewer 独立 JDBC 复核；本轮 type 分布含 10×2/11×1 登录残留） |
-| Write into an unpartitioned year lands in the default partition | ⚠ PARTIAL | 活库探针实证（date_ym=179901 → tableoid=log_info_def，事务回滚零残留）；但无专属自动化测试断言（b2 review Minor 已旗标）——V13 时代该场景也仅以 psql 布局核对背书（sign-log-query verify.md 场景 1 同等强度） |
+| Write into an unpartitioned year lands in the default partition | ✓ 已实现 | AuthSystemDataMigrationTests.writeIntoAnUnpartitionedYearLandsInTheDefaultPartition（date_ym=179901 → tableoid=log_info_def，finally 硬删 + 残留断言；活库探针先证，专属测试后补——2026-11-10 闭环） |
 | Query operation logs | ✓ 已实现 | AuthLogQueryTests.java:51-133（分页/uid 过滤/Integer type=1/dateYm/空结果，actionTime DESC） |
 | Account filter matches sign and operation rows | ✓ 已实现 | AuthAuditLogQueryTests.java:122-131（account 过滤双族命中 Total:2） |
 | Integer type filter | ✓ 已实现 | AuthAuditLogQueryTests.java:174-186（type=11 精确命中种子失败行） |
@@ -48,11 +48,9 @@ verify:
 
 ## 发现的问题
 
-⚠ PARTIAL: "Write into an unpartitioned year lands in the default partition"
-- 期望: 无年度子分区的写入落 `log_info_def` 而非失败（spec delta 场景）
-- 实际: 活库探针实证行为正确（179901 写入落 def，回滚零残留），但测试套件无专属断言
-- 处置建议: 可接受（行为已实证、V13 契约未变、风险低）；若要闭环，在 4.2 批次后续
-  或独立小 change 给 AuthSystemDataMigrationTests 补一条 def-partition 断言
+（无——首验的 1 个 PARTIAL 已于 2026-11-10 闭环：def 分区写路径补上专属测试断言
+`AuthSystemDataMigrationTests.writeIntoAnUnpartitionedYearLandsInTheDefaultPartition`，
+14/14 绿，verify 整体升 PASS。）
 
 ## 过程备注
 

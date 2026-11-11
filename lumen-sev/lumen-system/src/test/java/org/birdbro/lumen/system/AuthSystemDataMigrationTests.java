@@ -383,4 +383,35 @@ class AuthSystemDataMigrationTests extends AuthIntegrationTestBase {
                 "dict_detail_id_seq must sit past the seeded detail id 1030008 after "
                 + "V25's setval resync, but was " + detailSeq);
     }
+
+    /**
+     * Write into an unpartitioned year lands in the default partition (spec delta
+     * § System Log Tables, scenario 4 - the b2-review flagged coverage gap, closed
+     * 2026-11-10): a row whose {@code date_ym} year has no child partition (1799
+     * predates every yearly child) must land in {@code log_info_def} instead of
+     * failing the write. The probe row is inserted AND removed in one JDBC round
+     * (no @Async machinery involved, so no polling); a failure leaves nothing behind
+     * because the delete runs in a finally.
+     */
+    @Test
+    void writeIntoAnUnpartitionedYearLandsInTheDefaultPartition() {
+        String marker = "b4-def-probe-" + System.currentTimeMillis();
+        try {
+            jdbcTemplate.update(
+                    "INSERT INTO public.log_info (date_ym, type, account, action_time) "
+                    + "VALUES (179901, 10, ?, now())", marker);
+            String landedPartition = jdbcTemplate.queryForObject(
+                    "SELECT c.relname FROM pg_class c "
+                    + "JOIN public.log_info t ON t.tableoid = c.oid "
+                    + "WHERE t.account = ?", String.class, marker);
+            assertEquals("log_info_def", landedPartition,
+                    "a write into year 1799 (no yearly child) must land in the "
+                    + "log_info_def default partition instead of failing");
+        } finally {
+            jdbcTemplate.update("DELETE FROM public.log_info WHERE account = ?", marker);
+        }
+        Integer residue = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM public.log_info WHERE account = ?", Integer.class, marker);
+        assertEquals(0, residue.intValue(), "the probe row must be swept");
+    }
 }
