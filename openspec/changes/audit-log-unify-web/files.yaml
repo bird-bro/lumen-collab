@@ -1,0 +1,8 @@
+# File ownership - audit-log-unify-web (audit-log page merge)
+- lumen-web/src/api/logs.ts
+- lumen-web/src/api/types.ts
+- lumen-web/src/pages/system/logs/
+- lumen-web/src/router.tsx
+- lumen-web/src/routes/menu-paths.ts
+- lumen-web/src/test/logs-page.test.tsx
+- lumen-web/src/test/sign-logs-page.test.tsx

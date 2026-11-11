@@ -16,7 +16,7 @@ Check for `verify.md` in the change root:
 - **overall: PASS** -> proceed.
 
 Read `verify.overall` from verify.md YAML frontmatter (written by /opsx:verify). Runs after the spec-sync assessment and before `mv` into archive/.
-Phase gate: run `bash openspec/guard.sh verifying archived <change-dir>`. Non-zero exit -> STOP. On PASS, update `openspec/loop-state.yaml`: set `phase: archived`. On FAIL or abandon: set `phase: abandoned`.
+Phase gate: run `bash openspec/guard.sh verifying archived <change-dir>`. Non-zero exit -> STOP. On PASS, update `<change-dir>/loop-state.yaml` (BEFORE the archive move): set `phase: archived`. On FAIL or abandon: set `phase: abandoned`.
 
 ## Delta-Spec Sync (after archive move - prevents spec rot)
 After the change is moved to `archive/`, sync its delta specs into the main specs:

@@ -14,7 +14,7 @@ Read `tasks.md` in the change directory. Count tasks and assess scope:
 - **tweak** (<=4 tasks, ALL config/doc/.env/.yml/.json/.md files, no source code): skip contract (0a) + TDD (2). Edit directly. L1 build check (4) still applies. Verify = L1 only.
 - **hotfix** (<=2 tasks, <=2 source files, no new schema/API/module): contract relaxed (minimal intent lock OK, skip full contract if <change>/execution-contract.md absent). TDD (2) applies, characterization allowed. Full verify.
 - **full** (anything larger): normal flow - all steps apply.
-If unsure, default to `full`. Persist: set `workflow_mode: <tweak|hotfix|full>` in `loop-state.yaml`. State the mode before proceeding.
+If unsure, default to `full`. Persist: set `workflow_mode: <tweak|hotfix|full>` in `<change-dir>/loop-state.yaml`. State the mode before proceeding.
 
 0. **Preflight (mandatory, before ANY implementation edit):**
    a. **Contract freshness:** run `bash openspec/ensure-contract-fresh.sh <change-dir>`. Non-zero exit -> STOP (spec changed since contract was generated; re-run propose to regenerate the contract and update the hash).
@@ -34,8 +34,8 @@ If unsure, default to `full`. Persist: set `workflow_mode: <tweak|hotfix|full>` 
      (b) append to `openspec/changes/<change>/debt.md`: `- [DEBT] <task>: no harness for
          <stack>; changed <what>; risk <low|med|high>` and mark the task `DEBT` in tasks.md.
      NEVER silently change legacy code with neither a test nor a debt record.
-2b. **Retry cap (3-strike) -> debugging side-path:** if a task build/test FAILs, attempt a fix and increment `retry_count` in `openspec/loop-state.yaml`. If `retry_count >= 3` for the SAME task -> enter **debugging phase** (do NOT keep blind-retrying):
-   - Update `loop-state.yaml`: set `phase: debugging`, increment `debug_attempts`.
+2b. **Retry cap (3-strike) -> debugging side-path:** if a task build/test FAILs, attempt a fix and increment `retry_count` in `<change-dir>/loop-state.yaml`. If `retry_count >= 3` for the SAME task -> enter **debugging phase** (do NOT keep blind-retrying):
+   - Update `<change-dir>/loop-state.yaml`: set `phase: debugging`, increment `debug_attempts`.
    - **Debug protocol (4 steps):**
      (a) **Reproduce**: write a minimal reproducer (test or script) that reliably triggers the failure. If you cannot reproduce it, you cannot fix it - say so.
      (b) **Root cause**: use `git bisect` or binary-search the change to find what introduced the issue. Read the failing code path end-to-end. State the root cause in one sentence.
@@ -44,7 +44,7 @@ If unsure, default to `full`. Persist: set `workflow_mode: <tweak|hotfix|full>` 
    - After debugging: set `phase: applying`, reset `retry_count: 0`, reset `debug_attempts: 0`. If debugging reveals spec/contract is wrong -> rewind to `proposing` (see 2c).
    - If `debug_attempts >= 2` for the SAME task -> STOP, escalate to user: architecture or spec assumption is likely wrong.
    Reset `retry_count` to 0 when moving to the next task.
-2c. **Mandatory Rewind:** if new scope appears, interfaces change materially, or design assumptions fail during implementation -> rewind to `proposing`, update the spec, then resume. Never patch the spec inside `applying` via ad-hoc chat. Update `loop-state.yaml`: set `phase: proposing`.
+2c. **Mandatory Rewind:** if new scope appears, interfaces change materially, or design assumptions fail during implementation -> rewind to `proposing`, update the spec, then resume. Never patch the spec inside `applying` via ad-hoc chat. Update `<change-dir>/loop-state.yaml`: set `phase: proposing`.
 2d. **SDD Execution (when execution_mode: SDD):** for each task batch:
    - Dispatch an implementer subagent using `openspec/sdd/implementer-prompt.md` template
      (CC: Task tool; Codex: role-switch to Implementer). Fill placeholders: [task name],
@@ -66,7 +66,7 @@ If unsure, default to `full`. Persist: set `workflow_mode: <tweak|hotfix|full>` 
 3. After each task code change: **`code-review`** the diff against the spec WHEN/THEN.
 4. **Per-task build check (L1 quick verify):** after the code change, before marking the task done, run the affected stack build command from `openspec/verify.config.yaml` inside that stack dir. On PASS print `✓ 构建检查通过`; on FAIL do NOT mark done - pause and report. (Reuses the same config as /opsx:verify - one source of truth.)
 5. On full completion: **`verification-before-completion`**, then suggest `/opsx:verify <change>` (not archive directly).
-6. **Phase gate (apply -> verify - programmatic):** run `bash openspec/guard.sh applying verifying <change-dir>`. Non-zero exit -> STOP. This checks: tasks complete + contract fresh. On PASS, update `loop-state.yaml`: set `phase: verifying`.
+6. **Phase gate (apply -> verify - programmatic):** run `bash openspec/guard.sh applying verifying <change-dir>`. Non-zero exit -> STOP. This checks: tasks complete + contract fresh. On PASS, update `<change-dir>/loop-state.yaml`: set `phase: verifying`.
 <!-- /LoopForge: superpowers-trigger-apply -->
 
 Implement tasks from an OpenSpec change.

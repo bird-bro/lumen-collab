@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: applying
+change: audit-log-unify-api
+execution_mode: SDD
+tasks_total: 12
+tasks_done: 9
+workflow_mode: full
+artifacts_hash: e3a85940fcdd43643e9b4d1fa631b21b816da56a4316a5f538030f1c3b1cdc57

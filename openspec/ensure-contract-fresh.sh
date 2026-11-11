@@ -14,8 +14,10 @@ dir="${1:-}"
 [[ -n "$dir" ]] || { echo "Usage: ensure-contract-fresh.sh [--update] <change-dir>" >&2; exit 2; }
 [[ -d "$dir" ]] || { echo "Error: not a directory: $dir" >&2; exit 2; }
 
-# Find loop-state.yaml by searching upward for openspec/
+# Resolve state file: per-change loop-state.yaml preferred (parallel-safe);
+# fall back to openspec/loop-state.yaml (legacy single-session state).
 abs_dir="$(cd "$dir" && pwd)"
+change_state="$abs_dir/loop-state.yaml"
 openspec_dir=""
 cur="$abs_dir"
 while [[ "$cur" != "/" ]]; do
@@ -26,12 +28,14 @@ while [[ "$cur" != "/" ]]; do
   cur="$(dirname "$cur")"
 done
 
-if [[ -z "$openspec_dir" ]]; then
-  echo "Error: openspec/loop-state.yaml not found" >&2
+if [[ -f "$change_state" ]]; then
+  state_file="$change_state"
+elif [[ -n "$openspec_dir" ]]; then
+  state_file="$openspec_dir/loop-state.yaml"
+else
+  echo "Error: neither $change_state nor openspec/loop-state.yaml found" >&2
   exit 1
 fi
-
-state_file="$openspec_dir/loop-state.yaml"
 
 # Compute current hash of planning artifacts
 hash_input=""
@@ -48,16 +52,30 @@ fi
 current_hash=$(printf '%s' "$hash_input" | shasum -a 256 | awk '{print $1}')
 
 if [[ "$mode" == "update" ]]; then
-  # Update hash in loop-state.yaml
-  if grep -q '^artifacts_hash:' "$state_file"; then
-    # macOS sed needs -i ''
+  # Update hash in the PER-CHANGE state file (parallel-safe); create it if missing.
+  if [[ ! -f "$change_state" ]]; then
+    {
+      echo "# Per-change workflow state (parallel-safe: each change owns its own file)."
+      echo "phase: proposing"
+      echo "change: $(basename "$dir")"
+    } > "$change_state"
+    # Seed workflow/progress fields from the legacy global state if present.
+    if [[ -n "$openspec_dir" && -f "$openspec_dir/loop-state.yaml" ]]; then
+      grep -E '^(workflow_mode|execution_mode|tasks_total|tasks_done):' "$openspec_dir/loop-state.yaml" >> "$change_state" 2>/dev/null || true
+    fi
+    grep -q '^workflow_mode:' "$change_state" || echo "workflow_mode: null" >> "$change_state"
+    grep -q '^execution_mode:' "$change_state" || echo "execution_mode: null" >> "$change_state"
+    grep -q '^tasks_total:' "$change_state" || echo "tasks_total: 0" >> "$change_state"
+    grep -q '^tasks_done:' "$change_state" || echo "tasks_done: 0" >> "$change_state"
+  fi
+  if grep -q '^artifacts_hash:' "$change_state"; then
     # Portable in-place sed (macOS BSD sed needs -i '' with space; GNU sed needs -i'')
     _tmp=$(mktemp)
-    sed "s/^artifacts_hash:.*/artifacts_hash: $current_hash/" "$state_file" > "$_tmp" && mv "$_tmp" "$state_file"
+    sed "s/^artifacts_hash:.*/artifacts_hash: $current_hash/" "$change_state" > "$_tmp" && mv "$_tmp" "$change_state"
   else
-    echo "artifacts_hash: $current_hash" >> "$state_file"
+    echo "artifacts_hash: $current_hash" >> "$change_state"
   fi
-  echo "Updated artifacts_hash: $current_hash"
+  echo "Updated artifacts_hash: $current_hash (in $change_state)"
   exit 0
 fi
 

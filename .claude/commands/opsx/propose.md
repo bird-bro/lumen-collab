@@ -21,9 +21,9 @@ Before writing artifacts, ground the spec in real requirements:
    - Either way: review AI-marked sections (`<!-- AI: ... -->`), fill Test Obligations from TDD/characterization analysis.
    - Select execution mode: <=3 tasks and no cross-module deps -> Inline; >3 tasks same module and no risk indicators -> Batch Inline; else -> SDD.
    - Run `bash openspec/ensure-contract-fresh.sh --update <change-dir>` to store the artifacts hash.
-   - Update `openspec/loop-state.yaml`: set `execution_mode: <mode>`.
+   - Update `<change-dir>/loop-state.yaml` (create from `openspec/changes/_template/loop-state.yaml` if missing): set `execution_mode: <mode>`.
    - **DP-3 (Approval Gate):** summarize the contract and ask the user for explicit approval. No implementation without approval.
-5. **Phase gate (propose -> apply - programmatic):** run `bash openspec/guard.sh proposing applying <change-dir>`. Non-zero exit -> STOP. This checks: artifacts exist + schema valid + contract fresh. On PASS, update `loop-state.yaml`: set `phase: applying`, `change: <name>`.
+5. **Phase gate (propose -> apply - programmatic):** run `bash openspec/guard.sh proposing applying <change-dir>`. Non-zero exit -> STOP. This checks: artifacts exist + schema valid + contract fresh. On PASS, update `<change-dir>/loop-state.yaml`: set `phase: applying` (per-change state owns `change`; do not write the global file).
 
 ## Legacy Characterization (when modifying existing un-specced code)
 If the change touches code with NO existing spec in `openspec/specs/`:

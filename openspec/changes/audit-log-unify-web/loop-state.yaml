@@ -1,0 +1,19 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+# Phases: proposing -> applying -> verifying -> archived | abandoned (terminal).
+#   debugging side-path: applying -> debugging (3-strike) -> applying | proposing (rewind)
+# Copy into each change directory: openspec/changes/<name>/loop-state.yaml.
+# The global openspec/loop-state.yaml is the legacy shared default - prefer this file.
+phase: proposing
+change: audit-log-unify-web
+current_task: null
+tasks_total: 7
+tasks_done: 0
+retry_count: 0
+debt_count: 0
+debug_attempts: 0
+workflow_mode: null
+artifacts_hash: 733b41899548a21ce35f420a177ef13c0c307a7c270ff18562d3ada3511bca2e
+contract_hash: null
+execution_mode: Batch Inline
+batches_completed: 0
+last_updated: null

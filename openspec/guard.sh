@@ -78,7 +78,9 @@ check_abandon_safe() {
     [[ $_json -eq 0 ]] && echo "  [guard] abandon OK - debt.md has entries"
     return 0
   fi
-  local state="$openspec_dir/loop-state.yaml"
+  # Per-change state preferred (parallel-safe); fall back to global (legacy).
+  local state="$dir/loop-state.yaml"
+  [[ -f "$state" ]] || state="$openspec_dir/loop-state.yaml"
   if [[ -f "$state" ]]; then
     local done
     done=$(grep '^tasks_done:' "$state" 2>/dev/null | awk '{print $2}')
@@ -103,8 +105,10 @@ check_contract_fresh() {
 }
 
 check_tasks_complete() {
-  local state="$openspec_dir/loop-state.yaml"
-  [[ -f "$state" ]] || fail "loop-state.yaml not found"
+  # Per-change state preferred (parallel-safe); fall back to global (legacy).
+  local state="$dir/loop-state.yaml"
+  [[ -f "$state" ]] || state="$openspec_dir/loop-state.yaml"
+  [[ -f "$state" ]] || fail "loop-state.yaml not found (per-change or openspec/)"
   local done total
   done=$(grep '^tasks_done:' "$state" | awk '{print $2}')
   total=$(grep '^tasks_total:' "$state" | awk '{print $2}')
@@ -124,6 +128,12 @@ case "$key" in
     check_artifacts_exist
     check_schema_valid
     check_contract_fresh
+    # Parallel-safety advisory (non-blocking): warn if another active change owns the same files.
+    if [[ $_json -eq 0 && -f "$openspec_dir/check-conflicts.sh" ]]; then
+      if ! bash "$openspec_dir/check-conflicts.sh" "$openspec_dir/.." >/dev/null 2>&1; then
+        echo "  [guard] WARNING: file overlap with another active change - run 'bash openspec/check-conflicts.sh' (serialize or use a worktree)" >&2
+      fi
+    fi
     ;;
   applying:verifying)
     [[ $_json -eq 0 ]] && echo "  [guard] applying -> verifying"

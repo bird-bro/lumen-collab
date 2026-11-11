@@ -1,0 +1,8 @@
+# File ownership - user-edit-delete-profile (user profile edit/delete)
+- lumen-sev/lumen-system/src/main/resources/db/migration/V26__user_profile_columns.sql
+- lumen-sev/lumen-system/src/main/java/org/birdbro/lumen/system/controller/UserInfoController.java
+- lumen-web/src/api/users.ts
+- lumen-web/src/api/types.ts
+- lumen-web/src/pages/system/users/
+- lumen-web/src/pages/system/orgs/logo-upload.tsx
+- lumen-web/src/test/users-page.test.tsx

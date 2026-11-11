@@ -657,3 +657,10 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
   Note: reactor exit was mvn-failure (mvn <args> resume line) — the "exit code 0" in
   the notification is the background-shell wrapper's, not mvn's; verdict read from
   surefire. These 7 are exactly task 4.2's re-target list.
+- Batch 3 CLOSED (tasks 3.1-3.2 checked, 9/12; commits d5d3427 + 1b4de3c checkbox).
+  Contract hash e3a85940. Since subagent runs are timing out, Batch 4 review will be
+  self-review + the standing L1/L3 gates (or a fresh agent if the API stabilizes).
+- Batch 4 (4.1-4.3 deletion + sweep): Dispatched INLINE (parent drives; scope: delete
+  log_sign code family keep common LogSign POJO; re-target AuthSignLogTests/
+  AuthSignLogQueryTests/AuthUserAgentResilienceTests/AuthLogQueryTests to log_info;
+  def-partition edge case pickup per b2 review Minor; full reactor green).
