@@ -11,11 +11,25 @@
  */
 import { apiRequest, ApiError } from './client';
 import { encryptPassword, invalidateKeyCache } from '@/utils/password-cipher';
-import type { CreateUserBody, UserItem } from './types';
+import type { CreateUserBody, UpdateUserBody, UserDetail, UserItem } from './types';
 
 /** GET /system/users/list - plain UserItemDto array (BCrypt hash never serializes). */
 export function listUsers(): Promise<UserItem[]> {
   return apiRequest<UserItem[]>('/system/users/list', { method: 'GET' });
+}
+
+/**
+ * GET /system/users/list/profile - the richer read (user-edit-delete-profile
+ * backend, api delta): rows carry the V26 profile columns plus the
+ * batch-resolved roleNames/depName. The console page's data source.
+ */
+export function listUsersWithProfile(): Promise<UserItem[]> {
+  return apiRequest<UserItem[]>('/system/users/list/profile', { method: 'GET' });
+}
+
+/** GET /system/users/{id} - the full profile detail (the edit dialog's echo). */
+export function getUserDetail(id: number): Promise<UserDetail> {
+  return apiRequest<UserDetail>(`/system/users/${id}`, { method: 'GET' });
 }
 
 /**
@@ -61,4 +75,19 @@ export async function resetPassword(id: number, password: string): Promise<boole
 /** PUT /system/users/{id}/enable - toggles the enable flag (0 | 1). */
 export function enableUser(id: number, enable: 0 | 1): Promise<boolean> {
   return apiRequest<boolean>(`/system/users/${id}/enable`, { method: 'PUT', body: { enable } });
+}
+
+/**
+ * PUT /system/users/{id} - the partial profile update (user-edit-delete-profile
+ * api delta). No password/username fields exist on the body type - the backend
+ * ignores a posted username by construction and the reset stays its own SM2
+ * endpoint. A present `roleIds` full-replaces the bindings.
+ */
+export function updateUser(id: number, body: UpdateUserBody): Promise<boolean> {
+  return apiRequest<boolean>(`/system/users/${id}`, { method: 'PUT', body });
+}
+
+/** DELETE /system/users/{id} - the protected logical delete (self + seed-admin reject). */
+export function deleteUser(id: number): Promise<boolean> {
+  return apiRequest<boolean>(`/system/users/${id}`, { method: 'DELETE' });
 }

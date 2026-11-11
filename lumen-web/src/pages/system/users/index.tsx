@@ -1,12 +1,22 @@
-import { Button, Drawer, Form, Input, Select, Space, Switch, Tag, Tooltip, Typography, message, theme } from 'antd'
+import { Button, Drawer, Form, Input, Popconfirm, Select, Space, Switch, Tag, Typography, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createUser, enableUser, listUsers, resetPassword } from '@/api/users'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  createUser,
+  deleteUser,
+  enableUser,
+  getUserDetail,
+  listUsersWithProfile,
+  resetPassword,
+  updateUser,
+} from '@/api/users'
 import { listRoles } from '@/api/roles'
+import { listDeps } from '@/api/org-deps'
 import { ApiError } from '@/api/client'
-import type { RoleItem, UserItem } from '@/api/types'
-import { useAuthStore } from '@/stores/auth'
+import type { DictItem, OrgDep, RoleItem, UserItem } from '@/api/types'
 import { usePerm } from '@/utils/perm'
+import { dictItemsByName, resolveDictLabel } from '@/utils/dict-items'
+import { SignatureUploadField } from './signature-upload'
 import {
   ConsoleAction,
   ConsoleAddButton,
@@ -19,38 +29,26 @@ import {
 } from '../console-shell'
 
 /**
- * 用户管理 (batch 6a, task 6.3; spec `specs/web-system-console`
- * § User Management: `users/list` is a PLAIN list the view paginates
- * client-side, with create, password reset and enable/disable).
+ * 用户管理 (user-edit-delete-profile-web; spec `specs/web-system-console` §
+ * User Management): the RCP-shaped console - the list reads
+ * `GET /system/users/list/profile` (the rows carry the V26 profile columns and
+ * the batch-resolved roleNames/depName, so the 角色 chips render for ANY row -
+ * the former session-profile-only hack and its 未提供 chip are dead), the row
+ * actions carry 编辑 (the shared drawer prefilled from `GET /users/{id}`,
+ * 登录账号 disabled) and 删除 (Popconfirm -> the protected logical delete;
+ * self/seed-admin rejections surface the backend msg), the create dialog grows
+ * the same profile form, and the four dict-backed selects
+ * (性别/职称/检查类型/审核权限) resolve through the session-cached by-name
+ * lookup with the raw-code fallback (role-type-dict-web D4 precedent).
  *
- * Layout: `prototype/console-shell.html` `.main > .panel` - the `.search` tool
- * row (f-label + select + 查询 LEFT, the `.push` primary 新建用户 RIGHT), the
- * `.tbl` columns 用户名/姓名/角色/启用/创建时间/操作 with the `.th-refresh`
- * glyph, the `.tag` chips, the `.switch` in 启用, the centered 60px `.pager`
- * with `共 N 条`, and the `.modal` create dialog whose 用户名 helper line
- * states the duplicate-username contract verbatim.
+ * 重置密码 and the 启用 switch stay byte-for-byte in behavior (the SM2
+ * transport + the optimistic flip + the re-sync, password-transport-encryption
+ * and button-perm precedents).
  *
- * Two recorded departures (both forced by the documented surface, never by
- * taste - `specs/web-app-shell` § API Client Seam Without Invented Endpoints):
- * 1. the prototype's tool-row control is a 科室 select, but no endpoint binds a
- *    user to a department (`users/list` takes no query and `UserItemDto` has no
- *    org/dep field), so a dept dropdown would be a dead control; the tool row's
- *    dropdown filters the ENABLE state, which the payload really carries, and
- *    the text query filters 用户名/姓名. The role catalog from `roles/list`
- *    still feeds the create dialog's 角色 select (CreateUserBody.roleIds).
- * 2. the prototype's 编辑/删除 row glyphs are NOT implemented: no user
- *    edit/delete endpoint exists. The operation column carries 重置密码 only.
- *    The 角色 column can only name the CURRENT session user's roles (that is
- *    what the payload publishes via the session profile); other rows show an
- *    explicit 未提供 chip instead of a fabricated grant.
- *
- * Permission gating: `system:user:list` (SEED_MENUS id 2 = the V2 seed row and
- * the backend `@PreAuthorize` on the user endpoints) gates the add button, the
- * reset action and the enable switch. No new perms string is invented.
+ * Permission gating: `system:user:list` gates the page affordances; the new
+ * 编辑/删除 answer to the V26-seeded `system:user:update` /
+ * `system:user:delete` button perms (no invented strings).
  */
-
-/** Prototype `.tbl` widths (200/200/200/110/auto/150). */
-const COLUMN_WIDTHS = { username: 200, name: 200, roles: 200, enable: 110, actions: 150 } as const
 
 const PAGE_SIZE = 10
 
@@ -66,10 +64,27 @@ const ENABLE_FILTERS = [
 
 type EnableFilter = (typeof ENABLE_FILTERS)[number]['value']
 
-interface CreateUserValues {
+/** The dict catalogs the four selects consume (the V26 seeds anchor by NAME). */
+const DICT_GENDER = '性别'
+const DICT_TITLE = '职称'
+const DICT_EXAM_TYPE = '检查类型'
+const DICT_REP_AUDIT = '审核权限'
+
+/** The 检查类型 CSV's separator - the RCP lineage's storage shape. */
+const CSV_SEPARATOR = ','
+
+interface UserFormValues {
   username: string
   name: string
+  phone?: string
+  email?: string
+  gender?: number
+  title?: number
+  depId?: number
   roleIds?: number[]
+  modalitys?: number[]
+  repAudit?: number
+  signature?: string | null
   password: string
 }
 
@@ -81,31 +96,40 @@ export default function UsersPage() {
   const hasPerm = usePerm()
   const canManage = hasPerm('system:user:list')
   // button-level gating (button-perm-enforcement-web): each affordance answers to
-  // its own perms string (the V15 seeded F nodes pinned server-side)
+  // its own perms string (the V15/V26 seeded F nodes pinned server-side)
   const canCreate = canManage && hasPerm('system:user:create')
   const canResetPwd = canManage && hasPerm('system:user:reset-pwd')
   const canEnable = canManage && hasPerm('system:user:enable')
-  const profile = useAuthStore((state) => state.profile)
+  const canUpdate = canManage && hasPerm('system:user:update')
+  const canDelete = canManage && hasPerm('system:user:delete')
   const { token } = theme.useToken()
 
   const [users, setUsers] = useState<UserItem[]>([])
   const [roles, setRoles] = useState<RoleItem[]>([])
+  const [deps, setDeps] = useState<OrgDep[]>([])
+  const [genderItems, setGenderItems] = useState<DictItem[]>([])
+  // The ref mirror the prefill mapping reads (state may lag the click's closure).
+  const examTypeItemsRef = useRef<DictItem[]>([])
+  const [titleItems, setTitleItems] = useState<DictItem[]>([])
+  const [examTypeItems, setExamTypeItems] = useState<DictItem[]>([])
+  const [repAuditItems, setRepAuditItems] = useState<DictItem[]>([])
   const [loading, setLoading] = useState(true)
   const [queryDraft, setQueryDraft] = useState('')
   const [query, setQuery] = useState('')
   const [enableFilter, setEnableFilter] = useState<EnableFilter>('all')
   const [page, setPage] = useState(1)
-  const [createOpen, setCreateOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [resetTarget, setResetTarget] = useState<UserItem | null>(null)
-  const [form] = Form.useForm<CreateUserValues>()
+  const [form] = Form.useForm<UserFormValues>()
   const [resetForm] = Form.useForm<ResetValues>()
   const [messageApi, messageHolder] = message.useMessage()
 
   const reload = useCallback(async () => {
     setLoading(true)
     try {
-      setUsers(await listUsers())
+      setUsers(await listUsersWithProfile())
     } catch (error) {
       messageApi.error(error instanceof ApiError ? error.msg : '用户列表加载失败')
     } finally {
@@ -117,9 +141,8 @@ export default function UsersPage() {
     void reload()
   }, [reload])
 
-  // Role catalog for the create dialog's 角色 select. `roles/list` is the
-  // api-delta gap endpoint (mock-served until the backend implements it), so a
-  // failure leaves the catalog empty instead of blocking the user table.
+  // The create/edit dialog's 角色 catalog (the roles list; a failure leaves it
+  // empty instead of blocking the user table - the batch-6a precedent).
   useEffect(() => {
     let alive = true
     void (async () => {
@@ -135,7 +158,47 @@ export default function UsersPage() {
     }
   }, [])
 
-  // Client-side view state over the one plain array (spec: the view paginates).
+  // The 所属科室 options (the departments list; same degrade-to-empty rule).
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        if (alive) setDeps(await listDeps())
+      } catch {
+        if (alive) setDeps([])
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // The four dict catalogs, one wire call per name per session (the
+  // dict-items util's cache); a failure degrades to raw codes, never blocking.
+  useEffect(() => {
+    let alive = true
+    const load = (name: string, set: (items: DictItem[]) => void) => {
+      void dictItemsByName(name)
+        .then((items) => {
+          if (alive) set(items)
+        })
+        .catch((error: unknown) => {
+          if (alive) messageApi.error(error instanceof ApiError ? error.msg : `${name}字典加载失败`)
+        })
+    }
+    load(DICT_GENDER, setGenderItems)
+    load(DICT_TITLE, setTitleItems)
+    load(DICT_EXAM_TYPE, (items) => {
+      examTypeItemsRef.current = items
+      setExamTypeItems(items)
+    })
+    load(DICT_REP_AUDIT, setRepAuditItems)
+    return () => {
+      alive = false
+    }
+  }, [messageApi])
+
+  // Client-side view state over the one plain array (the view paginates).
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return users.filter((user) => {
@@ -152,50 +215,148 @@ export default function UsersPage() {
     [filtered, page],
   )
 
-  /**
-   * 查询 applies the client-side predicates AND re-issues the one documented
-   * read: spec § User Management says the list "re-queries on filter/page
-   * change" while the same requirement pins pagination to the view (the plain
-   * array), so a filter press refreshes the array and page switches stay local.
-   */
   const runQuery = () => {
     setQuery(queryDraft)
     setPage(1)
     void reload()
   }
 
-  const closeCreate = useCallback(() => {
-    setCreateOpen(false)
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false)
+    setEditingId(null)
     form.resetFields()
   }, [form])
 
-  const submitCreate = useCallback(async () => {
-    // A rejected validateFields() must never escape the drawer footer submit handler
-    // (an unhandled rejection would also swallow the dialog's field errors).
+  const openCreate = useCallback(() => {
+    setEditingId(null)
+    form.resetFields()
+    setDrawerOpen(true)
+  }, [form])
+
+  const openEdit = useCallback(
+    async (row: UserItem) => {
+      setEditingId(row.uid)
+      try {
+        // The four catalogs settle BEFORE the mapping: the prefill maps the CSV's
+        // dict values to codes through examTypeItems, and racing the mount effects
+        // would map against an empty catalog (NaN-filtered to a blank select).
+        // dictItemsByName is session-cached - an already-loaded catalog resolves
+        // instantly here.
+        await Promise.allSettled([
+          dictItemsByName(DICT_GENDER),
+          dictItemsByName(DICT_TITLE),
+          dictItemsByName(DICT_EXAM_TYPE),
+          dictItemsByName(DICT_REP_AUDIT),
+        ])
+        const detail = await getUserDetail(row.uid)
+        form.setFieldsValue({
+          username: detail.username,
+          name: detail.name,
+          phone: detail.phone ?? undefined,
+          email: detail.email ?? undefined,
+          gender: detail.gender ?? undefined,
+          title: detail.title ?? undefined,
+          depId: detail.depId ?? undefined,
+          roleIds: detail.roleIds,
+          // The CSV splits back to the multi-select's array (the RCP precedent).
+          // The RCP lineage stores the dict VALUES ('CT,MR') - map each entry to
+          // its dict CODE (the Select's value), degrading to the raw entry when
+          // the dict lacks it (the raw-code fallback's mirror).
+          modalitys: detail.modalitys
+            ? detail.modalitys
+                .split(CSV_SEPARATOR)
+                .map((entry) => {
+                  const trimmed = entry.trim()
+                  const match = examTypeItemsRef.current.find((item) => item.value === trimmed)
+                  return match?.code ?? Number(trimmed)
+                })
+                .filter((code): code is number => Number.isFinite(code))
+            : [],
+          repAudit: detail.repAudit ?? undefined,
+          signature: detail.signature,
+          password: '',
+        })
+        setDrawerOpen(true)
+      } catch (error) {
+        messageApi.error(error instanceof ApiError ? error.msg : '用户详情加载失败')
+      }
+    },
+    [form, messageApi],
+  )
+
+  const submitDrawer = useCallback(async () => {
     const values = await readForm(form)
     if (!values) return
     setSaving(true)
     try {
-      await createUser({
-        username: values.username,
-        password: values.password,
-        name: values.name,
-        ...(values.roleIds && values.roleIds.length > 0 ? { roleIds: values.roleIds } : {}),
-      })
-      closeCreate()
+      if (editingId != null) {
+        await updateUser(editingId, {
+          name: values.name,
+          phone: values.phone ?? null,
+          email: values.email ?? null,
+          gender: values.gender ?? null,
+          title: values.title ?? null,
+          depId: values.depId ?? null,
+          roleIds: values.roleIds ?? [],
+          // the multi-select's array joins to the CSV the payload carries
+          modalitys: values.modalitys && values.modalitys.length > 0
+            ? values.modalitys.join(CSV_SEPARATOR)
+            : null,
+          repAudit: values.repAudit ?? null,
+          signature: values.signature ?? null,
+        })
+      } else {
+        await createUser({
+          username: values.username,
+          password: values.password,
+          name: values.name,
+          phone: values.phone ?? null,
+          email: values.email ?? null,
+          gender: values.gender ?? null,
+          title: values.title ?? null,
+          depId: values.depId ?? null,
+          roleIds: values.roleIds,
+          modalitys:
+            values.modalitys && values.modalitys.length > 0
+              ? values.modalitys.join(CSV_SEPARATOR)
+              : null,
+          repAudit: values.repAudit ?? null,
+          signature: values.signature ?? null,
+        })
+      }
+      closeDrawer()
       await reload()
     } catch (error) {
       if (error instanceof ApiError) {
-        // A0111 「用户名已存在」 and every other create rejection land ON THE
-        // FORM and the dialog stays open (spec: Duplicate username feedback).
-        form.setFields([{ name: 'username', errors: [error.msg] }])
+        if (editingId == null) {
+          // A0111 「用户名已存在」 and every other create rejection land ON THE
+          // FORM and the dialog stays open (the duplicate-username contract).
+          form.setFields([{ name: 'username', errors: [error.msg] }])
+        } else {
+          // an update rejection keeps the dialog with the msg surfaced
+          messageApi.error(error.msg)
+        }
       } else {
-        messageApi.error('创建用户失败')
+        messageApi.error(editingId == null ? '创建用户失败' : '保存用户失败')
       }
     } finally {
       setSaving(false)
     }
-  }, [closeCreate, form, messageApi, reload])
+  }, [closeDrawer, editingId, form, messageApi, reload])
+
+  const confirmDelete = useCallback(
+    async (row: UserItem) => {
+      try {
+        await deleteUser(row.uid)
+      } catch (error) {
+        // the protected-account rejection (self / seed admin) surfaces and the row stays
+        messageApi.error(error instanceof ApiError ? error.msg : '删除用户失败')
+        return
+      }
+      await reload()
+    },
+    [messageApi, reload],
+  )
 
   const closeReset = useCallback(() => {
     setResetTarget(null)
@@ -204,8 +365,6 @@ export default function UsersPage() {
 
   const submitReset = useCallback(async () => {
     if (!resetTarget) return
-    // A rejected validateFields() must never escape the drawer footer submit handler
-    // (an unhandled rejection would also swallow the dialog's field errors).
     const values = await readForm(resetForm)
     if (!values) return
     setSaving(true)
@@ -215,7 +374,6 @@ export default function UsersPage() {
       // The re-list echoes mustChangePassword = 1 (the reset's visible effect).
       await reload()
     } catch (error) {
-      // A/B-class reset failures: msg via message.error, dialog stays open.
       messageApi.error(error instanceof ApiError ? error.msg : '重置密码失败')
     } finally {
       setSaving(false)
@@ -241,30 +399,29 @@ export default function UsersPage() {
 
   const columns: TableColumnsType<UserItem> = [
     {
-      title: '用户名',
-      dataIndex: 'username',
-      width: COLUMN_WIDTHS.username,
-      render: (username: string) => (
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{username}</span>
+      title: '姓名',
+      dataIndex: 'name',
+      width: 160,
+      render: (name: string, row: UserItem) => (
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '20px' }}>
+          <span>{name}</span>
+          <Typography.Text type="secondary" style={{ fontSize: token.fontSizeSM, fontVariantNumeric: 'tabular-nums' }}>
+            {row.username}
+          </Typography.Text>
+        </div>
       ),
     },
-    { title: '姓名', dataIndex: 'name', width: COLUMN_WIDTHS.name },
     {
       key: 'roles',
       title: '角色',
-      width: COLUMN_WIDTHS.roles,
+      width: 180,
       render: (_: unknown, row: UserItem) => {
-        const names = row.uid === profile?.uid ? profile.roles : []
-        if (names.length === 0) {
-          return (
-            <Tooltip title="用户列表接口未发布按用户的角色绑定(api delta 未提供该端点),故仅当前会话账号可显示角色">
-              <Tag style={{ marginInlineEnd: 0 }}>未提供</Tag>
-            </Tooltip>
-          )
+        if (!row.roleNames || row.roleNames.length === 0) {
+          return <span style={{ color: token.colorTextTertiary }}>—</span>
         }
         return (
           <Space size={4} wrap>
-            {names.map((name) => (
+            {row.roleNames.map((name) => (
               <Tag key={name} style={{ marginInlineEnd: 0 }}>
                 {name}
               </Tag>
@@ -274,9 +431,45 @@ export default function UsersPage() {
       },
     },
     {
+      title: '科室',
+      dataIndex: 'depName',
+      width: 120,
+      render: (depName: string | null) =>
+        depName ? depName : <span style={{ color: token.colorTextTertiary }}>—</span>,
+    },
+    {
+      title: '职称',
+      dataIndex: 'title',
+      width: 110,
+      render: (title: number | null) =>
+        title == null ? (
+          <span style={{ color: token.colorTextTertiary }}>—</span>
+        ) : (
+          resolveDictLabel(titleItems, title)
+        ),
+    },
+    {
+      title: '手机号',
+      dataIndex: 'phone',
+      width: 140,
+      render: (phone: string | null) => (
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {phone ?? <span style={{ color: token.colorTextTertiary }}>—</span>}
+        </span>
+      ),
+    },
+    {
+      title: '邮箱',
+      dataIndex: 'email',
+      width: 180,
+      ellipsis: true,
+      render: (email: string | null) =>
+        email ?? <span style={{ color: token.colorTextTertiary }}>—</span>,
+    },
+    {
       title: '启用',
       dataIndex: 'enable',
-      width: COLUMN_WIDTHS.enable,
+      width: 90,
       render: (enable: number, row: UserItem) => (
         <Switch
           checked={enable === 1}
@@ -291,6 +484,7 @@ export default function UsersPage() {
     {
       title: '创建时间',
       dataIndex: 'createTime',
+      width: 160,
       render: (createTime: string, row: UserItem) => (
         <Space size={6} wrap>
           <Typography.Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -302,6 +496,8 @@ export default function UsersPage() {
     },
   ]
 
+  const isEdit = editingId != null
+
   return (
     <div style={{ height: '100%' }}>
       {messageHolder}
@@ -309,7 +505,7 @@ export default function UsersPage() {
         <ConsoleToolRow
           trailing={
             canCreate ? (
-              <ConsoleAddButton label="新建用户" onClick={() => setCreateOpen(true)} />
+              <ConsoleAddButton label="新建用户" onClick={openCreate} />
             ) : undefined
           }
         >
@@ -344,9 +540,28 @@ export default function UsersPage() {
           actions={
             canManage
               ? {
-                  width: COLUMN_WIDTHS.actions,
+                  width: 170,
                   render: (row) =>
                     [
+                      canUpdate ? (
+                        <ConsoleAction
+                          key="edit"
+                          label="编辑"
+                          icon="edit"
+                          onClick={() => void openEdit(row)}
+                        />
+                      ) : null,
+                      canDelete ? (
+                        <Popconfirm
+                          key="delete"
+                          title={`确定删除用户 ${row.name}?`}
+                          okText="确定"
+                          cancelText="取消"
+                          onConfirm={() => void confirmDelete(row)}
+                        >
+                          <ConsoleAction label="删除" icon="remove" danger onClick={() => undefined} />
+                        </Popconfirm>
+                      ) : null,
                       canResetPwd ? (
                         <ConsoleAction
                           key="reset"
@@ -375,32 +590,72 @@ export default function UsersPage() {
       </ConsolePage>
 
       <Drawer
-        open={createOpen}
-        title="新建用户"
-        width={500}
-        onClose={closeCreate}
+        open={drawerOpen}
+        title={isEdit ? '编辑用户' : '新建用户'}
+        width={520}
+        onClose={closeDrawer}
         closable={{ placement: 'end' }}
         maskClosable={false}
         destroyOnHidden
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button onClick={closeCreate}>取消</Button>
-            <Button type="primary" loading={saving} onClick={() => void submitCreate()}>
+            <Button onClick={closeDrawer}>取消</Button>
+            <Button type="primary" loading={saving} onClick={() => void submitDrawer()}>
               保存
             </Button>
           </div>
         }
       >
-        <Form<CreateUserValues> form={form} layout="vertical" disabled={saving}>
+        <Form<UserFormValues> form={form} layout="vertical" disabled={saving}>
           <Form.Item
             name="username"
-            label="用户名"
-            rules={[{ required: true, message: '请输入用户名' }]}
+            label="登录账号"
+            rules={[{ required: true, message: '请输入登录账号' }]}
+            extra={isEdit ? undefined : '登录账号,创建后不可修改'}
           >
-            <Input placeholder="登录账号,创建后不可修改" autoComplete="off" />
+            <Input
+              placeholder="登录账号"
+              autoComplete="off"
+              disabled={isEdit}
+            />
           </Form.Item>
           <Form.Item name="name" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>
             <Input placeholder="真实姓名" autoComplete="off" />
+          </Form.Item>
+          <Form.Item name="phone" label="手机号">
+            <Input placeholder="手机号" maxLength={11} style={{ fontVariantNumeric: 'tabular-nums' }} />
+          </Form.Item>
+          <Form.Item
+            name="email"
+            label="邮箱"
+            rules={[{ type: 'email', message: '邮箱格式不正确' }]}
+          >
+            <Input placeholder="邮箱" autoComplete="off" />
+          </Form.Item>
+          <Form.Item name="gender" label="性别">
+            <Select
+              allowClear
+              placeholder="请选择性别"
+              options={genderItems.map((item) => ({ value: item.code, label: item.value }))}
+            />
+          </Form.Item>
+          <Form.Item name="title" label="职称">
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              placeholder="请选择职称"
+              options={titleItems.map((item) => ({ value: item.code, label: item.value }))}
+            />
+          </Form.Item>
+          <Form.Item name="depId" label="所属科室">
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              placeholder="请选择所属科室"
+              options={deps.map((d) => ({ value: d.id, label: d.name }))}
+            />
           </Form.Item>
           <Form.Item name="roleIds" label="角色">
             <Select
@@ -411,13 +666,34 @@ export default function UsersPage() {
               options={roles.map((role) => ({ value: role.id, label: role.name }))}
             />
           </Form.Item>
-          <Form.Item
-            name="password"
-            label="初始密码"
-            rules={[{ required: true, message: '请输入初始密码' }]}
-          >
-            <Input.Password placeholder="首次登录时将要求修改密码" autoComplete="new-password" />
+          <Form.Item name="modalitys" label="检查类型">
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="可查看的检查类型数据(CT/MR/US...)"
+              optionFilterProp="label"
+              options={examTypeItems.map((item) => ({ value: item.code, label: item.value }))}
+            />
           </Form.Item>
+          <Form.Item name="repAudit" label="审核权限">
+            <Select
+              allowClear
+              placeholder="报告审核层级"
+              options={repAuditItems.map((item) => ({ value: item.code, label: item.value }))}
+            />
+          </Form.Item>
+          <Form.Item name="signature" label="签名">
+            <SignatureUploadField />
+          </Form.Item>
+          {!isEdit ? (
+            <Form.Item
+              name="password"
+              label="初始密码"
+              rules={[{ required: true, message: '请输入初始密码' }]}
+            >
+              <Input.Password placeholder="首次登录时将要求修改密码" autoComplete="new-password" />
+            </Form.Item>
+          ) : null}
         </Form>
       </Drawer>
 

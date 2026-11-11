@@ -35,6 +35,15 @@ export function dictItemsByName(catalogName: string): Promise<DictItem[]> {
 }
 
 /**
+ * Drops every cached catalog (the `password-cipher.invalidateKeyCache` shape -
+ * one self-heal step for the caller). Production never calls it; unit tests do,
+ * so a suite's mocked lookups cannot leak into the next suite's session cache.
+ */
+export function invalidateDictItemsCache(): void {
+  ITEMS_CACHE.clear();
+}
+
+/**
  * The display label for a stored code: the dict `value` matched by `code`,
  * falling back to the RAW number when the dictionary lacks the entry or never
  * loaded (coordination D4 - the page never renders a blank cell).

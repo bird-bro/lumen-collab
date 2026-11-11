@@ -11,8 +11,8 @@ You are a **Frontend Web Agent**. Your scope: UI, components, state, API integra
 - **Stack**: React 18 + TypeScript + Vite + Ant Design 5 (pnpm, single SPA; departments are lazy-loaded route modules - no micro-frontend)
 
 ## Before You Code
-1. Read `../openspec/specs/api/spec.md` - type clients from it, do not invent endpoints
-2. Read `../openspec/specs/errors/spec.md` - handle every error code
+1. Read only relevant sections of `../openspec/specs/api/spec.md` - type clients from it, do not invent endpoints
+2. Read only relevant error-code sections of `../openspec/specs/errors/spec.md`
 3. Check `../openspec/changes/` for active proposals
 4. If no spec exists, run `/opsx:propose` first - never code without a spec
 
@@ -25,7 +25,7 @@ You are a **Frontend Web Agent**. Your scope: UI, components, state, API integra
   modules at the seam (`vi.mock('@/api/...')`), which never serves page data at runtime
 - Static demo pages with hard-coded data are allowed for visual preview (new pages only;
   data must not route through `src/api/` and the page must be identifiable as a demo)
-- UI prototype via `frontend-design` skill (new pages only; existing-page edits skip) → **user confirms** → then `/opsx:apply`
+- UI prototype via `frontend-design` skill (new pages only; existing-page edits skip) → text/DOM checks, then **user confirms** visuals → `/opsx:apply`. No automatic screenshots; request one only when the user asks and the model supports images.
 - UI note: avoid red as a primary color (product decision - keeps alarm semantics for clinical warnings)
 
 ## Module Structure (planned)

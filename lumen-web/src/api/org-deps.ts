@@ -45,6 +45,14 @@ export function updateDep(id: number, body: UpdateDepBody): Promise<boolean> {
   return apiRequest<boolean>(`/system/org-deps/${id}`, { method: 'PUT', body });
 }
 
+/**
+ * PUT /system/org-deps/{id}/status - the explicit lifecycle toggle
+ * (0 = disabled, 1 = enabled), mirroring the org family's status command.
+ */
+export function setDepStatus(id: number, status: 0 | 1): Promise<boolean> {
+  return apiRequest<boolean>(`/system/org-deps/${id}/status`, { method: 'PUT', body: { status } });
+}
+
 /** DELETE /system/org-deps/{id}. */
 export function deleteDep(id: number): Promise<boolean> {
   return apiRequest<boolean>(`/system/org-deps/${id}`, { method: 'DELETE' });

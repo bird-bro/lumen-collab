@@ -90,6 +90,17 @@ function pageDepFixture(byOrg: Record<string, Page<OrgDep>>) {
   })
 }
 
+/** Successive rounds for the ALL-campuses page (the reload after a toggle must
+ * see the flipped row, mirroring the org page's two-round treeFixture). */
+function pageDepRoundsFixture(...rounds: Page<OrgDep>[]) {
+  let call = 0
+  vi.mocked(orgDepsApi.pageDep).mockImplementation(() => {
+    const round = rounds[Math.min(call, rounds.length - 1)]
+    call += 1
+    return Promise.resolve(round)
+  })
+}
+
 function renderPage() {
   return render(
     <ConfigProvider theme={themeConfig}>
@@ -156,6 +167,7 @@ beforeEach(() => {
   vi.mocked(orgsApi.orgTree).mockResolvedValue(ORG_TREE)
   vi.mocked(orgDepsApi.createDep).mockResolvedValue(13)
   vi.mocked(orgDepsApi.updateDep).mockResolvedValue(true)
+  vi.mocked(orgDepsApi.setDepStatus).mockResolvedValue(true)
   vi.mocked(orgDepsApi.deleteDep).mockResolvedValue(true)
   pageDepFixture({
     all: pageOf([DEP_RADIOLOGY_A, DEP_RADIOLOGY_B]),
@@ -217,7 +229,8 @@ describe('dep page - server-side table (delta: Department Table Management)', ()
     const row = rowOf('radiology')
     expect(within(row).getByText('放射科')).toBeInTheDocument()
     expect(within(row).getByText('radiology')).toBeInTheDocument()
-    expect(within(row).getByText('启用')).toHaveClass('ant-tag')
+    // Status is a toggle Switch (mirrors the org page), never a static tag.
+    expect(within(row).getByRole('switch', { name: '启用 放射科' })).toBeChecked()
     expect(within(row).getByText('总院区')).toBeInTheDocument()
     expect(within(row).getByText('—')).toBeInTheDocument()
     expect(within(row).getByText('2026-11-06 10:00:00')).toBeInTheDocument()
@@ -293,6 +306,56 @@ describe('dep page - server-side table (delta: Department Table Management)', ()
     await waitFor(() => {
       expect(within(drawer()).getByText('总院区')).toBeInTheDocument()
     })
+  })
+})
+
+describe('dep page - status toggle (mirrors the org page switch)', () => {
+  it('toggles department status through the dedicated PUT /status endpoint', async () => {
+    const user = userEvent.setup()
+    // Rounds 1-2: enabled (mount + the tree auto-select's identical reload);
+    // the post-toggle reload (round 3) returns the disabled row.
+    pageDepRoundsFixture(
+      pageOf([DEP_RADIOLOGY_A, DEP_RADIOLOGY_B]),
+      pageOf([DEP_RADIOLOGY_A, DEP_RADIOLOGY_B]),
+      pageOf([dep({ ...DEP_RADIOLOGY_A, status: 0 }), DEP_RADIOLOGY_B]),
+    )
+    renderPage()
+    await waitForRow('radiology')
+
+    await waitForTableReady()
+    await user.click(within(rowOf('radiology')).getByRole('switch', { name: '启用 放射科' }))
+    // The dedicated status command, NOT the generic partial update.
+    await waitFor(() => expect(orgDepsApi.setDepStatus).toHaveBeenCalledWith(11, 0))
+    expect(vi.mocked(orgDepsApi.updateDep)).not.toHaveBeenCalled()
+    // The reload re-syncs the cell from the flipped server page.
+    await waitFor(() =>
+      expect(within(rowOf('radiology')).getByRole('switch', { name: '启用 放射科' })).not.toBeChecked(),
+    )
+  })
+
+  it('rolls the switch back with the backend message when the toggle is rejected', async () => {
+    const user = userEvent.setup()
+    pageDepFixture({ all: pageOf([DEP_RADIOLOGY_A, DEP_RADIOLOGY_B]) })
+    vi.mocked(orgDepsApi.setDepStatus).mockRejectedValue(
+      new ApiError('B0031', 'department id 11 does not exist'),
+    )
+    renderPage()
+    await waitForRow('radiology')
+
+    await waitForTableReady()
+    await user.click(within(rowOf('radiology')).getByRole('switch', { name: '启用 放射科' }))
+    expect(await screen.findByText('department id 11 does not exist')).toBeInTheDocument()
+    // The reload re-syncs the cell from the (unchanged) server page.
+    await waitFor(() =>
+      expect(within(rowOf('radiology')).getByRole('switch', { name: '启用 放射科' })).toBeChecked(),
+    )
+  })
+
+  it('disables the status switch without system:dep:update', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:dep:list'] })
+    renderPage()
+    await waitForRow('radiology')
+    expect(screen.getAllByRole('switch', { name: '启用 放射科' })[0]).toBeDisabled()
   })
 })
 

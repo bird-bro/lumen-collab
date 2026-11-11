@@ -83,12 +83,32 @@ export interface LoginBody {
 /**
  * UserItemDto JSON (backend user list rows - a plain array, no page
  * wrapper, per the implemented surface in the api delta; the BCrypt hash
- * never serializes so there is no password field).
+ * never serializes so there is no password field). The user-edit-delete-profile
+ * backend change extended the payload with the profile surface: the V26
+ * columns plus the batch-resolved roleNames/depName (null when unbound).
  */
 export interface UserItem {
   uid: number;
   username: string;
   name: string;
+  phone: string | null;
+  email: string | null;
+  /** Dict 性别 catalog code (null = unset). */
+  gender: number | null;
+  /** Dict 职称 catalog code (null = unset). */
+  title: number | null;
+  /** Owning department id (null = unbound). */
+  depId: number | null;
+  /** Department display name, batch-resolved server-side (null when unbound/dead). */
+  depName: string | null;
+  /** Exam-type visibility, CSV of dict 检查类型 codes (null = unset). */
+  modalitys: string | null;
+  /** Report-workflow authority tier, dict 审核权限 code (null = no tier). */
+  repAudit: number | null;
+  /** Report-signature image path (null = none). */
+  signature: string | null;
+  /** The bound role display names, batch-resolved server-side (empty when unbound). */
+  roleNames: string[];
   enable: number;
   mustChangePassword: number;
   createTime: string;
@@ -99,6 +119,59 @@ export interface CreateUserBody {
   password: string;
   name: string;
   roleIds?: number[];
+  /**
+   * The V26 profile fields (user-edit-delete-profile api delta): the create
+   * carries the same profile surface as the update (the backend's
+   * `CreateUserRequest` is additive; null/unset leaves the column NULL).
+   */
+  phone?: string | null;
+  email?: string | null;
+  gender?: number | null;
+  title?: number | null;
+  depId?: number | null;
+  modalitys?: string | null;
+  repAudit?: number | null;
+  signature?: string | null;
+}
+
+/**
+ * UserDetailDto JSON (GET /system/users/{id} - the edit dialog's echo): the
+ * full profile plus `roleIds` (the update's full-replace source). No password
+ * field by contract - the hash never leaves the backend.
+ */
+export interface UserDetail {
+  uid: number;
+  username: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  gender: number | null;
+  title: number | null;
+  depId: number | null;
+  modalitys: string | null;
+  repAudit: number | null;
+  signature: string | null;
+  roleIds: number[];
+}
+
+/**
+ * PUT /system/users/{id} body - the partial profile patch. NO username (the
+ * backend ignores it by construction) and NO password (the reset stays its own
+ * SM2-encrypted endpoint). A present `roleIds` REPLACES the bindings
+ * (full-replace); an absent one leaves them untouched.
+ */
+export interface UpdateUserBody {
+  name?: string;
+  phone?: string | null;
+  email?: string | null;
+  gender?: number | null;
+  title?: number | null;
+  depId?: number | null;
+  roleIds?: number[];
+  /** Exam-type visibility CSV - the page joins the multi-select array. */
+  modalitys?: string | null;
+  repAudit?: number | null;
+  signature?: string | null;
 }
 
 /**

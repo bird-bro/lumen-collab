@@ -1,7 +1,7 @@
-import { Button, Drawer, Form, Input, Popconfirm, Select, Tag, message, theme } from 'antd'
+import { Button, Drawer, Form, Input, Popconfirm, Select, Switch, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createDep, deleteDep, pageDep, updateDep } from '@/api/org-deps'
+import { createDep, deleteDep, pageDep, setDepStatus, updateDep } from '@/api/org-deps'
 import { orgTree } from '@/api/orgs'
 import { ApiError } from '@/api/client'
 import type { OrgDep, OrgNode, Page } from '@/api/types'
@@ -248,6 +248,34 @@ export default function DepsPage() {
     statusFilter,
   ])
 
+  // Mirrors the orgs page: optimistic flip, server rollback on failure, then a
+  // reload re-syncs the cell - through the DEDICATED status endpoint
+  // (PUT /system/org-deps/{id}/status), not the generic partial update.
+  const toggleDepStatus = useCallback(
+    async (dep: OrgDep, next: 0 | 1) => {
+      setPage((prev) =>
+        prev
+          ? {
+              ...prev,
+              records: prev.records.map((row) => (row.id === dep.id ? { ...row, status: next } : row)),
+            }
+          : prev,
+      )
+      try {
+        await setDepStatus(dep.id, next)
+      } catch (error) {
+        messageApi.error(error instanceof ApiError ? error.msg : '启用状态更新失败')
+      }
+      await loadPage({
+        orgId: isCampusSelected && selectedOrgId !== null ? selectedOrgId : undefined,
+        keyword: keyword.trim() || undefined,
+        status: statusFilter ?? undefined,
+        pageNum,
+      })
+    },
+    [isCampusSelected, keyword, loadPage, messageApi, pageNum, selectedOrgId, statusFilter],
+  )
+
   const removeDep = useCallback(
     async (dep: OrgDep) => {
       try {
@@ -293,29 +321,16 @@ export default function DepsPage() {
       dataIndex: 'status',
       width: COLUMN_WIDTHS.status,
       align: 'center',
-      render: (status: number) =>
-        status === 1 ? (
-          <Tag
-            bordered={false}
-            color="blue"
-            style={{ marginInlineEnd: 0, fontSize: token.fontSize }}
-          >
-            启用
-          </Tag>
-        ) : (
-          <Tag
-            bordered={false}
-            style={{
-              marginInlineEnd: 0,
-              fontSize: token.fontSize,
-              color: token.colorTextSecondary,
-              background: token.colorBgContainer,
-              borderColor: token.colorBorder,
-            }}
-          >
-            停用
-          </Tag>
-        ),
+      render: (status: number, row: OrgDep) => (
+        <Switch
+          checked={status === 1}
+          disabled={!canUpdate}
+          aria-label={`启用 ${row.name}`}
+          checkedChildren="✓"
+          unCheckedChildren="✕"
+          onChange={(checked) => void toggleDepStatus(row, checked ? 1 : 0)}
+        />
+      ),
     },
     {
       title: '院区',
