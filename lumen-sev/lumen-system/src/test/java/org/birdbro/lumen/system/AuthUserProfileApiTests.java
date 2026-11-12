@@ -82,6 +82,10 @@ class AuthUserProfileApiTests extends AuthIntegrationTestBase {
                     "the row carries the signature path");
             assertTrue(item.path("roleNames").isArray() && item.path("roleNames").size() >= 1,
                     "roleNames carries the bound role names");
+            Integer createBy = jdbcTemplate.queryForObject(
+                    "SELECT create_by FROM system.user_info WHERE id = ?", Integer.class, uid);
+            assertEquals(createBy, item.path("createBy").asInt(-1),
+                    "the row carries the audit creator UID");
             assertFalse(item.has("password"), "the hash never serializes");
         } finally {
             cleanupUser(uid);

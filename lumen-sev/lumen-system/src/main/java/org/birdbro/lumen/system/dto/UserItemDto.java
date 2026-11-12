@@ -64,6 +64,9 @@ public class UserItemDto {
     @ApiModelProperty("1 = the user must change the password at next login")
     private Integer mustChangePassword;
 
+    @ApiModelProperty("Audit creator UID (user_info.create_by)")
+    private Integer createBy;
+
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     @ApiModelProperty("Row creation time")
     private Date createTime;
