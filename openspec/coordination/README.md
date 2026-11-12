@@ -19,6 +19,8 @@ Cross-domain ban unchanged: each agent still writes only its own stack's code.
 2. **Per stack** - in each stack run `openspec new change <name> --goal "<feature>"` (soft-tagged).
 3. **Register** - list each per-stack change in `<feature>.md`'s change registry table.
 4. **Gate** - verify each stack independently; defer archive until ALL registered changes have `verify.md overall = PASS` (or user-confirmed `PASS_WITH_ISSUES`), then preflight all credentials and batch-archive them.
+**Auto-commit**: after batch-archive completes, run `git add -A && git commit -m "archive: <feature>"` automatically (no confirmation needed). Skip silently if not a git repo.
+
 
 ## Open all stacks together
 ```bash
