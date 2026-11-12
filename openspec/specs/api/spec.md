@@ -145,9 +145,9 @@ D5/D6).
 #### Scenario: List rows carry the profile and role names
 
 - **WHEN** the list is returned for a user holding profile values and bound roles
-- **THEN** the row carries `phone`, `email`, `gender`, `title`, `depId`, `depName`,
-  `modalitys`, `repAudit`, `signature`, and `roleNames` (the live role names bound
-  through `user_role`)
+- **THEN** the row carries `createBy`, `phone`, `email`, `gender`, `title`, `depId`,
+  `depName`, `modalitys`, `repAudit`, `signature`, and `roleNames` (the live role names
+  bound through `user_role`)
 - **AND** the BCrypt hash never serializes
 
 #### Scenario: Create user

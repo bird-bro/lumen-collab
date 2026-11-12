@@ -25,7 +25,7 @@ reset request's `newPassword` SHALL be SM2-encrypted with the session-cached pub
 inside the API-client boundary (`src/api/users.ts` keeps raw-password signatures; the typed
 value never reaches the wire as plaintext). A backend `A0400` rejection SHALL surface
 through the same message path as other `A`-class failures on the form. The list SHALL render
-the columns 姓名+账号 / 角色 / 科室 / 职称 / 手机号 / 邮箱 / 创建时间 / 操作; the
+the columns 用户+账号 / 角色 / 科室 / 职称 / 手机号 / 邮箱 / 启用 / 创建人+创建时间 / 操作; the
 role chips come from the row payload's `roleNames` (no session-profile substitute). The
 create and edit dialogs SHALL carry the shared profile form (姓名/手机号/邮箱/性别/职称/
 所属科室/角色/检查类型/审核权限/签名) — the edit dialog prefills from the detail endpoint
@@ -45,9 +45,12 @@ before calling the endpoint and a protected-account rejection SHALL surface the 
 #### Scenario: List columns render the profile payload
 
 - **WHEN** the list returns rows with profile fields and `roleNames`
-- **THEN** the 姓名 column shows the display name above the account, and the
-  角色/科室/职称/手机号/邮箱 columns render the payload values (an unbound value renders
-  as an empty dash, not an error)
+- **THEN** the 用户 column shows the display name above the account (the first-login
+  password hint follows the name), the 手机号 and 启用 cells are centered, the 角色 chip
+  text uses the table's body font size, and the 用户/角色/科室/职称/手机号/邮箱/创建人/
+  创建时间 cells render the payload values (an unbound value renders as an empty dash,
+  not an error); the operation verbs order 重置密码/修改/删除 and every icon-only action
+  exposes its verb as a body-size styled hover tooltip
 
 #### Scenario: Role chips come from the row
 
@@ -265,25 +268,46 @@ edit, delete).
 - **THEN** details return ordered by `sort` and CRUD round-trips through the documented endpoints
 
 <!-- synced from: web-foundation-auth-console 2026-11-05 -->
+<!-- synced from: audit-log-unify-web 2026-11-10 (the merged audit page) -->
+<!-- synced from: log-query-date-range 2026-11-12 (日期段 filter bar, uid/月份 removed) -->
 
 ### Requirement: Operation Log Query
-<!-- synced from: audit-log-unify-web 2026-11-10 (the merged audit page; the former
-     Sign-in Log Query requirement is retired with the /sign endpoint and menu 17) -->
 The console SHALL provide a SINGLE paged audit-log view of `GET /api/v1/system/logs` at
 the route `/system/logs`, reachable as the 审计日志 menu entry in the 安全 group
 (supersedes the separate 日志查询 / 登录日志 entries), gated by `system:log:list`,
 rows newest first, no write affordances (append-only data). The page SHALL show BOTH
-event families in one table with: 时间, 类别 (dict-driven label from the
-「审计日志类型」 catalog, raw-code fallback), 标题 (title; sign rows carry
-Sign-IN/Sign-OUT), 描述, 操作人, IP, 操作系统, 浏览器, and the operation-only
-方法/URL columns rendering — for sign rows. The filter bar SHALL offer: 类别
-(dict-driven Select of the audit type codes), 操作人ID (uid), 账号 (account), and
-月份 (dateYm); filters AND-combine server-side. The page SHALL NOT render any
+event families in one table with: 日期, 操作人, 类别 (dict-driven label from the
+「审计日志类型」 catalog, raw-code fallback), 标题, 描述, IP, 操作系统, 浏览器, and
+the operation-only 方法/URL columns rendering — for sign rows. The filter bar SHALL
+offer: 类别 (dict-driven Select whose options render the dict VALUES — never the raw
+codes), 账号 (account), and 日期段 (an antd RangePicker with the presets 今日 / 近7天 /
+近30天 / 本月); the former 操作人ID (uid) and 月份 (dateYm) filters are REMOVED from
+the page. The page SHALL send `beginDate`/`endDate` (`yyyy-MM-dd`) only when both
+bounds are picked; filters AND-combine server-side. The page SHALL NOT render any
 `session` field (credential anchor, server-excluded).
 
 #### Scenario: Filtered log query
 - **WHEN** an administrator queries the audit page with any filter combination
+  (类别, 账号, 日期段)
 - **THEN** rows from both event families return newest-first with paging
+
+#### Scenario: Date-range drives beginDate/endDate
+- **WHEN** the administrator picks a range and clicks 查询
+- **THEN** the query carries `beginDate` and `endDate` as `yyyy-MM-dd` strings and the
+  list resets to page 1
+
+#### Scenario: Presets populate both bounds
+- **WHEN** the administrator picks the 今日 preset
+- **THEN** both bounds fill with today's date (近7天/近30天/本月 populate their spans
+  the same way)
+
+#### Scenario: Clearing the range removes both params
+- **WHEN** the administrator clears the 日期段 picker and queries
+- **THEN** the query carries neither `beginDate` nor `endDate`
+
+#### Scenario: Dict values render in the 类别 dropdown (guard)
+- **WHEN** the 类别 Select opens with the loaded 「审计日志类型」 catalog
+- **THEN** each option displays its dict value (新增 / 登录失败 / …), not the raw code
 
 #### Scenario: Dict-driven category filter and labels
 - **WHEN** the page loads the 「审计日志类型」 dict
@@ -525,6 +549,7 @@ access flows through roles — the roles-page 菜单授权 tree covers W nodes).
 - **AND** no workstation assignment affordance exists in 用户管理
 
 <!-- synced from: org-logo-upload-web 2026-11-06 -->
+
 ### Requirement: Organization Logo Upload Control
 
 The organization profile dialogs (hospital + campus) SHALL bind the logo field to an

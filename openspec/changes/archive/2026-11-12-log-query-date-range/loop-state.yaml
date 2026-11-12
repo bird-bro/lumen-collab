@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: log-query-date-range
+execution_mode: batch-inline
+tasks_total: 4
+tasks_done: 4
+workflow_mode: full
+artifacts_hash: 8ccde711f39c0b68b3e38e58f716647d28c6e3b1952a27a7095cb9bfc0e5d58e

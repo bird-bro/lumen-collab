@@ -170,19 +170,26 @@ No data migration is performed — the early-stage table holds no data worth kee
 - **THEN** the row lands in `log_info_def` instead of the write failing
 
 <!-- synced from: audit-log-unify-api 2026-11-10 (supersedes the sign-log-query wording) -->
+<!-- synced from: log-query-date-range 2026-11-12 (adds beginDate/endDate date-range filters) -->
 
 ### Requirement: Log Query Endpoint
 The service SHALL expose the SINGLE paged audit-log query under `/api/v1/system/logs`
-(filters: `type` Integer, `uid`, `account`, `dateYm`; ordered by `actionTime` descending,
+(filters: `type` Integer, `uid`, `account`, `dateYm`, and — added by this change —
+`beginDate` and `endDate` `yyyy-MM-dd` strings; ordered by `actionTime` descending,
 `id` descending tie-break), gated server-side by `system:log:list`. Responses SHALL
-select-exclude the `session` column — credential material never reaches admin screens
-(supersedes the sign-log-query token-column exclusion with the equivalent guarantee on
-the new anchor column). The sign-log endpoint `GET /api/v1/system/logs/sign` and the
-`system:signlog:list` permission are REMOVED (supersedes sign-log-query D4 — the
-sensitivity split collapsed: both event families carry the same UA/IP columns). The
-operation-log WRITE path (`LogAspect` + `AsyncFactory` + entities/mappers/service) stays
-in the shared `framework` library; `lumen-system` hosts the admin query facade. There is
-deliberately no mutation endpoint.
+select-exclude the `session` column — credential material never reaches admin screens.
+The sign-log endpoint `GET /api/v1/system/logs/sign` and the `system:signlog:list`
+permission are REMOVED. The operation-log WRITE path (`LogAspect` + `AsyncFactory` +
+entities/mappers/service) stays in the shared `framework` library; `lumen-system` hosts
+the admin query facade. There is deliberately no mutation endpoint.
+
+The `beginDate`/`endDate` bounds are each optional and AND-combined with the other
+filters. Day bounds are double-closed: `beginDate` includes the whole start day
+(`action_time >= begin 00:00:00`), `endDate` includes the whole end day (implemented as
+`action_time < endDate+1d 00:00:00`). An unparseable date value or a `beginDate` after
+`endDate` SHALL reject with `A0400`. The range predicate SHALL constrain `date_ym` to
+the spanned month keys so `RANGE (date_ym)` partition pruning is preserved. The pre-
+existing `uid`/`dateYm` filters are RETAINED unchanged (additive contract).
 
 #### Scenario: Query operation logs
 - **WHEN** an administrator holding `system:log:list` queries the log endpoint with any
@@ -206,6 +213,29 @@ deliberately no mutation endpoint.
 #### Scenario: Session column excluded
 - **WHEN** audit rows are returned by the endpoint
 - **THEN** no row carries a `session` field
+
+#### Scenario: Date-range bounds filter action_time
+- **WHEN** an administrator holding `system:log:list` queries with
+  `beginDate=2026-10-20&endDate=2026-11-11`
+- **THEN** rows whose `action_time` falls in `[2026-10-20 00:00:00, 2026-11-12 00:00:00)`
+  return newest-first with paging
+- **AND** the query constrains `date_ym` to the spanned month keys (202610, 202611) —
+  partitions outside the span are pruned
+
+#### Scenario: Single-bound range
+- **WHEN** only `endDate` is sent
+- **THEN** rows are bounded by `action_time < endDate+1d 00:00:00` with no start bound
+- **WHEN** only `beginDate` is sent
+- **THEN** rows are bounded by `action_time >= beginDate 00:00:00` with no end bound
+
+#### Scenario: Invalid range rejected
+- **WHEN** a bound is unparseable as `yyyy-MM-dd`, or `beginDate` is after `endDate`
+- **THEN** the endpoint rejects with `A0400` and returns no rows
+
+#### Scenario: Existing filters unchanged (additive guarantee)
+- **WHEN** the endpoint is queried with `uid` and/or `dateYm` alone, or combined with
+  the new range bounds
+- **THEN** they filter exactly as before this change (regression guard)
 
 ### Requirement: Shared Placement in the Public Schema
 <!-- synced from: audit-log-unify-api 2026-11-10 (four → three: V25 dropped log_sign) -->
