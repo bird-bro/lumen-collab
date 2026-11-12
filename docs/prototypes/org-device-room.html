@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>org-device-room · 设备档案 / 诊室配置 — UI 原型</title>
+<!--
+  UI prototype for org-device-room-web task 1.1 (frontend-design; STATIC DEMO DATA,
+  not wired to src/api/). Visual language = the lumen console's AntD 5 light theme
+  (console-shell.tsx tokens: colorPrimary #1677ff, borderRadius 6, layout #f5f5f5).
+  Pages: 设备档案 (menu: system/device/index) + 诊室配置 (system/room/index), the
+  left-org-tree + right-work-area shape of 科室管理. Drawers: device 基础/采购/接入与采集,
+  room 基础/绑定设备/叫号设置; the device picker modal; the read-only AE/IP/Port echo
+  (the split model's core consequence - the room form never edits device access).
+-->
+<style>
+  :root {
+    --primary: #1677ff;
+    --primary-hover: #4096ff;
+    --primary-bg: #e6f4ff;
+    --primary-border: #91caff;
+    --layout-bg: #f5f5f5;
+    --panel: #ffffff;
+    --border: #f0f0f0;
+    --border-strong: #d9d9d9;
+    --split: #e8e8e8;
+    --text: rgba(0, 0, 0, 0.88);
+    --text-2: rgba(0, 0, 0, 0.65);
+    --text-3: rgba(0, 0, 0, 0.45);
+    --success: #52c41a;
+    --success-bg: #f6ffed;
+    --success-border: #b7eb8f;
+    --warning: #faad14;
+    --warning-bg: #fffbe6;
+    --warning-border: #ffe58f;
+    --default-bg: #fafafa;
+    --radius: 6px;
+    --radius-lg: 8px;
+    --shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+            "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--layout-bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  input, select, textarea { font-family: inherit; font-size: 14px; color: var(--text); }
+
+  /* ---------- prototype banner (identifies the demo) ---------- */
+  .proto-strip {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 20px;
+    font-size: 12px; color: var(--text-2);
+    background: repeating-linear-gradient(-45deg, #fffbe6, #fffbe6 12px, #fff1b8 12px, #fff1b8 24px);
+    border-bottom: 1px solid var(--warning-border);
+  }
+  .proto-strip strong { color: #d48806; font-weight: 600; }
+  .proto-tabs { display: flex; gap: 8px; }
+  .proto-tab {
+    padding: 3px 14px; font-size: 12px;
+    background: #fff; border: 1px solid var(--border-strong); border-radius: 999px;
+    color: var(--text-2);
+  }
+  .proto-tab.on { color: #d48806; border-color: #d48806; background: #fffbe6; font-weight: 600; }
+
+  /* ---------- console frame ---------- */
+  .console { height: calc(100vh - 33px); display: flex; flex-direction: column; }
+  .crumbs { padding: 14px 24px 4px; font-size: 12px; color: var(--text-3); }
+  .crumbs b { color: var(--text-2); font-weight: 400; }
+  .page-title { padding: 0 24px 10px; font-size: 20px; font-weight: 600; letter-spacing: 0.2px; }
+
+  .workarea { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 0 24px 20px; }
+
+  /* left org tree panel (OrgTree: pure selection context, no row actions) */
+  .tree-panel {
+    flex: 0 0 264px; display: flex; flex-direction: column;
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .tree-hd {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 8px; font-size: 12px; letter-spacing: 1px; color: var(--text-3);
+  }
+  .tree-hd .refresh { color: var(--text-3); cursor: pointer; font-size: 13px; }
+  .tree-body { flex: 1; overflow: auto; padding: 4px 10px 12px; }
+  .t-node {
+    display: flex; align-items: center; gap: 7px; min-height: 32px;
+    padding: 0 6px; border-radius: var(--radius); cursor: pointer;
+    color: var(--text); white-space: nowrap;
+  }
+  .t-node:hover { background: rgba(0, 0, 0, 0.04); }
+  .t-node.sel { background: var(--primary-bg); color: var(--primary); }
+  .t-node .glyph { width: 15px; text-align: center; color: var(--text-3); flex: none; }
+  .t-node.sel .glyph { color: var(--primary); }
+  .t-node .cnt { margin-left: auto; font-size: 11px; color: var(--text-3); }
+  .t-guide { margin: 2px 6px 0 26px; border-left: 1px dashed var(--split); flex: none; }
+
+  /* right work area */
+  .wa { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+
+  .tool-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; }
+  .filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .ctl {
+    height: 32px; padding: 0 11px; font-size: 14px;
+    background: #fff; border: 1px solid var(--border-strong); border-radius: var(--radius);
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .ctl:hover { border-color: var(--primary-hover); }
+  .ctl:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1); }
+  .ctl.w160 { width: 160px; }
+  .ctl.w200 { width: 200px; }
+  select.ctl { appearance: auto; color: var(--text); }
+  .ctl-ph { color: var(--text-3); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 15px; font-size: 14px;
+    border-radius: var(--radius); border: 1px solid var(--border-strong);
+    background: #fff; color: var(--text);
+    transition: all 0.2s;
+  }
+  .btn:hover { color: var(--primary); border-color: var(--primary); }
+  .btn.primary { color: #fff; background: var(--primary); border-color: var(--primary); }
+  .btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  .btn.dashed { border-style: dashed; }
+  .btn.link { border: none; background: none; padding: 0 4px; height: auto; font-size: 13px; }
+  .btn.link.danger { color: #ff4d4f; }
+  .btn.link.danger:hover { color: #ff7875; }
+  .btn.sm { height: 26px; padding: 0 10px; font-size: 13px; border-radius: 4px; }
+
+  /* table */
+  .table-wrap { padding: 0 16px; overflow: auto; }
+  table.tbl { width: 100%; border-collapse: collapse; }
+  .tbl th {
+    padding: 12px 12px; text-align: left; font-weight: 600; color: var(--text); font-size: 14px;
+    background: #fafafa; border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  .tbl td { padding: 13px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+  .tbl tr:hover td { background: #fafafa; }
+  .tbl .sub { display: block; margin-top: 2px; font-size: 12px; color: var(--text-2); }
+  .tbl .ops { display: flex; gap: 4px; white-space: nowrap; }
+  .tbl .ops .btn.link { font-size: 13px; }
+  .empty-cell { text-align: center; color: var(--text-3); padding: 28px 0 !important; }
+
+  .tag {
+    display: inline-block; padding: 1px 9px; font-size: 12px; line-height: 20px;
+    border: 1px solid var(--border-strong); border-radius: 4px; background: var(--default-bg);
+    color: var(--text-2); white-space: nowrap;
+  }
+  .tag.green { color: var(--success); background: var(--success-bg); border-color: var(--success-border); }
+  .tag.gold  { color: #d48806; background: var(--warning-bg); border-color: var(--warning-border); }
+  .tag.blue  { color: var(--primary); background: var(--primary-bg); border-color: var(--primary-border); }
+  .tag.default { color: var(--text-2); }
+
+  .switch { position: relative; width: 40px; height: 22px; border-radius: 999px; border: 1px solid transparent; background: var(--primary); cursor: pointer; transition: background 0.2s; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 20px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .switch.off { background: rgba(0, 0, 0, 0.25); }
+  .switch.off::after { left: 2px; }
+
+  .pager { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 16px; font-size: 13px; color: var(--text-2); }
+  .pgbtn { min-width: 28px; height: 28px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: #fff; font-size: 13px; color: var(--text); }
+  .pgbtn.on { color: var(--primary); border-color: var(--primary); }
+
+  /* ---------- drawer ---------- */
+  .mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 10; }
+  .mask.show { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 640px; max-width: 94vw;
+    background: var(--panel); box-shadow: var(--shadow);
+    transform: translateX(100%); transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    display: flex; flex-direction: column; z-index: 11;
+  }
+  .drawer.show { transform: translateX(0); }
+  .dr-hd { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+  .dr-hd .t { font-size: 16px; font-weight: 600; }
+  .dr-x { border: none; background: none; font-size: 17px; color: var(--text-2); }
+  .dr-bd { flex: 1; overflow: auto; padding: 20px 24px; }
+  .dr-ft { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border); }
+
+  /* drawer tabs */
+  .drtabs { display: flex; gap: 26px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  .drtab { padding: 10px 2px 12px; font-size: 15px; color: var(--text-2); border-bottom: 2px solid transparent; cursor: pointer; background: none; border-top: none; border-left: none; border-right: none; }
+  .drtab.on { color: var(--primary); border-bottom-color: var(--primary); font-weight: 500; }
+
+  .frm-item { display: flex; align-items: flex-start; margin-bottom: 18px; }
+  .frm-label { flex: 0 0 112px; padding-top: 6px; font-size: 14px; color: var(--text); text-align: right; padding-right: 14px; }
+  .frm-label .req { color: #ff4d4f; margin-right: 3px; }
+  .frm-ctl { flex: 1; min-width: 0; }
+  .frm-ctl .ctl { width: 100%; }
+  .frm-hint { margin-top: 5px; font-size: 12px; color: var(--text-3); line-height: 1.5; }
+  .range { display: flex; align-items: center; gap: 8px; }
+  .range .line { color: var(--text-3); }
+  .grid2 { display: flex; gap: 10px; }
+  .grid2 > * { flex: 1; }
+  textarea.ctl { height: 64px; resize: none; padding-top: 7px; }
+
+  /* device echo block (read-only, the split-model consequence) */
+  .echo {
+    border: 1px solid var(--primary-border); background: var(--primary-bg);
+    border-radius: var(--radius); padding: 12px 14px; margin-top: 10px;
+  }
+  .echo .echo-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .echo .echo-hd .nm { font-weight: 600; color: var(--primary); }
+  .echo .kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 14px; font-size: 13px; }
+  .echo .kv b { font-weight: 400; color: var(--text-3); margin-right: 6px; }
+  .echo .kv code { font-size: 13px; color: var(--text); background: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 0 6px; }
+  .echo-empty { border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: 14px; text-align: center; color: var(--text-3); font-size: 13px; margin-top: 10px; }
+
+  /* ---------- modal ---------- */
+  .modal {
+    position: fixed; left: 50%; top: 14vh; transform: translateX(-50%) scale(0.96);
+    width: 620px; max-width: 92vw; background: var(--panel); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: all 0.22s; z-index: 12;
+  }
+  .modal.show { opacity: 1; pointer-events: auto; transform: translateX(-50%) scale(1); }
+  .md-hd { padding: 14px 22px; border-bottom: 1px solid var(--border); font-size: 15px; font-weight: 600; display: flex; justify-content: space-between; }
+  .md-bd { padding: 14px 22px 4px; max-height: 46vh; overflow: auto; }
+  .md-ft { padding: 12px 22px 16px; display: flex; justify-content: flex-end; gap: 10px; }
+  .pick-row { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; cursor: pointer; transition: all 0.15s; }
+  .pick-row:hover { border-color: var(--primary-hover); }
+  .pick-row.sel { border-color: var(--primary); background: var(--primary-bg); }
+  .pick-row .radio { width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--border-strong); flex: none; position: relative; }
+  .pick-row.sel .radio { border-color: var(--primary); }
+  .pick-row.sel .radio::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--primary); }
+  .pick-row .nm { font-weight: 500; }
+  .pick-row .cd { color: var(--text-2); font-size: 12px; }
+  .pick-row .tp { margin-left: auto; }
+
+  /* page switching */
+  .page { display: none; }
+  .page.on { display: flex; }
+</style>
+</head>
+<body>
+
+<div class="proto-strip">
+  <div><strong>UI 原型 · 静态演示数据</strong> — org-device-room-web task 1.1(frontend-design;未接 src/api/,交互仅为演示)</div>
+  <div class="proto-tabs">
+    <button class="proto-tab on" id="tab-device" onclick="showPage('device')">设备档案</button>
+    <button class="proto-tab" id="tab-room" onclick="showPage('room')">诊室配置</button>
+  </div>
+</div>
+
+<div class="console">
+
+  <!-- ================= 设备档案 ================= -->
+  <div class="page on" id="page-device">
+    <div class="crumbs">控制台 / 系统管理 / <b>组织架构 / 设备档案</b></div>
+    <div class="page-title">设备档案</div>
+    <div class="workarea">
+
+      <aside class="tree-panel">
+        <div class="tree-hd"><span>机构</span><span class="refresh">⟳</span></div>
+        <div class="tree-body">
+          <div class="t-node sel" onclick="sel(this)"><span class="glyph">▤</span>Lumen 的测试医院<span class="cnt">4</span></div>
+          <div class="t-guide"></div>
+          <div class="t-node" style="margin-left:26px" onclick="sel(this)"><span class="glyph">▤</span>东院区<span class="cnt">2</span></div>
+          <div class="t-node" style="margin-left:26px" onclick="sel(this)"><span class="glyph">▤</span>体检中心<span class="cnt">1</span></div>
+          <p style="margin:0;padding:0 16px 12px;font-size:12px;color:var(--text-3);line-height:1.6">选中根节点查看全部院区,选中院区过滤该院区</p>
+        </div>
+      </aside>
+
+      <div class="wa">
+        <div class="panel">
+          <div class="tool-row">
+            <div class="filters">
+              <select class="ctl w160 ctl-ph" onchange="this.classList.remove('ctl-ph')">
+                <option>设备类型</option><option>DR</option><option>CT</option><option>MR</option><option>US</option>
+              </select>
+              <select class="ctl w160 ctl-ph">
+                <option>设备状态</option><option>在用</option><option>停用</option><option>维修</option><option>报废</option>
+              </select>
+              <input class="ctl w200" placeholder="名称 / 编号">
+              <button class="btn primary">⌕ 查询</button>
+            </div>
+            <button class="btn primary" onclick="openDrawer('device')">＋ 添加设备</button>
+          </div>
+        </div>
+
+        <div class="panel" style="flex:1;min-height:0;display:flex;flex-direction:column">
+          <div class="table-wrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th style="min-width:150px">设备名称 / 编号</th>
+                  <th style="width:96px">状态</th>
+                  <th style="width:96px">类型</th>
+                  <th style="width:96px">归属类型</th>
+                  <th style="width:110px">负责科室</th>
+                  <th style="min-width:190px">使用期限</th>
+                  <th style="min-width:150px">品牌 / 型号规格</th>
+                  <th style="min-width:130px">负责人 / 电话</th>
+                  <th style="width:120px">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><b>CT 一号机</b><span class="sub">DEV-CT-001</span></td>
+                  <td><span class="tag green">在用</span></td>
+                  <td><span class="tag blue">CT</span></td>
+                  <td><span class="tag">自购</span></td><td>放射科</td></td>
+                  <td>2024-03-10 <span class="sub">至 2034-03-10</span></td>
+                  <td>联影<span class="sub">uCT760 · 64排</span></td>
+                  <td>张工<span class="sub">13800000000</span></td>
+                  <td><div class="ops"><button class="btn link" style="color:var(--primary)" onclick="openDrawer('device')">编辑</button><button class="btn link danger">删除</button></div></td>
+                </tr>
+                <tr>
+                  <td><b>DR 一号机</b><span class="sub">DEV-DR-001</span></td>
+                  <td><span class="tag green">在用</span></td>
+                  <td><span class="tag blue">DR</span></td>
+                  <td><span class="tag">自购</span></td><td>放射科</td></td>
+                  <td>2023-06-01 <span class="sub">至 2033-06-01</span></td>
+                  <td>GE<span class="sub">Definium 6000</span></td>
+                  <td>李工<span class="sub">13900000000</span></td>
+                  <td><div class="ops"><button class="btn link" style="color:var(--primary)" onclick="openDrawer('device')">编辑</button><button class="btn link danger">删除</button></div></td>
+                </tr>
+                <tr>
+                  <td><b>MR 二号机</b><span class="sub">DEV-MR-002</span></td>
+                  <td><span class="tag gold">维修</span></td>
+                  <td><span class="tag blue">MR</span></td>
+                  <td><span class="tag">租赁</span></td><td>放疗科</td></td>
+                  <td>2024-01-01 <span class="sub">至 2029-01-01</span></td>
+                  <td>西门子<span class="sub">Magnetom Skyra</span></td>
+                  <td>王工<span class="sub">13700000000</span></td>
+                  <td><div class="ops"><button class="btn link" style="color:var(--primary)" onclick="openDrawer('device')">编辑</button><button class="btn link danger">删除</button></div></td>
+                </tr>
+                <tr>
+                  <td><b>超声诊断仪</b><span class="sub">DEV-US-001</span></td>
+                  <td><span class="tag default">停用</span></td>
+                  <td><span class="tag blue">US</span></td>
+                  <td><span class="tag">自购</span></td><td>超声科</td></td>
+                  <td>2021-05-20 <span class="sub">至 2031-05-20</span></td>
+                  <td>飞利浦<span class="sub">EPIQ 7</span></td>
+                  <td>—</td>
+                  <td><div class="ops"><button class="btn link" style="color:var(--primary)" onclick="openDrawer('device')">编辑</button><button class="btn link danger">删除</button></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pager"><span>共 4 条</span>
+            <button class="pgbtn">‹</button><button class="pgbtn on">1</button><button class="pgbtn">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 诊室配置 ================= -->
+  <div class="page" id="page-room">
+    <div class="crumbs">控制台 / 系统管理 / <b>组织架构 / 诊室配置</b></div>
+    <div class="page-title">诊室配置</div>
+    <div class="workarea">
+
+      <aside class="tree-panel">
+        <div class="tree-hd"><span>机构</span><span class="refresh">⟳</span></div>
+        <div class="tree-body">
+          <div class="t-node sel" onclick="sel(this)"><span class="glyph">▤</span>Lumen 的测试医院<span class="cnt">3</span></div>
+          <div class="t-guide"></div>
+          <div class="t-node" style="margin-left:26px" onclick="sel(this)"><span class="glyph">▤</span>东院区<span class="cnt">1</span></div>
+          <div class="t-node" style="margin-left:26px" onclick="sel(this)"><span class="glyph">▤</span>体检中心<span class="cnt">1</span></div>
+          <p style="margin:0;padding:0 16px 12px;font-size:12px;color:var(--text-3);line-height:1.6">选中根节点查看全部院区,选中院区过滤该院区</p>
+        </div>
+      </aside>
+
+      <div class="wa">
+        <div class="panel">
+          <div class="tool-row">
+            <div class="filters">
+              <select class="ctl w200 ctl-ph"><option>负责科室</option><option>放射科</option><option>超声科</option></select>
+              <input class="ctl w200" placeholder="诊室名称">
+              <button class="btn primary">⌕ 查询</button>
+            </div>
+            <button class="btn primary" onclick="openDrawer('room')">＋ 添加诊室</button>
+          </div>
+        </div>
+
+        <div class="panel" style="flex:1;min-height:0;display:flex;flex-direction:column">
+          <div class="table-wrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th style="min-width:150px">诊室名称 / 编码</th>
+                  <th style="width:90px">状态</th>
+                  <th style="width:110px">诊室类型</th>
+                  <th style="min-width:170px">绑定设备</th>
+                  <th style="width:110px">AE</th>
+                  <th style="width:110px">负责科室</th>
+                  <th style="width:140px">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><b>CT 一号室</b><span class="sub">R-CT-01</span></td>
+                  <td><div class="switch" onclick="this.classList.toggle('off')"></div></td>
+                  <td><span class="tag blue">CT室</span></td>
+                  <td><b>CT 一号机</b><span class="sub">DEV-CT-001</span></td>
+                  <td><span class="sub" style="margin:0">LUMEN_CT</span></td>
+                  <td>放射科</td>
+                  <td><div class="ops"><button class="btn link" style="color:var(--primary)" onclick="openDrawer('room')">编辑</button><button class="btn link danger">删除</button></div></td>
+                </tr>
+                <tr>
+                  <td><b>DR 一号室</b><span class="sub">R-DR-01</span></td>
+                  <td><div class="switch" onclick="this.classList.toggle('off')"></div></td>
+                  <td><span class="tag blue">DR室</span></td>
+                  <td><b>DR 一号机</b><span class="sub">DEV-DR-001</span></td>
+                  <td><span class="sub" style="margin:0">LUMEN_DR</span></td>
+                  <td>放射科</td>
+                  <td><div class="ops"><button class="btn link" style="color:var(--primary)" onclick="openDrawer('room')">编辑</button><button class="btn link danger">删除</button></div></td>
+                </tr>
+                <tr>
+                  <td><b>会诊室</b><span class="sub">R-MEET-01</span></td>
+                  <td><div class="switch off" onclick="this.classList.toggle('off')"></div></td>
+                  <td><span class="tag blue">普通诊室</span></td>
+                  <td style="color:var(--text-3)">未绑定</td>
+                  <td style="color:var(--text-3)">—</td>
+                  <td>医务科</td>
+                  <td><div class="ops"><button class="btn link" style="color:var(--primary)" onclick="openDrawer('room')">编辑</button><button class="btn link danger">删除</button></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pager"><span>共 3 条</span>
+            <button class="pgbtn">‹</button><button class="pgbtn on">1</button><button class="pgbtn">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 设备抽屉 ================= -->
+<div class="mask" id="mask" onclick="closeAll()"></div>
+<div class="drawer" id="drawer-device">
+  <div class="dr-hd"><span class="t">添加设备</span><button class="dr-x" onclick="closeAll()">✕</button></div>
+  <div class="dr-bd">
+    <div class="drtabs" data-tabs="device">
+      <button class="drtab on" data-pane="dev-base">基础信息</button>
+      <button class="drtab" data-pane="dev-buy">采购信息</button>
+      <button class="drtab" data-pane="dev-acq">接入与采集</button>
+    </div>
+
+    <div class="pane" id="dev-base">
+      <div class="frm-item"><div class="frm-label"><span class="req">*</span>编号</div><div class="frm-ctl"><input class="ctl" placeholder="设备编号,院区内唯一"><div class="frm-hint">同机构下已有启用中的同编号设备时将拒绝保存</div></div></div>
+      <div class="frm-item"><div class="frm-label"><span class="req">*</span>名称</div><div class="frm-ctl"><input class="ctl" placeholder="设备名称"></div></div>
+      <div class="frm-item"><div class="frm-label"><span class="req">*</span>类型</div><div class="frm-ctl"><select class="ctl"><option>请选择(字典:设备类型)</option><option>DR</option><option>CT</option><option>MR</option><option>DSA</option><option>US</option><option>ENDO</option></select></div></div>
+      <div class="frm-item"><div class="frm-label"><span class="req">*</span>状态</div><div class="frm-ctl"><select class="ctl"><option>在用</option><option>停用</option><option>维修</option><option>报废</option></select></div></div>
+      <div class="frm-item"><div class="frm-label"><span class="req">*</span>归属类型</div><div class="frm-ctl"><select class="ctl"><option>自购(自动填使用期限:今日 → 2099-12-31)</option><option>租赁</option></select></div></div>
+      <div class="frm-item"><div class="frm-label"><span class="req">*</span>所属部门</div><div class="frm-ctl"><select class="ctl"><option>请选择使用科室(设备必属科室)</option><option>放射科</option><option>超声科</option></select><div class="frm-hint">使用科室必填(医院资产惯例,2026-11-12 第二轮裁决);DB 列保持可空,服务端强制</div></div></div>
+      <div class="frm-item"><div class="frm-label">备注</div><div class="frm-ctl"><textarea class="ctl"></textarea></div></div>
+    </div>
+
+    <div class="pane" id="dev-buy" style="display:none">
+      <div class="frm-item"><div class="frm-label">设备号</div><div class="frm-ctl"><input class="ctl"></div></div>
+      <div class="frm-item"><div class="frm-label">使用期限</div><div class="frm-ctl"><div class="range"><input class="ctl" value="2024-03-10"><span class="line">至</span><input class="ctl" value="2034-03-10"></div></div></div>
+      <div class="frm-item"><div class="frm-label">采购日期</div><div class="frm-ctl"><input class="ctl" value="2024-02-20"></div></div>
+      <div class="frm-item"><div class="frm-label">验收日期</div><div class="frm-ctl"><input class="ctl" value="2024-03-01"></div></div>
+      <div class="frm-item"><div class="frm-label">权属单位</div><div class="frm-ctl"><input class="ctl"></div></div>
+      <div class="frm-item"><div class="frm-label">联系电话</div><div class="frm-ctl"><input class="ctl"></div></div>
+    </div>
+
+    <div class="pane" id="dev-acq" style="display:none">
+      <div class="frm-hint" style="margin-bottom:14px">DICOM 接入点与 Box 采集配置属于<b>设备</b>(2026-11-10 分表裁决:诊室仅引用设备,不复制接入字段)</div>
+      <div class="frm-item"><div class="frm-label">AE</div><div class="frm-ctl"><input class="ctl" value="LUMEN_CT"></div></div>
+      <div class="frm-item"><div class="frm-label">IP</div><div class="frm-ctl"><input class="ctl" value="192.168.1.50"></div></div>
+      <div class="frm-item"><div class="frm-label">Port</div><div class="frm-ctl"><input class="ctl" value="104"></div></div>
+      <div class="frm-item" style="margin-top:24px"><div class="frm-label"><b>Box 配置</b></div></div>
+      <div class="frm-item"><div class="frm-label">适配器</div><div class="frm-ctl"><input class="ctl"></div></div>
+      <div class="frm-item"><div class="frm-label">IP / Port</div><div class="frm-ctl"><div class="range"><input class="ctl" placeholder="Box IP"><input class="ctl" placeholder="Port" style="flex:0 0 110px"></div></div></div>
+      <div class="frm-item"><div class="frm-label">MAC</div><div class="frm-ctl"><input class="ctl"></div></div>
+      <div class="frm-item"><div class="frm-label">打印机</div><div class="frm-ctl"><input class="ctl"></div></div>
+      <div class="frm-item" style="margin-top:24px"><div class="frm-label"><b>图像预设</b></div></div>
+      <div class="frm-item"><div class="frm-label">采集尺寸</div><div class="frm-ctl"><div class="range"><input class="ctl" placeholder="宽 W" value="2048"><input class="ctl" placeholder="高 H" value="1536"></div></div></div>
+      <div class="frm-item"><div class="frm-label">是否剪裁</div><div class="frm-ctl"><input type="checkbox" id="prune" onclick="document.getElementById('prune-udlr').style.display = this.checked ? 'flex' : 'none'"> 勾选后展开定位参数</div></div>
+      <div class="frm-item" id="prune-udlr" style="display:none">
+        <div class="frm-label">剪裁定位</div>
+        <div class="frm-ctl">
+          <div class="grid2" style="margin-bottom:10px"><input class="ctl" placeholder="上 U"><input class="ctl" placeholder="下 D"></div>
+          <div class="grid2"><input class="ctl" placeholder="左 L"><input class="ctl" placeholder="右 R"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="dr-ft"><button class="btn" onclick="closeAll()">取消</button><button class="btn primary">保存</button></div>
+</div>
+
+<!-- ================= 诊室抽屉 ================= -->
+<div class="drawer" id="drawer-room">
+  <div class="dr-hd"><span class="t">添加诊室</span><button class="dr-x" onclick="closeAll()">✕</button></div>
+  <div class="dr-bd">
+    <div class="drtabs" data-tabs="room">
+      <button class="drtab on" data-pane="room-base">基础信息</button>
+      <button class="drtab" data-pane="room-bind">绑定设备</button>
+      <button class="drtab" data-pane="room-call">叫号设置</button>
+    </div>
+
+    <div class="pane" id="room-base">
+      <div class="frm-item"><div class="frm-label"><span class="req">*</span>负责科室</div><div class="frm-ctl"><select class="ctl"><option>请选择科室(机构下部门树)</option><option>放射科</option><option>超声科</option><option>医务科</option></select></div></div>
+      <div class="frm-item"><div class="frm-label"><span class="req">*</span>名称</div><div class="frm-ctl"><input class="ctl" placeholder="诊室名称,同科室下唯一"><div class="frm-hint">同科室已有同名启用诊室时将拒绝保存</div></div></div>
+      <div class="frm-item"><div class="frm-label">编码</div><div class="frm-ctl"><input class="ctl" placeholder="选填,如 R-CT-01"></div></div>
+      <div class="frm-item"><div class="frm-label"><span class="req">*</span>诊室类型</div><div class="frm-ctl"><select class="ctl"><option>请选择(字典:诊室类型)</option><option>普通诊室</option><option>CT室</option><option>MR室</option><option>DR室</option><option>DSA室</option><option>超声室</option><option>内镜室</option></select></div></div>
+      <div class="frm-item"><div class="frm-label"><span class="req">*</span>启用</div><div class="frm-ctl"><div class="switch" onclick="this.classList.toggle('off')"></div></div></div>
+    </div>
+
+    <div class="pane" id="room-bind" style="display:none">
+      <div class="frm-hint" style="margin-bottom:14px">诊室<b>引用</b>设备(可随时换绑/解绑);AE / IP / Port 属于设备档案,此处只读回显</div>
+      <div class="frm-item"><div class="frm-label">绑定设备</div>
+        <div class="frm-ctl">
+          <button class="btn" onclick="openModal()">⌕ 从本院设备中选择</button>
+          <div class="echo">
+            <div class="echo-hd"><span class="nm">CT 一号机 <span style="font-weight:400;color:var(--text-2);font-size:12px">DEV-CT-001 · CT</span></span><button class="btn link danger sm">清除绑定</button></div>
+            <div class="kv">
+              <div><b>AE</b><code>LUMEN_CT</code></div>
+              <div><b>IP</b><code>192.168.1.50</code></div>
+              <div><b>Port</b><code>104</code></div>
+            </div>
+            <div class="frm-hint">保存后回显来自诊室详情接口(服务端解析),本表单不持有设备字段</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane" id="room-call" style="display:none">
+      <div class="frm-hint" style="margin-bottom:14px">排队叫号屏挂在<b>检查室门口</b>(分表裁决:叫号配置归诊室)</div>
+      <div class="frm-item"><div class="frm-label">IP</div><div class="frm-ctl"><input class="ctl" value="10.1.1.10"></div></div>
+      <div class="frm-item"><div class="frm-label">Port</div><div class="frm-ctl"><input class="ctl" value="3000"></div></div>
+      <div class="frm-item"><div class="frm-label">MAC</div><div class="frm-ctl"><input class="ctl" value="AA:BB:CC"></div></div>
+    </div>
+  </div>
+  <div class="dr-ft"><button class="btn" onclick="closeAll()">取消</button><button class="btn primary">保存</button></div>
+</div>
+
+<!-- ================= 设备选择弹窗 ================= -->
+<div class="modal" id="picker">
+  <div class="md-hd"><span>选择设备 — Lumen 的测试医院 <span style="font-weight:400;font-size:12px;color:var(--text-2)">(已按负责科室过滤)</span></span><button class="dr-x" onclick="closeModal()">✕</button></div>
+  <div class="md-bd">
+    <div class="pick-row sel" onclick="pick(this)"><span class="radio"></span><span class="nm">CT 一号机</span><span class="cd">DEV-CT-001</span><span class="tp tag blue">CT</span></div>
+    <div class="pick-row" onclick="pick(this)"><span class="radio"></span><span class="nm">DR 一号机</span><span class="cd">DEV-DR-001</span><span class="tp tag blue">DR</span></div>
+    <div class="pick-row" onclick="pick(this)"><span class="radio"></span><span class="nm">MR 二号机</span><span class="cd">DEV-MR-002</span><span class="tp tag blue">MR</span></div>
+  </div>
+  <div class="md-ft"><button class="btn" onclick="closeModal()">取消</button><button class="btn primary" onclick="closeModal()">确定绑定</button></div>
+</div>
+
+<script>
+  function showPage(key) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+    document.getElementById('page-' + key).classList.add('on');
+    document.querySelectorAll('.proto-tab').forEach(t => t.classList.remove('on'));
+    document.getElementById('tab-' + key).classList.add('on');
+  }
+  function sel(node) {
+    const panel = node.closest('.tree-body');
+    panel.querySelectorAll('.t-node').forEach(n => n.classList.remove('sel'));
+    node.classList.add('sel');
+  }
+  function openDrawer(kind) {
+    document.getElementById('mask').classList.add('show');
+    document.getElementById('drawer-' + kind).classList.add('show');
+  }
+  function openModal() {
+    document.getElementById('picker').classList.add('show');
+  }
+  function closeModal() { document.getElementById('picker').classList.remove('show'); }
+  function closeAll() {
+    document.getElementById('mask').classList.remove('show');
+    document.querySelectorAll('.drawer').forEach(d => d.classList.remove('show'));
+    closeModal();
+  }
+  document.querySelectorAll('.drtabs').forEach(tabs => {
+    tabs.addEventListener('click', e => {
+      const btn = e.target.closest('.drtab');
+      if (!btn) return;
+      tabs.querySelectorAll('.drtab').forEach(t => t.classList.remove('on'));
+      btn.classList.add('on');
+      const drawer = tabs.closest('.drawer');
+      drawer.querySelectorAll('.pane').forEach(p => p.style.display = 'none');
+      drawer.querySelector('#' + btn.dataset.pane).style.display = 'block';
+    });
+  });
+  function pick(row) {
+    row.parentElement.querySelectorAll('.pick-row').forEach(r => r.classList.remove('sel'));
+    row.classList.add('sel');
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); });
+</script>
+</body>
+</html>

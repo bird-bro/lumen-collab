@@ -152,7 +152,7 @@ beforeEach(() => {
   vi.mocked(dictsApi.fetchDictItemsByName).mockImplementation(async (name: string) => {
     if (name === '性别') return dictItems([[100401, '男'], [100402, '女']])
     if (name === '职称') return dictItems([[100501, '主任医师'], [100503, '主治医师']])
-    if (name === '检查类型') return dictItems([[1, 'CT'], [2, 'MR'], [3, 'US']])
+    if (name === '设备类型') return dictItems([[1, 'DR'], [2, 'CT'], [3, 'MR'], [5, 'US']])
     if (name === '审核权限') return dictItems([[0, '不参与'], [1, '报告医生'], [2, '初审医生'], [3, '终审医生']])
     return []
   })
@@ -171,8 +171,8 @@ beforeEach(() => {
     gender: 100402,
     title: 100503,
     depId: 5,
-    // the CSV carries the dict CODES (the data spec's storage shape)
-    modalitys: '1,2',
+    // the CSV carries the unified 设备类型 (1024) dict CODES (CT=2, MR=3)
+    modalitys: '2,3',
     repAudit: 2,
     signature: '/profile/avatar/2026/11/11/sig.png',
     roleIds: [1],
@@ -406,9 +406,10 @@ describe('users page - edit (spec: Edit opens prefilled with detail / Edit failu
 
     await user_.click(within(rowOf('wangq')).getByRole('button', { name: '修改' }))
     const dialog = await screen.findByRole('dialog', { name: '编辑用户' })
-    // the CSV '1,2' (the dict CODES) prefills as CT and MR. The label resolves
-    // to the inner search INPUT (no text content ever) - the selected items
-    // render as sibling spans inside .ant-select, so assert on the ROOT.
+    // the CSV '2,3' (the unified 设备类型 dict CODES, CT=2/MR=3) prefills as CT
+    // and MR. The label resolves to the inner search INPUT (no text content ever)
+    // - the selected items render as sibling spans inside .ant-select, so assert
+    // on the ROOT.
     const multi = within(dialog).getByLabelText('检查类型').closest('.ant-select') as HTMLElement
     expect(multi).toHaveTextContent('CT')
     expect(multi).toHaveTextContent('MR')
@@ -417,7 +418,7 @@ describe('users page - edit (spec: Edit opens prefilled with detail / Edit failu
     await waitFor(() => expect(usersApi.updateUser).toHaveBeenCalled())
     const body = vi.mocked(usersApi.updateUser).mock.calls[0][1]
     // the wire shape is the dict-CODE CSV (the data spec's storage shape)
-    expect(body.modalitys).toBe('1,2')
+    expect(body.modalitys).toBe('2,3')
   })
 
   it('an update rejection keeps the dialog open with the backend msg on the form', async () => {

@@ -195,7 +195,10 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
                 .findFirst()
                 .orElse(null);
         assertNotNull(root, "the seeded hospital root (id 1, up_id 0) must be a tree root");
-        assertEquals("未命名医院", root.getName());
+        // RE-BASELINED 2026-11-12 (user ruling): the root's display name is
+        // operator-editable (the shared test DB renamed it) - assert non-blank only.
+        assertTrue(root.getName() != null && !root.getName().isBlank(),
+                "the tree root must carry a non-blank display name");
         assertNotNull(root.getChildren(), "the root must nest the inserted child");
         assertTrue(root.getChildren().stream()
                         .anyMatch(org -> child.getId().equals(org.getId())),

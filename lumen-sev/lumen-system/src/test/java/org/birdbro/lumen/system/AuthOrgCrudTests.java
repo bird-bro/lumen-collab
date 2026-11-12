@@ -75,7 +75,7 @@ class AuthOrgCrudTests extends AuthIntegrationTestBase {
         assertTrue(campusId > 0, "the created campus id must come back");
 
         JsonNode tree = tree(token);
-        JsonNode hospital = rootWithName(tree.path("data"), "未命名医院");
+        JsonNode hospital = rootHospital(tree.path("data"));
         assertNotNull(hospital, "the single hospital root must be in the tree");
         JsonNode campus = nodeWithId(hospital.path("children"), campusId);
         assertNotNull(campus, "the created campus must nest under the hospital");
@@ -206,7 +206,7 @@ class AuthOrgCrudTests extends AuthIntegrationTestBase {
 
     private JsonNode orgById(String token, int id) throws Exception {
         JsonNode tree = tree(token);
-        JsonNode hospital = rootWithName(tree.path("data"), "未命名医院");
+        JsonNode hospital = rootHospital(tree.path("data"));
         assertNotNull(hospital, "the seeded hospital root must remain in the tree");
         JsonNode campus = nodeWithId(hospital.path("children"), id);
         assertNotNull(campus, "the fixture campus must remain in the tree");
@@ -245,12 +245,19 @@ class AuthOrgCrudTests extends AuthIntegrationTestBase {
         return objectMapper.readTree(response.getBody());
     }
 
-    private static JsonNode rootWithName(JsonNode roots, String name) {
+    /**
+     * Locates the seeded hospital root by IDENTITY (id 1) instead of the display name -
+     * RE-BASELINED 2026-11-12 (user ruling, org-device-room-api verify): the shared
+     * long-lived test DB renamed the root on 2026-11-03, and the name is
+     * operator-editable display data (the first-run profile-completion feature exists
+     * to change it); id 1 is the stable seed identity.
+     */
+    private static JsonNode rootHospital(JsonNode roots) {
         if (!roots.isArray()) {
             return null;
         }
         for (JsonNode root : roots) {
-            if (name.equals(root.path("name").asText())) {
+            if (root.path("id").asInt(-1) == 1) {
                 return root;
             }
         }

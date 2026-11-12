@@ -205,12 +205,17 @@ public abstract class AuthIntegrationTestBase {
      * suite stays on the real admin); {@code ua-probe} is AuthUserAgentResilienceTests'
      * probe account. When a suite adds a new fixture-account family its prefix lands
      * HERE - the sweep is the SAFETY NET for interrupted runs, never the primary
-     * cleanup (suites delete their own fixtures inline).
+     * cleanup (suites delete their own fixtures inline). 2026-11-12 backfill:
+     * {@code delete_u_} (user-edit-delete-profile suites), {@code smoke_profile_}
+     * (profile smoke fixtures) and {@code b3q.} (log-query b3 log-fixture accounts)
+     * had leaked unregistered rows into the shared DB - the missed-registration
+     * lesson repeating; swept manually and registered after the fact.
      */
     static final String[] ACCOUNT_PREFIXES = { "b2", "dup_u_", "pw_u_", "en_u_", "replace_u_",
             "role_del_u_", "audit_u_", "single_u_", "noperm_u_", "city_u_", "menuperm_u_",
             "btnmatrix_", "no.such.user.", "mgmt_u_", "audit_user_", "wsdel_u_", "wsgrant_u_",
-            "wsboot_u_", "wstarget_u_", "wsnoperm_u_", "wsdual_u_", "mp.smoke.", "itadmin_" };
+            "wsboot_u_", "wstarget_u_", "wsnoperm_u_", "wsdual_u_", "mp.smoke.", "itadmin_",
+            "delete_u_", "smoke_profile_", "b3q." };
 
     /**
      * Fixture-role namespace owned by the tests, sweep-targetable (the Chinese literals
@@ -234,7 +239,7 @@ public abstract class AuthIntegrationTestBase {
             "状态院区_", "非法状态院区_", "第二根_", "科室编码A院区_", "科室编码B院区_",
             "分页A院区_", "分页B院区_", "科室删除院区_", "停用院区_", "迁出院区_",
             "编码不可变", "按钮矩阵院区", "按钮矩阵机构", "按钮矩阵科室", "日志机构_",
-            "UA探针机构_", "ut.smoke." };
+            "UA探针机构_", "ut.smoke.", "设备院区_", "诊室院区_" };
 
     /**
      * Fixture-org CODE namespace (the V16 codes are set explicitly by some fixtures;
@@ -247,7 +252,19 @@ public abstract class AuthIntegrationTestBase {
      */
     static final String[] DEP_CODE_PREFIXES = { "ut_mtx_dep_", "dep_guard_", "dep_shared_",
             "dep_immutable_", "dep_page_", "dep_delete_", "dep_disabled_", "dep_move_",
-            "dep_hospital_" };
+            "dep_hospital_", "ut_dev_dep_", "ut_room_dep_" };
+
+    /**
+     * Fixture-device namespace (codes; org-device-room-api suites). REAL devices must
+     * NEVER take these prefixes - the sweep hard-deletes every live or soft-deleted row.
+     */
+    static final String[] DEVICE_CODE_PREFIXES = { "ut_dev_" };
+
+    /**
+     * Fixture-room namespace (names; org-device-room-api suites - the room code is an
+     * optional label, the NAME is the operational key the suites timestamp).
+     */
+    static final String[] ROOM_NAME_PREFIXES = { "ut_room_" };
 
     /**
      * Fixture-dict namespace (catalog display names; details ride their catalog via
@@ -301,6 +318,8 @@ public abstract class AuthIntegrationTestBase {
      *   <li>{@code system.menu_info}: the fixture menus themselves;</li>
      *   <li>{@code public.dict_detail} / {@code public.dict_catal}: fixture details
      *       ride their swept catalogs (ca_id);</li>
+     *   <li>{@code system.org_room} / {@code system.org_device}: the registry fixture
+     *       family (org-device-room-api; zero physical FKs, swept before their owners);</li>
      *   <li>{@code system.org_dep}: fixture departments (before their campus);</li>
      *   <li>{@code system.org_info}: the fixture orgs themselves.</li>
      * </ol>
@@ -456,13 +475,27 @@ public abstract class AuthIntegrationTestBase {
                 int catalRows = statement.executeUpdate(
                         "DELETE FROM public.dict_catal WHERE ("
                                 + prefixLikePredicate("name", CATAL_NAME_PREFIXES) + ")");
-                // 8. Fixture departments before their campus (org_dep.org_id FK).
+                // 8. Fixture rooms/devices of the registry family (org-device-room-api,
+                //    zero physical FKs - but swept BEFORE their owners so the logical
+                //    references die with the owning rows): rooms by name prefix or
+                //    fixture-org scope, devices by code prefix or fixture-org scope.
+                int roomRows = statement.executeUpdate(
+                        "DELETE FROM system.org_room WHERE ("
+                                + prefixLikePredicate("name", ROOM_NAME_PREFIXES) + ") "
+                        + "OR oid IN (SELECT id FROM system.org_info WHERE ("
+                                + orgResiduePredicate() + "))");
+                int deviceRows = statement.executeUpdate(
+                        "DELETE FROM system.org_device WHERE ("
+                                + prefixLikePredicate("code", DEVICE_CODE_PREFIXES) + ") "
+                        + "OR oid IN (SELECT id FROM system.org_info WHERE ("
+                                + orgResiduePredicate() + "))");
+                // 9. Fixture departments before their campus (org_dep.org_id FK).
                 int depRows = statement.executeUpdate(
                         "DELETE FROM system.org_dep WHERE ("
                                 + prefixLikePredicate("code", DEP_CODE_PREFIXES) + ") "
                         + "OR org_id IN (SELECT id FROM system.org_info WHERE ("
                                 + orgResiduePredicate() + "))");
-                // 9. The fixture orgs themselves.
+                // 10. The fixture orgs themselves.
                 int orgRows = statement.executeUpdate(
                         "DELETE FROM system.org_info WHERE (" + orgResiduePredicate() + ")");
                 connection.commit();
@@ -471,6 +504,7 @@ public abstract class AuthIntegrationTestBase {
                         + " user_role=" + userRoleRows + " user_info=" + userRows
                         + " role_info=" + roleRows + " menu_info=" + menuRows
                         + " dict_detail=" + detailRows + " dict_catal=" + catalRows
+                        + " org_room=" + roomRows + " org_device=" + deviceRows
                         + " org_dep=" + depRows + " org_info=" + orgRows);
             } catch (SQLException e) {
                 connection.rollback();

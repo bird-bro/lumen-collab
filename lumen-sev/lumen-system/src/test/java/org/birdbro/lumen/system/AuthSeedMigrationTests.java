@@ -47,8 +47,14 @@ class AuthSeedMigrationTests extends AuthIntegrationTestBase {
                 "the hospital root sits at level 1");
         assertEquals(0, ((Number) root.get("type")).intValue(),
                 "the hospital root carries type 0 (lumen-owned hospital-root type)");
-        assertEquals("未命名医院", root.get("name"),
-                "the first-run hospital profile uses the Option B placeholder name");
+        // RE-BASELINED 2026-11-12 (user ruling, org-device-room-api verify): the shared
+        // long-lived test DB renamed the root on 2026-11-03 ("Lumen 的测试医院"), so the
+        // V16 placeholder value ("未命名医院") is no longer assertable here - the name is
+        // operator-editable display data (the first-run profile-completion feature exists
+        // to change it). Identity columns (up_id/level/type/code/status) stay the seed's
+        // guarded contract; the name asserts as a non-blank display string.
+        assertTrue(root.get("name") != null && !((String) root.get("name")).isBlank(),
+                "the hospital root must carry a non-blank display name");
         assertEquals("HOSPITAL", root.get("code"),
                 "the first-run hospital uses the deterministic bootstrap code");
         assertEquals(1, ((Number) root.get("status")).intValue(),

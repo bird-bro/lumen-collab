@@ -29,6 +29,8 @@ import { useAuthStore } from '@/stores/auth'
  * the Suspense boundary covering these children.
  */
 const OrgsPage = lazy(() => import('@/pages/system/orgs'))
+const DevicePage = lazy(() => import('@/pages/system/device'))
+const RoomPage = lazy(() => import('@/pages/system/room'))
 const DepsPage = lazy(() => import('@/pages/system/deps'))
 const UsersPage = lazy(() => import('@/pages/system/users'))
 const RolesPage = lazy(() => import('@/pages/system/roles'))
@@ -76,6 +78,8 @@ export const appRoutes: RouteObject[] = [
     children: [
       { index: true, element: <IndexRedirect /> },
       { path: 'system/orgs', element: <OrgsPage /> },
+      { path: 'system/devices', element: <DevicePage /> },
+      { path: 'system/rooms', element: <RoomPage /> },
       { path: 'system/deps', element: <DepsPage /> },
       { path: 'system/users', element: <UsersPage /> },
       { path: 'system/roles', element: <RolesPage /> },

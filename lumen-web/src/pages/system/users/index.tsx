@@ -80,7 +80,10 @@ const maskEmail = (email: string): string => {
 /** The dict catalogs the four selects consume (the V26 seeds anchor by NAME). */
 const DICT_GENDER = '性别'
 const DICT_TITLE = '职称'
-const DICT_EXAM_TYPE = '检查类型'
+// The dict SOURCE is the unified 设备类型 catalog (1024) since the 2026-11-12
+// unification ruling - one modality vocabulary serves device and exam refs;
+// the form LABEL stays 检查类型 (the field scopes exam-type data visibility).
+const DICT_EXAM_TYPE = '设备类型'
 const DICT_REP_AUDIT = '审核权限'
 
 /** The 检查类型 CSV's separator - the RCP lineage's storage shape. */

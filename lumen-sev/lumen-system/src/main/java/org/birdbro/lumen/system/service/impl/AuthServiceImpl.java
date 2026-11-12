@@ -156,7 +156,7 @@ public class AuthServiceImpl implements AuthService {
             AsyncManager.me().execute(AsyncFactory.recordForSign(
                     user.getUsername(),
                     Constants.SUCCESS,
-                    "Sign-IN",
+                    "登录",
                     "登录成功，用户" + user.getUsername(),
                     loginUser));
 
@@ -186,13 +186,13 @@ public class AuthServiceImpl implements AuthService {
         String descr = "登录失败：" + e.getMessage();
         if (user == null) {
             AsyncManager.me().execute(AsyncFactory.recordForSign(
-                    username, Constants.FAIL, "Sign-IN", descr));
+                    username, Constants.FAIL, "登录", descr));
             return;
         }
         UserLogin attempt = new UserLogin();
         attempt.setUserId(user.getId());
         AsyncManager.me().execute(AsyncFactory.recordForSign(
-                username, Constants.FAIL, "Sign-IN", descr, attempt));
+                username, Constants.FAIL, "登录", descr, attempt));
     }
 
     @Override

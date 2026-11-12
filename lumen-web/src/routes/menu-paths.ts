@@ -22,6 +22,8 @@ import type { MenuNode } from '@/api/types';
  * (design D6). Keys mirror the menu fixture's component column verbatim.
  */
 const CONSOLE_ROUTE_BY_COMPONENT: Record<string, string> = {
+  'system/device/index': '/system/devices',
+  'system/room/index': '/system/rooms',
   'system/org/index': '/system/orgs',
   'system/dep/index': '/system/deps',
   'system/user/index': '/system/users',

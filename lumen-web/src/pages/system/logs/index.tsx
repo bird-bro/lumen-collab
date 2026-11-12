@@ -141,14 +141,14 @@ export default function LogsPage() {
     ) },
     { title: '操作人', dataIndex: 'account', width: 180 },
     { title: '类别', dataIndex: 'type', width: 180, render: (v: number) => resolveDictLabel(auditTypeItems, v) },
+    { title: '方法', dataIndex: 'method', width: 120, onCell: () => ({ style: { textAlign: 'center' } }), render: (v: string) => (
+      v ? <Typography.Text code>{v}</Typography.Text> : '—'
+    ) },
     { title: '标题', dataIndex: 'title', width: 200, render: (v: string) => v ?? '—' },
     { title: '描述', dataIndex: 'descr', render: (v: string) => v ?? '—' },
     { title: 'IP', dataIndex: 'ip', width: 130, onCell: () => ({ style: { textAlign: 'center' } }), render: (v: string) => v || '—' },
     { title: '操作系统', dataIndex: 'os', width: 110, render: (v: string) => v || '—' },
     { title: '浏览器', dataIndex: 'browser', width: 180, render: (v: string) => v || '—' },
-    { title: '方法', dataIndex: 'method', width: 120, onCell: () => ({ style: { textAlign: 'center' } }), render: (v: string) => (
-      v ? <Typography.Text code>{v}</Typography.Text> : '—'
-    ) },
     { title: 'URL', dataIndex: 'url', render: (v: string) => (
       v ? (
         <Typography.Text type="secondary" style={{ wordBreak: 'break-all' }}>{v}</Typography.Text>

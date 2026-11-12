@@ -80,15 +80,15 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
         }, "the login-success sign row (account " + username + ", type 10, uid " + uid
                 + ") never landed in public.log_info");
 
-        // The success row carries the Sign-IN title and the session anchor (the UserLogin
+        // The success row carries the 登录 title and the session anchor (the UserLogin
         // token - a UUID, not the JWT), which lands in the session column post-V25
         // (the former log_sign.token column is gone; audit-log-unify D5).
         Integer tokenCarriers = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM public.log_info WHERE account = ? AND type = 10 "
-                + "AND title = 'Sign-IN' AND session IS NOT NULL AND descr LIKE ?",
+                + "AND title = '登录' AND session IS NOT NULL AND descr LIKE ?",
                 Integer.class, username, "%登录成功%");
         assertEquals(Integer.valueOf(1), tokenCarriers,
-                "the success row must carry the Sign-IN title, a non-null session token anchor, and the success descr");
+                "the success row must carry the 登录 title, a non-null session token anchor, and the success descr");
 
         // Login FAILURE (wrong password, scenario 10): type FAIL(11) with the attempt uid.
         ResponseEntity<String> wrongResponse = postJsonWithUa(LOGIN_URL,
@@ -102,7 +102,7 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
         AuthAsyncPoll.until(() -> {
             Integer count = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM public.log_info WHERE account = ? AND type = 11 AND uid = ? "
-                    + "AND title = 'Sign-IN'",
+                    + "AND title = '登录'",
                     Integer.class, username, uid);
             failureRowPresent.set(count != null && count > 0);
             return failureRowPresent.get();
@@ -144,7 +144,7 @@ class AuthSignLogTests extends AuthIntegrationTestBase {
         // The logout row keeps the copied handler's msg/descr wording.
         Integer worded = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM public.log_info WHERE account = ? AND type = 12 "
-                + "AND title = 'Sign-OUT' AND descr LIKE ?",
+                + "AND title = '登出' AND descr LIKE ?",
                 Integer.class, username, "%退出成功%");
         assertEquals(Integer.valueOf(1), worded, "the logout row must carry the copied handler's wording");
 

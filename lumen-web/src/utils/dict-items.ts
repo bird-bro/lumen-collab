@@ -52,3 +52,16 @@ export function resolveDictLabel(items: DictItem[], code: number): string {
   const match = items.find((item) => item.code === code);
   return match?.value ?? String(code);
 }
+
+/**
+ * The display label for a stored VALUE-keyed token: the modality catalogs
+ * (设备类型/检查类型, org-device-room ruling 2026-11-12) make the dict `value`
+ * itself the machine token ('CT'/'DR' - business matching joins on it), so the
+ * stored row text matches `item.value` rather than the numeric admin `code`.
+ * Falls back to the RAW token when the dictionary lacks the entry or never
+ * loaded (same never-a-blank-cell rule as `resolveDictLabel`).
+ */
+export function resolveDictLabelByValue(items: DictItem[], value: string): string {
+  const match = items.find((item) => item.value === value);
+  return match?.value ?? value;
+}

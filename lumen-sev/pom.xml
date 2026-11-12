@@ -13,6 +13,7 @@
         <module>framework</module>
         <module>common</module>
         <module>lumen-system</module>
+        <module>lumen-setting</module>
     </modules>
 
     <name>${project.artifactId}</name>

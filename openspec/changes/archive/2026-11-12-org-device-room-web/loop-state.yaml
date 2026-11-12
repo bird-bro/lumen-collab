@@ -1,0 +1,17 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+# Phases: proposing -> applying -> verifying -> archived | abandoned (terminal).
+#   debugging side-path: applying -> debugging (3-strike) -> applying | proposing (rewind)
+phase: archived
+change: org-device-room-web
+current_task: null
+tasks_total: 11
+tasks_done: 11
+retry_count: 0
+debt_count: 0
+debug_attempts: 0
+workflow_mode: full
+artifacts_hash: 66f9b520799b29b066d509c60a94c4794c88eba60b06bf0ed65c22669c6aa108
+contract_hash: null
+execution_mode: Batch Inline
+batches_completed: 0
+last_updated: 2026-11-12

@@ -101,7 +101,8 @@ export interface UserItem {
   depId: number | null;
   /** Department display name, batch-resolved server-side (null when unbound/dead). */
   depName: string | null;
-  /** Exam-type visibility, CSV of dict 检查类型 codes (null = unset). */
+  /** Exam-type visibility, CSV of the UNIFIED 设备类型 dict (1024) codes - the
+   * single modality vocabulary since the 2026-11-12 unification (null = unset). */
   modalitys: string | null;
   /** Report-workflow authority tier, dict 审核权限 code (null = no tier). */
   repAudit: number | null;
@@ -535,4 +536,176 @@ export type ListLogsQuery = {
  */
 export interface UploadedImage {
   path: string;
+}
+
+// ================= org-device-room-web (api delta payloads) =================
+
+/** Device row of `GET /system/org-devices` - type carries the dict-1024 VALUE
+ * token ('CT'/'DR', ruling 2026-11-12); status/tag stay raw dict codes 1025/1026. */
+export interface OrgDevice {
+  id: number;
+  code: string;
+  name: string;
+  /** dict-1024 VALUE (the modality token). */
+  type: string;
+  status: number;
+  tag: number;
+  brand: string | null;
+  model: string | null;
+  spec: string | null;
+  serialNum: string | null;
+  manufacturer: string | null;
+  productionDate: string | null;
+  purchaseDate: string | null;
+  acceptanceDate: string | null;
+  responsible: string | null;
+  responsiblePhone: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  remark: string | null;
+  oid: number;
+  /** 使用科室 anchor - REQUIRED by the second-round ruling (2026-11-12). */
+  did: number | null;
+  ae: string | null;
+  ip: string | null;
+  port: string | null;
+  boxAdapter: string | null;
+  boxIp: string | null;
+  boxPort: string | null;
+  boxMac: string | null;
+  boxPrint: string | null;
+  captureW: number | null;
+  captureH: number | null;
+  prune: boolean | null;
+  pruneU: number | null;
+  pruneD: number | null;
+  pruneL: number | null;
+  pruneR: number | null;
+  deleted: number;
+  createBy: number | null;
+  createTime: string;
+  updateBy: number | null;
+  updateTime: string;
+}
+
+/** Device create body - the full editable surface (did required). */
+export interface CreateDeviceBody {
+  code: string;
+  name: string;
+  /** dict-1024 VALUE (the modality token). */
+  type: string;
+  status: number;
+  tag: number;
+  oid: number;
+  did: number;
+  brand?: string | null;
+  model?: string | null;
+  spec?: string | null;
+  serialNum?: string | null;
+  manufacturer?: string | null;
+  productionDate?: string | null;
+  purchaseDate?: string | null;
+  acceptanceDate?: string | null;
+  responsible?: string | null;
+  responsiblePhone?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  remark?: string | null;
+  ae?: string | null;
+  ip?: string | null;
+  port?: string | null;
+  boxAdapter?: string | null;
+  boxIp?: string | null;
+  boxPort?: string | null;
+  boxMac?: string | null;
+  boxPrint?: string | null;
+  captureW?: number | null;
+  captureH?: number | null;
+  prune?: boolean | null;
+  pruneU?: number | null;
+  pruneD?: number | null;
+  pruneL?: number | null;
+  pruneR?: number | null;
+}
+
+/**
+ * Device update body - full-replace (D9 null-aware: absent optionals CLEAR server
+ * side). Same shape as create; the did anchor stays required.
+ */
+export type UpdateDeviceBody = CreateDeviceBody;
+
+/** Device page query (orgId optional - the tree root means all campuses). */
+export interface DevicePageQuery {
+  pageNum?: number;
+  pageSize?: number;
+  orgId?: number;
+  type?: string;
+  status?: number;
+  keyword?: string;
+}
+
+/** Room row of `GET /system/org-rooms` page/detail - carries the JOINED device summary. */
+export interface RoomRow {
+  id: number;
+  oid: number;
+  did: number;
+  name: string;
+  code: string | null;
+  enable: number;
+  callIp: string | null;
+  callPort: string | null;
+  callMac: string | null;
+  /** 绑定设备引用 (null = 未绑定) - the summary fields below resolve server-side. */
+  devId: number | null;
+  devName: string | null;
+  devAe: string | null;
+  devIp: string | null;
+  devPort: string | null;
+}
+
+/** Plain room entity of the /list feed (join-free). */
+export interface OrgRoom {
+  id: number;
+  oid: number;
+  did: number;
+  name: string;
+  code: string | null;
+  enable: number;
+  callIp: string | null;
+  callPort: string | null;
+  callMac: string | null;
+  devId: number | null;
+}
+
+export interface CreateRoomBody {
+  oid: number;
+  did: number;
+  name: string;
+  code?: string | null;
+  enable: number;
+  devId?: number | null;
+  callIp?: string | null;
+  callPort?: string | null;
+  callMac?: string | null;
+}
+
+/** Room update body - full-replace; `devId: null` (or absent) CLEARS the binding. */
+export interface UpdateRoomBody {
+  oid: number;
+  did: number;
+  name: string;
+  code?: string | null;
+  devId?: number | null;
+  callIp?: string | null;
+  callPort?: string | null;
+  callMac?: string | null;
+}
+
+/** Room page query (orgId optional - root means all campuses). */
+export interface RoomPageQuery {
+  pageNum?: number;
+  pageSize?: number;
+  orgId?: number;
+  depId?: number;
+  name?: string;
 }

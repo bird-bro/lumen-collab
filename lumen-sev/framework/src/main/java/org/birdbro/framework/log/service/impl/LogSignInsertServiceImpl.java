@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
  *
  * <p>Sign-event write, retargeted to the ONE audit table (audit-log-unify-api design
  * D2/D5): the transport {@code LogSign} builds a {@code LogInfoEntity} — title = msg
- * (Sign-IN/Sign-OUT), descr 1:1, {@code type} Integer PASSTHROUGH
+ * (登录/登出), descr 1:1, {@code type} Integer PASSTHROUGH
  * (Constants.SUCCESS/FAIL/SIGN_OUT — no translation), uid/account/actionTime/ip/os/
  * browser/engine/mobile 1:1, and the credential token anchor lands in the existing
  * {@code session} column (D5) so the query side's select-exclusion covers it;

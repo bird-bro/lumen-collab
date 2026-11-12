@@ -31,9 +31,10 @@ class AuthUserProfileSeedTests extends AuthIntegrationTestBase {
     private static final String[] PROFILE_COLUMNS = {
             "phone", "email", "gender", "title", "dep_id", "modalitys", "rep_audit", "signature"};
 
-    /** {code, value} pairs of the seeded 「检查类型」 catalog (id 1021). */
-    private static final String[][] EXAM_TYPE_ITEMS = {
-            {"1", "CT"}, {"2", "MR"}, {"3", "US"}};
+    /* The 「检查类型」 catalog (V26 id 1021) was RETIRED by V27's unification
+     * (ruling 2026-11-12): 1024 设备类型 is the single modality vocabulary - its
+     * retirement is asserted in AuthDeviceRoomSeedTests, and the re-execution test
+     * below replays V26 THEN V27 so the cumulative stream stays a no-op. */
 
     /** {code, value} pairs of the seeded 「审核权限」 catalog (id 1022). */
     private static final String[][] REP_AUDIT_ITEMS = {
@@ -83,8 +84,12 @@ class AuthUserProfileSeedTests extends AuthIntegrationTestBase {
     }
 
     @Test
-    void examTypeCatalogSeededWithDetails() {
-        assertCatalogDetails("检查类型", 1021, EXAM_TYPE_ITEMS);
+    void examTypeCatalogRetiredByUnification() {
+        Integer retired = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM public.dict_catal WHERE name = '检查类型' AND deleted = 0",
+                Integer.class);
+        assertEquals(0, retired.intValue(),
+                "the 检查类型 catalog must stay retired (1024 设备类型 is the single source)");
     }
 
     @Test
@@ -114,10 +119,16 @@ class AuthUserProfileSeedTests extends AuthIntegrationTestBase {
         long nodesBefore = profileNodeCount();
         long grantsBefore = profileGrantCount();
 
-        String sql = Files.readString(Path.of(getClass()
-                .getResource("/db/migration/V26__user_profile_columns.sql").toURI()));
-        for (String statement : splitStatements(sql)) {
-            jdbcTemplate.execute(statement);
+        // The CUMULATIVE stream re-executes: V26 alone would resurrect the retired
+        // 检查类型 1021 that V27's unification deletes - replaying V27 right after
+        // converges the pair back to the ruled state (a true row-count no-op).
+        for (String migration : new String[] {"V26__user_profile_columns.sql",
+                "V27__org_device_room.sql"}) {
+            String sql = Files.readString(Path.of(getClass()
+                    .getResource("/db/migration/" + migration).toURI()));
+            for (String statement : splitStatements(sql)) {
+                jdbcTemplate.execute(statement);
+            }
         }
 
         assertEquals(catalogsBefore, dictCatalogCount(), "re-run must not add catalogs");

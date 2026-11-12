@@ -50,7 +50,7 @@ public class LogoutSuccessHandlerImpl implements LogoutSuccessHandler {
                     AsyncFactory.recordForSign(
                             account,
                             Constants.SIGN_OUT,
-                            "Sign-OUT",
+                            "登出",
                             "退出成功，用户" + account,
                             userLogin));
         }
