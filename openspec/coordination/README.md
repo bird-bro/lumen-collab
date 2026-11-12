@@ -4,6 +4,16 @@
 > LoopForge-managed replacement for the "parent" that tracks a cross-stack feature across
 > per-stack changes. It is plain documentation - the openspec CLI does not parse it.
 
+### Small cross-stack changes (bypass)
+
+If ALL of the following are true, skip the full coordination flow:
+- No new API contract, no new data model, no schema change
+- <=2 files per stack AND <=5 lines of meaningful change per file → **Direct change** (run tests, no proposal)
+- <=3 files per stack AND no new API contract → **Single lightweight proposal** (one change in the primary stack; mention the other stack's files in Scope; no coordination doc)
+
+Otherwise (new contract/model, multi-file, or new feature) → use the full coordination flow below.
+Cross-domain ban unchanged: each agent still writes only its own stack's code.
+
 ## How a cross-stack feature works
 1. **Create the parent** - copy `_template.md` to `<feature>.md`, fill the shared design/decisions.
 2. **Per stack** - in each stack run `openspec new change <name> --goal "<feature>"` (soft-tagged).

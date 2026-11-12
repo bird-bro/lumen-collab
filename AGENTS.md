@@ -43,7 +43,17 @@ Open-source medical imaging collaboration platform (brand: LumenCollab) that pai
 1. Write spec: `/opsx:propose <change>` (auto-triggers Superpowers brainstorm)
 2. Backend Agent: `cd lumen-sev` → launch AI (claude/codex) → implement to spec (TDD)
 3. Frontend Agent (after the backend API is user-verified): `cd lumen-web` → build against the REAL backend (`pnpm dev` proxies `VITE_API_ENTRY_URL`; no mock layer - user ruling 2026-11-05) → `frontend-design` skill → UI prototype (new pages only; static hard-coded demo data allowed, never via `src/api/`; existing-page edits skip) → **user confirms** → `/opsx:apply`
-4. Verify against WHEN/THEN; `/opsx:archive` when done
+4. Verify against WHEN/THEN; `/opsx:archive` when done (auto-commit after archive: `git add -A && git commit -m "archive: <name>"`, no confirmation needed)
+
+### Small cross-stack changes (bypass)
+
+If ALL of the following are true, skip the full coordination flow:
+- No new API contract, no new data model, no schema change
+- <=2 files per stack AND <=5 lines of meaningful change per file → **Direct change** (run tests, no proposal)
+- <=3 files per stack AND no new API contract → **Single lightweight proposal** (one change in the primary stack; mention the other stack's files in Scope; no coordination doc)
+
+Otherwise (new contract/model, multi-file, or new feature) → use the full coordination flow below.
+Cross-domain ban unchanged: each agent still writes only its own stack's code.
 
 ### Cross-Stack Feature (>=2 stacks - one coordination doc tracks all per-stack changes)
 1. Parent: create `openspec/coordination/<feature>.md` (shared design/decisions + change registry)
