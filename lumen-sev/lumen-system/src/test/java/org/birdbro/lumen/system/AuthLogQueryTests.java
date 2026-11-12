@@ -141,6 +141,92 @@ class AuthLogQueryTests extends AuthIntegrationTestBase {
         sweep(marker);
     }
 
+    /**
+     * Date-range filter proof (log-query-date-range task 1.1, spec delta § Log Query
+     * Endpoint): {@code beginDate}/{@code endDate} bound {@code action_time} with
+     * double-closed DAY semantics — begin includes the whole start day, end includes
+     * the whole end day (wire test: a row at `now` is IN [yesterday, today] while a
+     * row at now-2d is OUT). Single-bound queries bound only their side; an
+     * unparseable date or an inverted range fails as an A0400 business-parameter
+     * error; the new bounds AND-combine with the retained uid/dateYm filters.
+     * Marker-keyed assertions keep this deterministic against the shared long-lived
+     * database (never global row counts).
+     */
+    @Test
+    void logsEndpointDateRangeFiltersAndValidatesActionTimeBounds() throws Exception {
+        long ts = System.currentTimeMillis();
+        String marker = "b3q.range." + ts; // unique per run - shared DB
+        int uidC = (int) (300000000 + ts % 100000000);
+        int currentYm = Integer.parseInt(DateUtils.dateTimeNow("yyyyMM"));
+        java.time.format.DateTimeFormatter day = java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+        String today = java.time.LocalDate.now().format(day);
+        String yesterday = java.time.LocalDate.now().minusDays(1).format(day);
+
+        // Two controlled rows: one at `now` (inside [yesterday, today]), one 2 days
+        // back (always before yesterday 00:00 - outside the range deterministically).
+        assertTrue(logInfoService.insert(LogInfo.builder()
+                .uid(uidC).account(marker + "-in").title("b3q范围-in").type("新增")
+                .actionTime(new Date(ts)).name(marker + "-in")
+                .build()), "the in-range log row must insert");
+        assertTrue(logInfoService.insert(LogInfo.builder()
+                .uid(uidC).account(marker + "-old").title("b3q范围-old").type("修改")
+                .actionTime(new Date(ts - 2L * 24L * 3600L * 1000L)).name(marker + "-old")
+                .build()), "the out-of-range log row must insert");
+
+        String token = adminToken();
+
+        // Both bounds: the today row matches, the 2-days-back row does not.
+        assertEquals(1, rangeTotal(token, marker + "-in", "beginDate=" + yesterday + "&endDate=" + today),
+                "the in-range row must match the [yesterday, today] range");
+        assertEquals(0, rangeTotal(token, marker + "-old", "beginDate=" + yesterday + "&endDate=" + today),
+                "the 2-days-back row must fall outside the [yesterday, today] range");
+
+        // beginDate-only: bounds the start side (in-range row matches, old row does not).
+        assertEquals(1, rangeTotal(token, marker + "-in", "beginDate=" + yesterday),
+                "beginDate-only must keep the today row");
+        assertEquals(0, rangeTotal(token, marker + "-old", "beginDate=" + yesterday),
+                "beginDate-only must exclude the 2-days-back row");
+
+        // endDate-only: bounds the end side (the whole yesterday day; today's row is out).
+        assertEquals(0, rangeTotal(token, marker + "-in", "endDate=" + yesterday),
+                "endDate=yesterday must exclude a row written today (double-closed day end)");
+        assertEquals(1, rangeTotal(token, marker + "-old", "endDate=" + today),
+                "endDate-only with today must keep the today row");
+
+        // Inverted range: A0400 business error, no rows.
+        assertRangeA0400(token, "beginDate=" + today + "&endDate=" + yesterday,
+                "an inverted range must reject as A0400");
+
+        // Unparseable bounds: A0400 business error (strict yyyy-MM-dd).
+        assertRangeA0400(token, "beginDate=2026-13-01", "an out-of-range month must reject as A0400");
+        assertRangeA0400(token, "endDate=not-a-date", "an unparseable date must reject as A0400");
+
+        // The new bounds AND-combine with the retained uid/dateYm filters.
+        assertEquals(1, rangeTotal(token, marker + "-in",
+                        "uid=" + uidC + "&dateYm=" + currentYm + "&beginDate=" + yesterday + "&endDate=" + today),
+                "the range bounds must AND-combine with the retained uid/dateYm filters");
+
+        sweep(marker);
+    }
+
+    /** GETs the logs endpoint with a date-range parameter string + account filter, returning data.total. */
+    private long rangeTotal(String token, String account, String rangeParams) throws Exception {
+        ResponseEntity<String> response = exchangeJson(HttpMethod.GET,
+                LOGS_URL + "?page=1&pageSize=10&account=" + account + "&" + rangeParams, token);
+        JsonNode body = parse(response);
+        assertEquals("200", body.path("code").asText(),
+                "the range-filtered query must succeed: " + body);
+        return body.path("data").path("total").asLong(-1);
+    }
+
+    /** Asserts a date-range request answers the A0400 business-parameter envelope. */
+    private void assertRangeA0400(String token, String rangeParams, String message) throws Exception {
+        ResponseEntity<String> response = exchangeJson(HttpMethod.GET,
+                LOGS_URL + "?page=1&pageSize=10&" + rangeParams, token);
+        JsonNode body = parse(response);
+        assertEquals("A0400", body.path("code").asText(), message + ": " + body);
+    }
+
     /** Hard-deletes this run's seeded rows (smoke-test sweep ruling — never soft-delete). */
     private void sweep(String marker) {
         try {

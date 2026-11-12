@@ -6,6 +6,8 @@ import org.birdbro.common.core.pojo.LogInfo;
 import org.birdbro.framework.log.entity.LogInfoEntity;
 import org.birdbro.framework.log.request.LogRequest;
 
+import java.time.LocalDateTime;
+
 /**
  * <p>
  * 服务类
@@ -51,4 +53,23 @@ public interface ILogInfoService extends IService<LogInfoEntity> {
      * @return: 分页结果（不含 session 列）
      **/
     IPage<LogInfoEntity> getPage(Integer pageNum, Integer pageSize, Integer type, Integer uid, String account, Integer dateYm);
+
+    /**
+     * 审计日志分页查询·日期段版（log-query-date-range task 1.1；加法式重载，前序重载
+     * 一律不动）：在 type/uid/account/dateYm 之上新增 actionTime 日期段——
+     * beginInclusive 含当天整天（action_time &gt;= begin 00:00）、endExclusive 为排他
+     * 上界（endDate+1d 00:00，双闭日语义由控制器换算），两界皆可空、AND 组合；查询
+     * 附带 date_ym 落月键 IN 约束保持 RANGE(date_ym) 分区裁剪（月跨超 12 个月或只有
+     * 上界时跳过 IN，行为不受影响）。其余同前序重载（session 排除、deleted=0、
+     * actionTime 倒序）。
+     *
+     * @author: birdbro
+     * @since: 2026-11-11
+     * @param: pageNum 页码（null=1）；pageSize 每页条数（null=20）
+     * @param: type 审计类型码（可空）；uid 操作者（可空）；account 账号（可空）；dateYm 年月键（可空）
+     * @param: beginInclusive 起始日 00:00（LocalDateTime，可空）；endExclusive 排他结束上界 endDate+1d 00:00（可空）
+     * @return: 分页结果（不含 session 列）
+     **/
+    IPage<LogInfoEntity> getPage(Integer pageNum, Integer pageSize, Integer type, Integer uid, String account, Integer dateYm,
+            LocalDateTime beginInclusive, LocalDateTime endExclusive);
 }
