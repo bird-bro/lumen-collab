@@ -50,7 +50,7 @@ import {
  * `system:user:delete` button perms (no invented strings).
  */
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 20
 
 /** The reset contract made visible: mustChangePassword 1 -> change at first login. */
 const MUST_CHANGE_HINT = '首次登录需改密'
@@ -63,6 +63,19 @@ const ENABLE_FILTERS = [
 ] as const
 
 type EnableFilter = (typeof ENABLE_FILTERS)[number]['value']
+
+/** Table-only display masks; the raw values stay in the edit dialog payload. */
+const maskPhone = (phone: string): string => {
+  if (/^1\d{10}$/.test(phone)) return `${phone.slice(0, 3)}****${phone.slice(-4)}`
+  if (phone.length <= 4) return '*'.repeat(phone.length)
+  return `${phone.slice(0, 2)}****${phone.slice(-2)}`
+}
+
+const maskEmail = (email: string): string => {
+  const at = email.lastIndexOf('@')
+  if (at <= 0) return '***'
+  return `${email.slice(0, 1)}***${email.slice(at)}`
+}
 
 /** The dict catalogs the four selects consume (the V26 seeds anchor by NAME). */
 const DICT_GENDER = '性别'
@@ -214,6 +227,19 @@ export default function UsersPage() {
     () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
     [filtered, page],
   )
+
+  /**
+   * The creator display uses the one authoritative users list already loaded by
+   * this page: UID -> display name. A deleted creator keeps `UID n`, matching
+   * the other console pages without inventing an additional API call.
+   */
+  const creatorNameByUid = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const user of users) {
+      map.set(user.uid, user.name)
+    }
+    return map
+  }, [users])
 
   const runQuery = () => {
     setQuery(queryDraft)
@@ -399,12 +425,16 @@ export default function UsersPage() {
 
   const columns: TableColumnsType<UserItem> = [
     {
-      title: '姓名',
+      title: '用户',
       dataIndex: 'name',
-      width: 160,
       render: (name: string, row: UserItem) => (
         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '20px' }}>
-          <span>{name}</span>
+          <span>
+            {name}
+            {row.mustChangePassword === 1 ? (
+              <Tag style={{ marginInlineStart: 6, marginInlineEnd: 0 }}>{MUST_CHANGE_HINT}</Tag>
+            ) : null}
+          </span>
           <Typography.Text type="secondary" style={{ fontSize: token.fontSizeSM, fontVariantNumeric: 'tabular-nums' }}>
             {row.username}
           </Typography.Text>
@@ -412,9 +442,25 @@ export default function UsersPage() {
       ),
     },
     {
+      title: '启用',
+      dataIndex: 'enable',
+      width: 120,
+      align: 'center',
+      render: (enable: number, row: UserItem) => (
+        <Switch
+          checked={enable === 1}
+          disabled={!canEnable}
+          aria-label={`启用 ${row.username}`}
+          checkedChildren="✓"
+          unCheckedChildren="✕"
+          onChange={(checked) => void toggleEnable(row, checked ? 1 : 0)}
+        />
+      ),
+    },
+    {
       key: 'roles',
       title: '角色',
-      width: 180,
+      width: 220,
       render: (_: unknown, row: UserItem) => {
         if (!row.roleNames || row.roleNames.length === 0) {
           return <span style={{ color: token.colorTextTertiary }}>—</span>
@@ -422,7 +468,7 @@ export default function UsersPage() {
         return (
           <Space size={4} wrap>
             {row.roleNames.map((name) => (
-              <Tag key={name} style={{ marginInlineEnd: 0 }}>
+              <Tag key={name} style={{ marginInlineEnd: 0, fontSize: token.fontSize }}>
                 {name}
               </Tag>
             ))}
@@ -451,47 +497,46 @@ export default function UsersPage() {
     {
       title: '手机号',
       dataIndex: 'phone',
-      width: 140,
+      width: 160,
+      align: 'center',
       render: (phone: string | null) => (
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {phone ?? <span style={{ color: token.colorTextTertiary }}>—</span>}
+          {phone ? maskPhone(phone) : <span style={{ color: token.colorTextTertiary }}>—</span>}
         </span>
       ),
     },
     {
       title: '邮箱',
       dataIndex: 'email',
-      width: 180,
+      width: 220,
       ellipsis: true,
       render: (email: string | null) =>
-        email ?? <span style={{ color: token.colorTextTertiary }}>—</span>,
+        email ? (
+          maskEmail(email)
+        ) : (
+          <span style={{ color: token.colorTextTertiary }}>—</span>
+        ),
     },
     {
-      title: '启用',
-      dataIndex: 'enable',
-      width: 90,
-      render: (enable: number, row: UserItem) => (
-        <Switch
-          checked={enable === 1}
-          disabled={!canEnable}
-          aria-label={`启用 ${row.username}`}
-          checkedChildren="✓"
-          unCheckedChildren="✕"
-          onChange={(checked) => void toggleEnable(row, checked ? 1 : 0)}
-        />
-      ),
-    },
-    {
-      title: '创建时间',
+      title: '创建人 / 创建时间',
       dataIndex: 'createTime',
-      width: 160,
+      width: 170,
       render: (createTime: string, row: UserItem) => (
-        <Space size={6} wrap>
-          <Typography.Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {row.createBy === null ? '—' : creatorNameByUid.get(row.createBy) ?? `UID ${row.createBy}`}
+          </span>
+          <span
+            style={{
+              fontSize: token.fontSizeSM,
+              lineHeight: '18px',
+              color: token.colorTextTertiary,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
             {createTime}
-          </Typography.Text>
-          {row.mustChangePassword === 1 ? <Tag style={{ marginInlineEnd: 0 }}>{MUST_CHANGE_HINT}</Tag> : null}
-        </Space>
+          </span>
+        </div>
       ),
     },
   ]
@@ -540,13 +585,23 @@ export default function UsersPage() {
           actions={
             canManage
               ? {
-                  width: 170,
                   render: (row) =>
                     [
+                      canResetPwd ? (
+                        <ConsoleAction
+                          key="reset"
+                          label="重置密码"
+                          icon="key"
+                          onClick={() => {
+                            setResetTarget(row)
+                            resetForm.setFieldsValue({ password: '' })
+                          }}
+                        />
+                      ) : null,
                       canUpdate ? (
                         <ConsoleAction
                           key="edit"
-                          label="编辑"
+                          label="修改"
                           icon="edit"
                           onClick={() => void openEdit(row)}
                         />
@@ -561,17 +616,6 @@ export default function UsersPage() {
                         >
                           <ConsoleAction label="删除" icon="remove" danger onClick={() => undefined} />
                         </Popconfirm>
-                      ) : null,
-                      canResetPwd ? (
-                        <ConsoleAction
-                          key="reset"
-                          label="重置密码"
-                          icon="key"
-                          onClick={() => {
-                            setResetTarget(row)
-                            resetForm.setFieldsValue({ password: '' })
-                          }}
-                        />
                       ) : null,
                     ].filter(Boolean),
                 }

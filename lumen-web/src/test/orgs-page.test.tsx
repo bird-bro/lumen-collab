@@ -406,7 +406,7 @@ describe('org page - campus CRUD round-trip (delta: Campus CRUD round-trip)', ()
     await waitForCampusRow('总院区')
 
     await waitForTableReady()
-    await user.click(within(rowOf('总院区')).getByTitle('编辑院区'))
+    await user.click(within(rowOf('总院区')).getByRole('button', { name: '编辑院区' }))
     expect(screen.getByLabelText('机构代码')).toHaveValue('CAMPUS-1')
     await user.clear(screen.getByLabelText('机构名称'))
     await user.type(screen.getByLabelText('机构名称'), '总院区改名')
@@ -423,7 +423,7 @@ describe('org page - campus CRUD round-trip (delta: Campus CRUD round-trip)', ()
     await waitForCampusRow('东院区')
 
     await waitForTableReady()
-    await user.click(within(rowOf('东院区')).getByTitle('删除院区'))
+    await user.click(within(rowOf('东院区')).getByRole('button', { name: '删除院区' }))
     await user.click(screen.getByRole('button', { name: '删 除' }))
     await waitFor(() => expect(orgsApi.deleteOrg).toHaveBeenCalledWith(275))
     await waitFor(() => expect(screen.queryByText('东院区')).toBeNull())
@@ -475,7 +475,7 @@ describe('org page - rejection surfaces (delta: Organization rejection surfaces)
     await waitForCampusRow('东院区')
 
     await waitForTableReady()
-    await user.click(within(rowOf('东院区')).getByTitle('删除院区'))
+    await user.click(within(rowOf('东院区')).getByRole('button', { name: '删除院区' }))
     await user.click(screen.getByRole('button', { name: '删 除' }))
 
     expect(await screen.findByText('organization still has live departments')).toBeInTheDocument()
@@ -557,7 +557,7 @@ describe('org page - profile form (delta: Campus Profile Management)', () => {
     await waitForCampusRow('总院区')
 
     await waitForTableReady()
-    await user.click(within(rowOf('总院区')).getByTitle('编辑院区'))
+    await user.click(within(rowOf('总院区')).getByRole('button', { name: '编辑院区' }))
 
     // The cascade chains by up_id: 310000 -> its cities, 310100 -> its districts.
     await waitFor(() => expect(dictsApi.listCityDicts).toHaveBeenCalledWith({ upId: 310000 }))
@@ -575,7 +575,7 @@ describe('org page - profile form (delta: Campus Profile Management)', () => {
     await waitForCampusRow('总院区')
 
     await waitForTableReady()
-    await user.click(within(rowOf('总院区')).getByTitle('编辑院区'))
+    await user.click(within(rowOf('总院区')).getByRole('button', { name: '编辑院区' }))
     await waitFor(() => expect(dictsApi.listCityDicts).toHaveBeenCalledWith({ upId: 310100 }))
 
     await pickRegion(user, '省份', '北京')
@@ -633,8 +633,8 @@ describe('org page - perms gating (design D6)', () => {
 
     expect(screen.queryByRole('button', { name: '新建院区' })).toBeNull()
     expect(screen.queryByRole('button', { name: '编辑' })).toBeNull()
-    expect(screen.queryByTitle('编辑院区')).toBeNull()
-    expect(screen.queryByTitle('删除院区')).toBeNull()
+    expect(screen.queryByRole('button', { name: '编辑院区' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '删除院区' })).toBeNull()
     expect(screen.queryByTitle('设为默认')).toBeNull()
     // Read-only stays: card + rows still render.
     expect(screen.getByText('示例医院')).toBeInTheDocument()
@@ -649,7 +649,7 @@ describe('orgs page - button-level gating (button-perm-enforcement-web)', () => 
     await screen.findByText('示例医院')
     expect(screen.queryByRole('button', { name: /新建院区/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '编辑' })).not.toBeInTheDocument()
-    expect(screen.queryByTitle('删除院区')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '删除院区' })).not.toBeInTheDocument()
   })
 
   it('disables the campus status switch without system:org:update', async () => {
@@ -664,17 +664,17 @@ describe('orgs page - button-level gating (button-perm-enforcement-web)', () => 
     useAuthStore.getState().setSession({ perms: ['system:org:list', 'system:org:create'] })
     renderPage()
     await screen.findByText('示例医院')
-    expect(screen.queryAllByTitle('编辑院区').length).toBe(0)
+    expect(screen.queryAllByRole('button', { name: '编辑院区' }).length).toBe(0)
     // The default marker is display-only on this page; no row default action.
-    expect(screen.queryAllByTitle('设为默认').length).toBe(0)
+    expect(screen.queryAllByRole('button', { name: '设为默认' }).length).toBe(0)
     expect(screen.getByRole('button', { name: /新建院区/ })).toBeInTheDocument()
 
     // + update: the edit affordance appears; no default action is reintroduced
     useAuthStore.getState().setSession({ perms: ['system:org:list', 'system:org:create', 'system:org:update'] })
     renderPage()
     await screen.findByText('示例医院')
-    expect(screen.getAllByTitle('编辑院区').length).toBeGreaterThan(0)
-    expect(screen.queryAllByTitle('设为默认').length).toBe(0)
+    expect(screen.getAllByRole('button', { name: '编辑院区' }).length).toBeGreaterThan(0)
+    expect(screen.queryAllByRole('button', { name: '设为默认' }).length).toBe(0)
   })
 
   it('reveals the campus affordances when their button perms are granted', async () => {
@@ -683,7 +683,7 @@ describe('orgs page - button-level gating (button-perm-enforcement-web)', () => 
     await screen.findByText('示例医院')
     expect(screen.getByRole('button', { name: /新建院区/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '编辑' })).toBeInTheDocument()
-    expect(screen.getAllByTitle('删除院区').length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: '删除院区' }).length).toBeGreaterThan(0)
   })
 })
 

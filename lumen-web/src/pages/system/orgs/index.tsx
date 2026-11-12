@@ -75,8 +75,6 @@ import {
  */
 
 /** The campus-table action glyphs (prototype `.act` verbs). */
-const ACTION_COLUMN_WIDTH = 150
-
 /** Option B bootstrap detection: V16 normalizes the seed to exactly this pair. */
 function isFirstRunBootstrap(hospital: OrgNode | null): boolean {
   return hospital !== null && hospital.code === 'HOSPITAL' && hospital.name === '未命名医院'
@@ -591,7 +589,7 @@ export default function OrgsPage() {
     {
       title: '院区 / 代码',
       dataIndex: 'name',
-      width: 240,
+      width: 400,
       render: (_: unknown, row: OrgNode) => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -626,7 +624,7 @@ export default function OrgsPage() {
     {
       title: '状态',
       dataIndex: 'status',
-      width: 90,
+      width: 120,
       align: 'center',
       render: (status: number, row: OrgNode) => (
         <Switch
@@ -644,7 +642,6 @@ export default function OrgsPage() {
       // label, line 2 the detailed address - the pairing the hospital card shows.
       title: '地址',
       dataIndex: 'address',
-      width: 220,
       ellipsis: true,
       render: (_: unknown, row: OrgNode) => <RegionAddressCell org={row} />,
     },
@@ -741,7 +738,6 @@ export default function OrgsPage() {
             actions={
               canManage
                 ? {
-                    width: ACTION_COLUMN_WIDTH,
                     render: (campus) => [
                       canUpdateOrg ? (
                         <ConsoleAction

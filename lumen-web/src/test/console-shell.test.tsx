@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ConfigProvider } from 'antd'
 import type { ReactNode } from 'react'
@@ -162,6 +162,15 @@ describe('console page chrome (web-foundation-auth-console 6.1-6.3 shared layer)
     // Icon-only: the button carries no text node of its own.
     expect(container.querySelector('button')?.textContent).toBe('')
     expect(container.querySelector('.anticon')).toBeInTheDocument()
+  })
+
+  it('ConsoleAction shows its verb in a body-size tooltip on hover', async () => {
+    renderWithTheme(<ConsoleAction label="重置密码" icon="key" onClick={() => undefined} />)
+    expect(screen.getByRole('button', { name: '重置密码' })).toBeInTheDocument()
+    await userEvent.hover(screen.getByRole('button', { name: '重置密码' }))
+    const tooltip = await screen.findByText('重置密码')
+    expect(tooltip.closest('.ant-tooltip-inner')).toHaveStyle({ fontSize: '18px' })
+    await waitFor(() => expect(tooltip.closest('.ant-tooltip-inner')).toBeInTheDocument())
   })
 
   it('ConsolePagination shows the OPS total counter and is absent when there is nothing to page', () => {

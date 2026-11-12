@@ -135,13 +135,14 @@ describe('roles page - list (spec: role list, gap endpoint mock-served)', () => 
 })
 
 describe('roles page - list columns (UI polish 2026-11-09)', () => {
-  it('leads with a 序号 column carrying the role id', async () => {
+  it('does not show a 序号 column (user ruling 2026-11-11)', async () => {
     vi.mocked(rolesApi.listRoles).mockResolvedValue(
       pageFixture([role({ id: 7, name: '审计员', createBy: 2, remark: '只读审计', menuIds: [1, 13] })]),
     )
     renderPage()
     await screen.findByText('审计员')
-    expect(screen.getByText('7')).toBeInTheDocument()
+    expect(screen.queryByText('序号')).not.toBeInTheDocument()
+    expect(screen.queryByText('7')).not.toBeInTheDocument()
   })
 
   it('labels the type tag (10 系统角色 / 11 RCP角色) instead of the raw number', async () => {
@@ -181,7 +182,7 @@ describe('roles page - list columns (UI polish 2026-11-09)', () => {
   it('carries the shield-check glyph on 菜单授权, not apartment tree or key (rulings 2026-11-09: tree read as org structure; key read as a magnifier)', async () => {
     renderPage()
     await screen.findByText('系统管理员')
-    const assignBtn = screen.getByTitle('菜单授权')
+    const assignBtn = screen.getByRole('button', { name: '菜单授权' })
     expect(assignBtn.querySelector('.anticon-apartment')).toBeNull()
     expect(assignBtn.querySelector('.anticon-key')).toBeNull()
     expect(assignBtn.querySelector('.anticon-search')).toBeNull()

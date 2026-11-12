@@ -19,7 +19,7 @@ import { themeConfig } from '@/theme'
  * with the 姓名+账号/角色/科室/职称/手机号/邮箱/创建时间/操作 columns, the
  * roleNames chips for ANY row, the shared create+edit drawer (the profile form,
  * dict-driven 性别/职称/检查类型/审核权限, the deps select, the signature
- * upload), the Popconfirm delete, and the 编辑/删除 affordances gated by the
+ * upload), the Popconfirm delete, and the 修改/删除 affordances gated by the
  * seeded `system:user:update`/`system:user:delete` button perms. 重置密码 and
  * the 启用 switch stay (password-transport + button-perm precedents).
  *
@@ -47,6 +47,7 @@ function user(partial: Partial<UserItem> & { uid: number; username: string }): U
     roleNames: [],
     enable: 1,
     mustChangePassword: 0,
+    createBy: null,
     createTime: '2026-11-04 09:00:00',
     ...partial,
   }
@@ -67,7 +68,7 @@ const WANG = user({
   repAudit: 2,
   roleNames: ['系统管理员'],
 })
-const LI = user({ uid: 3, username: 'lwb', name: '李文博', createTime: '2026-11-01 10:15:44' })
+const LI = user({ uid: 3, username: 'lwb', name: '李文博', createBy: 1, createTime: '2026-11-01 10:15:44' })
 
 function role(partial: Partial<RoleItem> & { id: number; name: string }): RoleItem {
   return {
@@ -191,8 +192,55 @@ describe('users page - profile list (spec: Paged user list / List columns / Role
     // role chips FROM THE ROW - and admin's render even though the session user is admin
     expect(within(rowOf('wangq')).getByText('系统管理员')).toBeInTheDocument()
     expect(within(rowOf('wangq')).getByText('放射科')).toBeInTheDocument()
-    expect(within(rowOf('wangq')).getByText('13800001111')).toBeInTheDocument()
-    expect(within(rowOf('wangq')).getByText('wang@example.com')).toBeInTheDocument()
+    expect(within(rowOf('wangq')).getByText('138****1111')).toBeInTheDocument()
+    expect(within(rowOf('wangq')).getByText('w***@example.com')).toBeInTheDocument()
+  })
+
+  it('renders the requested user-list layout and centers numeric/status cells', async () => {
+    vi.mocked(usersApi.listUsersWithProfile).mockResolvedValue([
+      ADMIN,
+      { ...WANG, createBy: 1 },
+      LI,
+    ])
+    renderPage()
+    await screen.findByText('wangq')
+
+    const headers = Array.from(document.querySelectorAll('.ant-table-thead th'))
+      .map((cell) => cell.textContent)
+    expect(headers).toEqual([
+      '用户', '启用', '角色', '科室', '职称', '手机号', '邮箱', '创建人 / 创建时间', '操作',
+    ])
+
+    const wangRow = rowOf('wangq')
+    expect(within(wangRow).getByRole('cell', { name: '138****1111' }).style.textAlign).toBe('center')
+    const enableCell = within(wangRow).getByRole('switch').closest('td')
+    expect(enableCell?.style.textAlign).toBe('center')
+    const roleTag = wangRow.querySelector<HTMLElement>('.ant-tag')
+    expect(roleTag?.style.fontSize).toBe('18px')
+    // The creator name resolves from the same authoritative user list.
+    expect(within(wangRow).getAllByText('系统管理员').length).toBe(2)
+    expect(within(wangRow).getByText('2026-11-04 09:00:00')).toBeInTheDocument()
+  })
+
+  it('falls back to the creator UID when the creator is absent from the live list', async () => {
+    const orphanCreator = user({ uid: 9, username: 'orphan', name: '孤儿创建用户', createBy: 4242 })
+    vi.mocked(usersApi.listUsersWithProfile).mockResolvedValue([orphanCreator])
+    renderPage()
+    await screen.findByText('orphan')
+    expect(within(rowOf('orphan')).getByText('UID 4242')).toBeInTheDocument()
+  })
+
+  it('orders the operation verbs 重置密码 / 修改 / 删除 and keeps hover hints', async () => {
+    renderPage()
+    await screen.findByText('wangq')
+
+    const actionCell = rowOf('wangq').querySelector('td:last-child') as HTMLElement
+    const actionNames = Array.from(actionCell.querySelectorAll('button'))
+      .map((button) => button.getAttribute('aria-label'))
+    expect(actionNames).toEqual(['重置密码', '修改', '删除'])
+    await userEvent.setup().hover(within(rowOf('wangq')).getByRole('button', { name: '重置密码' }))
+    const tooltip = await screen.findByText('重置密码')
+    expect(tooltip.closest('.ant-tooltip-inner')).toHaveStyle({ fontSize: '18px' })
   })
 
   it('renders dict labels for the title code and falls back to the raw code', async () => {
@@ -229,7 +277,7 @@ describe('users page - profile list (spec: Paged user list / List columns / Role
   })
 
   it('paginates client-side: one request, then page switches slice the list', async () => {
-    const many = Array.from({ length: 12 }, (_, index) =>
+    const many = Array.from({ length: 22 }, (_, index) =>
       user({ uid: index + 1, username: `user${index + 1}`, name: `同事${index + 1}` }),
     )
     vi.mocked(usersApi.listUsersWithProfile).mockResolvedValue(many)
@@ -237,11 +285,11 @@ describe('users page - profile list (spec: Paged user list / List columns / Role
     renderPage()
     await screen.findByText('user1')
 
-    expect(screen.getByText('共 12 条')).toBeInTheDocument()
-    expect(screen.queryByText('user11')).not.toBeInTheDocument()
+    expect(screen.getByText('共 22 条')).toBeInTheDocument()
+    expect(screen.queryByText('user21')).not.toBeInTheDocument()
 
     await user_.click(screen.getByText('2'))
-    await screen.findByText('user11')
+    await screen.findByText('user21')
     expect(screen.queryByText('user1')).not.toBeInTheDocument()
     expect(usersApi.listUsersWithProfile).toHaveBeenCalledTimes(1)
   })
@@ -331,7 +379,7 @@ describe('users page - edit (spec: Edit opens prefilled with detail / Edit failu
     renderPage()
     await screen.findByText('wangq')
 
-    await user_.click(within(rowOf('wangq')).getByRole('button', { name: '编辑' }))
+    await user_.click(within(rowOf('wangq')).getByRole('button', { name: '修改' }))
     const dialog = await screen.findByRole('dialog', { name: '编辑用户' })
     expect(usersApi.getUserDetail).toHaveBeenCalledWith(2)
     // the prefill: username visible but DISABLED (immutable), fields echo the detail
@@ -356,7 +404,7 @@ describe('users page - edit (spec: Edit opens prefilled with detail / Edit failu
     renderPage()
     await screen.findByText('wangq')
 
-    await user_.click(within(rowOf('wangq')).getByRole('button', { name: '编辑' }))
+    await user_.click(within(rowOf('wangq')).getByRole('button', { name: '修改' }))
     const dialog = await screen.findByRole('dialog', { name: '编辑用户' })
     // the CSV '1,2' (the dict CODES) prefills as CT and MR. The label resolves
     // to the inner search INPUT (no text content ever) - the selected items
@@ -378,7 +426,7 @@ describe('users page - edit (spec: Edit opens prefilled with detail / Edit failu
     renderPage()
     await screen.findByText('wangq')
 
-    await user_.click(within(rowOf('wangq')).getByRole('button', { name: '编辑' }))
+    await user_.click(within(rowOf('wangq')).getByRole('button', { name: '修改' }))
     const dialog = await screen.findByRole('dialog', { name: '编辑用户' })
     await user_.click(within(dialog).getByRole('button', { name: '保 存' }))
 
@@ -465,21 +513,21 @@ describe('users page - enable toggle (spec: Password and enable actions)', () =>
 // ===================== perms (spec: Edit and delete follow the new button permissions) =====================
 
 describe('users page - perms gating (spec: Edit and delete follow the new button permissions)', () => {
-  it('hides 编辑/删除 without their button perms (the other affordances unchanged)', async () => {
+  it('hides 修改/删除 without their button perms (the other affordances unchanged)', async () => {
     useAuthStore.getState().setSession({ perms: ['system:user:list', 'system:user:create', 'system:user:reset-pwd', 'system:user:enable'] })
     renderPage()
     await screen.findByText('admin')
 
-    expect(within(rowOf('wangq')).queryByRole('button', { name: '编辑' })).not.toBeInTheDocument()
+    expect(within(rowOf('wangq')).queryByRole('button', { name: '修改' })).not.toBeInTheDocument()
     expect(within(rowOf('wangq')).queryByRole('button', { name: '删除' })).not.toBeInTheDocument()
     expect(within(rowOf('wangq')).getByRole('button', { name: '重置密码' })).toBeInTheDocument()
     expect(within(rowOf('wangq')).getByRole('switch')).toBeEnabled()
   })
 
-  it('reveals 编辑/删除 when the session holds the seeded perms', async () => {
+  it('reveals 修改/删除 when the session holds the seeded perms', async () => {
     renderPage()
     await screen.findByText('admin')
-    expect(within(rowOf('wangq')).getByRole('button', { name: '编辑' })).toBeInTheDocument()
+    expect(within(rowOf('wangq')).getByRole('button', { name: '修改' })).toBeInTheDocument()
     expect(within(rowOf('wangq')).getByRole('button', { name: '删除' })).toBeInTheDocument()
   })
 })

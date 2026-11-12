@@ -9,7 +9,6 @@ import {
   Spin,
   Tag,
   Tree,
-  Typography,
   message,
   theme,
 } from 'antd'
@@ -306,18 +305,6 @@ export default function RolesPage() {
 
   const columns: TableColumnsType<RoleItem> = [
     {
-      // 序号 = role id (user request 2026-11-09: a stable row number, the id is it).
-      title: '序号',
-      dataIndex: 'id',
-      width: 70,
-      align: 'center',
-      render: (id: number) => (
-        <Typography.Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {id}
-        </Typography.Text>
-      ),
-    },
-    {
       // No leading icon, no inline tag (user rulings 2026-11-09) - the type
       // moved to its own styled column below; the width carries long names.
       title: '名称',
@@ -325,12 +312,30 @@ export default function RolesPage() {
       width: 260,
     },
     {
+      // 状态 switch (role-type-dict-web D7): the orgs/deps chrome, centered -
+      // the org-status-toggle mirror with the enable vocabulary.
+      title: '状态',
+      dataIndex: 'enable',
+      width: 120,
+      align: 'center',
+      render: (enable: number, row: RoleItem) => (
+        <Switch
+          checked={enable === 1}
+          disabled={!canUpdate}
+          aria-label={`启用 ${row.name}`}
+          checkedChildren="✓"
+          unCheckedChildren="✕"
+          onChange={(checked) => void toggleEnable(row, checked ? 1 : 0)}
+        />
+      ),
+    },
+    {
       // 类型 from the 「角色类型」 dict (role-type-dict-web D4): label = dict value
       // matched by code, raw-number fallback for a dict miss. Chrome generalizes
       // the 2026-11-09 ruling: code 10 blue, everything else cyan.
       title: '类型',
       dataIndex: 'type',
-      width: 110,
+      width: 150,
       align: 'center',
       render: (type: number | null) => {
         if (type == null) return '—'
@@ -345,35 +350,16 @@ export default function RolesPage() {
         )
       },
     },
-    {
-      // 状态 switch (role-type-dict-web D7): the orgs/deps chrome, centered -
-      // the org-status-toggle mirror with the enable vocabulary.
-      title: '状态',
-      dataIndex: 'enable',
-      width: 90,
-      align: 'center',
-      render: (enable: number, row: RoleItem) => (
-        <Switch
-          checked={enable === 1}
-          disabled={!canUpdate}
-          aria-label={`启用 ${row.name}`}
-          checkedChildren="✓"
-          unCheckedChildren="✕"
-          onChange={(checked) => void toggleEnable(row, checked ? 1 : 0)}
-        />
-      ),
-    },
     // Bounded instead of stretching across the rest of the row; long remarks
     // truncate (user request 2026-11-09).
-    { title: '备注', dataIndex: 'remark', width: 220, ellipsis: true, render: (remark: string | null) => remark ?? '—' },
+    { title: '备注', dataIndex: 'remark', ellipsis: true, render: (remark: string | null) => remark ?? '—' },
     {
-      // Stacked audit cell per the orgs/deps precedent; the API exposes the
+      // Stacked audit cell per the orgs precedent; the API exposes the
       // audit creator as a numeric UID, so the cell keeps `UID n` without
-      // inventing a client-side join (user request 2026-11-09: width 120 -
-      // the timestamp line ellipsizes like the creator line at this width).
+      // inventing a client-side join. Font and width follow orgs (2026-11-11).
       title: '创建人 / 创建时间',
       dataIndex: 'createTime',
-      width: 120,
+      width: 170,
       render: (_: unknown, row: RoleItem) => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -385,9 +371,6 @@ export default function RolesPage() {
               lineHeight: '18px',
               color: token.colorTextTertiary,
               fontVariantNumeric: 'tabular-nums',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
             }}
           >
             {row.createTime}

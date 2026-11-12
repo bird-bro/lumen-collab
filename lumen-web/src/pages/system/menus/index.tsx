@@ -375,8 +375,8 @@ export default function MenusPage() {
       </span>
     ),
     key: 'actions',
-    // 120px console-wide action-column width (user request 2026-11-09).
-    width: 120,
+    // 130px console-wide action-column baseline (dicts keep their own 120px).
+    width: 130,
     align: 'center',
     render: (_: unknown, node: MenuNode) => (
       // Space gap > the console-shell size-6: icon-only targets sit close enough
@@ -475,6 +475,7 @@ export default function MenusPage() {
           ) : (
             <Table<MenuNode>
               rowKey={(node) => node.mid}
+              tableLayout="fixed"
               columns={withCenteredHeaders([...columns, actionColumn])}
               dataSource={filterTree(tree, appliedTitle)}
               expandedRowKeys={expandedKeys}

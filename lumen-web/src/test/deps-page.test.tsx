@@ -192,7 +192,7 @@ describe('dep page - filter tree (delta: Department Campus Filter Tree)', () => 
     await waitForRow('radiology')
     // Both same-code departments render; each labeled with its campus.
     expect(orgDepsApi.pageDep).toHaveBeenCalledWith(
-      expect.objectContaining({ pageNum: 1, pageSize: 10 }),
+      expect.objectContaining({ pageNum: 1, pageSize: 20 }),
     )
     const calls = vi.mocked(orgDepsApi.pageDep).mock.calls
     expect(calls[calls.length - 1][0]).not.toHaveProperty('orgId')
@@ -209,7 +209,7 @@ describe('dep page - filter tree (delta: Department Campus Filter Tree)', () => 
     await waitFor(() => {
       const calls = vi.mocked(orgDepsApi.pageDep).mock.calls
       expect(calls[calls.length - 1][0]).toEqual(
-        expect.objectContaining({ orgId: 275, pageNum: 1, pageSize: 10 }),
+        expect.objectContaining({ orgId: 275, pageNum: 1, pageSize: 20 }),
       )
     })
     await waitFor(() => expect(screen.getAllByText('radiology')).toHaveLength(1))
@@ -366,7 +366,7 @@ describe('dep page - code handling (delta: Department Code Handling)', () => {
     await waitForRow('radiology')
 
     await waitForTableReady()
-    await user.click(within(rowOf('radiology')).getByTitle('编辑科室'))
+    await user.click(within(rowOf('radiology')).getByRole('button', { name: '编辑科室' }))
     expect(screen.getByLabelText('科室编码')).toBeDisabled()
     expect(screen.getByLabelText('科室编码')).toHaveValue('radiology')
     await user.clear(screen.getByLabelText('科室名称'))
@@ -408,7 +408,7 @@ describe('dep page - code handling (delta: Department Code Handling)', () => {
     await waitForRow('radiology')
 
     await waitForTableReady()
-    await user.click(within(rowOf('radiology')).getByTitle('编辑科室'))
+    await user.click(within(rowOf('radiology')).getByRole('button', { name: '编辑科室' }))
     await user.click(screen.getByLabelText('所属院区'))
     await user.click(within(document.querySelector('.ant-select-dropdown') as HTMLElement).getByText('东院区'))
     await user.click(within(drawer()).getByRole('button', { name: '保 存' }))
@@ -427,7 +427,7 @@ describe('dep page - delete and perms (delta: mutation affordances follow system
 
     await waitForTableReady()
     const row = rowOf('radiology')
-    await user.click(within(row).getByTitle('删除科室'))
+    await user.click(within(row).getByRole('button', { name: '删除科室' }))
     await user.click(screen.getByRole('button', { name: '删 除' }))
     await waitFor(() => expect(orgDepsApi.deleteDep).toHaveBeenCalledWith(11))
   })
@@ -439,8 +439,8 @@ describe('dep page - delete and perms (delta: mutation affordances follow system
     await waitForTree()
 
     expect(screen.queryByRole('button', { name: /新建科室/ })).toBeNull()
-    expect(screen.queryByTitle('编辑科室')).toBeNull()
-    expect(screen.queryByTitle('删除科室')).toBeNull()
+    expect(screen.queryByRole('button', { name: '编辑科室' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '删除科室' })).toBeNull()
     expect(screen.getAllByText('radiology').length).toBeGreaterThan(0)
     expect(within(tree()).getByText('总院区')).toBeInTheDocument()
   })
@@ -452,8 +452,8 @@ describe('deps page - button-level gating (button-perm-enforcement-web)', () => 
     renderPage()
     await screen.findAllByText('radiology')
     expect(screen.queryByRole('button', { name: /新建科室/ })).not.toBeInTheDocument()
-    expect(screen.queryByTitle('编辑科室')).not.toBeInTheDocument()
-    expect(screen.queryByTitle('删除科室')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑科室' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '删除科室' })).not.toBeInTheDocument()
   })
 
   it('reveals the three affordances when their button perms are granted', async () => {
@@ -461,7 +461,7 @@ describe('deps page - button-level gating (button-perm-enforcement-web)', () => 
     renderPage()
     await screen.findAllByText('radiology')
     expect(screen.getByRole('button', { name: /新建科室/ })).toBeInTheDocument()
-    expect(screen.getAllByTitle('编辑科室').length).toBeGreaterThan(0)
-    expect(screen.getAllByTitle('删除科室').length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: '编辑科室' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: '删除科室' }).length).toBeGreaterThan(0)
   })
 })

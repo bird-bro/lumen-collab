@@ -45,9 +45,9 @@ import { OrgTree } from '../org-tree'
  * without it the tree and table stay readable.
  */
 
-const COLUMN_WIDTHS = { campus: 120, name: 220, status: 90, audit: 170, actions: 130 } as const
+const COLUMN_WIDTHS = { campus: 200, status: 120, audit: 170 } as const
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 20
 
 interface DepFormValues {
   orgId: number
@@ -297,7 +297,6 @@ export default function DepsPage() {
     {
       title: '科室',
       dataIndex: 'name',
-      width: COLUMN_WIDTHS.name,
       render: (_: unknown, row: OrgDep) => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -427,7 +426,6 @@ export default function DepsPage() {
             actions={
               canManage
                 ? {
-                    width: COLUMN_WIDTHS.actions,
                     render: (row) => [
                       canUpdate ? (
                         <ConsoleAction

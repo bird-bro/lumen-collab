@@ -201,9 +201,9 @@ const ACTION_ICONS = {
 
 /**
  * Icon-only operation button (prototype `.act` / `.act.danger`: the cell shows
- * the glyph alone, the Chinese verb lives in `title=`). The verb is handed to
- * Tooltip + aria-label so it stays announceable while no text renders - the
- * test asserts the button carries no text node of its own.
+ * the glyph alone, the Chinese verb lives in the Tooltip). The verb is handed
+ * to Tooltip + aria-label so it stays visible on hover and announceable while
+ * no text renders - the test asserts the button carries no text node of its own.
  */
 export function ConsoleAction({
   label,
@@ -218,10 +218,8 @@ export function ConsoleAction({
   disabled?: boolean
   onClick: () => void
 }) {
-  // Native `title` hover hint instead of an AntD Tooltip: action glyphs sit
-  // under Popconfirm confirmations (delete), and the floating tooltip +
-  // floating confirm on one anchor occluded each other (user feedback
-  // 2026-11-04). The aria-label keeps the verb announceable.
+  // The styled AntD Tooltip replaces the browser's unstyled (and small)
+  // native `title` hint. The aria-label keeps the verb announceable.
   //
   // Glyph color (user feedback 2026-11-05): the verb icon carries the action
   // primary - the same blue as the primary buttons' background - instead of
@@ -229,16 +227,25 @@ export function ConsoleAction({
   const { token } = theme.useToken()
   const Icon = ACTION_ICONS[icon]
   return (
-    <Button
-      type="text"
-      size="small"
-      danger={danger}
-      disabled={disabled}
+    <Tooltip
       title={label}
-      aria-label={label}
-      icon={<Icon style={danger ? undefined : { color: token.colorPrimary }} />}
-      onClick={onClick}
-    />
+      styles={{
+        body: {
+          fontSize: token.fontSize,
+          lineHeight: token.lineHeight,
+        },
+      }}
+    >
+      <Button
+        type="text"
+        size="small"
+        danger={danger}
+        disabled={disabled}
+        aria-label={label}
+        icon={<Icon style={danger ? undefined : { color: token.colorPrimary }} />}
+        onClick={onClick}
+      />
+    </Tooltip>
   )
 }
 
@@ -284,7 +291,7 @@ export function ConsoleTable<RowType extends object>({
     ? [
         {
           key: 'actions',
-          width: actions.width ?? 120,
+          width: actions.width ?? 130,
           align: 'center',
           title: (
             <span
@@ -333,6 +340,7 @@ export function ConsoleTable<RowType extends object>({
       <Table<RowType>
         rowKey={rowKey}
         className="lumen-console-table"
+        tableLayout="fixed"
         columns={[...columns, ...actionColumns]}
         dataSource={dataSource}
         loading={loading}
