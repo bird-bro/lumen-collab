@@ -1,5 +1,6 @@
-import { Button, Input, InputNumber, Select, Typography, message } from 'antd'
+import { Button, DatePicker, Input, Select, Typography, message } from 'antd'
 import type { TableColumnsType } from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
 import { useCallback, useEffect, useState } from 'react'
 import { listLogs } from '@/api/logs'
 import { ApiError } from '@/api/client'
@@ -16,30 +17,32 @@ import {
 
 /**
  * 审计日志 (audit-log-unify-web 2.2; spec `specs/web-system-console`
- * § Operation Log Query as modified by audit-log-unify): the SINGLE unified
- * paged READ-ONLY view of `GET /system/logs` — BOTH event families in one
- * table (operations 1–5, sign events 10/11/12), rows ordered actionTime
- * descending. The 类别 filter is a dict-driven Select of the 「审计日志类型」
- * catalog (codes 1–5 + 10/11/12, V25 seed) sending the Integer code; column
- * labels resolve through the same dict with the raw-code fallback (fetch
- * failure → one message + codes, the page never blocks — the roles page's
- * D4 pattern verbatim). The `account` filter joins with sign-page parity.
- * Sign-family rows render — for the operation-only 方法/URL columns. The
- * `session` credential column is select-excluded server-side and absent from
- * the `LogItem` type — nothing here can render it. The data is append-only —
- * there is deliberately no mutation affordance anywhere on the page.
+ * § Operation Log Query as modified by audit-log-unify and log-query-date-range):
+ * the SINGLE unified paged READ-ONLY view of `GET /system/logs` — BOTH event
+ * families in one table (operations 1–5, sign events 10/11/12), rows ordered
+ * actionTime descending. The filter bar is 类别 (dict-driven Select of the
+ * 「审计日志类型」 catalog sending the Integer code, options rendering the dict
+ * VALUES — rc-select needs label, not title), 账号, and 日期段 (RangePicker with
+ * 今日/近7天/近30天/本月 presets sending beginDate/endDate yyyy-MM-dd, both-or-none);
+ * the former 操作人ID (uid) / 月份 (dateYm) inputs are gone (the API keeps those
+ * filters — additive contract). Column labels resolve through the same dict with
+ * the raw-code fallback (fetch failure → one message + codes, the page never
+ * blocks — the roles page's D4 pattern verbatim). Sign-family rows render —
+ * for the operation-only 方法/URL columns. The `session` credential column is
+ * select-excluded server-side and absent from the `LogItem` type — nothing here
+ * can render it. The data is append-only — there is deliberately no mutation
+ * affordance anywhere on the page.
  */
 
 interface Filters {
   type: number | ''
-  uid: string
   account: string
-  dateYm: string
+  dateRange: [Dayjs, Dayjs] | null
 }
 
-const EMPTY_FILTERS: Filters = { type: '', uid: '', account: '', dateYm: '' }
+const EMPTY_FILTERS: Filters = { type: '', account: '', dateRange: null }
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 20
 
 export default function LogsPage() {
   // Read-only surface: there is nothing to gate yet - a future write
@@ -75,9 +78,16 @@ export default function LogsPage() {
           page: nextPage,
           pageSize: nextSize,
           ...(filters.type !== '' ? { type: filters.type } : {}),
-          ...(filters.uid ? { uid: Number(filters.uid) } : {}),
           ...(filters.account ? { account: filters.account } : {}),
-          ...(filters.dateYm ? { dateYm: Number(filters.dateYm) } : {}),
+          // Both bounds travel as yyyy-MM-dd only when the pair is complete
+          // (log-query-date-range: the API treats each bound as optional, the
+          // picker produces both-or-none by construction).
+          ...(filters.dateRange
+            ? {
+                beginDate: filters.dateRange[0].format('YYYY-MM-DD'),
+                endDate: filters.dateRange[1].format('YYYY-MM-DD'),
+              }
+            : {}),
         })
         setLogs(data.records)
         setTotal(data.total)
@@ -110,28 +120,38 @@ export default function LogsPage() {
     void reload(1, pageSize, EMPTY_FILTERS)
   }
 
+  // rc-select renders option.label — the dropdown must show the dict VALUE
+  // (登录失败…), never the raw code; title alone would fall back to the code.
   const auditTypeOptions = auditTypeItems.map((item) => ({
     value: item.code as number,
-    title: item.value ?? String(item.code),
+    label: item.value ?? String(item.code),
   }))
 
+  // 日期段 quick presets (log-query-date-range D4: 今日 / 近7天 / 近30天 / 本月).
+  const rangePresets: { label: string; value: [Dayjs, Dayjs] }[] = [
+    { label: '今日', value: [dayjs(), dayjs()] },
+    { label: '近7天', value: [dayjs().subtract(6, 'day'), dayjs()] },
+    { label: '近30天', value: [dayjs().subtract(29, 'day'), dayjs()] },
+    { label: '本月', value: [dayjs().startOf('month'), dayjs()] },
+  ]
+
   const columns: TableColumnsType<LogItem> = [
-    { title: '时间', dataIndex: 'actionTime', width: 180, render: (v: string) => (
+    { title: '日期', dataIndex: 'actionTime', width: 220, render: (v: string) => (
       <Typography.Text style={{ fontVariantNumeric: 'tabular-nums' }}>{v}</Typography.Text>
     ) },
-    { title: '类别', dataIndex: 'type', width: 100, render: (v: number) => resolveDictLabel(auditTypeItems, v) },
-    { title: '标题', dataIndex: 'title', width: 140, render: (v: string) => v ?? '—' },
+    { title: '操作人', dataIndex: 'account', width: 180 },
+    { title: '类别', dataIndex: 'type', width: 180, render: (v: number) => resolveDictLabel(auditTypeItems, v) },
+    { title: '标题', dataIndex: 'title', width: 200, render: (v: string) => v ?? '—' },
     { title: '描述', dataIndex: 'descr', render: (v: string) => v ?? '—' },
-    { title: '操作人', dataIndex: 'account', width: 120 },
-    { title: 'IP', dataIndex: 'ip', width: 130, render: (v: string) => v || '—' },
+    { title: 'IP', dataIndex: 'ip', width: 130, onCell: () => ({ style: { textAlign: 'center' } }), render: (v: string) => v || '—' },
     { title: '操作系统', dataIndex: 'os', width: 110, render: (v: string) => v || '—' },
-    { title: '浏览器', dataIndex: 'browser', width: 100, render: (v: string) => v || '—' },
-    { title: '方法', dataIndex: 'method', width: 90, render: (v: string) => (
+    { title: '浏览器', dataIndex: 'browser', width: 180, render: (v: string) => v || '—' },
+    { title: '方法', dataIndex: 'method', width: 120, onCell: () => ({ style: { textAlign: 'center' } }), render: (v: string) => (
       v ? <Typography.Text code>{v}</Typography.Text> : '—'
     ) },
     { title: 'URL', dataIndex: 'url', render: (v: string) => (
       v ? (
-        <Typography.Text type="secondary" style={{ fontSize: 13, wordBreak: 'break-all' }}>{v}</Typography.Text>
+        <Typography.Text type="secondary" style={{ wordBreak: 'break-all' }}>{v}</Typography.Text>
       ) : '—'
     ) },
   ]
@@ -159,19 +179,19 @@ export default function LogsPage() {
             onChange={(event) => setDraft((prev) => ({ ...prev, account: event.target.value }))}
             onPressEnter={runQuery}
           />
-          <InputNumber
-            style={{ width: 140 }}
-            placeholder="操作人ID"
-            aria-label="操作人ID"
-            value={draft.uid ? Number(draft.uid) : undefined}
-            onChange={(value) => setDraft((prev) => ({ ...prev, uid: value == null ? '' : String(value) }))}
-          />
-          <InputNumber
-            style={{ width: 140 }}
-            placeholder="月份(如 202611)"
-            aria-label="月份"
-            value={draft.dateYm ? Number(draft.dateYm) : undefined}
-            onChange={(value) => setDraft((prev) => ({ ...prev, dateYm: value == null ? '' : String(value) }))}
+          <DatePicker.RangePicker
+            allowClear
+            style={{ width: 280 }}
+            aria-label="日期段"
+            placeholder={['开始日期', '结束日期']}
+            value={draft.dateRange}
+            presets={rangePresets}
+            onChange={(dates) =>
+              setDraft((prev) => ({
+                ...prev,
+                dateRange: dates && dates[0] && dates[1] ? [dates[0], dates[1]] : null,
+              }))
+            }
           />
           <ConsoleQueryButton onClick={runQuery} />
           <Button onClick={reset}>重置</Button>

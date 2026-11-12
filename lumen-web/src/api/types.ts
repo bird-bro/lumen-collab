@@ -111,6 +111,8 @@ export interface UserItem {
   roleNames: string[];
   enable: number;
   mustChangePassword: number;
+  /** Audit creator UID (EntityBase create_by; null on legacy rows). */
+  createBy: number | null;
   createTime: string;
 }
 
@@ -509,8 +511,10 @@ export interface LogItem {
  * GET /system/logs query - `page`/`pageSize` (the logs endpoint's own keys),
  * optional filters AND-combined server-side. `type` is the Integer code
  * (1–5 operations / 10–12 sign events); `account` is the sign-page-parity
- * filter. A type ALIAS (not an interface) so the bag stays assignable to the
- * transport client's Record-typed query option.
+ * filter; `beginDate`/`endDate` are the `yyyy-MM-dd` date-range bounds
+ * (log-query-date-range: additive — `uid`/`dateYm` stay on the contract, the
+ * page just no longer sends them). A type ALIAS (not an interface) so the bag
+ * stays assignable to the transport client's Record-typed query option.
  */
 export type ListLogsQuery = {
   page: number;
@@ -519,6 +523,8 @@ export type ListLogsQuery = {
   uid?: number;
   account?: string;
   dateYm?: number;
+  beginDate?: string;
+  endDate?: string;
 };
 
 /**

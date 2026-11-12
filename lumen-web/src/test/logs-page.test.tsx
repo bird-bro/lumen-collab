@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ConfigProvider } from 'antd'
+import dayjs from 'dayjs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import LogsPage from '@/pages/system/logs'
 import * as logsApi from '@/api/logs'
@@ -115,7 +116,7 @@ describe('audit-logs page - dict-driven unified view (audit-log-unify-web 2.1)',
     renderPage()
     expect(await screen.findByText('2026-11-04 10:00:00')).toBeInTheDocument()
     const headers = screen.getAllByRole('columnheader').map((el) => el.textContent)
-    for (const title of ['时间', '类别', '标题', '描述', '操作人', 'IP', '操作系统', '浏览器', '方法', 'URL']) {
+    for (const title of ['日期', '类别', '标题', '描述', '操作人', 'IP', '操作系统', '浏览器', '方法', 'URL']) {
       expect(headers).toContain(title)
     }
     const times = screen
@@ -135,22 +136,98 @@ describe('audit-logs page - dict-driven unified view (audit-log-unify-web 2.1)',
     expect(dictUtils.dictItemsByName).toHaveBeenCalledTimes(1)
   })
 
-  it('sends the dict-driven numeric 类别 + uid/account/dateYm filters on 查询', async () => {
+  it('sends 类别 + 账号 + 日期段 (beginDate/endDate) on 查询 — 操作人ID/月份 inputs are gone', async () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('2026-11-04 10:00:00')
+    // log-query-date-range: the 操作人ID (uid) and 月份 (dateYm) inputs are REMOVED.
+    expect(screen.queryByLabelText('操作人ID')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('月份')).not.toBeInTheDocument()
     // The 类别 filter is an antd Select fed by the dict — the combobox carries the
     // aria-label (the column header's text also reads 类别, so a bare label query
-    // would be ambiguous). Pick 登录失败 (code 11) from the dropdown listbox.
+    // would be ambiguous). Scope to the VISIBLE dropdown portal (roles-page D6
+    // pattern — AntD also renders a hidden a11y listbox whose nodes can't be
+    // clicked) and pick 登录失败 (code 11): the rendered option TEXT must be the
+    // dict VALUE — rc-select shows option.label, and a raw-code text means the
+    // option was built without label.
     await user.click(screen.getByRole('combobox', { name: '类别' }))
-    await user.click(await screen.findByTitle('登录失败'))
+    const dropdown = await waitFor(() => {
+      const el = document.querySelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')
+      expect(el).not.toBeNull()
+      return el as HTMLElement
+    })
+    const option = await within(dropdown).findByText('登录失败')
+    expect(option).toHaveTextContent('登录失败')
+    await user.click(option)
     await user.type(screen.getByLabelText('账号'), 'operator')
-    await user.type(screen.getByLabelText('操作人ID'), '1')
-    await user.type(screen.getByLabelText('月份'), '202611')
+    // Pick the 今日 preset inside the range-picker dropdown portal — both bounds
+    // fill with today, and the query carries beginDate/endDate as yyyy-MM-dd.
+    await user.click(screen.getByPlaceholderText('开始日期'))
+    const pickerDropdown = await waitFor(() => {
+      const el = document.querySelector('.ant-picker-dropdown:not(.ant-picker-dropdown-hidden)')
+      expect(el).not.toBeNull()
+      return el as HTMLElement
+    })
+    await user.click(await within(pickerDropdown).findByText('今日'))
+    await user.click(screen.getByRole('button', { name: /查询/ }))
+    const todayIso = dayjs().format('YYYY-MM-DD')
+    await waitFor(() =>
+      expect(logsApi.listLogs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 11,
+          account: 'operator',
+          beginDate: todayIso,
+          endDate: todayIso,
+        }),
+      ),
+    )
+  })
+
+  it('近7天 preset spans [today-6, today] as yyyy-MM-dd bounds', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('2026-11-04 10:00:00')
+    await user.click(screen.getByPlaceholderText('开始日期'))
+    const pickerDropdown = await waitFor(() => {
+      const el = document.querySelector('.ant-picker-dropdown:not(.ant-picker-dropdown-hidden)')
+      expect(el).not.toBeNull()
+      return el as HTMLElement
+    })
+    await user.click(await within(pickerDropdown).findByText('近7天'))
     await user.click(screen.getByRole('button', { name: /查询/ }))
     await waitFor(() =>
       expect(logsApi.listLogs).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 11, account: 'operator', uid: 1, dateYm: 202611 }),
+        expect.objectContaining({
+          beginDate: dayjs().subtract(6, 'day').format('YYYY-MM-DD'),
+          endDate: dayjs().format('YYYY-MM-DD'),
+        }),
+      ),
+    )
+  })
+
+  it('clearing the 日期段 sends neither beginDate nor endDate', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('2026-11-04 10:00:00')
+    await user.click(screen.getByPlaceholderText('开始日期'))
+    const pickerDropdown = await waitFor(() => {
+      const el = document.querySelector('.ant-picker-dropdown:not(.ant-picker-dropdown-hidden)')
+      expect(el).not.toBeNull()
+      return el as HTMLElement
+    })
+    await user.click(await within(pickerDropdown).findByText('今日'))
+    // Clear via the range picker's clear affordance, then query — the wire call
+    // must carry neither bound.
+    const clearIcon = await waitFor(() => {
+      const el = document.querySelector('.ant-picker-clear')
+      expect(el).not.toBeNull()
+      return el as HTMLElement
+    })
+    await user.click(clearIcon)
+    await user.click(screen.getByRole('button', { name: /查询/ }))
+    await waitFor(() =>
+      expect(logsApi.listLogs).toHaveBeenLastCalledWith(
+        expect.not.objectContaining({ beginDate: expect.anything() }),
       ),
     )
   })
