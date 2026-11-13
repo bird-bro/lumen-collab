@@ -10,13 +10,16 @@ workstation W nodes.
 
 ## What Changes
 
-- **lumen-sev only** — one new Flyway migration `V30__menu_settings_root.sql`
-  (never rewrite the applied V28):
+- **lumen-sev** — the forward-fix Flyway migrations (never rewrite an applied
+  migration): `V30__menu_settings_root.sql` (the IA promote), `V31__menu_settings_icon.sql`
+  + `V34__menu_settings_root_icon.sql` (the L1 icon, tasks 1.3/1.6), and
+  `V32__menu_settings_groups.sql` + `V33__menu_settings_group_icons.sql`
+  (the L2 groups, tasks 1.4/1.5):
   1. Rename the system root (pinned id 1, the V2 seed): 系统管理 → 系统
      (content-guarded UPDATE).
   2. Convergent promote-and-rename of the V28 L2 directory: soft-clean its
      role_menu bindings, soft-delete the L2 检查设置 row, insert a fresh L1 「设置」
-     directory (up_id = 0, icon `medicine-box` kept, sort 2 — between 系统 (1) and
+     directory (up_id = 0, icon `tune` per tasks 1.3/1.6 — V31+V34 forward fixes, sort 2 — between 系统 (1) and
      the workstation W nodes (10/20/30)), re-point every old binding to the new row
      (grant carry-over so non-admin roles keep their chain), then re-parent the
      four C pages BY PERMS (V28 discipline; the twelve F nodes hang off the pages
@@ -26,12 +29,22 @@ workstation W nodes.
      `up_id = 1 AND title = '检查设置'`, so an in-place rename would let a V28
      re-insert duplicate the directory; with the soft-delete shape a V28 re-run's
      dup is cleaned by the V30 re-run (live-state no-op both ways).
-- Tests re-pointed to the new IA: `AuthExamSettingSeedTests` (directory assertions +
-  the re-execution proof becomes the V28→V30 tail, live-row counting),
+  4. `V32__menu_settings_groups.sql` + `V33__menu_settings_group_icons.sql`
+     (tasks 1.4/1.5, user rulings during 2.1 verification): the four pages
+     re-group under two icon-bearing L2 directories 检查配置 / 报告配置 —
+     content-guarded inserts, per-group grant carry-over (page holders get the
+     new L2 parent), pages re-parented BY PERMS, admin auto-grant + setval
+     tails; the group icons swap to the RCP reference glyphs `exam` / `temp`.
+- Tests re-pointed to the new IA: `AuthExamSettingSeedTests` (directory + group/icon
+  assertions + the re-execution proof becomes the V28→V32 tail, live-row counting),
   `AuthLoginTests` / `AuthDataLayerTests` (root title 系统).
-- **lumen-web: zero code change** — routes resolve via the `component` column map
-  (`src/routes/menu-paths.ts`), independent of tree position; the rail highlights
-  设置 through subtree membership; fixtures in web tests are arbitrary data.
+- **lumen-web: three ported glyphs + three mapping lines** (tasks 1.4-1.6) — the RCP
+  iconfont symbols `exam` / `temp` / `tune` join `ops-icons.tsx` (monochrome) and
+  `MENU_ICON_BY_NAME` (exam optically scaled 0.8 to the family band); routes resolve
+  via the `component` column map
+  (`src/routes/menu-paths.ts`), independent of tree position; the rail
+  highlights 设置 through subtree membership; fixtures in web tests are arbitrary
+  data.
 
 ## Affected Stacks
 
