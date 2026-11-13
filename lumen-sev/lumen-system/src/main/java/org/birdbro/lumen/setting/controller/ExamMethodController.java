@@ -11,9 +11,9 @@ import io.swagger.annotations.ApiOperation;
 
 import org.birdbro.common.annotation.Log;
 
-import org.birdbro.lumen.setting.dto.examsetting.MethodCreateRequest;
-import org.birdbro.lumen.setting.dto.examsetting.MethodPageQuery;
-import org.birdbro.lumen.setting.dto.examsetting.MethodUpdateRequest;
+import org.birdbro.lumen.setting.dto.MethodCreateRequest;
+import org.birdbro.lumen.setting.dto.MethodPageQuery;
+import org.birdbro.lumen.setting.dto.MethodUpdateRequest;
 import org.birdbro.lumen.setting.entity.ExamMethod;
 import org.birdbro.lumen.setting.service.ExamMethodService;
 import org.springframework.security.access.prepost.PreAuthorize;

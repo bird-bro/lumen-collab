@@ -1,0 +1,423 @@
+package org.birdbro.lumen.manage;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Campus-scoped department management proof (org-management-redesign-api): ownership,
+ * campus code uniqueness, immutable codes, and the paginated table query are driven through
+ * the real API. Timestamped fixtures, hard-deleted afterwards (user ruling 2026-11-07:
+ * soft-deleted test rows pile up and poison bug triage).
+ */
+class AuthOrgDepTests extends AuthIntegrationTestBase {
+
+    private static final String LOGIN_URL = "/api/v1/system/login";
+    private static final String ORG_DEPS_URL = "/api/v1/system/org-deps";
+
+    @Autowired
+    private TestRestTemplate restTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Test
+    void seededDepartmentsListUnderDefaultCampusAndHospitalOwnerIsRejected() throws Exception {
+        String token = adminToken();
+        int campusId = defaultCampusId();
+
+        ResponseEntity<String> listResponse = exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/list?orgId=" + campusId, null, token);
+        JsonNode listBody = parse(listResponse);
+        assertEquals("200", listBody.path("code").asText(), "the list query must succeed");
+        assertTrue(listBody.path("data").isArray(), "the list data must be an array");
+        assertNotNull(departmentWithCode(listBody.path("data"), "radiology"),
+                "the seeded radiology department must remain under the default campus");
+        assertNotNull(departmentWithCode(listBody.path("data"), "us"),
+                "the seeded ultrasound department must remain under the default campus");
+        assertNotNull(departmentWithCode(listBody.path("data"), "endo"),
+                "the seeded endoscopy department must remain under the default campus");
+
+        ResponseEntity<String> hospitalOwnerResponse = exchangeJson(HttpMethod.POST, ORG_DEPS_URL,
+                "{\"orgId\":1,\"code\":\"dep_hospital_" + System.currentTimeMillis()
+                        + "\",\"name\":\"医院直属科室\"}", token);
+        JsonNode hospitalOwnerBody = parse(hospitalOwnerResponse);
+        assertEquals("A0400", hospitalOwnerBody.path("code").asText(),
+                "the hospital root cannot own a department: " + hospitalOwnerBody);
+    }
+
+    @Test
+    void sameCodeAcrossCampusesPersistsButDuplicateWithinCampusIsRejected() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusA = createCampus("科室编码A院区_" + ts);
+        int campusB = createCampus("科室编码B院区_" + ts);
+        String code = "dep_shared_" + ts;
+
+        int depA = createDepartment(campusA, code, "共用编码A");
+        int depB = createDepartment(campusB, code, "共用编码B");
+
+        JsonNode duplicate = parse(exchangeJson(HttpMethod.POST, ORG_DEPS_URL,
+                "{\"orgId\":" + campusA + ",\"code\":\"" + code + "\",\"name\":\"重复编码\"}", token));
+        assertEquals("A0712", duplicate.path("code").asText(),
+                "the same code must be rejected inside one campus: " + duplicate);
+
+        softDeleteDepartment(depA);
+        softDeleteDepartment(depB);
+        softDeleteOrg(campusA);
+        softDeleteOrg(campusB);
+    }
+
+    @Test
+    void departmentCodeIsImmutableAndCampusReassignmentChecksTargetCampus() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusA = createCampus("编码不可变A院区_" + ts);
+        int campusB = createCampus("编码不可变B院区_" + ts);
+        String code = "dep_immutable_" + ts;
+        int depId = createDepartment(campusA, code, "编码不可变科室");
+
+        JsonNode rename = parse(exchangeJson(HttpMethod.PUT, ORG_DEPS_URL + "/" + depId,
+                "{\"code\":\"" + code + "\",\"name\":\"编码不可变改名\"}", token));
+        assertEquals("200", rename.path("code").asText(),
+                "sending the unchanged code must remain compatible: " + rename);
+
+        JsonNode changedCode = parse(exchangeJson(HttpMethod.PUT, ORG_DEPS_URL + "/" + depId,
+                "{\"code\":\"changed_" + ts + "\"}", token));
+        assertEquals("A0400", changedCode.path("code").asText(),
+                "changing a department code must be rejected: " + changedCode);
+
+        JsonNode reassigned = parse(exchangeJson(HttpMethod.PUT, ORG_DEPS_URL + "/" + depId,
+                "{\"orgId\":" + campusB + "}", token));
+        assertEquals("200", reassigned.path("code").asText(),
+                "reassignment to another live campus must succeed: " + reassigned);
+        String storedCode = jdbcTemplate.queryForObject(
+                "SELECT code FROM system.org_dep WHERE id = ?", String.class, depId);
+        assertEquals(code, storedCode, "the code must remain unchanged");
+
+        softDeleteDepartment(depId);
+        softDeleteOrg(campusA);
+        softDeleteOrg(campusB);
+    }
+
+    @Test
+    void departmentPageSupportsCampusKeywordStatusAndPagination() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusA = createCampus("分页A院区_" + ts);
+        int campusB = createCampus("分页B院区_" + ts);
+        String code = "dep_page_" + ts;
+        int depA = createDepartment(campusA, code, "分页测试A");
+        int depB = createDepartment(campusB, code, "分页测试B");
+
+        ResponseEntity<String> allResponse = exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/page?pageNum=1&pageSize=100&keyword=" + code, null, token);
+        JsonNode allBody = parse(allResponse);
+        assertEquals("200", allBody.path("code").asText(), "the all-campus page must succeed");
+        assertEquals(2, allBody.path("data").path("total").asLong(-1),
+                "both campuses using the code must match: " + allBody);
+
+        ResponseEntity<String> campusResponse = exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/page?pageNum=1&pageSize=20&orgId=" + campusA + "&keyword=" + code,
+                null, token);
+        JsonNode campusBody = parse(campusResponse);
+        assertEquals("200", campusBody.path("code").asText(), "the campus page must succeed");
+        assertEquals(1, campusBody.path("data").path("total").asLong(-1),
+                "campus filtering must isolate its row: " + campusBody);
+        assertEquals(depA, campusBody.path("data").path("records").get(0).path("id").asInt(-1),
+                "the campus page must return campus A's department");
+
+        JsonNode disabled = parse(exchangeJson(HttpMethod.PUT, ORG_DEPS_URL + "/" + depB,
+                "{\"status\":0}", token));
+        assertEquals("200", disabled.path("code").asText(), "department status must update");
+
+        ResponseEntity<String> enabledResponse = exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/page?pageNum=1&pageSize=100&keyword=" + code + "&status=1", null, token);
+        JsonNode enabledBody = parse(enabledResponse);
+        assertEquals(1, enabledBody.path("data").path("total").asLong(-1),
+                "the enabled filter must exclude the disabled campus B row");
+
+        ResponseEntity<String> disabledResponse = exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/page?pageNum=1&pageSize=100&keyword=" + code + "&status=0", null, token);
+        JsonNode disabledBody = parse(disabledResponse);
+        assertEquals(1, disabledBody.path("data").path("total").asLong(-1),
+                "the disabled filter must include only campus B's row");
+
+        softDeleteDepartment(depA);
+        softDeleteDepartment(depB);
+        softDeleteOrg(campusA);
+        softDeleteOrg(campusB);
+    }
+
+    /**
+     * Delete semantics for the department family (org-management-redesign-api spec follow-up):
+     * {@code DELETE /org-deps/{id}} soft-deletes, disappears from both read shapes, and frees
+     * the campus-scoped code for reuse. Until now only the reverse direction had HTTP proof (the
+     * button-perm matrix denying the call without {@code system:dep:delete}); the suite's own
+     * cleanup reached for raw JDBC instead, which asserted nothing about the endpoint.
+     */
+    @Test
+    void departmentDeleteSoftDeletesHidesItFromBothReadsAndFreesTheCode() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusId = createCampus("科室删除院区_" + ts);
+        String code = "dep_delete_" + ts;
+        int depId = createDepartment(campusId, code, "待删除科室");
+
+        JsonNode beforeList = parse(exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/list?orgId=" + campusId, null, token));
+        assertNotNull(departmentWithCode(beforeList.path("data"), code),
+                "the fixture department must be listed before deletion");
+
+        JsonNode deleteBody = parse(exchangeJson(HttpMethod.DELETE,
+                ORG_DEPS_URL + "/" + depId, null, token));
+        assertEquals("200", deleteBody.path("code").asText(),
+                "the department delete must succeed: " + deleteBody);
+        assertTrue(deleteBody.path("data").asBoolean(), "the envelope must confirm the delete");
+
+        JsonNode afterList = parse(exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/list?orgId=" + campusId, null, token));
+        assertTrue(departmentWithCode(afterList.path("data"), code) == null,
+                "a deleted department must leave the list: " + afterList.path("data"));
+        JsonNode paged = parse(exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/page?pageNum=1&pageSize=100&keyword=" + code, null, token));
+        assertEquals(0, paged.path("data").path("total").asLong(-1),
+                "a deleted department must leave the page query too");
+
+        int stored = jdbcTemplate.queryForObject(
+                "SELECT deleted FROM system.org_dep WHERE id = ?", Integer.class, depId);
+        assertEquals(1, stored, "the row must be soft-deleted, never removed");
+
+        // Uniqueness is scoped to LIVE rows, so the code becomes reusable on the same campus.
+        int revivedId = createDepartment(campusId, code, "复用编码新科室");
+        assertTrue(revivedId > 0, "the freed code must be reusable within the same campus");
+
+        // HARD cleanup (user ruling 2026-11-07): revivedId is live, depId was
+        // soft-deleted by the endpoint above - the hard DELETE takes both, so the
+        // campus row loses every org_dep reference before its own delete.
+        softDeleteDepartment(revivedId);
+        softDeleteDepartment(depId);
+        softDeleteOrg(campusId);
+    }
+
+    /**
+     * The disabled-campus branch of {@code requireLiveCampus} (OrgDepServiceImpl:140-143) had
+     * no HTTP exercise anywhere in the suite, and the unfiltered {@code /list} shape was only
+     * used for permission gating - both specced in org-management-redesign-api, neither proven.
+     */
+    @Test
+    void disabledCampusCannotOwnDepartmentsAndUnfilteredListSpansAllCampuses() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusId = createCampus("停用院区_" + ts);
+        String code = "dep_disabled_" + ts;
+
+        JsonNode disabledCampus = parse(exchangeJson(HttpMethod.PUT, "/api/v1/system/orgs/" + campusId,
+                "{\"status\":0}", token));
+        assertEquals("200", disabledCampus.path("code").asText(),
+                "disabling the campus fixture must succeed: " + disabledCampus);
+
+        JsonNode createDenied = parse(exchangeJson(HttpMethod.POST, ORG_DEPS_URL,
+                "{\"orgId\":" + campusId + ",\"code\":\"" + code + "\",\"name\":\"停用院区科室\"}", token));
+        assertEquals("A0400", createDenied.path("code").asText(),
+                "a disabled campus cannot receive a new department: " + createDenied);
+        Integer created = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system.org_dep WHERE code = ?", Integer.class, code);
+        assertEquals(0, created, "the rejected create must leave no department row");
+
+        // The update path: move an existing department ONTO the disabled campus.
+        int otherCampusId = createCampus("迁出院区_" + ts);
+        int depId = createDepartment(otherCampusId, "dep_move_" + ts, "待迁移科室");
+        JsonNode moveDenied = parse(exchangeJson(HttpMethod.PUT, ORG_DEPS_URL + "/" + depId,
+                "{\"orgId\":" + campusId + "}", token));
+        assertEquals("A0400", moveDenied.path("code").asText(),
+                "a disabled campus cannot adopt a department: " + moveDenied);
+
+        // Unfiltered /list returns every live department, across campuses.
+        ResponseEntity<String> allResponse = exchangeJson(HttpMethod.GET,
+                ORG_DEPS_URL + "/list", null, token);
+        JsonNode allBody = parse(allResponse);
+        assertEquals("200", allBody.path("code").asText(), "the unfiltered list must succeed");
+        JsonNode rows = allBody.path("data");
+        assertTrue(rows.isArray() && rows.size() >= 3,
+                "the unfiltered list must span campuses with at least the three seeded rows");
+        assertNotNull(departmentWithCode(rows, "radiology"),
+                "the seeded radiology row must appear without any campus filter");
+
+        softDeleteDepartment(depId);
+        softDeleteOrg(otherCampusId);
+        softDeleteOrg(campusId);
+    }
+
+    /**
+     * The dedicated department status command (department-status-toggle: mirrors the
+     * org endpoint {@code PUT /orgs/{id}/status}) - toggles only the status column,
+     * leaving name/code/orgId untouched, and re-enables.
+     */
+    @Test
+    void departmentStatusEndpointTogglesWithoutMutatingOtherFields() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusId = createCampus("科室状态院区_" + ts);
+        int depId = createDepartment(campusId, "dep_status_" + ts, "状态切换科室");
+        try {
+            JsonNode before = parse(exchangeJson(HttpMethod.GET,
+                    ORG_DEPS_URL + "/list?orgId=" + campusId, null, token));
+            JsonNode original = departmentWithCode(before.path("data"), "dep_status_" + ts);
+            assertNotNull(original, "the fixture department must be listed");
+            assertEquals(1, original.path("status").asInt(-1),
+                    "the fixture department must start enabled");
+
+            JsonNode disabled = parse(exchangeJson(HttpMethod.PUT,
+                    ORG_DEPS_URL + "/" + depId + "/status", "{\"status\":0}", token));
+            assertEquals("200", disabled.path("code").asText(),
+                    "the status command must succeed: " + disabled);
+            assertTrue(disabled.path("data").asBoolean(false),
+                    "the status command must return Boolean.TRUE: " + disabled);
+
+            JsonNode afterDisable = parse(exchangeJson(HttpMethod.GET,
+                    ORG_DEPS_URL + "/list?orgId=" + campusId, null, token));
+            JsonNode changed = departmentWithCode(afterDisable.path("data"), "dep_status_" + ts);
+            assertNotNull(changed, "a disabled department must stay listed");
+            assertEquals(0, changed.path("status").asInt(-1),
+                    "the explicit status endpoint must disable the department: " + changed);
+            assertEquals(original.path("name").asText(), changed.path("name").asText(),
+                    "the status command must not alter the name");
+            assertEquals(original.path("code").asText(), changed.path("code").asText(),
+                    "the status command must not alter the immutable code");
+            assertEquals(original.path("orgId").asInt(-1), changed.path("orgId").asInt(-1),
+                    "the status command must not alter the owning campus");
+
+            JsonNode enabled = parse(exchangeJson(HttpMethod.PUT,
+                    ORG_DEPS_URL + "/" + depId + "/status", "{\"status\":1}", token));
+            assertEquals("200", enabled.path("code").asText(), "re-enable must succeed: " + enabled);
+            JsonNode afterEnable = parse(exchangeJson(HttpMethod.GET,
+                    ORG_DEPS_URL + "/list?orgId=" + campusId, null, token));
+            assertEquals(1,
+                    departmentWithCode(afterEnable.path("data"), "dep_status_" + ts).path("status").asInt(-1),
+                    "the explicit status endpoint must re-enable the department");
+        } finally {
+            softDeleteDepartment(depId);
+            softDeleteOrg(campusId);
+        }
+    }
+
+    /** Bean-validation rejects a missing or out-of-range status before the service runs. */
+    @Test
+    void departmentStatusEndpointRejectsInvalidStatus() throws Exception {
+        String token = adminToken();
+        long ts = System.currentTimeMillis();
+        int campusId = createCampus("科室非法状态院区_" + ts);
+        int depId = createDepartment(campusId, "dep_status_bad_" + ts, "非法状态科室");
+        try {
+            JsonNode missing = parse(exchangeJson(HttpMethod.PUT,
+                    ORG_DEPS_URL + "/" + depId + "/status", "{}", token));
+            assertEquals("A0400", missing.path("code").asText(),
+                    "a missing status must be rejected: " + missing);
+
+            JsonNode outOfRange = parse(exchangeJson(HttpMethod.PUT,
+                    ORG_DEPS_URL + "/" + depId + "/status", "{\"status\":2}", token));
+            assertEquals("A0400", outOfRange.path("code").asText(),
+                    "a non-0/1 status must be rejected: " + outOfRange);
+
+            JsonNode after = parse(exchangeJson(HttpMethod.GET,
+                    ORG_DEPS_URL + "/list?orgId=" + campusId, null, token));
+            assertEquals(1,
+                    departmentWithCode(after.path("data"), "dep_status_bad_" + ts).path("status").asInt(-1),
+                    "invalid status requests must not mutate the department");
+        } finally {
+            softDeleteDepartment(depId);
+            softDeleteOrg(campusId);
+        }
+    }
+
+    private int defaultCampusId() {
+        Integer id = jdbcTemplate.queryForObject(
+                "SELECT id FROM system.org_info WHERE up_id = 1 AND deleted = 0 "
+                + "AND is_default = 1 ORDER BY id LIMIT 1", Integer.class);
+        assertNotNull(id, "the seeded default campus must exist");
+        return id;
+    }
+
+    private int createCampus(String name) throws Exception {
+        String token = adminToken();
+        ResponseEntity<String> response = exchangeJson(HttpMethod.POST, "/api/v1/system/orgs",
+                "{\"upId\":1,\"name\":\"" + name + "\"}", token);
+        JsonNode body = parse(response);
+        assertEquals("200", body.path("code").asText(), "campus fixture create must succeed: " + body);
+        return body.path("data").asInt(-1);
+    }
+
+    private int createDepartment(int campusId, String code, String name) throws Exception {
+        String token = adminToken();
+        ResponseEntity<String> response = exchangeJson(HttpMethod.POST, ORG_DEPS_URL,
+                "{\"orgId\":" + campusId + ",\"code\":\"" + code + "\",\"name\":\"" + name + "\"}", token);
+        JsonNode body = parse(response);
+        assertEquals("200", body.path("code").asText(), "department create must succeed: " + body);
+        return body.path("data").asInt(-1);
+    }
+
+    private void softDeleteDepartment(int id) {
+        // HARD deletes (user ruling 2026-11-07: soft-deleted test rows pile up and
+        // poison bug triage); departments before their campus (org_dep.org_id FK).
+        jdbcTemplate.update("DELETE FROM system.org_dep WHERE id = ?", id);
+    }
+
+    private void softDeleteOrg(int id) {
+        jdbcTemplate.update("DELETE FROM system.org_info WHERE id = ?", id);
+    }
+
+    private String adminToken() throws Exception {
+        ResponseEntity<String> loginResponse = postJson(LOGIN_URL, runAdminLoginBody());
+        JsonNode loginBody = parse(loginResponse);
+        assertEquals("200", loginBody.path("code").asText(), "admin login must hand out the token");
+        String token = loginBody.path("data").path("token").asText("");
+        assertTrue(!token.isEmpty(), "the admin token must be present");
+        return token;
+    }
+
+    private ResponseEntity<String> postJson(String url, String json) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(json, headers), String.class);
+    }
+
+    private ResponseEntity<String> exchangeJson(HttpMethod method, String url, String json, String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Authorization", "Bearer " + token);
+        return restTemplate.exchange(url, method, new HttpEntity<>(json, headers), String.class);
+    }
+
+    private JsonNode parse(ResponseEntity<String> response) throws Exception {
+        return objectMapper.readTree(response.getBody());
+    }
+
+    private static JsonNode departmentWithCode(JsonNode rows, String code) {
+        if (!rows.isArray()) {
+            return null;
+        }
+        for (JsonNode row : rows) {
+            if (code.equals(row.path("code").asText())) {
+                return row;
+            }
+        }
+        return null;
+    }
+}

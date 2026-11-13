@@ -9,8 +9,8 @@ import io.swagger.annotations.ApiOperation;
 
 import org.birdbro.common.annotation.Log;
 
-import org.birdbro.lumen.setting.dto.examsetting.BodyGroupCreateRequest;
-import org.birdbro.lumen.setting.dto.examsetting.BodyGroupUpdateRequest;
+import org.birdbro.lumen.setting.dto.BodyGroupCreateRequest;
+import org.birdbro.lumen.setting.dto.BodyGroupUpdateRequest;
 import org.birdbro.lumen.setting.entity.ExamBodyGroup;
 import org.birdbro.lumen.setting.service.ExamBodyGroupService;
 import org.springframework.security.access.prepost.PreAuthorize;

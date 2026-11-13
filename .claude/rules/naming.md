@@ -16,8 +16,13 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
   - Modules copied from OPS keep name, artifactId, and package:
     `framework` → `org.birdbro.framework`, `common` → `org.birdbro.common`.
   - New lumen modules use `org.birdbro.lumen.<module>`:
-    `org.birdbro.lumen.{system,patient,radiology,us,endo,integration,examcore}`,
-    `org.birdbro.lumen.api.{patient,integration}`.
+    `org.birdbro.lumen.api.{patient,integration}`, `org.birdbro.lumen.{patient,radiology,us,endo,integration,examcore}`.
+    EXCEPTION (user action 2026-11-13): the `lumen-system` module's FIRST domain
+    rebranded `system` → `manage` (IDEA package rename, user-executed) - the jar hosts
+    `org.birdbro.lumen.manage` (系统管理域) + `org.birdbro.lumen.setting` (检查设置域,
+    hosted) while the MODULE/`spring.application.name`/URL `/api/v1/system/**` all keep
+    the `lumen-system` identity. Future standalone services follow the plain
+    `org.birdbro.lumen.<module>` form.
 - **framework/common evolvability** (user decision 2026-11-03, supersedes the
   verbatim-only reading of 2026-10-29): the OPS-lineage shared platform layer MAY be
   adjusted/optimized. Evolution style is ADDITIVE-FIRST - new `framework`/`common` files
@@ -25,16 +30,28 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
   keep the `org.birdbro.{framework,common}` namespaces. Every adaptation is recorded in
   the coordination doc's adaptation list (six as of 2026-11-03).
 - **In-service layering packages** (fixed): `controller / service / mapper / entity / dto`.
-  The application class lives in the service root package
-  (e.g. `org.birdbro.lumen.system.SystemApplication`); services scan `org.birdbro`
+  The application class carries the service shell. MULTI-DOMAIN HOST SHAPE (user action
+  2026-11-13, the lumen-system jar): the shell lives at the shared root
+  `org.birdbro.lumen.SystemApplication` - the common ancestor of every domain test
+  package - so `@SpringBootTest` classes discover it by the upward walk with no
+  `classes=` pins (INVARIANT: the shell stays at or above `org.birdbro.lumen`).
+  Single-domain services (radiology/us/endo/...) keep the OPS shape: app class in the
+  service root package (e.g. `org.birdbro.lumen.radiology.RadiologyApplication`).
+  Services scan `org.birdbro`
   (OPS `LaunchApplication` habit) so shared beans from `framework`/`common` register.
-- **Service package layout** (user decision 2026-11-06, service-package-tidy; precedent
-  example swapped 2026-11-09 by role-list-api when the same-day MenuManageService-merge
-  ruling executed): the
-  `service/` top level holds BUSINESS services only - OPS-copied ones stay
-  interface + `impl/` (never move, upstream sync); lumen-new ones are concrete classes
-  (single impl, no ceremony - `MenuService` precedent; the former `MenuManageService`
-  寄住 form is dissolved). Stateless collaborators
+- **Service package layout** (user decision 2026-11-06, service-package-tidy;
+  **REVERSED 2026-11-13** - every BUSINESS service is interface + `impl/XxxServiceImpl`):
+  the `service/` top level holds BUSINESS services only, each as interface + `impl/`
+  implementation. Interface naming follows the `RoleService`/`RoleServiceImpl`
+  precedent - the interface KEEPS the plain name (no `I` prefix; the `IDict*` family is
+  OPS-inherited, do not rename it), so injection points keep autowiring the same FQN
+  and the conversion never touches controllers/tests. The 2026-11-13 conversion covered
+  the 8 formerly-concrete services (`MenuService`, `OrgDeviceService`, `OrgRoomService`
+  + the five exam-setting services); `@Service`/`@Transactional` live on the impl, the
+  class+method javadoc lives on the interface, shared cross-service guards ride the
+  interface contract (`ExamBodyGroupService.requireModality` was package-private,
+  widened to public - callers unchanged). OPS-copied interface+impl pairs never move
+  (upstream sync). Stateless collaborators
   with no HTTP surface of their own (tree assemblers `*TreeService`, dict label/code
   helpers `*Helper`) live in `service/support/`; `impl/` only holds implementations of a
   sibling top-level interface. Same-package javadoc `{@link}`s to support classes use the

@@ -61,13 +61,13 @@ import org.birdbro.framework.security.TokenService;
  *
  * @author birdbro
  */
-// classes= is REQUIRED (merge-setting-into-system): the Boot configuration search
-// walks UP from the test package (org.birdbro.lumen.setting -> org.birdbro) and the
-// hosting SystemApplication sits in the SIBLING package org.birdbro.lumen.system -
-// never found by the upward walk (the retired SettingApplication used to be the
-// same-package @SpringBootConfiguration).
-@SpringBootTest(classes = org.birdbro.lumen.system.SystemApplication.class,
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+// Boot discovers the @SpringBootConfiguration by walking UP from the test package
+// (org.birdbro.lumen.setting -> org.birdbro.lumen), so the shell's home matters: the
+// 2026-11-13 up-move put SystemApplication at org.birdbro.lumen - the common ancestor
+// of EVERY domain test package (setting, manage) - and this class needs NO explicit
+// classes= pin. INVARIANT: the shell must stay at or above org.birdbro.lumen; if it
+// ever moves INTO a domain package again, hosted-domain suites break at discovery.
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 public abstract class SettingIntegrationTestBase {
 

@@ -9,10 +9,10 @@ import io.swagger.annotations.ApiOperation;
 
 import org.birdbro.common.annotation.Log;
 
-import org.birdbro.lumen.setting.dto.examsetting.ItemCreateRequest;
-import org.birdbro.lumen.setting.dto.examsetting.ItemPageQuery;
-import org.birdbro.lumen.setting.dto.examsetting.ItemUpdateRequest;
-import org.birdbro.lumen.setting.dto.examsetting.ItemVO;
+import org.birdbro.lumen.setting.dto.ItemCreateRequest;
+import org.birdbro.lumen.setting.dto.ItemPageQuery;
+import org.birdbro.lumen.setting.dto.ItemUpdateRequest;
+import org.birdbro.lumen.setting.dto.ItemVO;
 import org.birdbro.lumen.setting.service.ExamItemService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;

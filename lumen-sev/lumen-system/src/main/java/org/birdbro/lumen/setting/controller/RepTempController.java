@@ -12,9 +12,9 @@ import io.swagger.annotations.ApiOperation;
 
 import org.birdbro.common.annotation.Log;
 
-import org.birdbro.lumen.setting.dto.examsetting.TempCreateRequest;
-import org.birdbro.lumen.setting.dto.examsetting.TempPageQuery;
-import org.birdbro.lumen.setting.dto.examsetting.TempUpdateRequest;
+import org.birdbro.lumen.setting.dto.TempCreateRequest;
+import org.birdbro.lumen.setting.dto.TempPageQuery;
+import org.birdbro.lumen.setting.dto.TempUpdateRequest;
 import org.birdbro.lumen.setting.entity.RepTemp;
 import org.birdbro.lumen.setting.service.RepTempService;
 import org.springframework.security.access.prepost.PreAuthorize;
