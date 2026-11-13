@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>检查设置 · 页面原型 — LumenCollab</title>
+<style>
+  /* ============ tokens：与 lumen-web AntD5 token 对齐（青绿主色，红仅留给临床告警） ============ */
+  :root {
+    --primary: #0b7a6e;
+    --primary-hover: #0e8f81;
+    --primary-light: #e6f4f2;
+    --primary-border: #b8ddd8;
+    --danger: #d46b5f;           /* 弱化红：仅操作语义，不做主色 */
+    --text: #262b33;
+    --text-2: #5b6472;
+    --text-3: #98a1ad;
+    --line: #e5e9ee;
+    --bg: #f3f5f7;
+    --card: #ffffff;
+    --radius: 6px;
+    --shadow-drawer: -8px 0 32px rgba(20, 40, 38, .10);
+    --font: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+  button { font-family: inherit; cursor: pointer; }
+
+  /* ============ 原型外壳 ============ */
+  .proto-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 24px; background: #14201d; color: #cfe3df;
+  }
+  .proto-bar .brand { font-weight: 600; letter-spacing: .5px; }
+  .proto-bar .badge {
+    font-size: 12px; padding: 1px 8px; border: 1px solid #3d5a54;
+    border-radius: 999px; color: #8fbcb4;
+  }
+  .proto-bar .crumb { margin-left: auto; font-size: 12px; color: #6f8b86; }
+
+  .console-header {
+    display: flex; align-items: center; gap: 20px;
+    padding: 14px 24px 0; background: var(--card);
+    border-bottom: 1px solid var(--line);
+  }
+  .console-header h1 { font-size: 17px; font-weight: 600; padding-bottom: 12px; color: var(--text); }
+  .console-header h1::before {
+    content: ""; display: inline-block; width: 3px; height: 14px;
+    background: var(--primary); margin-right: 8px; border-radius: 2px;
+  }
+  .page-tabs { display: flex; gap: 4px; margin-left: 12px; }
+  .page-tab {
+    padding: 10px 18px 12px; font-size: 14px; color: var(--text-2);
+    border: none; background: none; position: relative;
+  }
+  .page-tab:hover { color: var(--primary); }
+  .page-tab.active { color: var(--primary); font-weight: 600; }
+  .page-tab.active::after {
+    content: ""; position: absolute; left: 14px; right: 14px; bottom: 0;
+    height: 2px; background: var(--primary); border-radius: 2px 2px 0 0;
+  }
+
+  .page { display: none; padding: 16px 24px 32px; max-width: 1440px; }
+  .page.active { display: block; animation: rise .25s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ============ AntD 形状：卡片 / 筛选条 / 表格 ============ */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+  .toolbar { display: flex; align-items: flex-start; gap: 12px; padding: 16px 16px 12px; flex-wrap: wrap; }
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; flex: 1; }
+  .field { display: flex; align-items: center; gap: 6px; }
+  .field > label { font-size: 13px; color: var(--text-2); white-space: nowrap; }
+
+  .select, .input {
+    height: 32px; border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--card); padding: 0 10px; font-size: 13px; color: var(--text);
+    min-width: 120px; outline: none; transition: border-color .15s;
+  }
+  .select:hover, .input:hover { border-color: var(--primary-border); }
+  .select:focus, .input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(11,122,110,.08); }
+  .select { appearance: none; padding-right: 26px;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2398a1ad' fill='none' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; }
+
+  .btn {
+    height: 32px; padding: 0 14px; border-radius: var(--radius); font-size: 13px;
+    border: 1px solid var(--line); background: var(--card); color: var(--text-2);
+    transition: all .15s; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { color: var(--primary); border-color: var(--primary-border); }
+  .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff; }
+  .btn-link { border: none; background: none; padding: 0 4px; color: var(--primary); height: auto; font-size: 13px; }
+  .btn-link.danger { color: var(--danger); }
+  .btn-link:hover { opacity: .8; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; padding: 10px 12px; color: var(--text-2); font-weight: 500;
+    background: #fafbfc; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  td { padding: 11px 12px; border-bottom: 1px solid #f0f3f5; }
+  tbody tr { transition: background .12s; }
+  tbody tr:hover { background: #f6faf9; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  td .code { color: var(--text-3); font-family: var(--mono); font-size: 12px; }
+  .ops { white-space: nowrap; }
+  .tag {
+    display: inline-block; font-size: 12px; padding: 0 8px; height: 22px; line-height: 22px;
+    border-radius: 4px; background: var(--primary-light); color: var(--primary);
+  }
+  .tag.gray { background: #f0f2f4; color: var(--text-2); }
+  .score { display: inline-block; min-width: 26px; text-align: center; font-family: var(--mono); }
+  .score.rep { color: #0b7a6e; } .score.aud { color: #8a6d3b; }
+  .pager { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 12px 16px; color: var(--text-3); font-size: 13px; }
+  .pager .pg { min-width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 4px; background: var(--card); color: var(--text-2); }
+  .pager .pg.on { border-color: var(--primary); color: var(--primary); }
+
+  /* ============ 检查部位：左右分栏 ============ */
+  .split { display: grid; grid-template-columns: 300px 1fr; gap: 12px; align-items: start; }
+  .group-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .group-head .t { font-size: 13px; font-weight: 600; color: var(--text-2); }
+  .group-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f4f6f8;
+    border-left: 3px solid transparent; transition: all .12s;
+  }
+  .group-row:hover { background: #f6faf9; }
+  .group-row.on { border-left-color: var(--primary); background: var(--primary-light); }
+  .group-row.on .gn { color: var(--primary); font-weight: 600; }
+  .group-row .ops { visibility: hidden; }
+  .group-row:hover .ops { visibility: visible; }
+
+  /* ============ 报告模板：Tab + 树 ============ */
+  .scope-tabs { display: inline-flex; background: #f0f2f4; border-radius: var(--radius); padding: 2px; }
+  .scope-tab { border: none; background: none; padding: 5px 16px; border-radius: 4px; font-size: 13px; color: var(--text-2); }
+  .scope-tab.on { background: var(--card); color: var(--primary); font-weight: 600; box-shadow: 0 1px 3px rgba(20,40,38,.08); }
+  .tree { padding: 8px; }
+  .tree-node { user-select: none; }
+  .tree-label {
+    display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+    border-radius: 4px; cursor: pointer; position: relative;
+  }
+  .tree-label:hover { background: #f0f7f6; }
+  .tree-label .ops { margin-left: auto; visibility: hidden; }
+  .tree-label:hover .ops { visibility: visible; }
+  .tree-kids { margin-left: 18px; border-left: 1px dashed var(--line); padding-left: 8px; }
+  .caret { width: 14px; text-align: center; color: var(--text-3); font-size: 10px; transition: transform .15s; display: inline-block; }
+  .caret.open { transform: rotate(90deg); }
+  .folder-ico, .file-ico { font-size: 12px; }
+  .folder-ico::before { content: "▰"; color: #d9a94e; }
+  .file-ico::before { content: "▤"; color: var(--primary); }
+
+  /* ============ 抽屉 ============ */
+  .mask { display: none; position: fixed; inset: 0; background: rgba(15, 25, 23, .35); z-index: 40; }
+  .mask.show { display: block; animation: fade .2s ease; }
+  @keyframes fade { from { opacity: 0; } }
+  .drawer {
+    display: none; position: fixed; top: 0; right: 0; bottom: 0; width: 520px;
+    background: var(--card); z-index: 41; box-shadow: var(--shadow-drawer);
+    transform: translateX(100%); transition: transform .25s ease;
+    display: flex; flex-direction: column;
+  }
+  .drawer.show { transform: none; }
+  .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); font-size: 15px; font-weight: 600; }
+  .drawer-body { flex: 1; overflow: auto; padding: 20px; }
+  .drawer-foot { padding: 12px 20px; border-top: 1px solid var(--line); text-align: right; }
+  .drawer-foot .btn { margin-left: 8px; }
+  .form-item { margin-bottom: 16px; }
+  .form-item > label { display: block; font-size: 13px; color: var(--text-2); margin-bottom: 6px; }
+  .form-item > label .req { color: var(--danger); margin-right: 2px; }
+  .form-item .input, .form-item .select { width: 100%; }
+  textarea.input { height: 72px; padding: 8px 10px; resize: vertical; font-family: inherit; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .switch { position: relative; width: 40px; height: 22px; background: #d3d9de; border-radius: 999px; border: none; transition: background .2s; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: left .2s; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  .switch.on { background: var(--primary); }
+  .switch.on::after { left: 20px; }
+  .radio-group { display: inline-flex; gap: 16px; font-size: 13px; }
+  .radio-group label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .readout { padding: 8px 0 0; font-size: 13px; color: var(--text); }
+  .readout b { color: var(--primary); font-weight: 600; }
+  .hint { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+  .picker { border: 1px solid var(--line); border-radius: var(--radius); min-height: 36px; padding: 4px 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .picker .tag { cursor: pointer; }
+  .picker .tag .x { margin-left: 4px; opacity: .6; }
+  .picker .ph { color: var(--text-3); font-size: 13px; padding: 3px 4px; }
+
+  .empty { text-align: center; color: var(--text-3); padding: 40px 0; font-size: 13px; }
+  .proto-note { margin: 0 24px 24px; font-size: 12px; color: var(--text-3); }
+</style>
+</head>
+<body>
+
+<div class="proto-bar">
+  <span class="brand">LumenCollab · 管理控制台</span>
+  <span class="badge">PROTOTYPE · 静态演示数据（不接 src/api/）</span>
+  <span class="crumb">系统管理 / 检查设置</span>
+</div>
+
+<div class="console-header">
+  <h1>检查设置</h1>
+  <div class="page-tabs">
+    <button class="page-tab active" data-page="items">检查项目</button>
+    <button class="page-tab" data-page="bodies">检查部位</button>
+    <button class="page-tab" data-page="methods">检查方法</button>
+    <button class="page-tab" data-page="temps">报告模板</button>
+  </div>
+</div>
+
+<!-- ==================== ① 检查项目 ==================== -->
+<section class="page active" id="page-items">
+  <div class="card">
+    <div class="toolbar">
+      <div class="filters">
+        <div class="field"><label>检查类型</label>
+          <select class="select" id="item-modality">
+            <option>CT</option><option>DR</option><option>MR</option><option>US</option><option>ENDO</option>
+          </select>
+        </div>
+        <div class="field"><label>部位分组</label>
+          <select class="select" id="item-group">
+            <option value="">全部</option>
+            <option value="1">胸部</option><option value="2">头颅</option><option value="3">脊柱</option>
+          </select>
+        </div>
+        <div class="field"><label>常用项目</label>
+          <button class="switch" id="item-common" aria-label="常用项目"></button>
+        </div>
+        <div class="field"><label>关键词</label>
+          <input class="input" placeholder="名称 / 编码" style="min-width:160px">
+        </div>
+        <button class="btn btn-primary">查询</button>
+      </div>
+      <button class="btn btn-primary" onclick="openDrawer('drawer-item')">＋ 新建项目</button>
+    </div>
+    <table>
+      <thead><tr>
+        <th>项目名称</th><th>项目编码</th><th>检查部位</th><th>检查方法</th>
+        <th>单价（元）</th><th>折扣</th><th>诊断计费数量</th>
+        <th>诊断得分</th><th>审核得分</th><th>创建时间</th><th style="width:110px">操作</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td>胸部CT平扫</td><td class="code">XBCT-001</td><td>胸部 / 肺</td>
+          <td><span class="tag">平扫</span></td>
+          <td class="num">120.00</td><td class="num">1.00</td><td class="num">1</td>
+          <td><span class="score rep">7</span></td><td><span class="score aud">3</span></td>
+          <td class="num" style="color:var(--text-3)">2026-11-12 09:30</td>
+          <td class="ops"><button class="btn-link" onclick="openDrawer('drawer-item')">编辑</button><button class="btn-link danger">删除</button></td>
+        </tr>
+        <tr>
+          <td>胸部CT增强</td><td class="code">XBCT-002</td><td>胸部 / 纵隔</td>
+          <td><span class="tag">平扫</span><span class="tag">增强</span></td>
+          <td class="num">260.00</td><td class="num">0.85</td><td class="num">2</td>
+          <td><span class="score rep">9</span></td><td><span class="score aud">—</span></td>
+          <td class="num" style="color:var(--text-3)">2026-11-12 09:32</td>
+          <td class="ops"><button class="btn-link" onclick="openDrawer('drawer-item')">编辑</button><button class="btn-link danger">删除</button></td>
+        </tr>
+        <tr>
+          <td>头颅MRI平扫</td><td class="code">NMR-010</td><td>头颅 / 脑实质</td>
+          <td><span class="tag">平扫</span></td>
+          <td class="num">450.00</td><td class="num">1.00</td><td class="num">1</td>
+          <td><span class="score rep">—</span></td><td><span class="score aud">5</span></td>
+          <td class="num" style="color:var(--text-3)">2026-11-12 10:01</td>
+          <td class="ops"><button class="btn-link" onclick="openDrawer('drawer-item')">编辑</button><button class="btn-link danger">删除</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="pager"><span>共 3 条</span><button class="pg">‹</button><button class="pg on">1</button><button class="pg">›</button></div>
+  </div>
+  <p class="proto-note">列按 RCP 对齐 + 绩效权重（诊断/审核得分，空=不计）；部位与方法列来自服务端解析名称（D2，无冗余串）。</p>
+</section>
+
+<!-- ==================== ② 检查部位 ==================== -->
+<section class="page" id="page-bodies">
+  <div class="split">
+    <div class="card">
+      <div class="group-head">
+        <span class="t">部位分组 <span style="font-weight:400;color:var(--text-3)">(CT)</span></span>
+        <button class="btn-link" onclick="openDrawer('drawer-group')">＋ 新建分组</button>
+      </div>
+      <div class="group-row on"><span class="gn">胸部</span><span class="ops"><button class="btn-link">编辑</button><button class="btn-link danger">删除</button></span></div>
+      <div class="group-row"><span class="gn">头颅</span><span class="ops"><button class="btn-link">编辑</button><button class="btn-link danger">删除</button></span></div>
+      <div class="group-row"><span class="gn">脊柱</span><span class="ops"><button class="btn-link">编辑</button><button class="btn-link danger">删除</button></span></div>
+      <div class="empty" style="padding:16px 0 10px;font-size:12px">分组删除被拒时展示后端原因（如“该分组下仍有 3 个部位”）</div>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <div class="filters">
+          <div class="field"><label>检查类型</label>
+            <select class="select"><option>CT</option><option>DR</option><option>MR</option></select>
+          </div>
+          <div class="field"><label>部位分组</label>
+            <select class="select"><option>胸部</option></select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="openDrawer('drawer-body')">＋ 新建部位</button>
+      </div>
+      <table>
+        <thead><tr><th>部位名称</th><th>部位编码</th><th>上级部位</th><th>排序</th><th>创建时间</th><th style="width:110px">操作</th></tr></thead>
+        <tbody>
+          <tr><td>胸部</td><td class="code">XB</td><td>—</td><td class="num">1</td><td class="num" style="color:var(--text-3)">2026-11-12 09:00</td>
+            <td class="ops"><button class="btn-link" onclick="openDrawer('drawer-body')">编辑</button><button class="btn-link danger">删除</button></td></tr>
+          <tr><td>肺</td><td class="code">XB-F</td><td>胸部</td><td class="num">2</td><td class="num" style="color:var(--text-3)">2026-11-12 09:02</td>
+            <td class="ops"><button class="btn-link" onclick="openDrawer('drawer-body')">编辑</button><button class="btn-link danger">删除</button></td></tr>
+          <tr><td>纵隔</td><td class="code">XB-ZG</td><td>胸部</td><td class="num">3</td><td class="num" style="color:var(--text-3)">2026-11-12 09:03</td>
+            <td class="ops"><button class="btn-link" onclick="openDrawer('drawer-body')">编辑</button><button class="btn-link danger">删除</button></td></tr>
+        </tbody>
+      </table>
+      <div class="pager"><span>共 3 条</span><button class="pg">‹</button><button class="pg on">1</button><button class="pg">›</button></div>
+    </div>
+  </div>
+  <p class="proto-note">分组在页内左栏管理（不单独占菜单，coordination 裁决 9）；部位在分组内可按 up_id 嵌套。</p>
+</section>
+
+<!-- ==================== ③ 检查方法 ==================== -->
+<section class="page" id="page-methods">
+  <div class="card">
+    <div class="toolbar">
+      <div class="filters">
+        <div class="field"><label>检查类型</label>
+          <select class="select"><option>CT</option><option>DR</option><option>MR</option><option>US</option></select>
+        </div>
+        <div class="field">
+          <select class="select" style="min-width:96px"><option>方法名称</option><option>方法编码</option></select>
+          <input class="input" placeholder="请输入关键词" style="min-width:160px">
+        </div>
+        <button class="btn btn-primary">查询</button>
+      </div>
+      <button class="btn btn-primary" onclick="openDrawer('drawer-method')">＋ 新建方法</button>
+    </div>
+    <table>
+      <thead><tr><th>方法名称</th><th>方法编码</th><th>检查类型</th><th>创建时间</th><th style="width:110px">操作</th></tr></thead>
+      <tbody>
+        <tr><td>平扫</td><td class="code">PS</td><td><span class="tag gray">CT</span></td><td class="num" style="color:var(--text-3)">2026-11-12 08:40</td>
+          <td class="ops"><button class="btn-link" onclick="openDrawer('drawer-method')">编辑</button><button class="btn-link danger">删除</button></td></tr>
+        <tr><td>增强</td><td class="code">ZQ</td><td><span class="tag gray">CT</span></td><td class="num" style="color:var(--text-3)">2026-11-12 08:41</td>
+          <td class="ops"><button class="btn-link" onclick="openDrawer('drawer-method')">编辑</button><button class="btn-link danger">删除</button></td></tr>
+        <tr><td>二维</td><td class="code">2D</td><td><span class="tag gray">US</span></td><td class="num" style="color:var(--text-3)">2026-11-12 08:45</td>
+          <td class="ops"><button class="btn-link" onclick="openDrawer('drawer-method')">编辑</button><button class="btn-link danger">删除</button></td></tr>
+      </tbody>
+    </table>
+    <div class="pager"><span>共 3 条</span><button class="pg">‹</button><button class="pg on">1</button><button class="pg">›</button></div>
+  </div>
+  <p class="proto-note">方法被项目引用时删除被拒（后端计数信息原样透出）。</p>
+</section>
+
+<!-- ==================== ④ 报告模板 ==================== -->
+<section class="page" id="page-temps">
+  <div class="split" style="grid-template-columns: 340px 1fr;">
+    <div class="card">
+      <div class="group-head">
+        <div class="scope-tabs">
+          <button class="scope-tab on">公共</button>
+          <button class="scope-tab">私有</button>
+        </div>
+      </div>
+      <div style="padding:10px 12px 4px;">
+        <select class="select" style="width:100%"><option>CT</option><option>DR</option><option>MR</option><option>US</option></select>
+      </div>
+      <div class="tree">
+        <div class="tree-node">
+          <div class="tree-label"><span class="caret open" onclick="this.classList.toggle('open');this.closest('.tree-node').querySelector('.tree-kids').style.display=this.classList.contains('open')?'':'none'">▶</span><span class="folder-ico"></span><span>呼吸系统</span>
+            <span class="ops"><button class="btn-link">＋</button><button class="btn-link">编</button><button class="btn-link danger">删</button></span>
+          </div>
+          <div class="tree-kids">
+            <div class="tree-node">
+              <div class="tree-label"><span class="caret"></span><span class="file-ico"></span><span>肺结节随访</span>
+                <span class="ops"><button class="btn-link">＋</button><button class="btn-link">编</button><button class="btn-link danger">删</button></span>
+              </div>
+            </div>
+            <div class="tree-node">
+              <div class="tree-label"><span class="caret"></span><span class="file-ico"></span><span>胸腔积液</span>
+                <span class="ops"><button class="btn-link">＋</button><button class="btn-link">编</button><button class="btn-link danger">删</button></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tree-node">
+          <div class="tree-label"><span class="caret open">▶</span><span class="folder-ico"></span><span>神经系统</span>
+            <span class="ops"><button class="btn-link">＋</button><button class="btn-link">编</button><button class="btn-link danger">删</button></span>
+          </div>
+          <div class="tree-kids">
+            <div class="tree-node"><div class="tree-label"><span class="caret"></span><span class="file-ico"></span><span>脑梗死</span>
+              <span class="ops"><button class="btn-link">＋</button><button class="btn-link">编</button><button class="btn-link danger">删</button></span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <div class="filters">
+          <div class="field"><label>模板名称</label>
+            <input class="input" placeholder="请输入" style="min-width:160px">
+          </div>
+          <button class="btn btn-primary">查询</button>
+        </div>
+        <button class="btn btn-primary" onclick="openDrawer('drawer-temp')">＋ 添加模板</button>
+      </div>
+      <table>
+        <thead><tr><th>模板名称</th><th>影像学表现</th><th>影像学意见</th><th style="width:110px">操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>肺结节随访</td>
+            <td style="max-width:280px">右肺上叶见磨玻璃结节影，直径约 6mm，边缘清晰…</td>
+            <td style="max-width:240px">建议 6 个月后 CT 随访复查。</td>
+            <td class="ops"><button class="btn-link" onclick="openDrawer('drawer-temp')">编辑</button><button class="btn-link danger">删除</button></td>
+          </tr>
+          <tr>
+            <td>胸腔积液</td>
+            <td style="max-width:280px">左侧胸腔见弧形水样密度影，最宽处约 2.1cm…</td>
+            <td style="max-width:240px">左侧胸腔积液，建议结合临床。</td>
+            <td class="ops"><button class="btn-link" onclick="openDrawer('drawer-temp')">编辑</button><button class="btn-link danger">删除</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pager"><span>共 2 条</span><button class="pg">‹</button><button class="pg on">1</button><button class="pg">›</button></div>
+    </div>
+  </div>
+  <p class="proto-note">公共/私有 Tab 切 scope（type 1/2 贯穿树+表+抽屉）；私有仅本人可见可改（服务端强制）。</p>
+</section>
+
+<!-- ==================== 抽屉：检查项目 ==================== -->
+<div class="mask" id="mask" onclick="closeAllDrawers()"></div>
+<div class="drawer" id="drawer-item">
+  <div class="drawer-head"><span>新建项目</span><button class="btn-link" onclick="closeAllDrawers()">✕</button></div>
+  <div class="drawer-body">
+    <div class="form-item"><label>检查类型</label><div class="readout"><b>CT</b></div></div>
+    <div class="grid2">
+      <div class="form-item"><label><span class="req">*</span>项目编码</label><input class="input" placeholder="如 XBCT-001"></div>
+      <div class="form-item"><label>排序</label><input class="input" type="number" placeholder="数值"></div>
+    </div>
+    <div class="form-item"><label><span class="req">*</span>项目名称</label><textarea class="input" maxlength="50" placeholder="≤50 字"></textarea></div>
+    <div class="grid2">
+      <div class="form-item"><label><span class="req">*</span>部位分组</label>
+        <select class="select" id="cascade-group" onchange="cascadeBodies(this.value)">
+          <option value="">请选择</option><option value="1">胸部</option><option value="2">头颅</option>
+        </select>
+      </div>
+      <div class="form-item"><label><span class="req">*</span>检查部位</label>
+        <select class="select" id="cascade-body"><option value="">请先选分组</option></select>
+        <div class="hint">分组变化时重载部位并清空已选</div>
+      </div>
+    </div>
+    <div class="form-item"><label>检查方法</label>
+      <div class="picker" id="method-picker">
+        <span class="ph">点击选择（可多选）</span>
+      </div>
+      <div class="hint">存 id 数组（exam_item_method 关联表），名称列为服务端解析展示</div>
+    </div>
+    <div class="grid3">
+      <div class="form-item"><label>单价（元）</label><input class="input" type="number" step="0.01"></div>
+      <div class="form-item"><label>折扣</label><input class="input" type="number" step="0.01" max="1"></div>
+      <div class="form-item"><label>诊断计费数量</label><input class="input" type="number" min="1"></div>
+    </div>
+    <div class="grid2">
+      <div class="form-item"><label>诊断得分（绩效权重）</label><input class="input" type="number" placeholder="空 = 不计"></div>
+      <div class="form-item"><label>审核得分（绩效权重）</label><input class="input" type="number" placeholder="空 = 不计"></div>
+    </div>
+    <div class="form-item"><label>备注</label><input class="input" maxlength="255"></div>
+    <div class="form-item" style="display:flex;align-items:center;gap:10px">
+      <label style="margin:0">常用项目</label><button class="switch" onclick="this.classList.toggle('on')"></button>
+    </div>
+  </div>
+  <div class="drawer-foot"><button class="btn" onclick="closeAllDrawers()">取消</button><button class="btn btn-primary">保存</button></div>
+</div>
+
+<!-- ==================== 抽屉：检查部位 ==================== -->
+<div class="drawer" id="drawer-body">
+  <div class="drawer-head"><span>新建部位</span><button class="btn-link" onclick="closeAllDrawers()">✕</button></div>
+  <div class="drawer-body">
+    <div class="form-item"><label>检查类型</label><div class="readout"><b>CT</b></div></div>
+    <div class="form-item"><label>上级部位（可选，限同组）</label>
+      <select class="select"><option value="">无（作为顶层）</option><option>胸部</option><option>肺</option></select>
+      <div class="hint">跨组父级被后端拒绝（A0400）</div>
+    </div>
+    <div class="form-item"><label><span class="req">*</span>部位名称</label><input class="input"></div>
+    <div class="grid2">
+      <div class="form-item"><label>部位编码</label><input class="input"></div>
+      <div class="form-item"><label>排序</label><input class="input" type="number"></div>
+    </div>
+  </div>
+  <div class="drawer-foot"><button class="btn" onclick="closeAllDrawers()">取消</button><button class="btn btn-primary">保存</button></div>
+</div>
+
+<!-- ==================== 抽屉：分组 ==================== -->
+<div class="drawer" id="drawer-group">
+  <div class="drawer-head"><span>新建分组</span><button class="btn-link" onclick="closeAllDrawers()">✕</button></div>
+  <div class="drawer-body">
+    <div class="form-item"><label>检查类型</label><div class="readout"><b>CT</b></div></div>
+    <div class="form-item"><label><span class="req">*</span>分组名称</label><input class="input"></div>
+    <div class="form-item"><label>排序</label><input class="input" type="number"></div>
+  </div>
+  <div class="drawer-foot"><button class="btn" onclick="closeAllDrawers()">取消</button><button class="btn btn-primary">保存</button></div>
+</div>
+
+<!-- ==================== 抽屉：检查方法 ==================== -->
+<div class="drawer" id="drawer-method">
+  <div class="drawer-head"><span>新建方法</span><button class="btn-link" onclick="closeAllDrawers()">✕</button></div>
+  <div class="drawer-body">
+    <div class="form-item"><label>检查类型</label><div class="readout"><b>CT</b></div></div>
+    <div class="form-item"><label><span class="req">*</span>方法名称</label><input class="input"></div>
+    <div class="grid2">
+      <div class="form-item"><label>方法编码</label><input class="input"></div>
+      <div class="form-item"><label>排序</label><input class="input" type="number"></div>
+    </div>
+  </div>
+  <div class="drawer-foot"><button class="btn" onclick="closeAllDrawers()">取消</button><button class="btn btn-primary">保存</button></div>
+</div>
+
+<!-- ==================== 抽屉：报告模板 ==================== -->
+<div class="drawer" id="drawer-temp">
+  <div class="drawer-head"><span>添加模板</span><button class="btn-link" onclick="closeAllDrawers()">✕</button></div>
+  <div class="drawer-body">
+    <div class="form-item"><label>上级目录</label>
+      <select class="select"><option>呼吸系统</option><option>神经系统</option></select>
+    </div>
+    <div class="form-item"><label><span class="req">*</span>节点类型</label>
+      <div class="radio-group">
+        <label><input type="radio" name="tempflag" value="1" onchange="tempFlag(this.value)" checked> 模板</label>
+        <label><input type="radio" name="tempflag" value="0" onchange="tempFlag(this.value)"> 目录</label>
+      </div>
+    </div>
+    <div class="form-item"><label><span class="req">*</span>名称</label><input class="input"></div>
+    <div id="temp-content">
+      <div class="form-item"><label>影像学表现</label><textarea class="input" rows="4"></textarea></div>
+      <div class="form-item"><label>影像学意见</label><textarea class="input" rows="3"></textarea></div>
+    </div>
+    <div class="hint">目录行隐藏以上两个内容域（flag 0/1）</div>
+  </div>
+  <div class="drawer-foot"><button class="btn" onclick="closeAllDrawers()">取消</button><button class="btn btn-primary">保存</button></div>
+</div>
+
+<script>
+  // 页签切换
+  document.querySelectorAll('.page-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.page-tab').forEach(function (t) { t.classList.remove('active'); });
+      document.querySelectorAll('.page').forEach(function (p) { p.classList.remove('active'); });
+      tab.classList.add('active');
+      document.getElementById('page-' + tab.dataset.page).classList.add('active');
+    });
+  });
+
+  // 抽屉
+  function openDrawer(id) {
+    document.getElementById('mask').classList.add('show');
+    document.querySelectorAll('.drawer').forEach(function (d) { d.classList.remove('show'); });
+    document.getElementById(id).classList.add('show');
+  }
+  function closeAllDrawers() {
+    document.getElementById('mask').classList.remove('show');
+    document.querySelectorAll('.drawer').forEach(function (d) { d.classList.remove('show'); });
+  }
+
+  // 分组 → 部位 级联（演示数据内联）
+  var BODIES = { '1': ['胸部', '肺', '纵隔'], '2': ['头颅', '脑实质', '脑室'] };
+  function cascadeBodies(groupId) {
+    var target = document.getElementById('cascade-body');
+    target.innerHTML = '';
+    if (!groupId || !BODIES[groupId]) {
+      target.innerHTML = '<option value="">请先选分组</option>';
+      return;
+    }
+    BODIES[groupId].forEach(function (name) {
+      var opt = document.createElement('option');
+      opt.textContent = name;
+      target.appendChild(opt);
+    });
+  }
+
+  // 方法多选 picker（演示数据内联）
+  var METHODS = ['平扫', '增强', '二维', '彩色多普勒'];
+  var picker = document.getElementById('method-picker');
+  METHODS.forEach(function (name) {
+    var tag = document.createElement('span');
+    tag.className = 'tag gray';
+    tag.style.cursor = 'pointer';
+    tag.innerHTML = name;
+    tag.addEventListener('click', function () {
+      tag.classList.toggle('gray');
+      tag.classList.toggle('sel');
+      tag.style.background = tag.classList.contains('sel') ? 'var(--primary)' : '';
+      tag.style.color = tag.classList.contains('sel') ? '#fff' : '';
+    });
+    picker.appendChild(tag);
+  });
+
+  // 常用项目 switch
+  document.getElementById('item-common').addEventListener('click', function () {
+    this.classList.toggle('on');
+  });
+
+  // 模板 flag radio：目录隐藏内容域
+  function tempFlag(v) {
+    document.getElementById('temp-content').style.display = v === '1' ? '' : 'none';
+  }
+</script>
+</body>
+</html>

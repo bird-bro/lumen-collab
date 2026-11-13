@@ -6,6 +6,7 @@ Defines data models, entity schemas, and database conventions for all stacks.
 ## Requirements
 
 <!-- synced from: auth-rbac-foundation 2026-11-03 -->
+
 ### Requirement: Entity Schema Documentation
 Each core entity MUST be documented with its fields, types, and constraints.
 
@@ -23,10 +24,12 @@ Each core entity MUST be documented with its fields, types, and constraints.
 - **AND** `create_time` / `update_time` serialize as `yyyy-MM-dd HH:mm:ss` in GMT+8
 
 <!-- synced from: rename-auth-to-system 2026-11-04 -->
+
 ### Requirement: Schema-per-Service Isolation
+
 All services SHALL share one PostgreSQL database (`lumen`) with one schema per service
-(`system`, `patient`, `radiology`, `us`, `endo`, `integration`). Each service SHALL connect
-with its own database role whose GRANTs are confined to its own schema - with ONE
+(`system`, `setting`, `patient`, `radiology`, `us`, `endo`, `integration`). Each service SHALL
+connect with its own database role whose GRANTs are confined to its own schema - with ONE
 design-level exception: the platform-shared system tables (dict/log) live in the `public`
 schema and every service role SHALL be granted them (user decision 2026-11-03), so their
 unqualified names resolve via `search_path = <service-schema>, public`. Otherwise
@@ -34,15 +37,18 @@ cross-service data access remains denied at the database layer, and cross-servic
 access MUST go through API/events regardless.
 
 #### Scenario: Role isolation denies cross-schema access
+
 - **WHEN** the `lumen_system_role` connection attempts to read a table in another service's
   schema
 - **THEN** PostgreSQL denies it (privilege error)
 
 #### Scenario: Schemas exist after initialization
+
 - **WHEN** the initialization script completes on a fresh instance
-- **THEN** the `lumen` database and the six service schemas exist
+- **THEN** the `lumen` database and the seven service schemas exist
 
 #### Scenario: Shared system tables are reachable from every role
+
 - **WHEN** any service role reads `public.dict_catal` or `public.log_info`
 - **THEN** the access is granted (the design-level shared-data exception)
 - **AND** the role still cannot read any other service's private schema tables

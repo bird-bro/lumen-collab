@@ -25,4 +25,7 @@ public class ItemVO extends ExamItem {
 
     /** 检查方法名称串 (joined per binding, request-order, comma-joined for display). */
     private String methodNames;
+
+    /** 当前绑定的方法 id 集合 (binding order) - the edit form's rewrite input. */
+    private java.util.List<Integer> methodIds;
 }

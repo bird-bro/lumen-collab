@@ -1,7 +1,7 @@
 # Per-change workflow state (parallel-safe: each change owns its own file).
 # Phases: proposing -> applying -> verifying -> archived | abandoned (terminal).
 #   debugging side-path: applying -> debugging (3-strike) -> applying | proposing (rewind)
-phase: verifying
+phase: archived
 change: exam-setting-api
 current_task: null
 tasks_total: 14

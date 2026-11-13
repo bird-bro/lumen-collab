@@ -277,6 +277,7 @@ public class ExamItemService {
             }
             List<Integer> ids = methodIdsByExam.getOrDefault(item.getId(),
                     Collections.emptyList());
+            vo.setMethodIds(ids);
             vo.setMethodNames(ids.stream()
                     .map(methodId -> {
                         ExamMethod method = methods.get(methodId);

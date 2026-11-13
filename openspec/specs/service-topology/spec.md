@@ -6,6 +6,7 @@ Maven aggregator, where their boundaries lie, and the guarantee that a service c
 verified without its runtime infrastructure present.
 
 ## Requirements
+
 ### Requirement: Aggregator Module Declaration
 The backend SHALL be built from a single Maven aggregator at `lumen-sev/pom.xml`. Every
 module compiled as part of the backend build MUST be declared there. The monorepo root MUST
@@ -22,23 +23,27 @@ NOT be a Maven project, and no `lumen-services/` grouping layer SHALL exist.
   plus the aggregator itself - no orphan module directory participates in the build
 
 <!-- synced from: rename-auth-to-system 2026-11-04 -->
+
 ### Requirement: Foundation Module Set
+
 The backend SHALL provide the v1 foundation modules: `lumen-bom`, the OPS-lineage reference
-modules `framework` and `common`, and the `lumen-system` service. Department and
-workflow modules (`lumen-exam-core`, `lumen-api`, `lumen-patient`, `lumen-radiology`,
-`lumen-integration`, `lumen-us`, `lumen-endo`) SHALL NOT be created by this capability; the
-changes that give them behavior add them.
+modules `framework` and `common`, and the `lumen-system` service. Department, workflow, and
+setting modules (`lumen-setting`, `lumen-exam-core`, `lumen-api`, `lumen-patient`,
+`lumen-radiology`, `lumen-integration`, `lumen-us`, `lumen-endo`) SHALL NOT be created by
+this capability; the changes that give them behavior add them.
 
 #### Scenario: Foundation modules resolve
+
 - **WHEN** the aggregator build completes
 - **THEN** `framework`, `common`, and `lumen-system` have each produced a jar
 - **AND** `lumen-bom` participates as a `pom` module (no jar - it emits only its resolved
   flattened POM as the version source)
 
 #### Scenario: Deferred module requested
-- **WHEN** a later feature needs `lumen-radiology`
+
+- **WHEN** a later feature needs `lumen-radiology` or `lumen-setting`
 - **THEN** that feature's change adds the module and declares it in the aggregator
-- **AND** no placeholder `lumen-radiology` module exists before that change
+- **AND** no placeholder module exists before that change
 
 ### Requirement: Unified Entry Without a Java Gateway
 This project SHALL contain no Java gateway module. The unified API entry SHALL be nginx
@@ -53,6 +58,7 @@ change.
   deferred `docker/` change to deploy
 
 <!-- synced from: spec-hygiene 2026-11-04 -->
+
 ### Requirement: Verbatim Adoption of the OPS Base Modules
 `framework` and `common` are the OPS-lineage shared platform layer: module names,
 artifactIds, and packages (`org.birdbro.framework` / `org.birdbro.common`) SHALL stay
@@ -79,6 +85,7 @@ deviation beyond the recorded adaptations MUST be a recorded decision.
 - **AND** the adaptation is recorded in the coordination doc's adaptation list
 
 <!-- synced from: system-data 2026-11-03 -->
+
 ### Requirement: Recorded Adaptations to the Base Modules
 The adaptations enumerated in the coordination doc (`init-project-skeleton.md`) MAY be
 applied to the shared platform layer, and no other change SHALL touch it without a
@@ -141,6 +148,7 @@ belongs to that service: controllers live in the service module, never in a shar
 - **THEN** it belongs in that service, not in the shared modules
 
 <!-- synced from: rename-auth-to-system 2026-11-04 -->
+
 ### Requirement: Service Identity
 Each service SHALL declare `spring.application.name` equal to its module name, and SHALL
 listen on a port reserved for it. `lumen-system` MUST use port 8081; the unified entry nginx
@@ -158,6 +166,7 @@ listens on 80/443 and is not a backend module. Allocations live in
 - **AND** the conflict must be resolved before the service is accepted
 
 <!-- synced from: auth-rbac-foundation 2026-11-03 -->
+
 ### Requirement: Context Load Without Infrastructure
 Each service SHALL load its Spring application context and run its tests without any
 **deployed production** infrastructure. `lumen-system`'s data-layer tests SHALL run against
@@ -183,6 +192,7 @@ keep their zero-dependency tests unchanged.
   profile file), so the absence is not a build failure
 
 <!-- synced from: auth-rbac-foundation 2026-11-03 -->
+
 ### Requirement: Sensitive Configuration Exclusion
 Credentials and environment-specific connection values SHALL come from environment
 variables or a GITIGNORED profile file (`application-dev.yml`, with the template

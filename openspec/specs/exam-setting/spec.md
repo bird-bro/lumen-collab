@@ -1,13 +1,12 @@
-# Spec Delta: exam-setting
+# exam-setting Specification
 
 ## Purpose
-
 The 检查设置 domain owned by the standalone `lumen-setting` service: the hospital-wide
 exam catalog (部位分组 / 检查部位 / 检查方法 / 检查项目, carrying billing and
 performance-score weight fields) and the report-template knowledge base (公共/个人
 scopes), stored in a dedicated `setting` schema and served under `/api/v1/setting/**`.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Setting Schema Ownership
 
@@ -218,6 +217,19 @@ gated by perms `setting:temp:{list,create,update,delete}`.
 - **WHEN** `GET /page?modality=DR&type=2&upId=7&name=结节` is requested
 - **THEN** the response lists the user's own non-deleted template rows whose parent
   is node 7 whose name contains 结节, paged
+
+### Requirement: Exam Item Detail Binding Ids
+
+The item detail echo (`GET /api/v1/setting/exam-items/{id}`) SHALL carry the current
+binding ids (`methodIds`) alongside the display names - the edit form needs the exact
+bound ids for the transactional rewrite, and name-matching against the method list is
+not a contract.
+
+#### Scenario: Detail carries the binding ids
+
+- **WHEN** an item bound to methods 3 and 4 is fetched by id
+- **THEN** the detail payload's `methodIds` is exactly [3, 4]
+- **AND** the display names still resolve server-side alongside them
 
 ### Requirement: Report Template Scope Enforcement
 

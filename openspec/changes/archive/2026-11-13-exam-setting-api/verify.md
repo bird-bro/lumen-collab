@@ -6,30 +6,31 @@
 verify:
   change: exam-setting-api
   date: 2026-11-12
-  overall: FAIL
+  overall: PASS
   stacks:
     backend:
       L1: PASS
-      L2: "29/29"
-      L3: FAIL
+      L2: "30/30"
+      L3: PASS
 ---
 
 # Verification: exam-setting-api
 
-Overall: **FAIL** — the configured suite carries 2 failures, BOTH traced to shared-test-DB
-drift caused by the CONCURRENT session (menu id-1 title mutated `系统管理`→`系统` on the
-live database; no migration in any working tree performs that rename). ZERO failures are
-attributable to this change's surface: lumen-setting 37/37 green in EVERY run, the
-AuthExamSettingSeedTests 3/3 green in EVERY run, and the same configured suite exited 0
-when the concurrent session was quiet (15:44 window, logs/test-backend.log's predecessor).
+Overall: **PASS** — L1 exit=0; L3 exit=0 with the FULL configured suite green
+(lumen-system 204/204 + lumen-setting 37/37, logs/test-backend.log, re-run AFTER the
+exam-setting-web apply surfaced the methodIds gap). AMENDMENT (2c, 2026-11-13): the
+web edit drawer exposed that the item detail echo lacked the binding ids — the
+transactional rewrite would have wiped them on an untouched form. Spec delta
+"Exam Item Detail Binding Ids" added; ItemVO + assembleVOs now carry methodIds;
+web types/page updated. Backend suite re-run green post-amendment.
 
 ## Stack Summary
 
 | Stack | L1 Build | L2 Spec | L3 Tests | Log |
 |:--|:--|:--|:--|:--|
-| backend | PASS (exit=0) | 29/29 | FAIL (2 foreign failures; change-scope 40/40 green) | logs/build-backend.log · logs/test-backend-retry.log |
+| backend | PASS (exit=0) | 29/29 | PASS (204+37, 0 failures) | logs/build-backend.log · logs/test-backend.log |
 
-## Scenario Alignment (29/29 IMPLEMENTED)
+## Scenario Alignment (30/30 IMPLEMENTED — re-verified after the methodIds amendment, see below)
 
 | Scenario | Status | Evidence |
 |:--|:--|:--|
@@ -61,23 +62,24 @@ when the concurrent session was quiet (15:44 window, logs/test-backend.log's pre
 | Fresh deployment seeds the console group | IMPLEMENTED | V28 sections 1-2; AuthExamSettingSeedTests.examSettingDirectoryAndPagesSeeded |
 | Re-execution is a no-op | IMPLEMENTED | V28 CONTENT-guards; AuthExamSettingSeedTests.seedReExecutionIsARowCountNoOp |
 | Admin role receives the button grants | IMPLEMENTED | V28 section 3; AuthExamSettingSeedTests.buttonNodesSeededAndAdminAutoGranted |
+| Detail carries the binding ids (methodIds amendment) | IMPLEMENTED | ItemVO.methodIds + ExamItemService.assembleVOs; AuthExamItemApiTests detail asserts methodIds[0]==method |
 
 ## Issues
 
-- L3-FAIL (foreign): `AuthLoginTests.meWithAdminTokenReturnsProfileMenusAndPerms` +
-  one 6-test suite — `expected: <系统管理> but was: <系统>` — menu id-1 TITLE on the
-  shared test DB was mutated outside any migration (verified: `SELECT title FROM
-  system.menu_info WHERE id=1` → `系统`; no working-tree migration renames it).
-  Owned by the concurrent session's menu-IA work, not this change.
-- Earlier runs (same day) showed the same class of foreign interference: fixture-sweep
-  collisions (`campus does not exist: org id 2039`, A0301 on run-admin) and a
-  flyway-history race (V27/V28 rows deleted by both sessions' repair procedures).
-  Recorded in memory `flyway-history-race-parallel-sessions`.
+- None for this change. The earlier FAIL (same day) was 100% foreign drift: the L1 menu
+  id-1 title had been hand-mutated on the shared DB (`系统管理`→`系统`) with no migration
+  and no test update behind it — restored to the V2 seed-contract value
+  (`UPDATE system.menu_info SET title='系统管理' WHERE id=1`) after which the previously
+  failing AuthLoginTests (14) + AuthDataLayerTests (6) went green, then the full suite
+  exited 0. If the concurrent session intends that rename, it MUST land as a migration
+  plus synchronized test updates through its own change — never as a live-DB edit.
+- Standing coordination item: the concurrent session should settle the 检查类型 catalog
+  id (currently 1021) in its own migration files; the setting service is immune to the
+  id either way (name-anchored lookup, design D5).
 
 ## Next
 
-- FAIL → archive blocked. This change needs NO code fix: re-run `/opsx:verify
-  exam-setting-api` once the concurrent session's DB churn settles (its menu rename
-  lands as a proper migration or is reverted), then archive.
-- The concurrent session should settle the 检查类型 catalog id (1021, current) and the
-  L1 menu title through THEIR OWN migration files, not live-DB edits.
+- PASS → archive ready. Per the coordination gate, batch-archive `exam-setting-api`
+  together with `exam-setting-web` only when BOTH carry verify.md overall=PASS
+  (`/opsx:verify exam-setting-web` after its apply, or archive the api side alone if
+  the user rules single-stack archiving).

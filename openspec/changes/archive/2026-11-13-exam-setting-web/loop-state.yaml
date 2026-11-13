@@ -1,17 +1,17 @@
 # Per-change workflow state (parallel-safe: each change owns its own file).
 # Phases: proposing -> applying -> verifying -> archived | abandoned (terminal).
 #   debugging side-path: applying -> debugging (3-strike) -> applying | proposing (rewind)
-phase: proposing
+phase: archived
 change: exam-setting-web
 current_task: null
 tasks_total: 9
-tasks_done: 0
+tasks_done: 9
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: 8ecb0ab6ff1c595040bb6cdbfbfa0fb86889d7f4f2ac83ca2a961e573a72989c
+artifacts_hash: e0b4f99c0677ca1a9cf537617e98c15c7bf88ded688e807594655bebcac13e76
 contract_hash: null
 execution_mode: Batch Inline
 batches_completed: 0
-last_updated: 2026-11-12
+last_updated: 2026-11-13

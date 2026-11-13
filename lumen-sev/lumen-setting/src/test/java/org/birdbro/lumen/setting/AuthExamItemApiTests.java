@@ -79,6 +79,8 @@ class AuthExamItemApiTests extends SettingIntegrationTestBase {
                 null, token));
         assertEquals("ut_exm_平扫_" + ts, detail.path("data").path("methodNames").asText(),
                 "the detail must resolve display names too");
+        assertEquals(method, detail.path("data").path("methodIds").get(0).asInt(-1),
+                "the detail must carry the binding ids (the edit form's rewrite input)");
 
         hardDeleteItem(inItem);
         hardDeleteItem(outItem);
