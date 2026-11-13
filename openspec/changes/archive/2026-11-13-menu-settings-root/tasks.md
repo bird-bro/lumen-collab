@@ -58,6 +58,9 @@
 
 ## 2. Close-out
 
-- [ ] 2.1 User verifies the console on the real backend (rail: 系统 · 设置 ·
-      workstations; setting pages under 设置).
-- [ ] 2.2 `/opsx:verify` (L1 build / L2 WHEN-THEN / L3 tests) → verify.md.
+- [x] 2.1 User verifies the console on the real backend (rail: 系统 · 设置 ·
+      workstations; setting pages under 设置) — confirmed by user 2026-11-13.
+- [x] 2.2 `/opsx:verify` (L1 build / L2 WHEN-THEN / L3 tests) → verify.md —
+      overall PASS: L1 both stacks exit=0, L2 3/3 IMPLEMENTED, L3 backend
+      exit=0 (lumen-system 49 classes / 243 tests + common 1 class / 4 tests,
+      0 failures) and web exit=0 (31 files / 362 tests); verify.md written.

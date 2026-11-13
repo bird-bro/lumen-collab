@@ -43,6 +43,6 @@ glyphs (V33, task 1.5 — the rcp-test dict_menu rows for the same console domai
 
 #### Scenario: Re-execution is a no-op
 
-- **WHEN** the V28→V32 tail re-runs on an already-migrated database
+- **WHEN** the V28→V34 tail re-runs on an already-migrated database
 - **THEN** no duplicate live menu rows appear (the soft-deleted L2 row stays dead,
   one live row per L2 group) and the sequences converge past MAX(id)

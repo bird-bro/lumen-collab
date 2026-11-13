@@ -54,8 +54,9 @@ the title server-side (menus are data; tests assert it, and they get updated).
 ## D7 — Test surface
 
 - `AuthExamSettingSeedTests`: directory assertions move to the new IA (L1 设置);
-  the re-execution proof runs the V28→V32 TAIL (the realistic convergence unit once
-  V30 mutates V28's rows, V31 re-points the icon, and V32 re-groups the pages) and
+  the re-execution proof runs the V28→V34 TAIL (the realistic convergence unit once
+  V30 mutates V28's rows, V31 re-points the icon, V32 re-groups the pages, and
+  V33/V34 re-point the group and root icons) and
   counts LIVE rows only (soft-deleted dups must not count as state).
 - `AuthLoginTests` / `AuthDataLayerTests`: root-title assertions 系统管理 → 系统;
   IA comments refreshed.

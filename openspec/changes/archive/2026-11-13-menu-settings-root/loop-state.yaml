@@ -1,0 +1,6 @@
+# Per-change LoopForge state (guard.sh reads this file BEFORE the openspec/ fallback).
+# This change never held the shared openspec/loop-state.yaml slot (audit-log-unify-api
+# holds it in a parallel session) - terminal state recorded here instead.
+phase: archived
+change: menu-settings-root
+last_updated: 2026-11-13

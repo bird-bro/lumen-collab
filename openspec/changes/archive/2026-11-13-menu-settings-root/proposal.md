@@ -36,7 +36,7 @@ workstation W nodes.
      new L2 parent), pages re-parented BY PERMS, admin auto-grant + setval
      tails; the group icons swap to the RCP reference glyphs `exam` / `temp`.
 - Tests re-pointed to the new IA: `AuthExamSettingSeedTests` (directory + group/icon
-  assertions + the re-execution proof becomes the V28→V32 tail, live-row counting),
+  assertions + the re-execution proof becomes the V28→V34 tail, live-row counting),
   `AuthLoginTests` / `AuthDataLayerTests` (root title 系统).
 - **lumen-web: three ported glyphs + three mapping lines** (tasks 1.4-1.6) — the RCP
   iconfont symbols `exam` / `temp` / `tune` join `ops-icons.tsx` (monochrome) and
