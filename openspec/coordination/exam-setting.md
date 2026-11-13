@@ -112,3 +112,26 @@ change owns ALL seeds (menu/dict live in system migrations — same stack).
   deltas `service-topology` (module set), `data` (schema enumeration), `system-data`
   (menu pages / button perms / modality vocabulary).
 - `exam-setting-web`: delta `web-system-console` (检查设置 group + four pages).
+
+## 2026-11-13 Merge Ruling (supersedes D1's standalone-service shape)
+
+User decision after v1 delivery review: the standalone `lumen-setting` service (D1) is
+DISSOLVED — the exam-setting domain is HOSTED inside `lumen-system`:
+
+- Module `lumen-setting` removed from the aggregator; the domain keeps its own package
+  root `org.birdbro.lumen.setting` inside the lumen-system jar (classes/tests FQNs
+  unchanged), its URL prefix `/api/v1/setting/**`, and its `setting:*` perms family.
+- One service = one schema = one Flyway ledger: the six tables moved from the `setting`
+  schema into the `system` schema (V29 = the former V1__setting_schema.sql); the
+  `setting` schema + `lumen_setting_role` are retired (data spec back to SIX schemas).
+- Launch class stays `SystemApplication` at the service root package; application name
+  and port 8081 unchanged. `SettingApplication` + the verify-only
+  `SettingUserDetailsService` are deleted (system's real UserDetails chain serves).
+- Rationale: pseudo-microservice costs with no independence (shared DB/Redis/JWT, no MQ,
+  no Feign consumers, menu seeds already in system migrations, ~2×image/build/ops for a
+  pure-CRUD config domain). Future department services (radiology/us/endo) keep their
+  planned independent services; the catalog re-extraction path stays cheap (package +
+  URL + perms all preserved).
+- Recorded in `.claude/rules/naming.md` as the hosted-domain-package precedent.
+- Implementation + spec deltas ride the follow-up change (see its proposal), NOT a
+  re-open of the archived exam-setting-api.

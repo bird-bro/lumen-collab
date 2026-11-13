@@ -22,8 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Exam-setting schema migration proof (exam-setting-api task 1.2; spec deltas
  * exam-setting "Setting Schema Ownership" / "Exam Body Group Columns" / "Exam Body
  * Columns" / "Exam Method Columns" / "Exam Item Columns" / "Exam Item Method Binding" /
- * "Report Template Columns"): the V1 migration creates the six tables in the
- * {@code setting} schema (serial Integer PK, EntityBase audit tail, zero physical FKs),
+ * "Report Template Columns"): the V29 migration creates the six tables in the
+ * {@code system} schema (serial Integer PK, EntityBase audit tail, zero physical FKs),
  * the partial unique indexes keep catalog identity unique among LIVE rows, and
  * re-execution is a row-count no-op.
  *
@@ -86,7 +86,7 @@ class SettingSchemaSeedTests extends SettingIntegrationTestBase {
                     "SELECT COUNT(*) FROM pg_constraint con "
                             + "JOIN pg_class rel ON rel.oid = con.conrelid "
                             + "JOIN pg_namespace ns ON ns.oid = rel.relnamespace "
-                            + "WHERE ns.nspname = 'setting' AND rel.relname = ? "
+                            + "WHERE ns.nspname = 'system' AND rel.relname = ? "
                             + "AND con.contype = 'f'",
                     Integer.class, table);
             assertEquals(0, fk.intValue(),
@@ -109,7 +109,7 @@ class SettingSchemaSeedTests extends SettingIntegrationTestBase {
                 "the item-method join unique index must exist");
 
         Integer nonPartial = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'setting' "
+                "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'system' "
                         + "AND indexname IN ('exam_body_group_live_name_uidx', "
                         + "'exam_item_live_code_uidx', 'exam_method_live_code_uidx') "
                         + "AND position('deleted = 0' in indexdef) = 0",
@@ -123,7 +123,7 @@ class SettingSchemaSeedTests extends SettingIntegrationTestBase {
         // Shape before re-execution.
         List<Map<String, Object>> countsBefore = jdbcTemplate.queryForList(
                 "SELECT relname AS tbl, n_live_tup AS live FROM pg_stat_user_tables "
-                        + "WHERE schemaname = 'setting' AND relname IN ('exam_body_group', "
+                        + "WHERE schemaname = 'system' AND relname IN ('exam_body_group', "
                         + "'exam_body', 'exam_method', 'exam_item', 'exam_item_method', "
                         + "'rep_temp') ORDER BY relname");
 
@@ -138,11 +138,11 @@ class SettingSchemaSeedTests extends SettingIntegrationTestBase {
 
         List<Map<String, Object>> countsAfter = jdbcTemplate.queryForList(
                 "SELECT relname AS tbl, n_live_tup AS live FROM pg_stat_user_tables "
-                        + "WHERE schemaname = 'setting' AND relname IN ('exam_body_group', "
+                        + "WHERE schemaname = 'system' AND relname IN ('exam_body_group', "
                         + "'exam_body', 'exam_method', 'exam_item', 'exam_item_method', "
                         + "'rep_temp') ORDER BY relname");
         assertEquals(countsBefore, countsAfter,
-                "re-running V1 must not add, remove, or change any row");
+                "re-running V29 must not add, remove, or change any row");
     }
 
     // ===================== helpers =====================
@@ -151,36 +151,36 @@ class SettingSchemaSeedTests extends SettingIntegrationTestBase {
         for (String column : expected) {
             Integer found = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM information_schema.columns "
-                            + "WHERE table_schema = 'setting' AND table_name = ? "
+                            + "WHERE table_schema = 'system' AND table_name = ? "
                             + "AND column_name = ?",
                     Integer.class, table, column);
             assertEquals(1, found.intValue(),
-                    "setting." + table + " must carry column " + column);
+                    "system." + table + " must carry column " + column);
         }
         Integer extras = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.columns "
-                        + "WHERE table_schema = 'setting' AND table_name = ? "
+                        + "WHERE table_schema = 'system' AND table_name = ? "
                         + "AND (column_name = ANY (?) OR column_name = ANY (?))",
                 Integer.class, table, expected, AUDIT_TAIL);
         Integer total = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.columns "
-                        + "WHERE table_schema = 'setting' AND table_name = ?",
+                        + "WHERE table_schema = 'system' AND table_name = ?",
                 Integer.class, table);
         assertEquals(extras.intValue(), total.intValue(),
-                "setting." + table + " must carry EXACTLY the ruled columns + audit tail");
+                "system." + table + " must carry EXACTLY the ruled columns + audit tail");
     }
 
     private String columnNullability(String table, String column) {
         return jdbcTemplate.queryForObject(
                 "SELECT is_nullable FROM information_schema.columns "
-                        + "WHERE table_schema = 'setting' AND table_name = ? "
+                        + "WHERE table_schema = 'system' AND table_name = ? "
                         + "AND column_name = ?",
                 String.class, table, column);
     }
 
     private boolean hasIndex(String table, String indexName) {
         Integer found = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'setting' "
+                "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'system' "
                         + "AND tablename = ? AND indexname = ?",
                 Integer.class, table, indexName);
         return found != null && found == 1;
@@ -193,18 +193,18 @@ class SettingSchemaSeedTests extends SettingIntegrationTestBase {
         return all;
     }
 
-    /** Every V1 statement, split on the semicolons the comments never contain. */
+    /** Every V29 statement, split on the semicolons the comments never contain. */
     private static List<String> migrationStatements() {
         try {
             String raw = new String(new ClassPathResource(
-                    "/db/migration/V1__setting_schema.sql").getInputStream().readAllBytes(),
+                    "/db/migration/V29__exam_setting_tables.sql").getInputStream().readAllBytes(),
                     StandardCharsets.UTF_8);
             return java.util.Arrays.stream(raw.split(";"))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
                     .collect(java.util.stream.Collectors.toList());
         } catch (IOException e) {
-            throw new UncheckedIOException("V1__setting_schema.sql must stay on the "
+            throw new UncheckedIOException("V29__exam_setting_tables.sql must stay on the "
                     + "classpath for the re-execution proof", e);
         }
     }
@@ -218,7 +218,7 @@ class SettingSchemaSeedTests extends SettingIntegrationTestBase {
         String database = env.optional(SettingTestEnv.DB, SettingTestEnv.DEFAULT_DB);
         String url = "jdbc:postgresql://" + required.get(SettingTestEnv.PG_HOST) + ":"
                 + required.get(SettingTestEnv.PG_PORT) + "/" + database
-                + "?currentSchema=setting,public";
+                + "?currentSchema=system,public";
         return DriverManager.getConnection(url, required.get(SettingTestEnv.PG_USER),
                 required.get(SettingTestEnv.PG_PASSWORD));
     }

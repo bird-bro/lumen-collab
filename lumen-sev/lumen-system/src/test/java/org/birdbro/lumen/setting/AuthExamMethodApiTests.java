@@ -127,11 +127,11 @@ class AuthExamMethodApiTests extends SettingIntegrationTestBase {
         long ts = System.currentTimeMillis();
         int method = createMethod("CT", "ut_exm_守卫_" + ts, "ut_exm_" + ts + "_g", 1);
         int examId = jdbcTemplate.queryForObject(
-                "INSERT INTO setting.exam_item (modality, exam, code, body_id, enable) "
+                "INSERT INTO system.exam_item (modality, exam, code, body_id, enable) "
                         + "VALUES ('CT', 'ut_exi_方法守卫项目_" + ts + "', 'ut_exi_" + ts
-                        + "_m', (SELECT COALESCE(MAX(id), 1) FROM setting.exam_body), 1) "
+                        + "_m', (SELECT COALESCE(MAX(id), 1) FROM system.exam_body), 1) "
                         + "RETURNING id", Integer.class);
-        jdbcTemplate.update("INSERT INTO setting.exam_item_method (exam_id, method_id) "
+        jdbcTemplate.update("INSERT INTO system.exam_item_method (exam_id, method_id) "
                 + "VALUES (?, ?)", examId, method);
 
         ResponseEntity<String> blocked = exchangeJson(HttpMethod.DELETE,
@@ -142,8 +142,8 @@ class AuthExamMethodApiTests extends SettingIntegrationTestBase {
         assertTrue(blockedBody.path("msg").asText().contains("项目"),
                 "the refusal must name the item reference: " + blockedBody);
 
-        jdbcTemplate.update("DELETE FROM setting.exam_item_method WHERE exam_id = ?", examId);
-        jdbcTemplate.update("DELETE FROM setting.exam_item WHERE id = ?", examId);
+        jdbcTemplate.update("DELETE FROM system.exam_item_method WHERE exam_id = ?", examId);
+        jdbcTemplate.update("DELETE FROM system.exam_item WHERE id = ?", examId);
         ResponseEntity<String> freed = exchangeJson(HttpMethod.DELETE,
                 METHODS_URL + "/" + method, null, token);
         assertEquals("200", parse(freed).path("code").asText(),
@@ -174,8 +174,8 @@ class AuthExamMethodApiTests extends SettingIntegrationTestBase {
     }
 
     private void hardDeleteMethod(int id) {
-        jdbcTemplate.update("DELETE FROM setting.exam_item_method WHERE method_id = ?", id);
-        jdbcTemplate.update("DELETE FROM setting.exam_method WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_item_method WHERE method_id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_method WHERE id = ?", id);
     }
 
     private HttpEntity<String> body(String json) {

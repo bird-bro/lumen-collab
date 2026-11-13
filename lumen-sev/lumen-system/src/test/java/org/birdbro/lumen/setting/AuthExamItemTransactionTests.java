@@ -65,10 +65,10 @@ class AuthExamItemTransactionTests extends SettingIntegrationTestBase {
         int m2 = createMethod("CT", "ut_exm_乙法_" + ts, "ut_exm_" + ts + "2", 2);
         int item = createItem(group, body, "ut_exi_事务项目_" + ts, "ut_exi_" + ts, m1);
         Integer priceBefore = jdbcTemplate.queryForObject(
-                "SELECT (price IS NULL)::int FROM setting.exam_item WHERE id = ?",
+                "SELECT (price IS NULL)::int FROM system.exam_item WHERE id = ?",
                 Integer.class, item);
         Integer bindingsBefore = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM setting.exam_item_method WHERE exam_id = ?",
+                "SELECT COUNT(*) FROM system.exam_item_method WHERE exam_id = ?",
                 Integer.class, item);
 
         // Inject: the second binding insert blows up AFTER the first landed.
@@ -89,11 +89,11 @@ class AuthExamItemTransactionTests extends SettingIntegrationTestBase {
 
         // The item row and its bindings are EXACTLY the pre-update state.
         String exam = jdbcTemplate.queryForObject(
-                "SELECT exam FROM setting.exam_item WHERE id = ?", String.class, item);
+                "SELECT exam FROM system.exam_item WHERE id = ?", String.class, item);
         assertEquals("ut_exi_事务项目_" + ts,
                 exam, "the failed update must leave the item row untouched");
         Integer bindingsAfter = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM setting.exam_item_method WHERE exam_id = ?",
+                "SELECT COUNT(*) FROM system.exam_item_method WHERE exam_id = ?",
                 Integer.class, item);
         assertEquals(bindingsBefore, bindingsAfter,
                 "the failed rewrite must leave the binding set untouched (rolled back)");
@@ -155,20 +155,20 @@ class AuthExamItemTransactionTests extends SettingIntegrationTestBase {
     }
 
     private void hardDeleteGroup(int id) {
-        jdbcTemplate.update("DELETE FROM setting.exam_body_group WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_body_group WHERE id = ?", id);
     }
 
     private void hardDeleteBody(int id) {
-        jdbcTemplate.update("DELETE FROM setting.exam_body WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_body WHERE id = ?", id);
     }
 
     private void hardDeleteMethod(int id) {
-        jdbcTemplate.update("DELETE FROM setting.exam_method WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_method WHERE id = ?", id);
     }
 
     private void hardDeleteItem(int id) {
-        jdbcTemplate.update("DELETE FROM setting.exam_item_method WHERE exam_id = ?", id);
-        jdbcTemplate.update("DELETE FROM setting.exam_item WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_item_method WHERE exam_id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_item WHERE id = ?", id);
     }
 
     private HttpEntity<String> body(String json) {

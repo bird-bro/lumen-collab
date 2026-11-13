@@ -182,14 +182,15 @@ class AuthLoginTests extends AuthIntegrationTestBase {
                         && body.path("data").path("profile").path("roles").size() > 0,
                 "the seeded admin owns role 1 系统管理员");
 
-        // The live menu tree after the console-IA migrations: the 系统管理 directory is
-        // the only root (V10 parked the department placeholders 3/4/5), 用户管理 (2)
-        // nests under the 用户权限 group (14), 日志查询 (12) under 安全 (16).
+        // The live menu tree after the console-IA migrations: the 系统 directory (1,
+        // renamed from 系统管理 by menu-settings-root) roots the console beside the
+        // L1 设置 group and the workstation W nodes, 用户管理 (2) nests under the
+        // 用户权限 group (14), 日志查询 (12) under 安全 (16).
         JsonNode menus = body.path("data").path("menus");
-        assertTrue(menus.isArray() && menus.size() >= 1, "the live tree has the 系统管理 root");
+        assertTrue(menus.isArray() && menus.size() >= 1, "the live tree has the 系统 root");
         JsonNode systemDirectory = menuWithMid(menus, 1);
-        assertNotNull(systemDirectory, "menu 1 系统管理 must be a tree root");
-        assertEquals("系统管理", systemDirectory.path("title").asText());
+        assertNotNull(systemDirectory, "menu 1 系统 must be a tree root");
+        assertEquals("系统", systemDirectory.path("title").asText());
         JsonNode userPermGroup = menuWithMid(systemDirectory.path("children"), 14);
         assertNotNull(userPermGroup, "the 用户权限 group (14) nests under the system directory");
         assertNotNull(menuWithMid(userPermGroup.path("children"), 2),

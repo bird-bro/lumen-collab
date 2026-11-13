@@ -6,7 +6,6 @@ SELECT 'CREATE DATABASE lumen' WHERE NOT EXISTS (SELECT FROM pg_database WHERE d
 \connect lumen
 
 CREATE SCHEMA IF NOT EXISTS system;
-CREATE SCHEMA IF NOT EXISTS setting;
 CREATE SCHEMA IF NOT EXISTS patient;
 CREATE SCHEMA IF NOT EXISTS radiology;
 CREATE SCHEMA IF NOT EXISTS us;
@@ -34,23 +33,9 @@ CREATE SCHEMA IF NOT EXISTS integration;
 -- 注意：GRANT 生效前角色须先存在（见上文角色块）；PG15+ 访问 public 下的表还需
 -- 对该 schema 授 USAGE：
 -- GRANT USAGE ON SCHEMA public
---   TO lumen_system_role, lumen_setting_role, lumen_patient_role, lumen_radiology_role,
+--   TO lumen_system_role, lumen_patient_role, lumen_radiology_role,
 --      lumen_us_role, lumen_endo_role, lumen_integration_role;
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON
 --   public.dict_catal, public.dict_detail, public.log_info, public.log_sign
---   TO lumen_system_role, lumen_setting_role, lumen_patient_role, lumen_radiology_role,
+--   TO lumen_system_role, lumen_patient_role, lumen_radiology_role,
 --      lumen_us_role, lumen_endo_role, lumen_integration_role;
-
--- =====================================================================
--- 检查设置域角色（exam-setting-api，2026-11-12；七 schema 见 data spec delta）
--- =====================================================================
--- DO $$ BEGIN
---   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'lumen_setting_role') THEN
---     CREATE ROLE lumen_setting_role LOGIN PASSWORD '<DBA-SET>';
---   END IF;
--- END $$;
--- GRANT USAGE ON SCHEMA setting TO lumen_setting_role;
--- GRANT ALL ON ALL TABLES IN SCHEMA setting TO lumen_setting_role;
--- GRANT ALL ON ALL SEQUENCES IN SCHEMA setting TO lumen_setting_role;
--- ALTER DEFAULT PRIVILEGES IN SCHEMA setting GRANT ALL ON TABLES TO lumen_setting_role;
--- ALTER DEFAULT PRIVILEGES IN SCHEMA setting GRANT ALL ON SEQUENCES TO lumen_setting_role;

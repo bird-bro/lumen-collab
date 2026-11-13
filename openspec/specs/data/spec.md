@@ -25,16 +25,20 @@ Each core entity MUST be documented with its fields, types, and constraints.
 
 <!-- synced from: rename-auth-to-system 2026-11-04 -->
 
+<!-- synced from: merge-setting-into-system 2026-11-13 -->
+
 ### Requirement: Schema-per-Service Isolation
 
 All services SHALL share one PostgreSQL database (`lumen`) with one schema per service
-(`system`, `setting`, `patient`, `radiology`, `us`, `endo`, `integration`). Each service SHALL
+(`system`, `patient`, `radiology`, `us`, `endo`, `integration`). Each service SHALL
 connect with its own database role whose GRANTs are confined to its own schema - with ONE
 design-level exception: the platform-shared system tables (dict/log) live in the `public`
 schema and every service role SHALL be granted them (user decision 2026-11-03), so their
 unqualified names resolve via `search_path = <service-schema>, public`. Otherwise
 cross-service data access remains denied at the database layer, and cross-service data
-access MUST go through API/events regardless.
+access MUST go through API/events regardless. The former `setting` schema and
+`lumen_setting_role` are RETIRED (2026-11-13 merge ruling): the exam-setting tables live
+in the hosting service's `system` schema.
 
 #### Scenario: Role isolation denies cross-schema access
 
@@ -45,7 +49,7 @@ access MUST go through API/events regardless.
 #### Scenario: Schemas exist after initialization
 
 - **WHEN** the initialization script completes on a fresh instance
-- **THEN** the `lumen` database and the seven service schemas exist
+- **THEN** the `lumen` database and the six service schemas exist
 
 #### Scenario: Shared system tables are reachable from every role
 

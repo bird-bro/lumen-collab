@@ -101,7 +101,7 @@ class AuthRepTempApiTests extends SettingIntegrationTestBase {
                 "the private create must succeed: " + created);
         int temp = parse(created).path("data").asInt(-1);
         Integer storedOwner = jdbcTemplate.queryForObject(
-                "SELECT owner_uid FROM setting.rep_temp WHERE id = ?", Integer.class, temp);
+                "SELECT owner_uid FROM system.rep_temp WHERE id = ?", Integer.class, temp);
         assertEquals(RUN_UID, storedOwner,
                 "the owner binding must come from the SESSION, never the request body");
 
@@ -151,7 +151,7 @@ class AuthRepTempApiTests extends SettingIntegrationTestBase {
         int temp = createTemp(ownerToken, 1, null, 1, "ut模板_软删_" + ts, null);
         exchangeJson(HttpMethod.DELETE, TEMP_URL + "/" + temp, null, ownerToken);
         Integer deletedFlag = jdbcTemplate.queryForObject(
-                "SELECT deleted FROM setting.rep_temp WHERE id = ?", Integer.class, temp);
+                "SELECT deleted FROM system.rep_temp WHERE id = ?", Integer.class, temp);
         assertEquals(Integer.valueOf(1), deletedFlag,
                 "the delete must be LOGICAL (deleted=1), never physical");
         hardDeleteTemp(temp);
@@ -190,7 +190,7 @@ class AuthRepTempApiTests extends SettingIntegrationTestBase {
     }
 
     private void hardDeleteTemp(int id) {
-        jdbcTemplate.update("DELETE FROM setting.rep_temp WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.rep_temp WHERE id = ?", id);
     }
 
     private HttpEntity<String> body(String json) {

@@ -9,14 +9,14 @@ import java.sql.Statement;
 
 /**
  * Once-per-JVM startup bootstrap against the team test server. Clone of lumen-system's
- * {@code AuthTestServerBootstrap} with the {@code setting} schema - plain JDBC via
- * {@link DriverManager}, no Testcontainers, the server is externally provisioned:
+ * {@code AuthTestServerBootstrap} - plain JDBC via {@link DriverManager}, no
+ * Testcontainers, the server is externally provisioned:
  *
  * <ol>
  *   <li>connect to the {@code postgres} MAINTENANCE database;</li>
  *   <li>{@code CREATE DATABASE} the test database only when a {@code pg_database}
  *       existence check finds it missing (existence guard - idempotent);</li>
- *   <li>connect to the test database and {@code CREATE SCHEMA IF NOT EXISTS setting}
+ *   <li>connect to the test database and {@code CREATE SCHEMA IF NOT EXISTS system}
  *       (idempotent).</li>
  * </ol>
  *
@@ -25,12 +25,17 @@ import java.sql.Statement;
  * caching) never re-run the DDL. {@code CREATE DATABASE} cannot run inside a transaction
  * - JDBC's default autocommit satisfies it.</p>
  *
+ * <p>Since the 2026-11-13 merge ruling (standalone lumen-setting dissolved, the domain
+ * hosted inside lumen-system) the exam-setting tables live in the shared {@code system}
+ * schema under the ONE service Flyway ledger - the same database shape
+ * {@code AuthIntegrationTestBase} already targets.</p>
+ *
  * @author birdbro
  */
 public final class SettingTestServerBootstrap {
 
-    /** The fixed lumen-setting service schema (exam-setting-api D1; not env-configurable). */
-    static final String SETTING_SCHEMA = "setting";
+    /** The hosting service schema (2026-11-13 merge ruling; not env-configurable). */
+    static final String SYSTEM_SCHEMA = "system";
 
     private static final Object BOOTSTRAP_LOCK = new Object();
     private static volatile boolean bootstrapped;
@@ -81,7 +86,7 @@ public final class SettingTestServerBootstrap {
         String databaseUrl = "jdbc:postgresql://" + host + ":" + port + "/" + database;
         try (Connection target = DriverManager.getConnection(databaseUrl, user, password);
              Statement statement = target.createStatement()) {
-            statement.executeUpdate("CREATE SCHEMA IF NOT EXISTS " + SETTING_SCHEMA);
+            statement.executeUpdate("CREATE SCHEMA IF NOT EXISTS " + SYSTEM_SCHEMA);
         }
     }
 }

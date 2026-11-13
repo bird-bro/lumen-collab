@@ -244,10 +244,11 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
         for (MenuTree node : tree) {
             rootIds.add(node.getMid());
         }
-        // V10 parked the department placeholders (3/4/5 + their audit button 6): the
-        // only live root is the 系统管理 directory.
+        // V10 parked the department placeholders (3/4/5 + their audit button 6); the
+        // console roots are the 系统 directory (1), the L1 设置 group and the
+        // workstation W nodes (V22+).
         assertTrue(rootIds.contains(1),
-                "the 系统管理 directory must be a tree root; roots were " + rootIds);
+                "the 系统 directory must be a tree root; roots were " + rootIds);
         assertFalse(rootIds.contains(2), "menu 2 (up_id = 14) must nest under the 用户权限 group");
         assertFalse(rootIds.contains(3), "the radiology placeholder is parked (V10)");
         assertFalse(rootIds.contains(4), "the ultrasound placeholder is parked (V10)");
@@ -256,7 +257,7 @@ class AuthDataLayerTests extends AuthIntegrationTestBase {
         MenuTree systemDirectory = nodeWithMid(tree, 1);
         assertNotNull(systemDirectory);
         assertEquals("M", systemDirectory.getType());
-        assertEquals("系统管理", systemDirectory.getTitle());
+        assertEquals("系统", systemDirectory.getTitle());
         assertTrue(Boolean.TRUE.equals(systemDirectory.getVisible()),
                 "visible integer 1 must map to Boolean true on MenuTree");
         assertTrue(systemDirectory.getChildren().stream()

@@ -20,10 +20,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Exam-setting menu seed proof (exam-setting-api task 6.1; spec deltas system-data
- * "Exam Setting Menu Pages" / "Exam Setting Button Perms"): the V28 migration seeds the
- * 「检查设置」 L2 directory under 系统管理 with the four C pages at the ruled
- * paths/perms and twelve F button nodes, auto-grants them to the admin role, and
- * re-executes as a row-count no-op (the AuthDeviceRoomSeedTests discipline).
+ * "Exam Setting Menu Pages" / "Exam Setting Button Perms"; re-pointed to the
+ * menu-settings-root IA 2026-11-13): V28 seeds the four C pages at the ruled
+ * paths/perms and twelve F button nodes, and V30 promotes the group to the L1
+ * 「设置」 directory beside the renamed 「系统」 root with grant carry-over. The
+ * re-execution proof runs the V28→V30 tail and must be a live-row no-op (the
+ * AuthDeviceRoomSeedTests discipline).
  *
  * <p>Shared long-lived database: every assertion is an existence/contains-style check,
  * never an exact row count outside the migration's own seed set.</p>
@@ -51,11 +53,23 @@ class AuthExamSettingSeedTests extends AuthIntegrationTestBase {
 
     @Test
     void examSettingDirectoryAndPagesSeeded() {
+        // the group is the L1 「设置」 directory now (menu-settings-root): beside the
+        // renamed 「系统」 root, carrying the pages unchanged
         Integer directory = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM system.menu_info WHERE up_id = 1 AND type = 'M' "
-                        + "AND title = '检查设置' AND deleted = 0", Integer.class);
+                "SELECT COUNT(*) FROM system.menu_info WHERE up_id = 0 AND type = 'M' "
+                        + "AND title = '设置' AND deleted = 0", Integer.class);
         assertEquals(1, directory.intValue(),
-                "the 检查设置 directory must sit under the 系统管理 root");
+                "the 设置 directory must sit at the top level beside the 系统 root");
+        Integer renamedRoot = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system.menu_info WHERE id = 1 AND type = 'M' "
+                        + "AND title = '系统' AND deleted = 0", Integer.class);
+        assertEquals(1, renamedRoot.intValue(),
+                "the system root (menu 1) must be titled 系统");
+        Integer staleGroup = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system.menu_info WHERE type = 'M' "
+                        + "AND title = '检查设置' AND deleted = 0", Integer.class);
+        assertEquals(0, staleGroup.intValue(),
+                "no live L2 检查设置 directory may remain after the promotion");
 
         for (String[] page : PAGES) {
             Map<String, Object> row = jdbcTemplate.queryForMap(
@@ -66,10 +80,11 @@ class AuthExamSettingSeedTests extends AuthIntegrationTestBase {
             assertEquals(page[2], row.get("component"),
                     "the " + page[3] + " page must carry the ruled component");
             Integer underDirectory = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM system.menu_info WHERE id = ?", Integer.class,
+                    "SELECT COUNT(*) FROM system.menu_info WHERE id = ? AND up_id = 0 "
+                            + "AND type = 'M' AND title = '设置' AND deleted = 0", Integer.class,
                     row.get("up_id"));
             assertEquals(1, underDirectory.intValue(),
-                    "the " + page[3] + " page must live under the 检查设置 directory");
+                    "the " + page[3] + " page must live under the 设置 directory");
         }
     }
 
@@ -93,47 +108,59 @@ class AuthExamSettingSeedTests extends AuthIntegrationTestBase {
         Integer directoryGranted = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM system.role_menu rm "
                         + "JOIN system.menu_info m ON m.id = rm.menu_id "
-                        + "WHERE rm.role_id = 1 AND m.type = 'M' AND m.title = '检查设置' "
-                        + "AND rm.deleted = 0", Integer.class);
+                        + "WHERE rm.role_id = 1 AND m.type = 'M' AND m.title = '设置' "
+                        + "AND m.up_id = 0 AND rm.deleted = 0", Integer.class);
         assertEquals(1, directoryGranted.intValue(),
-                "the admin role must see the 检查设置 directory");
+                "the admin role must see the 设置 directory");
     }
 
     @Test
     void seedReExecutionIsARowCountNoOp() throws SQLException {
-        Integer before = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM system.menu_info WHERE perms LIKE 'setting:%' "
-                        + "OR (type = 'M' AND title = '检查设置')", Integer.class);
+        // LIVE rows only: a V28 re-run re-inserts a fresh L2 检查设置 dup (its guard
+        // keys on the moved row) that the V30 re-run soft-deletes again - dead rows
+        // are not state (menu-settings-root design D2).
+        String liveCount = "SELECT COUNT(*) FROM system.menu_info WHERE deleted = 0 "
+                + "AND (perms LIKE 'setting:%' OR (type = 'M' AND title IN ('检查设置', '设置')))";
+        Integer before = jdbcTemplate.queryForObject(liveCount, Integer.class);
 
-        for (String sql : migrationStatements()) {
+        for (String sql : migrationTailStatements()) {
             try (Connection connection = openMigrationConnection();
                  Statement statement = connection.createStatement()) {
                 statement.execute(sql);
             }
         }
 
-        Integer after = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM system.menu_info WHERE perms LIKE 'setting:%' "
-                        + "OR (type = 'M' AND title = '检查设置')", Integer.class);
-        assertEquals(before, after, "re-running V28 must seed nothing new");
+        Integer after = jdbcTemplate.queryForObject(liveCount, Integer.class);
+        assertEquals(before, after,
+                "re-running the V28→V30 tail must change no live row");
         assertTrue(before != null && before >= 17,
-                "the seed set (1 directory + 4 pages + 12 F nodes) must be present");
+                "the live seed set (1 directory + 4 pages + 12 F nodes) must be present");
     }
 
     // ===================== helpers =====================
 
-    /** Every V28 statement, split on the semicolons the comments never contain. */
-    private static List<String> migrationStatements() {
+    /**
+     * The V28→V30 tail statements (the convergence unit once V30 mutates V28's rows),
+     * split on the semicolons the comments never contain.
+     */
+    private static List<String> migrationTailStatements() {
+        List<String> statements = new java.util.ArrayList<>();
+        statements.addAll(migrationStatements("/db/migration/V28__exam_setting_menu.sql"));
+        statements.addAll(migrationStatements("/db/migration/V30__menu_settings_root.sql"));
+        return statements;
+    }
+
+    /** Every statement of one migration file, split on semicolons. */
+    private static List<String> migrationStatements(String classPathFile) {
         try {
-            String raw = new String(new ClassPathResource(
-                    "/db/migration/V28__exam_setting_menu.sql").getInputStream()
+            String raw = new String(new ClassPathResource(classPathFile).getInputStream()
                     .readAllBytes(), StandardCharsets.UTF_8);
             return java.util.Arrays.stream(raw.split(";"))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
                     .collect(java.util.stream.Collectors.toList());
         } catch (IOException e) {
-            throw new UncheckedIOException("V28__exam_setting_menu.sql must stay on the "
+            throw new UncheckedIOException(classPathFile + " must stay on the "
                     + "classpath for the re-execution proof", e);
         }
     }

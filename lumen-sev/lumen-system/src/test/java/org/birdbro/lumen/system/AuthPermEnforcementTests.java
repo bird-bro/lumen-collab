@@ -150,7 +150,7 @@ class AuthPermEnforcementTests extends AuthIntegrationTestBase {
         String username = "single_u_" + ts;
 
         int roleId = createRole(adminToken, roleName);
-        // 系统管理(1) > 用户权限(14) > 用户管理(2): the full ancestor chain, whose only
+        // 系统(1) > 用户权限(14) > 用户管理(2): the full ancestor chain, whose only
         // perms string is system:user:list.
         exchangeJson(HttpMethod.PUT, ROLES_URL + "/" + roleId + "/menus",
                 "{\"menuIds\":[1,14,2]}", adminToken);

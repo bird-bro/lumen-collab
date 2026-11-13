@@ -50,6 +50,19 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
   The product-category term **RIS stays in prose** (root `CLAUDE.md` Business Context:
   "v1 delivers a RIS"), never in module or package names (user decision 2026-10-29:
   department-name consistency beats system-acronym naming).
+- **Hosted-domain packages** (user decision 2026-11-13, merge-setting-into-system): a
+  domain merged INTO an existing service keeps its own package root
+  `org.birdbro.lumen.<domain>` inside the hosting module's jar - exam-setting lives as
+  `org.birdbro.lumen.setting` inside `lumen-system` (package FQNs, classes, tests
+  unchanged; only the Maven host and the schema moved). The hosting service's
+  `@SpringBootApplication(scanBasePackages = "org.birdbro")` +
+  `@MapperScan(basePackages = "org.birdbro.**.mapper")` discover it unchanged. The
+  application class stays at the SERVICE root package (`SystemApplication`) - the root
+  package mirrors the SERVICE identity (module name, `spring.application.name`, nginx
+  `/api/v1/<service>/**` prefix), never a single domain. A merged domain keeps its own
+  URL prefix and perms-string family (`/api/v1/setting/**`, `setting:*`); its tables
+  join the hosting service's ONE schema + Flyway ledger (V29). The domain's schema is
+  re-extractable: re-home the package into a new module and re-point the schema.
 - **Author attribution**: `@author birdbro` in EVERY class header - ported code's headers are
   normalized to birdbro (adaptation (f), 2026-10-30; original `@date` lines preserved);
   pom `<developer><id>birdbro</id>`; Apache-2.0 LICENSE & NOTICE `Copyright 2026 birdbro`;

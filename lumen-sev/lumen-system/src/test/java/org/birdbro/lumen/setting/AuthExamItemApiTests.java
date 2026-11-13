@@ -137,7 +137,7 @@ class AuthExamItemApiTests extends SettingIntegrationTestBase {
         // Logical delete frees the code for reuse (partial unique: live rows only).
         exchangeJson(HttpMethod.DELETE, ITEMS_URL + "/" + first, null, token);
         Integer deletedFlag = jdbcTemplate.queryForObject(
-                "SELECT deleted FROM setting.exam_item WHERE id = ?", Integer.class, first);
+                "SELECT deleted FROM system.exam_item WHERE id = ?", Integer.class, first);
         assertEquals(Integer.valueOf(1), deletedFlag,
                 "the delete must be LOGICAL (deleted=1), never physical");
 
@@ -172,10 +172,10 @@ class AuthExamItemApiTests extends SettingIntegrationTestBase {
 
         // D9: remark absent from the payload must CLEAR; the scored fields persist.
         String remark = jdbcTemplate.queryForObject(
-                "SELECT remark FROM setting.exam_item WHERE id = ?", String.class, item);
+                "SELECT remark FROM system.exam_item WHERE id = ?", String.class, item);
         assertEquals(null, remark, "an absent optional must CLEAR (D9)");
         Integer scoreRep = jdbcTemplate.queryForObject(
-                "SELECT score_rep FROM setting.exam_item WHERE id = ?", Integer.class, item);
+                "SELECT score_rep FROM system.exam_item WHERE id = ?", Integer.class, item);
         assertEquals(Integer.valueOf(7), scoreRep, "the performance weight must persist");
 
         // The binding rewrite is EXACT: A,B → B,C leaves exactly B,C.
@@ -205,7 +205,7 @@ class AuthExamItemApiTests extends SettingIntegrationTestBase {
         assertEquals("A0301", parse(denied).path("code").asText(),
                 "a perm-less create must deny A0301 before the controller: " + denied);
         Integer created = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM setting.exam_item WHERE code LIKE 'ut_exi_%' "
+                "SELECT COUNT(*) FROM system.exam_item WHERE code LIKE 'ut_exi_%' "
                         + "AND exam LIKE 'ut_exi_拒权项目_%'", Integer.class);
         assertEquals(Integer.valueOf(0), created.intValue(),
                 "the denied create must not reach the controller (no item row)");
@@ -276,21 +276,21 @@ class AuthExamItemApiTests extends SettingIntegrationTestBase {
     }
 
     private void hardDeleteGroup(int id) {
-        jdbcTemplate.update("DELETE FROM setting.exam_body_group WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_body_group WHERE id = ?", id);
     }
 
     private void hardDeleteBody(int id) {
-        jdbcTemplate.update("DELETE FROM setting.exam_body WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_body WHERE id = ?", id);
     }
 
     private void hardDeleteMethod(int id) {
-        jdbcTemplate.update("DELETE FROM setting.exam_item_method WHERE method_id = ?", id);
-        jdbcTemplate.update("DELETE FROM setting.exam_method WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_item_method WHERE method_id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_method WHERE id = ?", id);
     }
 
     private void hardDeleteItem(int id) {
-        jdbcTemplate.update("DELETE FROM setting.exam_item_method WHERE exam_id = ?", id);
-        jdbcTemplate.update("DELETE FROM setting.exam_item WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_item_method WHERE exam_id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_item WHERE id = ?", id);
     }
 
     private HttpEntity<String> body(String json) {

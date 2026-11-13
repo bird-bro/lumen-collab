@@ -31,8 +31,11 @@ import org.birdbro.framework.security.TokenService;
  *       variables fail the context EXPLICITLY, never a silent skip;</li>
  *   <li>bootstraps the server at most once per JVM: {@code CREATE DATABASE} guarded by
  *       a {@code pg_database} existence check, then {@code CREATE SCHEMA IF NOT EXISTS
- *       setting} ({@link SettingTestServerBootstrap});</li>
- *   <li>injects the application datasource ({@code currentSchema=setting,public}),
+ *       system} ({@link SettingTestServerBootstrap}) - since the 2026-11-13 merge
+ *       ruling the exam-setting tables live in the shared {@code system} schema under
+ *       the ONE service Flyway ledger, exactly as {@code AuthIntegrationTestBase}
+ *       targets;</li>
+ *   <li>injects the application datasource ({@code currentSchema=system,public}),
  *       Redis, and Flyway properties via {@code @DynamicPropertySource} - Flyway
  *       executes the module's migrations against the real database.</li>
  * </ol>
@@ -58,7 +61,13 @@ import org.birdbro.framework.security.TokenService;
  *
  * @author birdbro
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+// classes= is REQUIRED (merge-setting-into-system): the Boot configuration search
+// walks UP from the test package (org.birdbro.lumen.setting -> org.birdbro) and the
+// hosting SystemApplication sits in the SIBLING package org.birdbro.lumen.system -
+// never found by the upward walk (the retired SettingApplication used to be the
+// same-package @SpringBootConfiguration).
+@SpringBootTest(classes = org.birdbro.lumen.system.SystemApplication.class,
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 public abstract class SettingIntegrationTestBase {
 
@@ -183,10 +192,11 @@ public abstract class SettingIntegrationTestBase {
                 required.get(SettingTestEnv.PG_USER), required.get(SettingTestEnv.PG_PASSWORD),
                 database);
 
-        // Application datasource: the lumen database through the SETTING schema first,
-        // then the shared public schema (the design-level dict/log exception).
+        // Application datasource: the lumen database through the hosting SYSTEM schema
+        // first, then the shared public schema (the design-level dict/log exception) -
+        // the SAME shape AuthIntegrationTestBase registers (2026-11-13 merge ruling).
         registry.add("spring.datasource.url", () -> "jdbc:postgresql://" + pgHost + ":"
-                + pgPort + "/" + database + "?currentSchema=setting,public");
+                + pgPort + "/" + database + "?currentSchema=system,public");
         registry.add("spring.datasource.username", () -> required.get(SettingTestEnv.PG_USER));
         registry.add("spring.datasource.password", () -> required.get(SettingTestEnv.PG_PASSWORD));
 
@@ -197,11 +207,12 @@ public abstract class SettingIntegrationTestBase {
             registry.add("spring.redis.password", () -> redisPassword);
         }
 
-        // Flyway migrates the SETTING schema of the test server's database. Flyway 7.x
-        // requires default-schema to be a member of schemas.
-        registry.add("spring.flyway.schemas", () -> SettingTestServerBootstrap.SETTING_SCHEMA);
+        // Flyway migrates the SYSTEM schema of the test server's database - the one
+        // service ledger V1..V29 (2026-11-13 merge ruling). Flyway 7.x requires
+        // default-schema to be a member of schemas.
+        registry.add("spring.flyway.schemas", () -> SettingTestServerBootstrap.SYSTEM_SCHEMA);
         registry.add("spring.flyway.default-schema",
-                () -> SettingTestServerBootstrap.SETTING_SCHEMA);
+                () -> SettingTestServerBootstrap.SYSTEM_SCHEMA);
         registry.add("spring.flyway.check-location", () -> "false");
     }
 
@@ -260,8 +271,9 @@ public abstract class SettingIntegrationTestBase {
     // ===================== residue sweep (safety net) =====================
 
     /**
-     * Per-class exit: one JDBC transaction that PHYSICALLY deletes the run's setting-
-     * schema residue (user ruling 2026-11-07 - hard DELETE, never soft), bindings
+     * Per-class exit: one JDBC transaction that PHYSICALLY deletes the run's exam-
+     * table residue in the system schema (user ruling 2026-11-07 - hard DELETE,
+     * never soft), bindings
      * before owners: item_method joins, then items, bodies, groups, methods, and the
      * rep_temp family. No {@code deleted = 0} filter - soft-deleted leftovers from an
      * interrupted run are exactly the pollution this purges. A failure fails the class
@@ -282,23 +294,23 @@ public abstract class SettingIntegrationTestBase {
             connection.setAutoCommit(false);
             try (Statement statement = connection.createStatement()) {
                 int itemMethodRows = statement.executeUpdate(
-                        "DELETE FROM setting.exam_item_method WHERE exam_id IN ("
-                                + "SELECT id FROM setting.exam_item WHERE ("
+                        "DELETE FROM system.exam_item_method WHERE exam_id IN ("
+                                + "SELECT id FROM system.exam_item WHERE ("
                                 + prefixLike("code", EXAM_ITEM_CODE_PREFIXES) + "))");
                 int itemRows = statement.executeUpdate(
-                        "DELETE FROM setting.exam_item WHERE ("
+                        "DELETE FROM system.exam_item WHERE ("
                                 + prefixLike("code", EXAM_ITEM_CODE_PREFIXES) + ")");
                 int bodyRows = statement.executeUpdate(
-                        "DELETE FROM setting.exam_body WHERE ("
+                        "DELETE FROM system.exam_body WHERE ("
                                 + prefixLike("code", EXAM_BODY_CODE_PREFIXES) + ")");
                 int groupRows = statement.executeUpdate(
-                        "DELETE FROM setting.exam_body_group WHERE ("
+                        "DELETE FROM system.exam_body_group WHERE ("
                                 + prefixLike("name", EXAM_GROUP_NAME_PREFIXES) + ")");
                 int methodRows = statement.executeUpdate(
-                        "DELETE FROM setting.exam_method WHERE ("
+                        "DELETE FROM system.exam_method WHERE ("
                                 + prefixLike("code", EXAM_METHOD_CODE_PREFIXES) + ")");
                 int tempRows = statement.executeUpdate(
-                        "DELETE FROM setting.rep_temp WHERE ("
+                        "DELETE FROM system.rep_temp WHERE ("
                                 + prefixLike("name", REP_TEMP_NAME_PREFIXES) + ")");
                 connection.commit();
                 System.out.println("[setting-test-hook] hard-swept run residue - "
@@ -314,7 +326,7 @@ public abstract class SettingIntegrationTestBase {
 
     /**
      * Plain-JDBC connection to the team test server's database ({@code
-     * currentSchema=setting,public}) - the same resolution as
+     * currentSchema=system,public}) - the same resolution as
      * {@code teamTestServerProperties}. Connects OUTSIDE Spring on purpose.
      */
     private static Connection openTestServerConnection() throws SQLException {
@@ -325,7 +337,7 @@ public abstract class SettingIntegrationTestBase {
         String database = env.optional(SettingTestEnv.DB, SettingTestEnv.DEFAULT_DB);
         String url = "jdbc:postgresql://" + required.get(SettingTestEnv.PG_HOST) + ":"
                 + required.get(SettingTestEnv.PG_PORT) + "/" + database
-                + "?currentSchema=setting,public";
+                + "?currentSchema=system,public";
         return DriverManager.getConnection(url, required.get(SettingTestEnv.PG_USER),
                 required.get(SettingTestEnv.PG_PASSWORD));
     }

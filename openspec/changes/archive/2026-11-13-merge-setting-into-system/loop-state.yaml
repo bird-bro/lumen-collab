@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: merge-setting-into-system
+execution_mode: SDD
+tasks_total: 9
+tasks_done: 9
+workflow_mode: full
+artifacts_hash: 4d27ecc0d158823410f01b93285dd53f9c2db75bd06b1489afd9f933baf104ca

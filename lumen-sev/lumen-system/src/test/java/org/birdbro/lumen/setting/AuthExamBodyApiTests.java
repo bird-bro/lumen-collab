@@ -211,7 +211,7 @@ class AuthExamBodyApiTests extends SettingIntegrationTestBase {
         assertEquals("200", parse(updated).path("code").asText(),
                 "the null-aware update must succeed: " + updated);
         String code = jdbcTemplate.queryForObject(
-                "SELECT code FROM setting.exam_body WHERE id = ?", String.class, child);
+                "SELECT code FROM system.exam_body WHERE id = ?", String.class, child);
         assertEquals(null, code, "an absent code must CLEAR (D9), not survive");
 
         // The child blocks the parent's deletion and names the reference.
@@ -263,11 +263,11 @@ class AuthExamBodyApiTests extends SettingIntegrationTestBase {
 
     /** Direct item-row fixture (batch-2 tests need the binding, not the item API). */
     private int createItemFixture(int groupId, int bodyId, long ts) {
-        jdbcTemplate.update("INSERT INTO setting.exam_item (modality, exam, code, body_id, "
+        jdbcTemplate.update("INSERT INTO system.exam_item (modality, exam, code, body_id, "
                         + "enable) VALUES ('CT', ?, ?, ?, 1)",
                 "ut_exi_守卫项目_" + ts, "ut_exi_" + ts, bodyId);
         return jdbcTemplate.queryForObject(
-                "SELECT id FROM setting.exam_item WHERE code = ?", Integer.class,
+                "SELECT id FROM system.exam_item WHERE code = ?", Integer.class,
                 "ut_exi_" + ts);
     }
 
@@ -281,16 +281,16 @@ class AuthExamBodyApiTests extends SettingIntegrationTestBase {
     }
 
     private void hardDeleteGroup(int id) {
-        jdbcTemplate.update("DELETE FROM setting.exam_body_group WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_body_group WHERE id = ?", id);
     }
 
     private void hardDeleteBody(int id) {
-        jdbcTemplate.update("DELETE FROM setting.exam_body WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_body WHERE id = ?", id);
     }
 
     private void hardDeleteItem(int id) {
-        jdbcTemplate.update("DELETE FROM setting.exam_item_method WHERE exam_id = ?", id);
-        jdbcTemplate.update("DELETE FROM setting.exam_item WHERE id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_item_method WHERE exam_id = ?", id);
+        jdbcTemplate.update("DELETE FROM system.exam_item WHERE id = ?", id);
     }
 
     private HttpEntity<String> body(String json) {
