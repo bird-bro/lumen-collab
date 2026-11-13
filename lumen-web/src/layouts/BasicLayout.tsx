@@ -14,7 +14,7 @@ import type { ComponentType, CSSProperties } from 'react'
 import { Suspense, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { activeTopLevelNode, firstLeafRouteOf, resolveMenuRoute } from '@/routes/menu-paths'
-import { OrgBuildingIcon, ShieldCheckIcon, SystemToolIcon, UserAccountIcon } from '@/components/ops-icons'
+import { ExamCatalogIcon, OrgBuildingIcon, ShieldCheckIcon, SystemToolIcon, TemplateBookIcon, TuneIcon, UserAccountIcon } from '@/components/ops-icons'
 import headLogo from '@/assets/head.png'
 import { useAuthStore } from '@/stores/auth'
 import { WorkstationChip } from './WorkstationChip'
@@ -89,6 +89,14 @@ const MENU_ICON_BY_NAME: Record<string, IconComponent> = {
   team: UserAccountIcon,
   config: SystemToolIcon,
   shield: ShieldCheckIcon,
+  // V33/V34 the 设置 root family (menu-settings-root tasks 1.5/1.6, user rulings
+  // 2026-11-13): the RCP reference glyphs for the same console domain (exam /
+  // temp / tune per rcp-test dict_menu mid 1029/1025/1018), ported in
+  // ops-icons.tsx. `tune` is the semantic key for RCP's `setting` symbol - the
+  // literal name is taken by the 系统 root's AntD gear above.
+  exam: ExamCatalogIcon,
+  temp: TemplateBookIcon,
+  tune: TuneIcon,
 }
 
 /**
