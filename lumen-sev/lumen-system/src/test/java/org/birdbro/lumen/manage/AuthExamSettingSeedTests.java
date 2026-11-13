@@ -23,9 +23,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * "Exam Setting Menu Pages" / "Exam Setting Button Perms"; re-pointed to the
  * menu-settings-root IA 2026-11-13): V28 seeds the four C pages at the ruled
  * paths/perms and twelve F button nodes, and V30 promotes the group to the L1
- * 「设置」 directory beside the renamed 「系统」 root with grant carry-over. The
- * re-execution proof runs the V28→V30 tail and must be a live-row no-op (the
- * AuthDeviceRoomSeedTests discipline).
+ * 「设置」 directory beside the renamed 「系统」 root with grant carry-over, V31
+ * then V34 re-point the directory's rail icon (sliders placeholder → the RCP
+ * `tune` glyph), V32 re-groups the four pages under the L2 directories 检查配置 /
+ * 报告配置, and V33 swaps the group icons to the RCP reference glyphs (user
+ * rulings 2026-11-13; exam / temp / tune per the rcp-test dict_menu rows
+ * 1029/1025/1018). The re-execution proof runs the V28→V34 tail and must be a
+ * live-row no-op (the AuthDeviceRoomSeedTests discipline).
  *
  * <p>Shared long-lived database: every assertion is an existence/contains-style check,
  * never an exact row count outside the migration's own seed set.</p>
@@ -34,12 +38,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AuthExamSettingSeedTests extends AuthIntegrationTestBase {
 
-    /** {perms, path, component, title} of the four seeded C pages (perms = contract). */
+    /** {perms, path, component, title, group} of the four seeded C pages (perms = contract). */
     private static final String[][] PAGES = {
-            {"setting:item:list", "exam-item", "setting/exam-item/index", "检查项目"},
-            {"setting:body:list", "exam-body", "setting/exam-body/index", "检查部位"},
-            {"setting:method:list", "exam-method", "setting/exam-method/index", "检查方法"},
-            {"setting:temp:list", "rep-template", "setting/rep-template/index", "报告模板"}};
+            {"setting:item:list", "exam-item", "setting/exam-item/index", "检查项目", "检查配置"},
+            {"setting:body:list", "exam-body", "setting/exam-body/index", "检查部位", "检查配置"},
+            {"setting:method:list", "exam-method", "setting/exam-method/index", "检查方法", "检查配置"},
+            {"setting:temp:list", "rep-template", "setting/rep-template/index", "报告模板", "报告配置"}};
+
+    /** {title, icon} of the two L2 group directories (task 1.5 icons = the RCP glyphs). */
+    private static final String[][] GROUPS = {
+            {"检查配置", "exam"},
+            {"报告配置", "temp"}};
 
     /** The twelve F-node perms (create/update/delete × four resources). */
     private static final String[] BUTTON_PERMS = {
@@ -79,13 +88,53 @@ class AuthExamSettingSeedTests extends AuthIntegrationTestBase {
                     "the " + page[3] + " page must carry the ruled path");
             assertEquals(page[2], row.get("component"),
                     "the " + page[3] + " page must carry the ruled component");
+            // the page lives under its L2 group (task 1.4), and the group's own
+            // up_id resolves to the L1 设置 row - the full ancestor chain the
+            // TreeUtils orphan rule demands
+            Map<String, Object> group = jdbcTemplate.queryForMap(
+                    "SELECT up_id FROM system.menu_info WHERE id = ? AND type = 'M' "
+                            + "AND title = ? AND deleted = 0", row.get("up_id"), page[4]);
             Integer underDirectory = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM system.menu_info WHERE id = ? AND up_id = 0 "
                             + "AND type = 'M' AND title = '设置' AND deleted = 0", Integer.class,
-                    row.get("up_id"));
+                    group.get("up_id"));
             assertEquals(1, underDirectory.intValue(),
-                    "the " + page[3] + " page must live under the 设置 directory");
+                    "the " + page[3] + " page must live under the " + page[4]
+                            + " group inside the 设置 directory");
         }
+    }
+
+    @Test
+    void settingsGroupsSeededWithIcons() throws SQLException {
+        // task 1.4 (user ruling 2026-11-13): the four pages re-group under two L2
+        // directories, each carrying its ruled icon (the console maps medicine-box
+        // -> MedicineBoxOutlined and file-text -> FileTextOutlined).
+        for (String[] group : GROUPS) {
+            Map<String, Object> row = jdbcTemplate.queryForMap(
+                    "SELECT icon FROM system.menu_info WHERE type = 'M' AND title = ? "
+                            + "AND deleted = 0 AND up_id = (SELECT id FROM system.menu_info "
+                            + "WHERE up_id = 0 AND type = 'M' AND title = '设置' AND deleted = 0)",
+                    group[0]);
+            assertEquals(group[1], row.get("icon"),
+                    "the " + group[0] + " group must carry the " + group[1] + " icon");
+        }
+
+        // the V32/V33 re-runs must stay live-row no-ops (content-guarded)
+        for (String classPathFile : new String[] {
+                "/db/migration/V32__menu_settings_groups.sql",
+                "/db/migration/V33__menu_settings_group_icons.sql"}) {
+            for (String sql : migrationStatements(classPathFile)) {
+                try (Connection connection = openMigrationConnection();
+                     Statement statement = connection.createStatement()) {
+                    statement.execute(sql);
+                }
+            }
+        }
+        Integer liveGroups = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system.menu_info WHERE type = 'M' "
+                        + "AND title IN ('检查配置', '报告配置') AND deleted = 0", Integer.class);
+        assertEquals(2, liveGroups.intValue(),
+                "the V32/V33 re-runs must leave exactly one live row per group directory");
     }
 
     @Test
@@ -115,12 +164,44 @@ class AuthExamSettingSeedTests extends AuthIntegrationTestBase {
     }
 
     @Test
+    void settingsDirectoryCarriesTheRcpTuneIcon() throws SQLException {
+        // V31 put the AntD placeholder sliders on the L1 row; task 1.6 (user ruling
+        // 2026-11-13) swaps it to the RCP reference glyph `tune` (RCP icon-setting,
+        // rcp-test dict_menu mid 1018 - the knobs glyph the reference styles its
+        // own L1 设置 root with).
+        String icon = jdbcTemplate.queryForObject(
+                "SELECT icon FROM system.menu_info WHERE up_id = 0 AND type = 'M' "
+                        + "AND title = '设置' AND deleted = 0", String.class);
+        assertEquals("tune", icon,
+                "the 设置 directory must carry the RCP tune rail icon");
+
+        // the V31→V34 re-run must converge: V31's guard re-sets sliders, the V34
+        // re-run re-applies tune - the tail order lands on tune (the D2 discipline)
+        for (String classPathFile : new String[] {
+                "/db/migration/V31__menu_settings_icon.sql",
+                "/db/migration/V34__menu_settings_root_icon.sql"}) {
+            for (String sql : migrationStatements(classPathFile)) {
+                try (Connection connection = openMigrationConnection();
+                     Statement statement = connection.createStatement()) {
+                    statement.execute(sql);
+                }
+            }
+        }
+        String reRun = jdbcTemplate.queryForObject(
+                "SELECT icon FROM system.menu_info WHERE up_id = 0 AND type = 'M' "
+                        + "AND title = '设置' AND deleted = 0", String.class);
+        assertEquals("tune", reRun,
+                "the V31→V34 re-run must converge on the tune rail icon");
+    }
+
+    @Test
     void seedReExecutionIsARowCountNoOp() throws SQLException {
         // LIVE rows only: a V28 re-run re-inserts a fresh L2 检查设置 dup (its guard
         // keys on the moved row) that the V30 re-run soft-deletes again - dead rows
         // are not state (menu-settings-root design D2).
         String liveCount = "SELECT COUNT(*) FROM system.menu_info WHERE deleted = 0 "
-                + "AND (perms LIKE 'setting:%' OR (type = 'M' AND title IN ('检查设置', '设置')))";
+                + "AND (perms LIKE 'setting:%' OR (type = 'M' AND title IN "
+                + "('检查设置', '设置', '检查配置', '报告配置')))";
         Integer before = jdbcTemplate.queryForObject(liveCount, Integer.class);
 
         for (String sql : migrationTailStatements()) {
@@ -132,21 +213,27 @@ class AuthExamSettingSeedTests extends AuthIntegrationTestBase {
 
         Integer after = jdbcTemplate.queryForObject(liveCount, Integer.class);
         assertEquals(before, after,
-                "re-running the V28→V30 tail must change no live row");
-        assertTrue(before != null && before >= 17,
-                "the live seed set (1 directory + 4 pages + 12 F nodes) must be present");
+                "re-running the V28→V34 tail must change no live row");
+        assertTrue(before != null && before >= 19,
+                "the live seed set (1 L1 设置 + 2 L2 groups + 4 pages + 12 F nodes)"
+                        + " must be present");
     }
 
     // ===================== helpers =====================
 
     /**
-     * The V28→V30 tail statements (the convergence unit once V30 mutates V28's rows),
-     * split on the semicolons the comments never contain.
+     * The V28→V34 tail statements (the convergence unit once V30 mutates V28's rows,
+     * V31/V34 re-point the L1 icon, V32 re-groups the pages, and V33 swaps the group
+     * icons), split on the semicolons the comments never contain.
      */
     private static List<String> migrationTailStatements() {
         List<String> statements = new java.util.ArrayList<>();
         statements.addAll(migrationStatements("/db/migration/V28__exam_setting_menu.sql"));
         statements.addAll(migrationStatements("/db/migration/V30__menu_settings_root.sql"));
+        statements.addAll(migrationStatements("/db/migration/V31__menu_settings_icon.sql"));
+        statements.addAll(migrationStatements("/db/migration/V32__menu_settings_groups.sql"));
+        statements.addAll(migrationStatements("/db/migration/V33__menu_settings_group_icons.sql"));
+        statements.addAll(migrationStatements("/db/migration/V34__menu_settings_root_icon.sql"));
         return statements;
     }
 
