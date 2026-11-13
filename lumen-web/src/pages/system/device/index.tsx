@@ -3,15 +3,17 @@ import {
 } from '@ant-design/icons'
 import {
   Button,
+  Col,
   DatePicker,
+  Divider,
   Drawer,
   Form,
   Input,
   InputNumber,
   Popconfirm,
+  Row,
   Select,
   Switch,
-  Tabs,
   Tag,
   message,
   theme,
@@ -48,7 +50,7 @@ import { OrgTree } from '../org-tree'
  * query carries NO orgId key at all - absent = every campus); a campus node filters.
  *
  * The device is the asset + DICOM access point (the split ruling): the drawer's
- * 接入与采集 tab owns ae/ip/port + the Box block + 图像预设; 所属部门 is REQUIRED
+ * 接入与采集 section owns ae/ip/port + the Box block + 图像预设; 所属部门 is REQUIRED
  * (the 使用科室 anchor). 归属类型 = 自购 prefills 使用期限 (today → 2099-12-31) on
  * ADD only (OPS behavior). Duplicate codes (A0400) surface on the 编号 field with
  * the drawer open; the delete guard's room-count message surfaces as an error and
@@ -373,7 +375,7 @@ export default function DevicePage() {
       render: (tag: number) => <Tag>{resolveDictLabel(tags, tag)}</Tag>,
     },
     {
-      title: '负责科室',
+      title: '科室',
       dataIndex: 'did',
       width: 110,
       render: (did: number | null) => (did === null ? '—' : (depNameById.get(did) ?? String(did))),
@@ -439,7 +441,6 @@ export default function DevicePage() {
                   .then(setOrgs)
                   .finally(() => setOrgTreeLoading(false))
               }}
-              hint="选中根节点查看全部院区,选中院区过滤该院区"
             />
           </ConsolePanel>
         }
@@ -501,6 +502,16 @@ export default function DevicePage() {
               columns={columns}
               dataSource={page?.records ?? []}
               loading={listLoading}
+              onRefresh={() =>
+                void loadPage({
+                  pageNum,
+                  pageSize,
+                  orgId: isCampusSelected && selectedOrgId !== null ? selectedOrgId : undefined,
+                  type: typeFilter ?? undefined,
+                  status: statusFilter ?? undefined,
+                  keyword: keyword.trim() || undefined,
+                })
+              }
               actions={{
                 width: 110,
                 render: (row) => (
@@ -550,6 +561,8 @@ export default function DevicePage() {
         width={640}
         title={dialog?.kind === 'edit' ? '编辑设备' : '添加设备'}
         onClose={() => setDialog(null)}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={() => setDialog(null)}>取消</Button>
@@ -560,181 +573,215 @@ export default function DevicePage() {
         }
       >
         <Form form={form} layout="vertical" requiredMark>
-          <Tabs
-            items={[
-              {
-                key: 'base',
-                label: '基础信息',
-                forceRender: true,
-                children: (
-                  <>
-                    <Form.Item
-                      label="编号"
-                      name="code"
-                      rules={[{ required: true, message: '请输入设备编号' }]}
-                    >
-                      <Input placeholder="设备编号,院区内唯一" />
-                    </Form.Item>
-                    <Form.Item
-                      label="名称"
-                      name="name"
-                      rules={[{ required: true, message: '请输入设备名称' }]}
-                    >
-                      <Input />
-                    </Form.Item>
-                    <Form.Item
-                      label="类型"
-                      name="type"
-                      rules={[{ required: true, message: '请选择设备类型' }]}
-                    >
-                      <Select
-                        aria-label="设备类型选择"
-                        options={deviceTypes.map((item) => ({
-                          value: item.value!,
-                          label: item.value!,
-                        }))}
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      label="状态"
-                      name="status"
-                      rules={[{ required: true, message: '请选择设备状态' }]}
-                    >
-                      <Select
-                        aria-label="设备状态选择"
-                        options={deviceStatuses.map((item) => ({
-                          value: item.code!,
-                          label: item.value!,
-                        }))}
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      label="归属类型"
-                      name="tag"
-                      rules={[{ required: true, message: '请选择归属类型' }]}
-                    >
-                      <Select
-                        aria-label="归属类型选择"
-                        options={tags.map((item) => ({ value: item.code!, label: item.value! }))}
-                        onChange={onTagChange}
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      label="所属部门"
-                      name="did"
-                      rules={[{ required: true, message: '请选择使用科室' }]}
-                    >
-                      <Select
-                        aria-label="所属部门选择"
-                        placeholder="请选择使用科室(设备必属科室)"
-                        options={deps.map((dep) => ({ value: dep.id, label: dep.name }))}
-                      />
-                    </Form.Item>
-                    <Form.Item label="备注" name="remark">
-                      <Input.TextArea rows={2} />
-                    </Form.Item>
-                  </>
-                ),
-              },
-              {
-                key: 'purchase',
-                label: '采购信息',
-                forceRender: true,
-                children: (
-                  <>
-                    <Form.Item label="使用期限" style={{ marginBottom: 0 }}>
-                      <Input.Group compact style={{ display: 'flex' }}>
-                        <Form.Item name="startDate" noStyle>
-                          <DatePicker style={{ width: '50%' }} placeholder="开始日期" />
-                        </Form.Item>
-                        <Form.Item name="endDate" noStyle>
-                          <DatePicker style={{ width: '50%' }} placeholder="结束日期" />
-                        </Form.Item>
-                      </Input.Group>
-                    </Form.Item>
-                    <Form.Item label="采购日期" name="purchaseDate">
-                      <DatePicker style={{ width: '100%' }} />
-                    </Form.Item>
-                    <Form.Item label="验收日期" name="acceptanceDate">
-                      <DatePicker style={{ width: '100%' }} />
-                    </Form.Item>
-                    <Form.Item label="权属单位" name="responsible">
-                      <Input />
-                    </Form.Item>
-                    <Form.Item label="联系电话" name="responsiblePhone">
-                      <Input />
-                    </Form.Item>
-                  </>
-                ),
-              },
-              {
-                key: 'access',
-                label: '接入与采集',
-                forceRender: true,
-                children: (
-                  <>
-                    <Form.Item label="AE" name="ae">
-                      <Input placeholder="DICOM AE" />
-                    </Form.Item>
-                    <Form.Item label="IP" name="ip">
-                      <Input />
-                    </Form.Item>
-                    <Form.Item label="Port" name="port">
-                      <Input />
-                    </Form.Item>
-                    <Form.Item label="Box 适配器" name="boxAdapter">
-                      <Input />
-                    </Form.Item>
-                    <Form.Item label="Box IP" name="boxIp">
-                      <Input />
-                    </Form.Item>
-                    <Form.Item label="Box Port" name="boxPort">
-                      <Input />
-                    </Form.Item>
-                    <Form.Item label="Box MAC" name="boxMac">
-                      <Input />
-                    </Form.Item>
-                    <Form.Item label="Box 打印机" name="boxPrint">
-                      <Input />
-                    </Form.Item>
-                    <Form.Item label="采集尺寸" style={{ marginBottom: 0 }}>
-                      <Input.Group compact style={{ display: 'flex' }}>
-                        <Form.Item name="captureW" noStyle>
-                          <InputNumber style={{ width: '50%' }} placeholder="宽 W" min={0} />
-                        </Form.Item>
-                        <Form.Item name="captureH" noStyle>
-                          <InputNumber style={{ width: '50%' }} placeholder="高 H" min={0} />
-                        </Form.Item>
-                      </Input.Group>
-                    </Form.Item>
-                    <Form.Item label="是否剪裁" name="prune" valuePropName="checked">
-                      <Switch />
-                    </Form.Item>
-                    <Form.Item label="剪裁 上/下" style={{ marginBottom: 0 }}>
-                      <Input.Group compact style={{ display: 'flex' }}>
-                        <Form.Item name="pruneU" noStyle>
-                          <InputNumber style={{ width: '50%' }} placeholder="上 U" min={0} />
-                        </Form.Item>
-                        <Form.Item name="pruneD" noStyle>
-                          <InputNumber style={{ width: '50%' }} placeholder="下 D" min={0} />
-                        </Form.Item>
-                      </Input.Group>
-                    </Form.Item>
-                    <Form.Item label="剪裁 左/右" style={{ marginBottom: 0 }}>
-                      <Input.Group compact style={{ display: 'flex' }}>
-                        <Form.Item name="pruneL" noStyle>
-                          <InputNumber style={{ width: '50%' }} placeholder="左 L" min={0} />
-                        </Form.Item>
-                        <Form.Item name="pruneR" noStyle>
-                          <InputNumber style={{ width: '50%' }} placeholder="右 R" min={0} />
-                        </Form.Item>
-                      </Input.Group>
-                    </Form.Item>
-                  </>
-                ),
-              },
-            ]}
-          />
+          <Divider orientation="left" style={{ marginTop: 0 }}>
+            基础信息
+          </Divider>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="编号"
+                name="code"
+                rules={[{ required: true, message: '请输入设备编号' }]}
+              >
+                <Input placeholder="设备编号,院区内唯一" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="名称"
+                name="name"
+                rules={[{ required: true, message: '请输入设备名称' }]}
+              >
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="类型"
+                name="type"
+                rules={[{ required: true, message: '请选择设备类型' }]}
+              >
+                <Select
+                  aria-label="设备类型选择"
+                  options={deviceTypes.map((item) => ({
+                    value: item.value!,
+                    label: item.value!,
+                  }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="状态"
+                name="status"
+                rules={[{ required: true, message: '请选择设备状态' }]}
+              >
+                <Select
+                  aria-label="设备状态选择"
+                  options={deviceStatuses.map((item) => ({
+                    value: item.code!,
+                    label: item.value!,
+                  }))}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="归属类型"
+                name="tag"
+                rules={[{ required: true, message: '请选择归属类型' }]}
+              >
+                <Select
+                  aria-label="归属类型选择"
+                  options={tags.map((item) => ({ value: item.code!, label: item.value! }))}
+                  onChange={onTagChange}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="所属部门"
+                name="did"
+                rules={[{ required: true, message: '请选择使用科室' }]}
+              >
+                <Select
+                  aria-label="所属部门选择"
+                  placeholder="请选择使用科室(设备必属科室)"
+                  options={deps.map((dep) => ({ value: dep.id, label: dep.name }))}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="备注" name="remark">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+
+          <Divider orientation="left">采购信息</Divider>
+          <Form.Item label="使用期限" style={{ marginBottom: 0 }}>
+            <Input.Group compact style={{ display: 'flex' }}>
+              <Form.Item name="startDate" noStyle>
+                <DatePicker style={{ width: '50%' }} placeholder="开始日期" />
+              </Form.Item>
+              <Form.Item name="endDate" noStyle>
+                <DatePicker style={{ width: '50%' }} placeholder="结束日期" />
+              </Form.Item>
+            </Input.Group>
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="采购日期" name="purchaseDate">
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="验收日期" name="acceptanceDate">
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="权属单位" name="responsible">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="联系电话" name="responsiblePhone">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider orientation="left">接入与采集</Divider>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="AE" name="ae">
+                <Input placeholder="DICOM AE" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="IP" name="ip">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="Port" name="port">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="Box 适配器" name="boxAdapter">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="Box IP" name="boxIp">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="Box Port" name="boxPort">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="Box MAC" name="boxMac">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="Box 打印机" name="boxPrint">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="采集尺寸" style={{ marginBottom: 0 }}>
+            <Input.Group compact style={{ display: 'flex' }}>
+              <Form.Item name="captureW" noStyle>
+                <InputNumber style={{ width: '50%' }} placeholder="宽 W" min={0} />
+              </Form.Item>
+              <Form.Item name="captureH" noStyle>
+                <InputNumber style={{ width: '50%' }} placeholder="高 H" min={0} />
+              </Form.Item>
+            </Input.Group>
+          </Form.Item>
+          <Form.Item label="是否剪裁" name="prune" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="剪裁 上/下" style={{ marginBottom: 0 }}>
+                <Input.Group compact style={{ display: 'flex' }}>
+                  <Form.Item name="pruneU" noStyle>
+                    <InputNumber style={{ width: '50%' }} placeholder="上 U" min={0} />
+                  </Form.Item>
+                  <Form.Item name="pruneD" noStyle>
+                    <InputNumber style={{ width: '50%' }} placeholder="下 D" min={0} />
+                  </Form.Item>
+                </Input.Group>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="剪裁 左/右" style={{ marginBottom: 0 }}>
+                <Input.Group compact style={{ display: 'flex' }}>
+                  <Form.Item name="pruneL" noStyle>
+                    <InputNumber style={{ width: '50%' }} placeholder="左 L" min={0} />
+                  </Form.Item>
+                  <Form.Item name="pruneR" noStyle>
+                    <InputNumber style={{ width: '50%' }} placeholder="右 R" min={0} />
+                  </Form.Item>
+                </Input.Group>
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Drawer>
     </div>

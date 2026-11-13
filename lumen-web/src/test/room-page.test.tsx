@@ -310,13 +310,12 @@ describe('room page - drawer create with binding (4.2)', () => {
     await waitForTableSettled()
     const loadsBefore = vi.mocked(roomApi.pageRoom).mock.calls.length
     await user.click(screen.getByRole('button', { name: /添加诊室/ }))
-    await screen.findByText('基础信息')
+    await screen.findByRole('dialog', { name: '添加诊室' })
 
     await user.type(screen.getByLabelText('名称'), 'DR 一号室')
-    await pickOption(user, '负责科室选择', '放射科')
+    await pickOption(user, '科室选择', '放射科')
 
-    // Bind through the picker modal (on the 绑定设备 tab).
-    await user.click(screen.getByRole('tab', { name: '绑定设备' }))
+    // Bind through the picker modal (绑定设备 renders inline in the drawer - no tab).
     await user.click(screen.getByRole('button', { name: /选择设备/ }))
     await waitFor(() =>
       expect(document.querySelector('.ant-modal-content')).not.toBeNull(),
@@ -342,10 +341,9 @@ describe('room page - drawer create with binding (4.2)', () => {
     renderPage()
     await waitForTableSettled()
     await user.click(screen.getByRole('button', { name: /添加诊室/ }))
-    await screen.findByText('基础信息')
+    await screen.findByRole('dialog', { name: '添加诊室' })
     // The picker scopes to the selected 负责科室 - pick it first (button enables).
-    await pickOption(user, '负责科室选择', '放射科')
-    await user.click(screen.getByRole('tab', { name: '绑定设备' }))
+    await pickOption(user, '科室选择', '放射科')
     await user.click(screen.getByRole('button', { name: /选择设备/ }))
     await waitFor(() =>
       expect(document.querySelector('.ant-modal-content')).not.toBeNull(),
@@ -367,13 +365,32 @@ describe('room page - drawer create with binding (4.2)', () => {
     await waitForTableSettled()
     const row = (await screen.findByText('CT 一号室')).closest('tr') as HTMLElement
     await user.click(within(row).getByRole('button', { name: /编辑/ }))
-    await screen.findByText('基础信息')
-    await user.click(screen.getByRole('tab', { name: '绑定设备' }))
+    await screen.findByRole('dialog', { name: '编辑诊室' })
     await user.click(screen.getByRole('button', { name: /清除绑定/ }))
     await user.click(screen.getByRole('button', { name: /保\s*存/ }))
     await waitFor(() => expect(roomApi.updateRoom).toHaveBeenCalledTimes(1))
     const body = vi.mocked(roomApi.updateRoom).mock.calls[0][1]
     expect(body.devId).toBeNull()
+  })
+
+  it('maps the 备注 field onto the repurposed callMac wire field', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await waitForTableSettled()
+    await user.click(screen.getByRole('button', { name: /添加诊室/ }))
+    await screen.findByRole('dialog', { name: '添加诊室' })
+
+    await user.type(screen.getByLabelText('名称'), 'DR 二号室')
+    await pickOption(user, '科室选择', '放射科')
+    // 备注 persists through the retired call_mac column (user ruling 2026-11-13).
+    await user.type(screen.getByLabelText('备注'), '暂借术中使用')
+    await user.click(screen.getByRole('button', { name: /保\s*存/ }))
+    await waitFor(() => expect(roomApi.createRoom).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(roomApi.createRoom).mock.calls[0][0]).toMatchObject({
+      name: 'DR 二号室',
+      did: 11,
+      callMac: '暂借术中使用',
+    })
   })
 })
 
@@ -431,7 +448,7 @@ describe('room page - department filter (4.1)', () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('CT 一号室')
-    await user.click(screen.getByRole('combobox', { name: '负责科室过滤' }))
+    await user.click(screen.getByRole('combobox', { name: '科室过滤' }))
     await waitFor(() => {
       const dropdowns = Array.from(
         document.querySelectorAll('.ant-select-dropdown'),
@@ -465,5 +482,23 @@ describe('room page - perm gating (D6)', () => {
     await screen.findByText('CT 一号室')
     const sw = screen.getAllByRole('switch')[0]
     expect(sw).toHaveAttribute('aria-checked', 'true')
+  })
+})
+
+describe('room page - drawer shell consistency', () => {
+  it('places the close button after the title (top-right, console convention)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await waitForTableSettled()
+    await user.click(screen.getByRole('button', { name: /添加诊室/ }))
+    await waitFor(() => expect(document.querySelector('.ant-drawer-header')).not.toBeNull())
+    const header = document.querySelector('.ant-drawer-header') as HTMLElement
+    const title = within(header).getByText('添加诊室')
+    const close = header.querySelector('button')
+    expect(close).not.toBeNull()
+    // DOM-order guard: the close control FOLLOWS the title (renders top-right).
+    expect(
+      title.compareDocumentPosition(close as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 })

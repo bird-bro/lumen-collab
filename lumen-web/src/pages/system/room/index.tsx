@@ -8,7 +8,6 @@ import {
   Popconfirm,
   Select,
   Switch,
-  Tabs,
   Tag,
   message,
   theme,
@@ -49,7 +48,7 @@ import { OrgTree } from '../org-tree'
  * § Exam Room Configuration Page). The room is a BUSINESS place: rows carry the
  * server-resolved device summary (devId/devName/devAe/devIp/devPort - the JOIN lives
  * backend-side; the page never renders device fields from the room row itself), and
- * the drawer's 绑定设备 tab picks from the room's own 负责科室's devices with the
+ * the drawer's 绑定设备 section picks from the room's own 负责科室's devices with the
  * AE/IP/Port echoed READ-ONLY (the split model's core consequence - the room form
  * never edits device access fields). Tree semantics = the root-means-all D10 rule.
  * Status toggle: the enable-only command reverts on failure (rows re-render from the
@@ -67,7 +66,8 @@ interface RoomFormValues {
   enable: number
   callIp?: string
   callPort?: string
-  callMac?: string
+  /** 备注 - persisted through the repurposed callMac wire field (see drawer). */
+  remark?: string
 }
 
 type RoomDialog = { kind: 'create' } | { kind: 'edit'; room: RoomRow }
@@ -205,7 +205,7 @@ export default function RoomPage() {
           enable: detail.enable,
           callIp: detail.callIp ?? undefined,
           callPort: detail.callPort ?? undefined,
-          callMac: detail.callMac ?? undefined,
+          remark: detail.callMac ?? undefined,
         })
         setBinding({
           devId: detail.devId,
@@ -268,7 +268,8 @@ export default function RoomPage() {
         devId: binding.devId,
         callIp: values.callIp ?? null,
         callPort: values.callPort ?? null,
-        callMac: values.callMac ?? null,
+        // 备注 rides the deprecated call_mac column (user ruling 2026-11-13).
+        callMac: values.remark ?? null,
       }
       if (dialog?.kind === 'edit') {
         await updateRoom(dialog.room.id, body)
@@ -322,7 +323,7 @@ export default function RoomPage() {
 
   const columns: TableColumnsType<RoomRow> = [
     {
-      title: '诊室名称 / 编码',
+      title: '诊室 / 编码',
       dataIndex: 'name',
       render: (_, row) => (
         <div>
@@ -338,7 +339,7 @@ export default function RoomPage() {
     {
       title: '状态',
       dataIndex: 'enable',
-      width: 90,
+      width: 110,
       align: 'center',
       render: (_, row) => (
         <Switch
@@ -352,9 +353,9 @@ export default function RoomPage() {
       ),
     },
     {
-      title: '绑定设备',
+      title: '设备',
       dataIndex: 'devName',
-      width: 170,
+      width: 230,
       render: (_, row) =>
         row.devId === null ? (
           <span style={{ color: token.colorTextTertiary }}>未绑定</span>
@@ -370,9 +371,9 @@ export default function RoomPage() {
         ),
     },
     {
-      title: '负责科室',
+      title: '科室',
       dataIndex: 'did',
-      width: 110,
+      width: 150,
       render: (did: number) => depNameById.get(did) ?? String(did),
     },
   ]
@@ -397,7 +398,6 @@ export default function RoomPage() {
                   .then(setOrgs)
                   .finally(() => setOrgTreeLoading(false))
               }}
-              hint="选中根节点查看全部院区,选中院区过滤该院区"
             />
           </ConsolePanel>
         }
@@ -411,9 +411,9 @@ export default function RoomPage() {
             }
           >
             <Select
-              aria-label="负责科室过滤"
+              aria-label="科室过滤"
               allowClear
-              placeholder="负责科室"
+              placeholder="科室"
               style={{ width: 200 }}
               value={depFilter}
               options={deps.map((dep) => ({ value: dep.id, label: dep.name }))}
@@ -447,6 +447,7 @@ export default function RoomPage() {
               columns={columns}
               dataSource={page?.records ?? []}
               loading={listLoading}
+              onRefresh={() => void loadPage(currentQuery())}
               actions={{
                 width: 110,
                 render: (row) => (
@@ -496,6 +497,8 @@ export default function RoomPage() {
         width={640}
         title={dialog?.kind === 'edit' ? '编辑诊室' : '添加诊室'}
         onClose={() => setDialog(null)}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={() => setDialog(null)}>取消</Button>
@@ -506,159 +509,148 @@ export default function RoomPage() {
         }
       >
         <Form form={form} layout="vertical" requiredMark>
-          <Tabs
-            items={[
-              {
-                key: 'base',
-                label: '基础信息',
-                forceRender: true,
-                children: (
-                  <>
-                    <Form.Item
-                      label="负责科室"
-                      name="did"
-                      rules={[{ required: true, message: '请选择负责科室' }]}
-                    >
-                      <Select
-                        aria-label="负责科室选择"
-                        placeholder="请选择科室"
-                        options={deps.map((dep) => ({ value: dep.id, label: dep.name }))}
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      label="名称"
-                      name="name"
-                      rules={[{ required: true, message: '请输入诊室名称' }]}
-                    >
-                      <Input placeholder="诊室名称,同科室下唯一" />
-                    </Form.Item>
-                    <Form.Item label="编码" name="code">
-                      <Input placeholder="选填,如 R-CT-01" />
-                    </Form.Item>
-                    <Form.Item
-                      label="启用"
-                      name="enable"
-                      valuePropName="checked"
-                      getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-                    >
-                      <Switch checkedChildren="启用" unCheckedChildren="停用" />
-                    </Form.Item>
-                  </>
-                ),
-              },
-              {
-                key: 'bind',
-                label: '绑定设备',
-                forceRender: true,
-                children: (
-                  <>
-                    <div style={{ marginBottom: 12, color: token.colorTextSecondary, fontSize: token.fontSizeSM }}>
-                      诊室引用设备(可随时换绑/解绑);AE / IP / Port 属于设备档案,此处只读回显
-                    </div>
-                    <Button
-                      icon={<SearchOutlined />}
-                      disabled={watchedDid == null}
-                      title={watchedDid == null ? '请先选择负责科室' : undefined}
-                      onClick={() => {
-                        setPickerPicked(null)
-                        setPickerOpen(true)
-                      }}
-                    >
-                      选择设备
-                    </Button>
-                    {binding.devId === null ? (
-                      <div
-                        style={{
-                          marginTop: 10,
-                          border: `1px dashed ${token.colorBorder}`,
-                          borderRadius: token.borderRadius,
-                          padding: 14,
-                          textAlign: 'center',
-                          color: token.colorTextTertiary,
-                          fontSize: token.fontSizeSM,
-                        }}
-                      >
-                        未绑定设备
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          marginTop: 10,
-                          border: `1px solid ${token.colorPrimaryBorder}`,
-                          background: token.colorPrimaryBg,
-                          borderRadius: token.borderRadius,
-                          padding: '12px 14px',
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            marginBottom: 8,
-                          }}
-                        >
-                          <span style={{ fontWeight: 600, color: token.colorPrimary }}>
-                            {binding.devName}
-                          </span>
-                          <Button
-                            type="link"
-                            danger
-                            size="small"
-                            onClick={() => setBinding(NO_BINDING)}
-                          >
-                            清除绑定
-                          </Button>
-                        </div>
-                        <div
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(3, 1fr)',
-                            gap: '6px 14px',
-                            fontSize: token.fontSizeSM,
-                          }}
-                        >
-                          <span>
-                            AE <code style={{ background: token.colorBgContainer }}>{binding.devAe ?? '—'}</code>
-                          </span>
-                          <span>
-                            IP <code style={{ background: token.colorBgContainer }}>{binding.devIp ?? '—'}</code>
-                          </span>
-                          <span>
-                            Port <code style={{ background: token.colorBgContainer }}>{binding.devPort ?? '—'}</code>
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ),
-              },
-              {
-                key: 'call',
-                label: '叫号设置',
-                forceRender: true,
-                children: (
-                  <>
-                    <Form.Item label="叫号屏 IP" name="callIp">
-                      <Input />
-                    </Form.Item>
-                    <Form.Item label="叫号屏 Port" name="callPort">
-                      <Input />
-                    </Form.Item>
-                    <Form.Item label="叫号屏 MAC" name="callMac">
-                      <Input />
-                    </Form.Item>
-                  </>
-                ),
-              },
-            ]}
-          />
+          <Form.Item
+            label="科室"
+            name="did"
+            rules={[{ required: true, message: '请选择科室' }]}
+          >
+            <Select
+              aria-label="科室选择"
+              placeholder="请选择科室"
+              options={deps.map((dep) => ({ value: dep.id, label: dep.name }))}
+            />
+          </Form.Item>
+          <Form.Item
+            label="名称"
+            name="name"
+            rules={[{ required: true, message: '请输入诊室名称' }]}
+          >
+            <Input placeholder="诊室名称,同科室下唯一" />
+          </Form.Item>
+          <Form.Item
+            label={
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                设备
+                {binding.devId === null && (
+                  <Tag color="blue" style={{ marginInlineEnd: 0, flex: '0 0 auto', fontSize: 12 }}>
+                    {watchedDid == null ? '请先选择科室' : '未绑定设备'}
+                  </Tag>
+                )}
+              </span>
+            }
+          >
+            {binding.devId === null ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 12,
+                  border: `1px dashed ${token.colorBorder}`,
+                  borderRadius: token.borderRadius,
+                  padding: 16,
+                }}
+              >
+                <Button
+                  icon={<SearchOutlined />}
+                  disabled={watchedDid == null}
+                  title={watchedDid == null ? '请先选择科室' : undefined}
+                  onClick={() => {
+                    setPickerPicked(null)
+                    setPickerOpen(true)
+                  }}
+                >
+                  选择设备
+                </Button>
+              </div>
+            ) : (
+              <div
+                style={{
+                  border: `1px solid ${token.colorPrimaryBorder}`,
+                  background: token.colorPrimaryBg,
+                  borderRadius: token.borderRadius,
+                  padding: '12px 14px',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 8,
+                  }}
+                >
+                  <span style={{ fontWeight: 600, color: token.colorPrimary }}>
+                    {binding.devName}
+                  </span>
+                  <Button
+                    type="link"
+                    danger
+                    size="small"
+                    onClick={() => setBinding(NO_BINDING)}
+                  >
+                    清除绑定
+                  </Button>
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '6px 14px',
+                    fontSize: token.fontSizeSM,
+                  }}
+                >
+                  <span>
+                    AE <code style={{ background: token.colorBgContainer }}>{binding.devAe ?? '—'}</code>
+                  </span>
+                  <span>
+                    IP <code style={{ background: token.colorBgContainer }}>{binding.devIp ?? '—'}</code>
+                  </span>
+                  <span>
+                    Port <code style={{ background: token.colorBgContainer }}>{binding.devPort ?? '—'}</code>
+                  </span>
+                </div>
+              </div>
+            )}
+          </Form.Item>
+
+          <Form.Item label="编码" name="code">
+            <Input placeholder="选填,如 R-CT-01" />
+          </Form.Item>
+          <Form.Item label="状态" name="enable" initialValue={1}>
+            <Select
+              aria-label="状态"
+              options={[
+                { value: 1, label: '启用' },
+                { value: 0, label: '停用' },
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item label="叫号屏">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Form.Item name="callIp" noStyle>
+                <Input placeholder="IP" style={{ flex: 2 }} />
+              </Form.Item>
+              <span style={{ color: token.colorTextTertiary }}>-</span>
+              <Form.Item name="callPort" noStyle>
+                <Input placeholder="Port" style={{ flex: 1 }} />
+              </Form.Item>
+            </div>
+          </Form.Item>
+          {/* 备注 repurposes the DEPRECATED call_mac column (user ruling 2026-11-13,
+              small-change no-proposal path): the wire field stays callMac - the queue
+              screen never consumed MAC and the user retired the input. varchar(64)
+              bounds the text; a dedicated remark column awaits a future proposal. */}
+          <Form.Item label="备注" name="remark">
+            <Input.TextArea rows={2} maxLength={64} showCount />
+          </Form.Item>
         </Form>
       </Drawer>
 
       <Modal
         open={pickerOpen}
-        title="选择设备(已按负责科室过滤)"
+        title="选择设备(已按科室过滤)"
         onCancel={() => setPickerOpen(false)}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -716,7 +708,7 @@ function PickerList({
   }, [scope])
 
   if (scope == null) {
-    return <div style={{ color: 'rgba(0,0,0,0.45)' }}>请先选择负责科室</div>
+    return <div style={{ color: 'rgba(0,0,0,0.45)' }}>请先选择科室</div>
   }
   return (
     <div style={{ maxHeight: 320, overflow: 'auto' }}>

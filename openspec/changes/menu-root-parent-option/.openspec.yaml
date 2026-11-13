@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-11-13
+goal: "Menu page: expose a 根目录 parent option so first-level menus can be created
+  explicitly and nodes can be moved back to top level"

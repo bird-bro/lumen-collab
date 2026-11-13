@@ -709,3 +709,200 @@ export interface RoomPageQuery {
   depId?: number;
   name?: string;
 }
+
+// ===================== 检查设置域 (exam-setting-web task 1.1) =====================
+// DTO truth = the exam-setting spec deltas; every modality value is a dict-1027
+// 检查类型 string, resolved by catalog NAME server-side (design D5 - never an id).
+
+/** Body-group row (`GET /setting/exam-body-groups/list`) - flat, no code column. */
+export interface ExamBodyGroup {
+  id: number;
+  modality: string;
+  name: string;
+  sort: number | null;
+  enable: number;
+  createTime?: string;
+}
+
+export interface CreateBodyGroupBody {
+  modality: string;
+  name: string;
+  sort?: number | null;
+  enable: number;
+}
+
+/** Full-replace; absent optionals CLEAR server-side (D9). */
+export type UpdateBodyGroupBody = CreateBodyGroupBody;
+
+/** Body row (`GET /setting/exam-bodies/{id}`) - group-anchored, nesting optional. */
+export interface ExamBody {
+  id: number;
+  modality: string;
+  groupId: number;
+  upId: number | null;
+  name: string;
+  code: string | null;
+  sort: number | null;
+  enable: number;
+  createTime?: string;
+}
+
+/** Body forest node (`GET /setting/exam-bodies/list`) - the entity + nested children. */
+export interface BodyTreeNode extends ExamBody {
+  children: BodyTreeNode[];
+}
+
+export interface CreateExamBodyBody {
+  modality: string;
+  groupId: number;
+  upId?: number | null;
+  name: string;
+  code?: string | null;
+  sort?: number | null;
+  enable: number;
+}
+
+/** Full-replace; absent optionals CLEAR server-side (D9). */
+export type UpdateExamBodyBody = CreateExamBodyBody;
+
+/** Method row (`GET /setting/exam-methods/page`). */
+export interface ExamMethod {
+  id: number;
+  modality: string;
+  name: string;
+  code: string | null;
+  sort: number | null;
+  enable: number;
+  createTime?: string;
+}
+
+export interface CreateExamMethodBody {
+  modality: string;
+  name: string;
+  code?: string | null;
+  sort?: number | null;
+  enable: number;
+}
+
+/** Full-replace; absent optionals CLEAR server-side (D9). */
+export type UpdateExamMethodBody = CreateExamMethodBody;
+
+export interface ExamMethodPageQuery {
+  pageNum?: number;
+  pageSize?: number;
+  modality: string;
+  keyword?: string;
+}
+
+/**
+ * Item row, display-resolved (`GET /setting/exam-items/page|/{id}`): the entity plus
+ * the SERVER-RESOLVED body/group/method display names (D2 - no denormalized copies;
+ * names are joined at read time). `methodNames` is the binding-order comma join.
+ */
+export interface ExamItem {
+  id: number;
+  modality: string;
+  exam: string;
+  code: string | null;
+  bodyId: number;
+  price: number | null;
+  rate: number | null;
+  tag: number | null;
+  scoreRep: number | null;
+  scoreAud: number | null;
+  isCommon: boolean;
+  sort: number | null;
+  enable: number;
+  remark: string | null;
+  createTime?: string;
+  bodyName?: string | null;
+  groupName?: string | null;
+  methodNames?: string;
+  /** 当前绑定方法 id 集合 (detail echo only - the edit form's rewrite input). */
+  methodIds?: number[];
+}
+
+/** The method selection travels as an ID ARRAY - the join table replaces RCP's comma string. */
+export interface CreateExamItemBody {
+  modality: string;
+  exam: string;
+  code?: string | null;
+  bodyId: number;
+  methodIds?: number[];
+  price?: number | null;
+  rate?: number | null;
+  tag?: number | null;
+  scoreRep?: number | null;
+  scoreAud?: number | null;
+  isCommon?: boolean;
+  sort?: number | null;
+  enable: number;
+  remark?: string | null;
+}
+
+/** Full-replace + binding rewrite, one transaction server-side (D9 null-aware). */
+export type UpdateExamItemBody = CreateExamItemBody;
+
+export interface ExamItemPageQuery {
+  pageNum?: number;
+  pageSize?: number;
+  modality: string;
+  groupId?: number;
+  keyword?: string;
+  isCommon?: boolean;
+}
+
+/** Template tree node (`GET /setting/rep-temps/tree`) - the server's node map shape. */
+export interface RepTempNode {
+  id: number;
+  name: string;
+  flag: number;
+  upId: number | null;
+  children: RepTempNode[];
+}
+
+/** Template row (`GET /setting/rep-temps/page` - flag=1 files under one parent). */
+export interface RepTemp {
+  id: number;
+  type: number;
+  ownerUid: number | null;
+  modality: string;
+  flag: number;
+  upId: number | null;
+  name: string;
+  finding: string | null;
+  impression: string | null;
+  createTime?: string;
+}
+
+export interface CreateRepTempBody {
+  type: number;
+  modality: string;
+  flag: number;
+  upId?: number | null;
+  name: string;
+  finding?: string | null;
+  impression?: string | null;
+}
+
+/**
+ * Full-replace of the EDITABLE surface; scope/ownership stay as stored server-side
+ * (the update body carries no type/ownerUid by design).
+ */
+export interface UpdateRepTempBody {
+  modality: string;
+  flag: number;
+  upId?: number | null;
+  name: string;
+  finding?: string | null;
+  impression?: string | null;
+}
+
+export interface RepTempPageQuery {
+  pageNum?: number;
+  pageSize?: number;
+  type: number;
+  modality: string;
+  upId: number;
+  name?: string;
+}

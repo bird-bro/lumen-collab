@@ -421,6 +421,56 @@ describe('menus page - management (spec: Menu Management)', () => {
     expect(within(dropdown).queryByText('报告审核')).toBeNull()
   })
 
+  it('offers exactly one 根目录 option across the whole parent tree', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('用户权限')
+    await expandRow('用户权限')
+    expect(await screen.findByText('用户管理')).toBeInTheDocument()
+
+    await user.click(within(rowOf('用户管理')).getByRole('button', { name: '添加子菜单' }))
+    const dropdown = await openParentDropdown(user)
+
+    // the root option is composed ONCE at the top, never inside the recursion
+    expect(within(dropdown).getAllByText('根目录').length).toBe(1)
+  })
+
+  it('creates a first-level menu from the toolbar with 上级菜单 prefilled 根目录', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('系统管理')
+
+    await user.click(screen.getByRole('button', { name: /添加$/ }))
+    const drawer = screen.getByRole('dialog')
+    // the parent selector renders on the toolbar entry too, defaulting to root
+    expect(within(drawer).getByRole('combobox', { name: '上级菜单' })).toBeInTheDocument()
+    expect(within(drawer).getByText('根目录')).toBeInTheDocument()
+
+    await user.type(within(drawer).getByLabelText('菜单标题'), '一级菜单')
+    await user.click(within(drawer).getByRole('button', { name: '保 存' }))
+
+    await waitFor(() => {
+      expect(menusApi.createMenu).toHaveBeenCalledTimes(1)
+    })
+    expect(menusApi.createMenu).toHaveBeenCalledWith(
+      expect.objectContaining({ upId: 0, title: '一级菜单' }),
+    )
+  })
+
+  it('displays and offers 根目录 when editing a top-level node', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('系统管理')
+
+    await user.click(within(rowOf('系统管理')).getByRole('button', { name: '编辑' }))
+    const drawer = screen.getByRole('dialog')
+    // a top-level node (upId = 0) renders the root label, not the raw 0
+    expect(within(drawer).getByText('根目录')).toBeInTheDocument()
+
+    const dropdown = await openParentDropdown(user)
+    expect(within(dropdown).getByText('根目录')).toBeInTheDocument()
+  })
+
   it('hides every mutation affordance without the matching perm', async () => {
     useAuthStore.getState().setSession({ perms: ['system:menu:list'] })
     renderPage()

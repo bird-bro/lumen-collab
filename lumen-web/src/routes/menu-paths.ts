@@ -31,6 +31,11 @@ const CONSOLE_ROUTE_BY_COMPONENT: Record<string, string> = {
   'system/menu/index': '/system/menus',
   'system/dict/index': '/system/dicts',
   'system/log/index': '/system/logs',
+  // 检查设置 (exam-setting-web task 1.2 - component keys verbatim from the V28 seed).
+  'setting/exam-item/index': '/setting/exam-items',
+  'setting/exam-body/index': '/setting/exam-bodies',
+  'setting/exam-method/index': '/setting/exam-methods',
+  'setting/rep-template/index': '/setting/rep-templates',
 };
 
 /**

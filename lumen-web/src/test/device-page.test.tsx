@@ -296,7 +296,7 @@ describe('device page - org tree semantics (root = all campuses)', () => {
 })
 
 describe('device page - table columns', () => {
-  it('renders the composite cells and the 负责科室 name from the deps map', async () => {
+  it('renders the composite cells and the 科室 name from the deps map', async () => {
     renderPage()
     const row = (await screen.findByText('CT 一号机')).closest('tr') as HTMLElement
     expect(within(row).getByText('DEV-CT-001')).toBeInTheDocument()
@@ -465,5 +465,23 @@ describe('device page - filters reset to page 1', () => {
       expect(q.keyword).toBe('CT')
       expect(q.pageNum).toBe(1)
     })
+  })
+})
+
+describe('device page - drawer shell consistency', () => {
+  it('places the close button after the title (top-right, console convention)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('CT 一号机')
+    await user.click(screen.getByRole('button', { name: /添加设备/ }))
+    await waitFor(() => expect(document.querySelector('.ant-drawer-header')).not.toBeNull())
+    const header = document.querySelector('.ant-drawer-header') as HTMLElement
+    const title = within(header).getByText('添加设备')
+    const close = header.querySelector('button')
+    expect(close).not.toBeNull()
+    // DOM-order guard: the close control FOLLOWS the title (renders top-right).
+    expect(
+      title.compareDocumentPosition(close as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 })

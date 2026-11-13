@@ -37,6 +37,10 @@ const RolesPage = lazy(() => import('@/pages/system/roles'))
 const MenusPage = lazy(() => import('@/pages/system/menus'))
 const DictsPage = lazy(() => import('@/pages/system/dicts'))
 const LogsPage = lazy(() => import('@/pages/system/logs'))
+const ExamItemPage = lazy(() => import('@/pages/setting/exam-item'))
+const ExamBodyPage = lazy(() => import('@/pages/setting/exam-body'))
+const ExamMethodPage = lazy(() => import('@/pages/setting/exam-method'))
+const RepTemplatePage = lazy(() => import('@/pages/setting/rep-template'))
 const RadiologyPage = lazy(() => import('@/pages/radiology'))
 const UltrasoundPage = lazy(() => import('@/pages/ultrasound'))
 const EndoscopyPage = lazy(() => import('@/pages/endoscopy'))
@@ -86,6 +90,10 @@ export const appRoutes: RouteObject[] = [
       { path: 'system/menus', element: <MenusPage /> },
       { path: 'system/dicts', element: <DictsPage /> },
       { path: 'system/logs', element: <LogsPage /> },
+      { path: 'setting/exam-items', element: <ExamItemPage /> },
+      { path: 'setting/exam-bodies', element: <ExamBodyPage /> },
+      { path: 'setting/exam-methods', element: <ExamMethodPage /> },
+      { path: 'setting/rep-templates', element: <RepTemplatePage /> },
       { path: 'radiology', element: <RadiologyPage /> },
       { path: 'ultrasound', element: <UltrasoundPage /> },
       { path: 'endoscopy', element: <EndoscopyPage /> },

@@ -88,16 +88,25 @@ interface ParentOption {
 }
 
 /**
- * The parent TreeSelect data: every non-button node except the excluded subtree
- * (the edited node itself - its descendants drop out with it, so the guard is
- * one skip; the reference's parentOptions splice does the same).
+ * The parent TreeSelect data: the 根目录 (upId = 0) root option composed ONCE at
+ * the top - the only way to place a node at the top level (menu-root-parent-
+ * option) - then every non-button node except the excluded subtree (the edited
+ * node itself - its descendants drop out with it, so the guard is one skip; the
+ * reference's parentOptions splice does the same). The root option must stay out
+ * of the recursion: prepending it inside {@link collectParentOptions} would
+ * duplicate it under every subtree level.
  */
 function buildParentOptions(nodes: MenuNode[], excludeId: number | null): ParentOption[] {
+  return [{ title: '根目录', value: 0 }, ...collectParentOptions(nodes, excludeId)]
+}
+
+/** The selectable non-button subtree, root option excluded (composed above). */
+function collectParentOptions(nodes: MenuNode[], excludeId: number | null): ParentOption[] {
   const options: ParentOption[] = []
   for (const node of nodes) {
     if (node.type === 'F') continue
     if (excludeId !== null && node.mid === excludeId) continue
-    const children = node.children ? buildParentOptions(node.children, excludeId) : []
+    const children = node.children ? collectParentOptions(node.children, excludeId) : []
     options.push({
       title: node.title,
       value: node.mid,
@@ -190,7 +199,7 @@ export default function MenusPage() {
     (parent: MenuNode | null) => {
       form.setFieldsValue({
         type: parent ? (parent.type === 'C' ? 'F' : 'C') : 'C',
-        upId: parent?.mid,
+        upId: parent ? parent.mid : 0,
         sort: 1,
         visible: true,
       })
@@ -224,7 +233,9 @@ export default function MenusPage() {
     if (!values) return
     setSaving(true)
     const body = {
-      upId: drawer.mode === 'create' && !drawer.parent ? 0 : (values.upId as number),
+      // the parent field renders on every entry now (toolbar/row/edit), so the
+      // value is always the form's: 0 = 根目录 (menu-root-parent-option).
+      upId: values.upId as number,
       type: values.type,
       title: (values.title ?? '').trim(),
       perms: values.perms?.trim() || null,
@@ -505,32 +516,17 @@ export default function MenusPage() {
         }
       >
         <Form<MenuFormValues> form={form} layout="vertical" disabled={saving}>
-          {drawer?.mode === 'create' && drawer.parent ? (
-            <Form.Item
-              name="upId"
-              label="上级菜单"
-              rules={[{ required: true, message: '请选择上级菜单' }]}
-            >
-              <TreeSelect
-                treeData={parentOptions}
-                treeDefaultExpandAll
-                placeholder="选择上级菜单"
-              />
-            </Form.Item>
-          ) : null}
-          {drawer?.mode === 'edit' ? (
-            <Form.Item
-              name="upId"
-              label="上级菜单"
-              rules={[{ required: true, message: '请选择上级菜单' }]}
-            >
-              <TreeSelect
-                treeData={parentOptions}
-                treeDefaultExpandAll
-                placeholder="选择上级菜单"
-              />
-            </Form.Item>
-          ) : null}
+          <Form.Item
+            name="upId"
+            label="上级菜单"
+            rules={[{ required: true, message: '请选择上级菜单' }]}
+          >
+            <TreeSelect
+              treeData={parentOptions}
+              treeDefaultExpandAll
+              placeholder="选择上级菜单"
+            />
+          </Form.Item>
           <Form.Item name="title" label="菜单标题" rules={[{ required: true, message: '菜单标题不能为空' }]}>
             <Input autoComplete="off" placeholder="请输入标题" />
           </Form.Item>
