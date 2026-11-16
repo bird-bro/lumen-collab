@@ -657,7 +657,7 @@ export default function DevicePage() {
             </Col>
           </Row>
           <Form.Item label="备注" name="remark">
-            <Input.TextArea rows={2} />
+            <Input.TextArea rows={2} style={{ minHeight: 32 }} />
           </Form.Item>
 
           <Divider orientation="left">采购信息</Divider>

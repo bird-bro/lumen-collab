@@ -14,7 +14,18 @@ import type { ComponentType, CSSProperties } from 'react'
 import { Suspense, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { activeTopLevelNode, firstLeafRouteOf, resolveMenuRoute } from '@/routes/menu-paths'
-import { ExamCatalogIcon, OrgBuildingIcon, ShieldCheckIcon, SystemToolIcon, TemplateBookIcon, TuneIcon, UserAccountIcon } from '@/components/ops-icons'
+import {
+  EndoscopyCameraIcon,
+  ExamCatalogIcon,
+  OrgBuildingIcon,
+  RadiologyFilmIcon,
+  ShieldCheckIcon,
+  SystemToolIcon,
+  TemplateBookIcon,
+  TuneIcon,
+  UltrasoundProbeIcon,
+  UserAccountIcon,
+} from '@/components/ops-icons'
 import headLogo from '@/assets/head.png'
 import { useAuthStore } from '@/stores/auth'
 import { WorkstationChip } from './WorkstationChip'
@@ -97,10 +108,19 @@ const MENU_ICON_BY_NAME: Record<string, IconComponent> = {
   exam: ExamCatalogIcon,
   temp: TemplateBookIcon,
   tune: TuneIcon,
+  // V36 the department workstation glyphs (eis-workstation-icons, user ruling
+  // 2026-11-16): the EIS reference glyphs for the three department W nodes
+  // (radiology / us / endo = the seed path values), ported in ops-icons.tsx -
+  // paipianl (bones X-ray display) / chaosheng (probe sector) / shipincaiji
+  // (video camera, the sprite's closest endoscopy metaphor).
+  radiology: RadiologyFilmIcon,
+  us: UltrasoundProbeIcon,
+  endo: EndoscopyCameraIcon,
 }
 
 /**
- * Rail fallback for menu nodes without an icon (the three department L1s):
+ * Rail fallback for menu nodes without an icon or with a name not yet mapped
+ * (historically the three department L1s, whose EIS glyphs landed via V36):
  * the prototype's department glyphs are circular/ray marks - RadarChartOutlined
  * is the closest AntD glyph (recorded batch-report icon note).
  */

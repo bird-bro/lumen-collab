@@ -643,7 +643,7 @@ export default function RoomPage() {
               screen never consumed MAC and the user retired the input. varchar(64)
               bounds the text; a dedicated remark column awaits a future proposal. */}
           <Form.Item label="备注" name="remark">
-            <Input.TextArea rows={2} maxLength={64} showCount />
+            <Input.TextArea rows={2} maxLength={64} showCount style={{ minHeight: 32 }} />
           </Form.Item>
         </Form>
       </Drawer>

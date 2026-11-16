@@ -29,6 +29,17 @@ class AuthWorkstationSeedTests extends AuthIntegrationTestBase {
     /** {title} for every seeded W node. */
     private static final String[] W_NODES = {"放射工作站", "超声工作站", "内镜工作站"};
 
+    /**
+     * {title, icon} of the three department W nodes (eis-workstation-icons, user
+     * ruling 2026-11-16): the EIS reference glyphs (eis-web src/assets/iconfont.js)
+     * - paipianl (bones X-ray display) / chaosheng (probe sector) / shipincaiji
+     * (video camera) - keyed by the W nodes' path values radiology / us / endo.
+     */
+    private static final String[][] W_NODE_ICONS = {
+            {"放射工作站", "radiology"},
+            {"超声工作站", "us"},
+            {"内镜工作站", "endo"}};
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -100,6 +111,41 @@ class AuthWorkstationSeedTests extends AuthIntegrationTestBase {
 
         assertEquals(wNodesBefore, wNodeCount(), "re-executed seed must not add W nodes");
         assertEquals(grantsBefore, wGrantCount(), "re-executed seed must not add grants");
+    }
+
+    @Test
+    void departmentIconsRideTheSeed() {
+        // the V36 forward migration pins each department W node's chip icon (the
+        // EIS glyph keys = the W nodes' path values); the V22 rows stay frozen
+        for (String[] node : W_NODE_ICONS) {
+            String icon = jdbcTemplate.queryForObject(
+                    "SELECT icon FROM system.menu_info "
+                            + "WHERE up_id = 0 AND type = 'W' AND title = ? AND deleted = 0",
+                    String.class, node[0]);
+            assertEquals(node[1], icon,
+                    "the " + node[0] + " W node must carry the " + node[1] + " icon");
+        }
+    }
+
+    @Test
+    void iconMigrationReExecutesAsANoOp() throws Exception {
+        long wNodesBefore = wNodeCount();
+
+        String sql = Files.readString(Path.of(getClass()
+                .getResource("/db/migration/V36__workstation_department_icons.sql").toURI()));
+        for (String statement : splitStatements(sql)) {
+            jdbcTemplate.execute(statement);
+        }
+
+        assertEquals(wNodesBefore, wNodeCount(), "re-executed icon migration must not add W nodes");
+        for (String[] node : W_NODE_ICONS) {
+            String icon = jdbcTemplate.queryForObject(
+                    "SELECT icon FROM system.menu_info "
+                            + "WHERE up_id = 0 AND type = 'W' AND title = ? AND deleted = 0",
+                    String.class, node[0]);
+            assertEquals(node[1], icon,
+                    "the " + node[0] + " icon must survive the V36 re-run");
+        }
     }
 
     private long wNodeCount() {

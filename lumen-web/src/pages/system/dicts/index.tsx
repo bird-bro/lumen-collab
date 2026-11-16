@@ -539,7 +539,7 @@ export default function DictsPage() {
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={4} />
+            <Input.TextArea rows={4} style={{ minHeight: 32 }} />
           </Form.Item>
         </Form>
       </Drawer>
@@ -596,7 +596,7 @@ export default function DictsPage() {
             <Input placeholder="color:rgb(82,196,26);" autoComplete="off" />
           </Form.Item>
           <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={4} />
+            <Input.TextArea rows={4} style={{ minHeight: 32 }} />
           </Form.Item>
         </Form>
       </Drawer>

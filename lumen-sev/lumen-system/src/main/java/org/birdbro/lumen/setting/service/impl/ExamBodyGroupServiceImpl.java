@@ -75,7 +75,8 @@ public class ExamBodyGroupServiceImpl implements ExamBodyGroupService {
                 .set(ExamBodyGroup::getModality, request.getModality())
                 .set(ExamBodyGroup::getName, request.getName())
                 .set(ExamBodyGroup::getSort, request.getSort())
-                .set(ExamBodyGroup::getEnable, request.getEnable()));
+                .set(ExamBodyGroup::getEnable, request.getEnable())
+                .set(ExamBodyGroup::getRemark, request.getRemark()));
         return Boolean.TRUE;
     }
 

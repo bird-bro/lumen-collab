@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-11-16
+goal: 工作站部门图标：放射/超声/内镜三个 L1 工作站节点换用 EIS 参照项目 iconfont
+  字形（paipianl/chaosheng/shipincaiji），替换 RadarChartOutlined 兜底

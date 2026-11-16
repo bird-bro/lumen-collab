@@ -1,6 +1,7 @@
 import { Button, Drawer, Form, Input, InputNumber, Popconfirm, Select, Tag, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { Key } from 'react'
 import {
   createBodyGroup,
   deleteBodyGroup,
@@ -27,6 +28,7 @@ import {
   ConsoleAddButton,
   ConsolePage,
   ConsolePanel,
+  ConsolePagination,
   ConsoleQueryButton,
   ConsoleTable,
   ConsoleToolRow,
@@ -38,9 +40,10 @@ import {
  * § Exam Body Page with In-Page Group Management). Layout (coordination ruling 9 -
  * one menu instead of two): LEFT column manages the modality's 部位分组 in-page
  * (the group table carries no code column - the NAME is the operational key),
- * RIGHT table lists the selected group's bodies flattened from the server's
- * up_id forest with the 上级部位 column resolved client-side from the same
- * payload. The body drawer's parent select stays WITHIN the selected group
+ * RIGHT table renders the server's up_id forest as AntD tree rows (2026-11-16
+ * ruling - the hierarchy IS the parent read, no 上级部位 column) and the
+ * keyword filter prunes to hits plus their ancestors. The body drawer's parent
+ * select stays WITHIN the selected group
  * (cross-group parents reject A0400 server-side anyway); a group delete the
  * backend refuses (live bodies) surfaces the count message verbatim and the
  * group stays. Permission gating: `setting:body:*` covers BOTH resources (the
@@ -49,9 +52,20 @@ import {
 
 const DICT_MODALITY = '检查类型'
 
+/** AntD tree-row shape: the API keeps `children` on every node, but rc-table
+ * reads an EMPTY array as "has children" and renders a dead collapsed expand
+ * button on the leaf - strip empties so leaves render clean. */
+type BodyTreeRow = Omit<BodyTreeNode, 'children'> & { children?: BodyTreeRow[] }
+const toTreeRows = (nodes: BodyTreeNode[]): BodyTreeRow[] =>
+  nodes.map(({ children, ...rest }) => ({
+    ...rest,
+    ...(children.length > 0 ? { children: toTreeRows(children) } : {}),
+  }))
+
 interface GroupFormValues {
   name: string
   sort?: number | null
+  remark?: string
 }
 
 interface BodyFormValues {
@@ -59,6 +73,7 @@ interface BodyFormValues {
   name: string
   code?: string
   sort?: number | null
+  remark?: string
 }
 
 export default function ExamBodyPage() {
@@ -70,8 +85,14 @@ export default function ExamBodyPage() {
   const [modality, setModality] = useState<string>('')
   const [modalityOpen, setModalityOpen] = useState(false)
 
-  // LEFT: the modality's groups + the selected one.
+  // LEFT: the modality's groups + the selected one. The list renders as a
+  // dicts-style paged table (user request 2026-11-16). `listBodyGroups` has no
+  // server-paging contract - it returns the full sort-ordered array and the
+  // per-modality group count is small, so the pager slices client-side.
   const [groups, setGroups] = useState<ExamBodyGroup[]>([])
+  const [groupsLoading, setGroupsLoading] = useState(false)
+  const [groupPage, setGroupPage] = useState(1)
+  const [groupPageSize, setGroupPageSize] = useState(20)
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null)
   const [groupDrawerOpen, setGroupDrawerOpen] = useState(false)
   const [editingGroup, setEditingGroup] = useState<ExamBodyGroup | null>(null)
@@ -86,8 +107,17 @@ export default function ExamBodyPage() {
   const [bodySaving, setBodySaving] = useState(false)
   const [bodyForm] = Form.useForm<BodyFormValues>()
 
+  // RIGHT query row: 部位 fuzzy filter (user request 2026-11-16 - the
+  // 检查类型/部位分组 tags left the tool row, the left panel's selected
+  // highlight IS the context). Client-side prune-to-match over the loaded
+  // forest (hits keep ancestors) - no new API contract. users-page idiom:
+  // draft commits on 查询/Enter.
+  const [nameDraft, setNameDraft] = useState('')
+  const [nameFilter, setNameFilter] = useState('')
+
   const loadGroups = useCallback(
     async (target: string) => {
+      setGroupsLoading(true)
       try {
         const rows = await listBodyGroups(target)
         setGroups(rows)
@@ -100,6 +130,8 @@ export default function ExamBodyPage() {
         )
       } catch (error) {
         messageApi.error(error instanceof ApiError ? error.msg : '分组列表加载失败')
+      } finally {
+        setGroupsLoading(false)
       }
     },
     [messageApi],
@@ -156,21 +188,73 @@ export default function ExamBodyPage() {
     }
   }, [modality, selectedGroupId, loadBodies])
 
-  // The forest flattened for the table; the parent NAME resolves from the same
-  // payload (no extra request, D2 spirit).
-  const bodyRows = useMemo(() => {
-    const flat: { row: ExamBody; parentName: string | null }[] = []
-    const walk = (nodes: BodyTreeNode[], parentName: string | null) => {
+  // Context switch (检查类型 / 部位分组) invalidates the name filter - a stale
+  // keyword would read as "this group has no rows" on a fresh selection.
+  useEffect(() => {
+    setNameDraft('')
+    setNameFilter('')
+  }, [modality, selectedGroupId])
+
+  // 查询 commits the draft keyword and refreshes the group's bodies; the
+  // fuzzy match itself applies client-side over the flattened rows.
+  const runQuery = () => {
+    setNameFilter(nameDraft)
+    void loadBodies(modality, selectedGroupId)
+  }
+
+  // Tree table (2026-11-16 ruling): the forest feeds AntD's children-tree rows
+  // directly - the hierarchy IS the parent read, so the 上级部位 column went
+  // away. Expansion is controlled and re-opens every level on refetch (the
+  // per-group dataset is small); users may still collapse rows.
+  const [expandedKeys, setExpandedKeys] = useState<Key[]>([])
+  useEffect(() => {
+    const keys: Key[] = []
+    const walk = (nodes: BodyTreeNode[]) => {
       for (const node of nodes) {
-        flat.push({ row: node, parentName })
-        walk(node.children, node.name)
+        // only expandable rows ride the controlled keys - a leaf forced into
+        // expandedRowKeys makes AntD render a dead expand button on it
+        if (node.children.length > 0) {
+          keys.push(node.id)
+          walk(node.children)
+        }
       }
     }
-    walk(bodies, null)
+    walk(bodies)
+    setExpandedKeys(keys)
+  }, [bodies])
+
+  // The forest flattened ONCE for the drawer's 上级 options - the select is
+  // flat; only the table renders the tree.
+  const flatBodies = useMemo(() => {
+    const flat: ExamBody[] = []
+    const walk = (nodes: BodyTreeNode[]) => {
+      for (const node of nodes) {
+        flat.push(node)
+        walk(node.children)
+      }
+    }
+    walk(bodies)
     return flat
   }, [bodies])
 
-  const selectedGroup = groups.find((group) => group.id === selectedGroupId) ?? null
+  // Prune-to-match keyword filter: a hit keeps its ancestor chain (肺 under
+  // 胸部 still shows 胸部); branches without a match drop entirely.
+  const filteredBodies = useMemo(() => {
+    if (!nameFilter) return bodies
+    const prune = (nodes: BodyTreeNode[]): BodyTreeNode[] => {
+      const kept: BodyTreeNode[] = []
+      for (const node of nodes) {
+        const children = prune(node.children)
+        if (node.name.includes(nameFilter) || children.length > 0) {
+          kept.push({ ...node, children })
+        }
+      }
+      return kept
+    }
+    return prune(bodies)
+  }, [bodies, nameFilter])
+
+  const bodyTreeRows = useMemo(() => toTreeRows(filteredBodies), [filteredBodies])
 
   // ===================== group CRUD =====================
 
@@ -182,7 +266,7 @@ export default function ExamBodyPage() {
 
   const openGroupEdit = (group: ExamBodyGroup) => {
     setEditingGroup(group)
-    groupForm.setFieldsValue({ name: group.name, sort: group.sort })
+    groupForm.setFieldsValue({ name: group.name, sort: group.sort, remark: group.remark ?? undefined })
     setGroupDrawerOpen(true)
   }
 
@@ -196,10 +280,17 @@ export default function ExamBodyPage() {
           name: values.name,
           sort: values.sort ?? null,
           enable: editingGroup.enable,
+          remark: values.remark ?? null,
         })
         messageApi.success('修改成功')
       } else {
-        await createBodyGroup({ modality, name: values.name, sort: values.sort ?? null, enable: 1 })
+        await createBodyGroup({
+          modality,
+          name: values.name,
+          sort: values.sort ?? null,
+          enable: 1,
+          remark: values.remark ?? null,
+        })
         messageApi.success('添加成功')
       }
       setGroupDrawerOpen(false)
@@ -243,6 +334,7 @@ export default function ExamBodyPage() {
       name: row.name,
       code: row.code ?? undefined,
       sort: row.sort,
+      remark: row.remark ?? undefined,
     })
     setBodyDrawerOpen(true)
   }
@@ -264,6 +356,7 @@ export default function ExamBodyPage() {
           code: values.code ?? null,
           sort: values.sort ?? null,
           enable: editingBody.enable,
+          remark: values.remark ?? null,
         })
         messageApi.success('修改成功')
       } else {
@@ -275,6 +368,7 @@ export default function ExamBodyPage() {
           code: values.code ?? null,
           sort: values.sort ?? null,
           enable: 1,
+          remark: values.remark ?? null,
         })
         messageApi.success('添加成功')
       }
@@ -303,38 +397,31 @@ export default function ExamBodyPage() {
     }
   }
 
-  const bodyColumns: TableColumnsType<{ row: ExamBody; parentName: string | null }> = [
-    { title: '部位名称', key: 'name', render: (_, item) => item.row.name },
+  // dicts-style paged group table (2026-11-16): client-side slice of the full
+  // sorted array; the pager hides itself when the modality has no groups.
+  const pagedGroups = groups.slice((groupPage - 1) * groupPageSize, groupPage * groupPageSize)
+
+  const groupColumns: TableColumnsType<ExamBodyGroup> = [
+    { title: '分组', key: 'name', render: (_, row) => row.name },
+  ]
+
+  const bodyColumns: TableColumnsType<BodyTreeRow> = [
+    { title: '部位', key: 'name', render: (_, node) => node.name },
     {
-      title: '部位编码',
+      // 编码 header (user request 2026-11-16; the drawer label stays 部位编码),
+      // centered alongside 排序/创建时间.
+      title: '编码',
       key: 'code',
-      render: (_, item) =>
-        item.row.code ? (
-          <span style={{ color: token.colorTextTertiary }}>{item.row.code}</span>
+      align: 'center',
+      render: (_, node) =>
+        node.code ? (
+          <span style={{ color: token.colorTextTertiary }}>{node.code}</span>
         ) : (
           '—'
         ),
     },
-    { title: '上级部位', key: 'up', render: (_, item) => item.parentName ?? '—' },
-    { title: '排序', key: 'sort', render: (_, item) => item.row.sort ?? '—' },
-    { title: '创建时间', key: 'time', render: (_, item) => item.row.createTime ?? '—' },
-    {
-      title: '操作',
-      key: 'ops',
-      width: 130,
-      render: (_, item) => (
-        <>
-          {hasPerm('setting:body:update') && (
-            <ConsoleAction label="编辑" onClick={() => openBodyEdit(item.row)} />
-          )}
-          {hasPerm('setting:body:delete') && (
-            <Popconfirm title={`确定删除部位“${item.row.name}”？`} onConfirm={() => void removeBody(item.row)}>
-              <ConsoleAction label="删除" danger onClick={() => undefined} />
-            </Popconfirm>
-          )}
-        </>
-      ),
-    },
+    { title: '排序', key: 'sort', align: 'center', render: (_, node) => node.sort ?? '—' },
+    { title: '创建时间', key: 'time', align: 'center', render: (_, node) => node.createTime ?? '—' },
   ]
 
   return (
@@ -343,19 +430,9 @@ export default function ExamBodyPage() {
       <ConsoleWorkArea
         aside={
           <ConsolePanel>
-            <div style={{ padding: '10px 12px 0' }}>
-              <Select
-                aria-label="检查类型"
-                style={{ width: '100%' }}
-                value={modality || undefined}
-                onDropdownVisibleChange={(open) => setModalityOpen(open)}
-                onChange={(value) => {
-                  setModality(value)
-                  setSelectedGroupId(null)
-                }}
-                options={modalityOpts.map((item) => ({ value: item.value, label: item.value }))}
-              />
-            </div>
+            {/* 检查类型 select shares the 新建分组 tool row (user request
+                2026-11-16): one-line toolbar, select narrowed to the
+                rep-template 120px instead of filling the aside. */}
             <ConsoleToolRow
               trailing={
                 hasPerm('setting:body:create') && (
@@ -363,50 +440,61 @@ export default function ExamBodyPage() {
                 )
               }
             >
-              {null}
+              <Select
+                aria-label="检查类型"
+                style={{ width: 120 }}
+                value={modality || undefined}
+                onDropdownVisibleChange={(open) => setModalityOpen(open)}
+                onChange={(value) => {
+                  setModality(value)
+                  setSelectedGroupId(null)
+                  setGroupPage(1)
+                }}
+                options={modalityOpts.map((item) => ({ value: item.value, label: item.value }))}
+              />
             </ConsoleToolRow>
-            <div>
-              {groups.map((group) => (
-                <div
-                  key={group.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedGroupId(group.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') setSelectedGroupId(group.id)
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '9px 14px',
-                    cursor: 'pointer',
-                    borderBottom: `1px solid ${token.colorBorderSecondary}`,
-                    borderLeft: `3px solid ${group.id === selectedGroupId ? token.colorPrimary : 'transparent'}`,
-                    background: group.id === selectedGroupId ? token.colorPrimaryBg : undefined,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontWeight: group.id === selectedGroupId ? 600 : 400,
-                      color: group.id === selectedGroupId ? token.colorPrimary : undefined,
-                    }}
-                  >
-                    {group.name}
-                  </span>
-                  <span style={{ display: 'flex', gap: 2 }}>
-                    {hasPerm('setting:body:update') && (
-                      <ConsoleAction label="编辑分组" icon="edit" onClick={() => openGroupEdit(group)} />
-                    )}
-                    {hasPerm('setting:body:delete') && (
-                      <Popconfirm title={`确定删除分组“${group.name}”？`} onConfirm={() => void removeGroup(group)}>
-                        <ConsoleAction label="删除分组" icon="remove" danger onClick={() => undefined} />
-                      </Popconfirm>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <ConsoleTable<ExamBodyGroup>
+              rowKey={(row) => row.id}
+              columns={groupColumns}
+              dataSource={pagedGroups}
+              loading={groupsLoading}
+              // OPS dict-page highlight-current-row: selection = the master-side
+              // chrome (hairline + left bar), same as the dicts catalog list.
+              selectedRowKey={selectedGroupId}
+              onRow={(row) => ({
+                onClick: () => setSelectedGroupId(row.id),
+                style: { cursor: 'pointer' },
+              })}
+              actions={{
+                width: 120,
+                render: (row) => [
+                  hasPerm('setting:body:update') ? (
+                    <ConsoleAction key="edit" label="编辑分组" onClick={() => openGroupEdit(row)} />
+                  ) : null,
+                  hasPerm('setting:body:delete') ? (
+                    <Popconfirm
+                      key="delete"
+                      title={`确定删除分组“${row.name}”？`}
+                      onConfirm={() => void removeGroup(row)}
+                    >
+                      <ConsoleAction label="删除分组" icon="remove" danger onClick={() => undefined} />
+                    </Popconfirm>
+                  ) : null,
+                ],
+              }}
+              onRefresh={() => void loadGroups(modality)}
+            />
+            <ConsolePagination
+              total={groups.length}
+              current={groupPage}
+              pageSize={groupPageSize}
+              showSizeChanger={false}
+              onChange={(next, nextSize) => {
+                setGroupPage(next)
+                setGroupPageSize(nextSize)
+              }}
+              onShowSizeChange={() => setGroupPage(1)}
+            />
           </ConsolePanel>
         }
       >
@@ -418,15 +506,49 @@ export default function ExamBodyPage() {
               )
             }
           >
-            <Tag>检查类型 {modality}</Tag>
-            <Tag>{selectedGroup ? `部位分组 ${selectedGroup.name}` : '未选择分组'}</Tag>
-            <ConsoleQueryButton onClick={() => void loadBodies(modality, selectedGroupId)} />
+            <Input
+              allowClear
+              style={{ width: 220 }}
+              placeholder="部位"
+              aria-label="部位模糊查询"
+              value={nameDraft}
+              onChange={(event) => setNameDraft(event.target.value)}
+              onPressEnter={runQuery}
+            />
+            <ConsoleQueryButton onClick={runQuery} />
           </ConsoleToolRow>
-          <ConsoleTable
-            rowKey={(item) => `${item.row.id}`}
+          <ConsoleTable<BodyTreeRow>
+            rowKey={(node) => node.id}
             loading={loading}
             columns={bodyColumns}
-            dataSource={bodyRows}
+            dataSource={bodyTreeRows}
+            expandable={{
+              expandedRowKeys: expandedKeys,
+              onExpandedRowsChange: (keys) => setExpandedKeys([...keys]),
+            }}
+            // Shared console-table chrome (2026-11-16): the 操作 verbs move off
+            // the hand-rolled column onto the shell's action column - the
+            // header then carries the refresh glyph and 删除 gains the delete
+            // glyph (it used to ride ConsoleAction's edit default).
+            onRefresh={() => void loadBodies(modality, selectedGroupId)}
+            actions={{
+              width: 130,
+              render: (node) => (
+                <>
+                  {hasPerm('setting:body:update') && (
+                    <ConsoleAction label="编辑" onClick={() => openBodyEdit(node)} />
+                  )}
+                  {hasPerm('setting:body:delete') && (
+                    <Popconfirm
+                      title={`确定删除部位“${node.name}”？`}
+                      onConfirm={() => void removeBody(node)}
+                    >
+                      <ConsoleAction label="删除" icon="remove" danger onClick={() => undefined} />
+                    </Popconfirm>
+                  )}
+                </>
+              ),
+            }}
           />
         </ConsolePanel>
       </ConsoleWorkArea>
@@ -437,25 +559,53 @@ export default function ExamBodyPage() {
         width={440}
         open={groupDrawerOpen}
         onClose={() => setGroupDrawerOpen(false)}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
         destroyOnClose
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={() => setGroupDrawerOpen(false)}>取消</Button>
+            <Button type="primary" loading={groupSaving} onClick={() => void saveGroup()}>
+              保存
+            </Button>
+          </div>
+        }
       >
         <Form form={groupForm} layout="vertical">
-          <Form.Item label="检查类型">
-            <Tag>{modality}</Tag>
-          </Form.Item>
+          {/* 检查类型 echo is informational only (2026-11-16): merged into a
+              plain label row - a childless Form.Item still reserves its empty
+              control slot, so no Form.Item here. The Tag echoes at the label
+              font size, bold (2026-11-16). */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: token.marginLG,
+              color: token.colorTextHeading,
+              fontSize: token.fontSize,
+            }}
+          >
+            检查类型：
+            <Tag
+              style={{ marginInlineEnd: 0, flex: '0 0 auto', fontSize: token.fontSize, fontWeight: 600 }}
+            >
+              {modality}
+            </Tag>
+          </div>
           <Form.Item
             name="name"
-            label="分组名称"
-            rules={[{ required: true, message: '分组名称不能为空' }]}
+            label="分组"
+            rules={[{ required: true, message: '分组不能为空' }]}
           >
             <Input maxLength={64} />
           </Form.Item>
           <Form.Item name="sort" label="排序">
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Button type="primary" block loading={groupSaving} onClick={() => void saveGroup()}>
-            保存
-          </Button>
+          <Form.Item name="remark" label="备注">
+            <Input.TextArea rows={4} maxLength={255} style={{ minHeight: 32 }} />
+          </Form.Item>
         </Form>
       </Drawer>
 
@@ -465,25 +615,50 @@ export default function ExamBodyPage() {
         width={480}
         open={bodyDrawerOpen}
         onClose={() => setBodyDrawerOpen(false)}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
         destroyOnClose
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={() => setBodyDrawerOpen(false)}>取消</Button>
+            <Button type="primary" loading={bodySaving} onClick={() => void saveBody()}>
+              保存
+            </Button>
+          </div>
+        }
       >
         <Form form={bodyForm} layout="vertical">
-          <Form.Item label="检查类型">
-            <Tag>{editingBody ? editingBody.modality : modality}</Tag>
-          </Form.Item>
-          <Form.Item name="upId" label="上级部位（可选，限同组）">
+          {/* 检查类型 echo, same plain label row as the group drawer. */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: token.marginLG,
+              color: token.colorTextHeading,
+              fontSize: token.fontSize,
+            }}
+          >
+            检查类型：
+            <Tag
+              style={{ marginInlineEnd: 0, flex: '0 0 auto', fontSize: token.fontSize, fontWeight: 600 }}
+            >
+              {editingBody ? editingBody.modality : modality}
+            </Tag>
+          </div>
+          <Form.Item name="upId" label="上级">
             <Select
               allowClear
-              placeholder="无（作为顶层）"
-              options={bodyRows
-                .filter((item) => !editingBody || item.row.id !== editingBody.id)
-                .map((item) => ({ value: item.row.id, label: item.row.name }))}
+              placeholder="无"
+              options={flatBodies
+                .filter((row) => !editingBody || row.id !== editingBody.id)
+                .map((row) => ({ value: row.id, label: row.name }))}
             />
           </Form.Item>
           <Form.Item
             name="name"
-            label="部位名称"
-            rules={[{ required: true, message: '部位名称不能为空' }]}
+            label="部位"
+            rules={[{ required: true, message: '部位不能为空' }]}
           >
             <Input maxLength={64} />
           </Form.Item>
@@ -493,9 +668,9 @@ export default function ExamBodyPage() {
           <Form.Item name="sort" label="排序">
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Button type="primary" block loading={bodySaving} onClick={() => void saveBody()}>
-            保存
-          </Button>
+          <Form.Item name="remark" label="备注">
+            <Input.TextArea rows={4} maxLength={255} style={{ minHeight: 32 }} />
+          </Form.Item>
         </Form>
       </Drawer>
     </ConsolePage>

@@ -721,6 +721,7 @@ export interface ExamBodyGroup {
   name: string;
   sort: number | null;
   enable: number;
+  remark: string | null;
   createTime?: string;
 }
 
@@ -729,6 +730,7 @@ export interface CreateBodyGroupBody {
   name: string;
   sort?: number | null;
   enable: number;
+  remark?: string | null;
 }
 
 /** Full-replace; absent optionals CLEAR server-side (D9). */
@@ -744,6 +746,7 @@ export interface ExamBody {
   code: string | null;
   sort: number | null;
   enable: number;
+  remark: string | null;
   createTime?: string;
 }
 
@@ -760,6 +763,7 @@ export interface CreateExamBodyBody {
   code?: string | null;
   sort?: number | null;
   enable: number;
+  remark?: string | null;
 }
 
 /** Full-replace; absent optionals CLEAR server-side (D9). */

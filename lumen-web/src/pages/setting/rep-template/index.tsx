@@ -438,12 +438,38 @@ export default function RepTemplatePage() {
         width={480}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
         destroyOnClose
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={() => setDrawerOpen(false)}>取消</Button>
+            <Button type="primary" loading={saving} onClick={() => void save()}>
+              保存
+            </Button>
+          </div>
+        }
       >
         <Form form={form} layout="vertical">
-          <Form.Item label="上级">
-            <Tag>{parentLabel === '顶层' ? '顶层' : parentLabel}</Tag>
-          </Form.Item>
+          {/* 上级 echo: plain label row (2026-11-16 ruling - info echoes merge
+              into the label, no Form.Item control slot). */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: token.marginLG,
+              color: token.colorTextHeading,
+              fontSize: token.fontSize,
+            }}
+          >
+            上级：
+            <Tag
+              style={{ marginInlineEnd: 0, flex: '0 0 auto', fontSize: token.fontSize, fontWeight: 600 }}
+            >
+              {parentLabel === '顶层' ? '顶层' : parentLabel}
+            </Tag>
+          </div>
           <Form.Item name="flag" label="节点类型" initialValue={1}>
             <Radio.Group
               onChange={(event) => form.setFieldValue('flag', event.target.value)}
@@ -485,9 +511,6 @@ export default function RepTemplatePage() {
               )
             }
           </Form.Item>
-          <Button type="primary" block loading={saving} onClick={() => void save()}>
-            保存
-          </Button>
         </Form>
       </Drawer>
     </ConsolePage>

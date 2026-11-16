@@ -36,17 +36,19 @@ const MODALITY_DICT = [
 ]
 
 const GROUPS: ExamBodyGroup[] = [
-  { id: 1, modality: 'CT', name: '胸部', sort: 1, enable: 1 },
-  { id: 2, modality: 'CT', name: '头颅', sort: 2, enable: 1 },
+  { id: 1, modality: 'CT', name: '胸部', sort: 1, enable: 1, remark: null },
+  { id: 2, modality: 'CT', name: '头颅', sort: 2, enable: 1, remark: null },
 ]
 
 const BODIES: BodyTreeNode[] = [
   {
     id: 9, modality: 'CT', groupId: 1, upId: null, name: '胸部', code: 'XB',
-    sort: 1, enable: 1, children: [
-      { id: 10, modality: 'CT', groupId: 1, upId: 9, name: '肺', code: 'XB-F', sort: 2, enable: 1, children: [] },
+    sort: 1, enable: 1, remark: null, children: [
+      { id: 10, modality: 'CT', groupId: 1, upId: 9, name: '肺', code: 'XB-F', sort: 2, enable: 1, remark: null, children: [] },
     ],
   },
+  // second root - the prune-to-match filter must drop it on a 肺 keyword
+  { id: 11, modality: 'CT', groupId: 1, upId: null, name: '腹', code: 'WB', sort: 3, enable: 1, remark: null, children: [] },
 ]
 
 function renderPage() {
@@ -95,7 +97,7 @@ describe('exam body page - in-page group management', () => {
     vi.mocked(groupApi.listBodyGroups).mockClear()
 
     await user.click(screen.getByRole('button', { name: /新建分组/ }))
-    await user.type(await screen.findByLabelText('分组名称'), '腹部')
+    await user.type(await screen.findByLabelText('分组'), '腹部')
     await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
 
     await waitFor(() => {
@@ -132,7 +134,14 @@ describe('exam body page - body drawer', () => {
     await screen.findByText('肺')
 
     await user.click(screen.getByRole('button', { name: /新建部位/ }))
-    await user.type(await screen.findByLabelText('部位名称'), '纵隔')
+    // the drawer's 上级 select still lists the FLATTENED forest (the tree-table
+    // ruling changed the table only)
+    await user.click(await screen.findByLabelText('上级'))
+    expect(
+      within(document.querySelector('.ant-select-dropdown') as HTMLElement).getByText('腹'),
+    ).toBeTruthy()
+
+    await user.type(await screen.findByLabelText('部位'), '纵隔')
     await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
 
     await waitFor(() => {
@@ -149,7 +158,7 @@ describe('exam body page - body drawer', () => {
 
     const lungRow = screen.getByText('肺').closest('tr') as HTMLElement
     await user.click(within(lungRow).getByRole('button', { name: '编辑' }))
-    const nameInput = await screen.findByLabelText('部位名称')
+    const nameInput = await screen.findByLabelText('部位')
     expect((nameInput as HTMLInputElement).value).toBe('肺')
 
     await user.clear(nameInput)
@@ -161,6 +170,155 @@ describe('exam body page - body drawer', () => {
         10,
         expect.objectContaining({ modality: 'CT', groupId: 1, name: '肺改', upId: 9 }),
       )
+    })
+  })
+})
+
+describe('exam body page - name query row', () => {
+  it('filters the table by 部位名称 and resets the keyword on group switch', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('肺')
+
+    // two tables now (dicts-style group list + bodies table) - anchor the
+    // bodies table via its unique 编码 column header (2026-11-16 rename)
+    const table = screen
+      .getByRole('columnheader', { name: '编码' })
+      .closest('table') as HTMLElement
+    expect(within(table).getByText('XB')).toBeTruthy()
+
+    // 查询 commits the draft: prune-to-match keeps the hit 肺 WITH its ancestor
+    // 胸部 (code XB stays visible) and drops the unrelated 腹 branch.
+    await user.type(screen.getByLabelText('部位模糊查询'), '肺')
+    await user.click(screen.getByRole('button', { name: /查\s*询|查询/ }))
+    expect(within(table).getByText('肺')).toBeTruthy()
+    expect(within(table).getByText('XB')).toBeTruthy()
+    expect(within(table).queryByText('腹')).toBeNull()
+
+    // Context switch (another group) clears the filter and the draft - the
+    // pruned 腹 branch returns with the fresh payload.
+    await user.click(screen.getByText('头颅'))
+    await waitFor(() => {
+      expect(within(table).getByText('腹')).toBeTruthy()
+    })
+    expect((screen.getByLabelText('部位模糊查询') as HTMLInputElement).value).toBe('')
+  })
+})
+
+describe('exam body page - tree table (2026-11-16 ruling)', () => {
+  const bodiesTable = () =>
+    screen.getByRole('columnheader', { name: '编码' }).closest('table') as HTMLElement
+
+  it('renders the forest as tree rows, expanded by default, without 上级部位', async () => {
+    renderPage()
+    await screen.findByText('肺')
+    const table = bodiesTable()
+
+    // the parent row carries an expand control, opened (controlled expand-all)
+    const chestRow = within(table).getByText('XB').closest('tr') as HTMLElement
+    const expand = chestRow.querySelector('.ant-table-row-expand-icon') as HTMLElement
+    expect(expand).not.toBeNull()
+    expect(expand.className).toContain('expanded')
+
+    // leaf rows carry only antd's invisible `-spaced` alignment placeholder -
+    // a toggleable control would be `-collapsed`/`-expanded`
+    const lungRow = screen.getByText('肺').closest('tr') as HTMLElement
+    const lungExpand = lungRow.querySelector('.ant-table-row-expand-icon') as HTMLElement
+    expect(lungExpand.className).toContain('-spaced')
+    expect(lungExpand.className).not.toContain('-collapsed')
+    expect(lungExpand.className).not.toContain('-expanded')
+
+    // the hierarchy IS the parent read - the 上级部位 column is gone
+    expect(within(table).queryByRole('columnheader', { name: '上级部位' })).toBeNull()
+  })
+
+  it('a no-hit keyword empties the tree', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('肺')
+    const table = bodiesTable()
+
+    await user.type(screen.getByLabelText('部位模糊查询'), '骨')
+    await user.click(screen.getByRole('button', { name: /查\s*询|查询/ }))
+    expect(within(table).queryByText('肺')).toBeNull()
+    expect(within(table).queryByText('XB')).toBeNull()
+  })
+})
+
+describe('exam body page - right table polish (2026-11-16)', () => {
+  // Anchor the bodies table via its unique 编码 header (the group table has no
+  // code column - the NAME is the operational key).
+  const bodiesTable = () =>
+    screen.getByRole('columnheader', { name: '编码' }).closest('table') as HTMLElement
+
+  it('carries the refresh affordance in the 操作 header and re-fetches bodies', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('肺')
+    const table = bodiesTable()
+
+    const refresh = within(table).getByRole('button', { name: '刷新列表' })
+    // the glyph rides the 操作 header cell, pinned right of the centered label
+    expect(within(refresh.closest('th') as HTMLElement).getByText('操作')).toBeTruthy()
+
+    vi.mocked(bodyApi.listExamBodies).mockClear()
+    await user.click(refresh)
+    await waitFor(() => {
+      expect(bodyApi.listExamBodies).toHaveBeenCalledWith('CT', 1)
+    })
+  })
+
+  it('renders 编辑 with the edit glyph and 删除 with the delete glyph', async () => {
+    renderPage()
+    await screen.findByText('肺')
+
+    const lungRow = screen.getByText('肺').closest('tr') as HTMLElement
+    expect(
+      within(lungRow).getByRole('button', { name: '编辑' }).querySelector('.anticon-edit'),
+    ).not.toBeNull()
+    // 删除 used to ride ConsoleAction's edit-glyph default (user request
+    // 2026-11-16) - it must carry the delete glyph like every other page.
+    expect(
+      within(lungRow).getByRole('button', { name: '删除' }).querySelector('.anticon-delete'),
+    ).not.toBeNull()
+  })
+
+  it('centers 编码 / 排序 / 创建时间 and keeps 部位 default-aligned', async () => {
+    renderPage()
+    await screen.findByText('肺')
+    const table = bodiesTable()
+
+    expect(within(table).getByRole('columnheader', { name: '编码' })).toHaveStyle({
+      textAlign: 'center',
+    })
+    expect(within(table).getByRole('columnheader', { name: '排序' })).toHaveStyle({
+      textAlign: 'center',
+    })
+    expect(within(table).getByRole('columnheader', { name: '创建时间' })).toHaveStyle({
+      textAlign: 'center',
+    })
+    // unspecified columns keep AntD's default (no inline center)
+    expect(within(table).getByRole('columnheader', { name: '部位' })).not.toHaveStyle({
+      textAlign: 'center',
+    })
+
+    const lungRow = screen.getByText('肺').closest('tr') as HTMLElement
+    expect(within(lungRow).getByText('XB-F').closest('td')).toHaveStyle({ textAlign: 'center' })
+  })
+})
+
+describe('exam body page - group list table', () => {
+  it('renders the dicts-style paged list: pager counter + row-click rescopes', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('头颅')
+
+    // the dicts-style pager row carries the OPS counter
+    expect(screen.getByText(/共 2 条/)).toBeTruthy()
+    // row click selects the group and rescopes the right table
+    await user.click(screen.getByText('头颅'))
+    await waitFor(() => {
+      expect(bodyApi.listExamBodies).toHaveBeenCalledWith('CT', 2)
     })
   })
 })

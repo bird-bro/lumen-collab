@@ -39,19 +39,19 @@ const MODALITY_DICT = [
 ]
 
 const GROUPS: ExamBodyGroup[] = [
-  { id: 1, modality: 'CT', name: '胸部', sort: 1, enable: 1 },
-  { id: 2, modality: 'CT', name: '头颅', sort: 2, enable: 1 },
+  { id: 1, modality: 'CT', name: '胸部', sort: 1, enable: 1, remark: null },
+  { id: 2, modality: 'CT', name: '头颅', sort: 2, enable: 1, remark: null },
 ]
 
 const BODIES: BodyTreeNode[] = [
-  { id: 9, modality: 'CT', groupId: 1, upId: null, name: '胸部', code: null, sort: 1, enable: 1, children: [] },
-  { id: 10, modality: 'CT', groupId: 1, upId: 9, name: '肺', code: null, sort: 2, enable: 1, children: [] },
+  { id: 9, modality: 'CT', groupId: 1, upId: null, name: '胸部', code: null, sort: 1, enable: 1, remark: null, children: [] },
+  { id: 10, modality: 'CT', groupId: 1, upId: 9, name: '肺', code: null, sort: 2, enable: 1, remark: null, children: [] },
 ]
 
 /** 头颅 group's own bodies (the cascade mock switches on groupId). */
 const BRAIN_BODIES: BodyTreeNode[] = [
-  { id: 20, modality: 'CT', groupId: 2, upId: null, name: '头颅', code: null, sort: 1, enable: 1, children: [] },
-  { id: 21, modality: 'CT', groupId: 2, upId: 20, name: '脑实质', code: null, sort: 2, enable: 1, children: [] },
+  { id: 20, modality: 'CT', groupId: 2, upId: null, name: '头颅', code: null, sort: 1, enable: 1, remark: null, children: [] },
+  { id: 21, modality: 'CT', groupId: 2, upId: 20, name: '脑实质', code: null, sort: 2, enable: 1, remark: null, children: [] },
 ]
 
 const METHODS = [

@@ -260,12 +260,38 @@ export default function ExamMethodPage() {
         width={480}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
         destroyOnClose
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={() => setDrawerOpen(false)}>取消</Button>
+            <Button type="primary" loading={saving} onClick={() => void save()}>
+              保存
+            </Button>
+          </div>
+        }
       >
         <Form form={form} layout="vertical">
-          <Form.Item label="检查类型">
-            <Tag>{editing ? editing.modality : modality}</Tag>
-          </Form.Item>
+          {/* 检查类型 echo: plain label row (2026-11-16 ruling - info echoes
+              merge into the label, no Form.Item control slot). */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: token.marginLG,
+              color: token.colorTextHeading,
+              fontSize: token.fontSize,
+            }}
+          >
+            检查类型：
+            <Tag
+              style={{ marginInlineEnd: 0, flex: '0 0 auto', fontSize: token.fontSize, fontWeight: 600 }}
+            >
+              {editing ? editing.modality : modality}
+            </Tag>
+          </div>
           <Form.Item
             name="name"
             label="方法名称"
@@ -279,14 +305,6 @@ export default function ExamMethodPage() {
           <Form.Item name="sort" label="排序">
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Button
-            type="primary"
-            block
-            loading={saving}
-            onClick={() => void save()}
-          >
-            保存
-          </Button>
         </Form>
       </Drawer>
     </ConsolePage>

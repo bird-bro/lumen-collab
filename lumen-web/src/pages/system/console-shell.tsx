@@ -9,7 +9,7 @@ import {
   StarOutlined,
 } from '@ant-design/icons'
 import { Button, Pagination, Space, Table, Tooltip, Typography, theme } from 'antd'
-import type { TableColumnsType } from 'antd'
+import type { TableColumnsType, TableProps } from 'antd'
 import type { FormInstance } from 'antd'
 import type { ReactNode } from 'react'
 
@@ -273,6 +273,7 @@ export function ConsoleTable<RowType extends object>({
   onRefresh,
   onRow,
   selectedRowKey,
+  expandable,
 }: {
   rowKey: (row: RowType) => number | string
   columns: TableColumnsType<RowType>
@@ -285,6 +286,10 @@ export function ConsoleTable<RowType extends object>({
    * key gets the `lumen-console-row-current` chrome (basic-layout.css) - the
    * master-side selection marker on master-detail pages. */
   selectedRowKey?: number | string | null
+  /** AntD tree-table passthrough (exam-body tree ruling 2026-11-16): rows with
+   * a `children` field render as tree rows; the page owns the expansion state.
+   * Undefined keeps the flat behavior - every existing page is unaffected. */
+  expandable?: TableProps<RowType>['expandable']
 }) {
   const { token } = theme.useToken()
   const actionColumns: TableColumnsType<RowType> = actions
@@ -347,6 +352,7 @@ export function ConsoleTable<RowType extends object>({
         pagination={false}
         size="middle"
         onRow={onRow}
+        expandable={expandable}
         rowClassName={
           selectedRowKey == null
             ? undefined

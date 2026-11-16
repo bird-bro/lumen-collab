@@ -513,7 +513,7 @@ export default function RolesPage() {
             {/* Height pinned at 130px (user request 2026-11-09) - textareas are
                 user-resizable in the browser; the inline height keeps the rest
                 state deterministic. */}
-            <Input.TextArea rows={2} placeholder="选填" style={{ height: 130 }} />
+            <Input.TextArea rows={2} placeholder="选填" style={{ height: 130, minHeight: 32 }} />
           </Form.Item>
         </Form>
       </Drawer>
@@ -543,7 +543,7 @@ export default function RolesPage() {
             <Select options={roleTypeOptions} placeholder="角色类型" aria-label="类型" />
           </Form.Item>
           <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={2} style={{ height: 130 }} />
+            <Input.TextArea rows={2} style={{ height: 130, minHeight: 32 }} />
           </Form.Item>
         </Form>
       </Drawer>

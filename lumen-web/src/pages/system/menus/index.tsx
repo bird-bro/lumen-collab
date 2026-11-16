@@ -575,6 +575,7 @@ export default function MenusPage() {
             <Input.TextArea
               autoSize={{ minRows: 2, maxRows: 4 }}
               placeholder="请输入备注"
+              style={{ minHeight: 32 }}
             />
           </Form.Item>
           {formType !== 'F' ? (

@@ -53,4 +53,7 @@ public class ExamBody extends EntityBase {
 
     /** 启用 (dict 1000 common_status codes). */
     private Integer enable;
+
+    /** 备注 (optional note, V35). */
+    private String remark;
 }

@@ -30,4 +30,7 @@ public class BodyGroupUpdateRequest {
     @ApiModelProperty("启用 (dict 1000 codes, required)")
     @NotNull(message = "enable 不能为空")
     private Integer enable;
+
+    @ApiModelProperty("备注 (absent clears)")
+    private String remark;
 }

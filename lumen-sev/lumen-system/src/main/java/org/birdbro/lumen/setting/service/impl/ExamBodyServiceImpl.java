@@ -110,7 +110,8 @@ public class ExamBodyServiceImpl implements ExamBodyService {
                 .set(ExamBody::getName, request.getName())
                 .set(ExamBody::getCode, request.getCode())
                 .set(ExamBody::getSort, request.getSort())
-                .set(ExamBody::getEnable, request.getEnable()));
+                .set(ExamBody::getEnable, request.getEnable())
+                .set(ExamBody::getRemark, request.getRemark()));
         return Boolean.TRUE;
     }
 

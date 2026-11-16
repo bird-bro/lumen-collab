@@ -238,6 +238,65 @@ class AuthExamBodyApiTests extends SettingIntegrationTestBase {
 
     // ===================== fixture + call helpers =====================
 
+    @Test
+    void remarkRoundTripsOnGroupAndBody() throws Exception {
+        String token = fullPermToken();
+        long ts = System.currentTimeMillis();
+
+        // group: create WITH remark -> a remark-less full-replace CLEARs it (D9).
+        int group = createGroupWithRemark("CT", "ut组_备注_" + ts, "神经组备注");
+        ResponseEntity<String> groupUpdated = exchangeJson(HttpMethod.PUT, GROUPS_URL + "/" + group,
+                body("{\"modality\":\"CT\",\"name\":\"ut组_备注_" + ts
+                        + "\",\"sort\":1,\"enable\":1}"), token);
+        assertEquals("200", parse(groupUpdated).path("code").asText(),
+                "the remark-less group update must succeed: " + groupUpdated);
+        JsonNode groupList = parse(exchangeJson(HttpMethod.GET,
+                GROUPS_URL + "/list?modality=CT", null, token));
+        int groupIndex = indexOfName(groupList.path("data"), "ut组_备注_" + ts);
+        assertTrue(groupIndex >= 0, "the fixture group must stay listed: " + groupList);
+        assertTrue(groupList.path("data").get(groupIndex).path("remark").isNull(),
+                "the absent remark must CLEAR the column (D9)");
+
+        // body: create WITH remark -> the tree carries it; a remark rewrite lands.
+        int body = createBodyWithRemark(group, "CT", "ut部位_备注_" + ts, "肺尖备注");
+        ResponseEntity<String> bodyUpdated = exchangeJson(HttpMethod.PUT, BODIES_URL + "/" + body,
+                body("{\"modality\":\"CT\",\"groupId\":" + group + ",\"upId\":null,"
+                        + "\"name\":\"ut部位_备注_" + ts + "\",\"sort\":1,\"enable\":1,"
+                        + "\"remark\":\"改后备注\"}"), token);
+        assertEquals("200", parse(bodyUpdated).path("code").asText(),
+                "the body remark update must succeed: " + bodyUpdated);
+        JsonNode tree = parse(exchangeJson(HttpMethod.GET,
+                BODIES_URL + "/list?modality=CT&groupId=" + group, null, token));
+        assertEquals("改后备注", tree.path("data").get(0).path("remark").asText(),
+                "the body tree must carry the updated remark: " + tree);
+
+        hardDeleteBody(body);
+        hardDeleteGroup(group);
+    }
+
+    private int createGroupWithRemark(String modality, String name, String remark) throws Exception {
+        ResponseEntity<String> created = exchangeJson(HttpMethod.POST, GROUPS_URL,
+                body("{\"modality\":\"" + modality + "\",\"name\":\"" + name
+                        + "\",\"sort\":1,\"enable\":1,\"remark\":\"" + remark + "\"}"),
+                fullPermToken());
+        JsonNode createdBody = parse(created);
+        assertEquals("200", createdBody.path("code").asText(),
+                "the fixture group must create cleanly: " + created);
+        return createdBody.path("data").asInt(-1);
+    }
+
+    private int createBodyWithRemark(int groupId, String modality, String name, String remark)
+            throws Exception {
+        ResponseEntity<String> created = exchangeJson(HttpMethod.POST, BODIES_URL,
+                body("{\"modality\":\"" + modality + "\",\"groupId\":" + groupId
+                        + ",\"upId\":null,\"name\":\"" + name + "\",\"sort\":1,\"enable\":1,"
+                        + "\"remark\":\"" + remark + "\"}"), fullPermToken());
+        JsonNode createdBody = parse(created);
+        assertEquals("200", createdBody.path("code").asText(),
+                "the fixture body must create cleanly: " + created);
+        return createdBody.path("data").asInt(-1);
+    }
+
     private int createGroup(String modality, String name, int sort) throws Exception {
         ResponseEntity<String> created = exchangeJson(HttpMethod.POST, GROUPS_URL,
                 body("{\"modality\":\"" + modality + "\",\"name\":\"" + name

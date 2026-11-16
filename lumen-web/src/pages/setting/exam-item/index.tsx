@@ -454,12 +454,38 @@ export default function ExamItemPage() {
         width={560}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        closable={{ placement: 'end' }}
+        maskClosable={false}
         destroyOnClose
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={() => setDrawerOpen(false)}>取消</Button>
+            <Button type="primary" loading={saving} onClick={() => void save()}>
+              保存
+            </Button>
+          </div>
+        }
       >
         <Form form={form} layout="vertical">
-          <Form.Item label="检查类型">
-            <Tag>{editing ? editing.modality : modality}</Tag>
-          </Form.Item>
+          {/* 检查类型 echo: plain label row (2026-11-16 ruling - info echoes
+              merge into the label, no Form.Item control slot). */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              marginBottom: token.marginLG,
+              color: token.colorTextHeading,
+              fontSize: token.fontSize,
+            }}
+          >
+            检查类型：
+            <Tag
+              style={{ marginInlineEnd: 0, flex: '0 0 auto', fontSize: token.fontSize, fontWeight: 600 }}
+            >
+              {editing ? editing.modality : modality}
+            </Tag>
+          </div>
           <Form.Item name="code" label="项目编码">
             <Input maxLength={32} />
           </Form.Item>
@@ -525,14 +551,11 @@ export default function ExamItemPage() {
             </Input.Group>
           </Form.Item>
           <Form.Item name="remark" label="备注">
-            <Input maxLength={255} />
+            <Input.TextArea rows={4} maxLength={255} style={{ minHeight: 32 }} />
           </Form.Item>
           <Form.Item label="常用项目" valuePropName="checked" name="isCommon" initialValue={false}>
             <Switch />
           </Form.Item>
-          <Button type="primary" block loading={saving} onClick={() => void save()}>
-            保存
-          </Button>
         </Form>
       </Drawer>
     </ConsolePage>
