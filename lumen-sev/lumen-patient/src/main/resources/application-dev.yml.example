@@ -7,7 +7,10 @@ spring:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: org.postgresql.Driver
     druid:
-      url: jdbc:postgresql://<PG_HOST>:<PG_PORT>/lumen?currentSchema=patient,public
+      # stringtype=unspecified is REQUIRED: the outbox payload is a jsonb column
+      # written through a String field + JacksonTypeHandler (setString binds as the
+      # jsonb target type; the pgjdbc VARCHAR default would reject the write).
+      url: jdbc:postgresql://<PG_HOST>:<PG_PORT>/lumen?currentSchema=patient,public&stringtype=unspecified
       username: <PG_USER>
       password: <PG_PASSWORD>
       initial-size: 5

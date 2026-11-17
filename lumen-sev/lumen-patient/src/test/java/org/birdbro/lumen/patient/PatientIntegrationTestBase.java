@@ -67,9 +67,11 @@ public abstract class PatientIntegrationTestBase {
         PatientTestServerBootstrap.ensureDatabaseAndSchema(pgHost, pgPort, pgUser, pgPassword, database);
 
         // Application datasource: the lumen database through the patient schema first,
-        // then the shared public schema.
+        // then the shared public schema. stringtype=unspecified binds the jsonb
+        // payload writes (JacksonTypeHandler setString, patient-domain brief decision
+        // 6) as the jsonb target type - the pgjdbc VARCHAR default would reject them.
         registry.add("spring.datasource.url", () -> "jdbc:postgresql://" + pgHost + ":"
-                + pgPort + "/" + database + "?currentSchema=patient,public");
+                + pgPort + "/" + database + "?currentSchema=patient,public&stringtype=unspecified");
         registry.add("spring.datasource.username", () -> pgUser);
         registry.add("spring.datasource.password", () -> pgPassword);
 
