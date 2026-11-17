@@ -18,7 +18,9 @@ coverage/
 *.local
 docker/.env
 lumen-sev/.env-test.local
-lumen-sev/lumen-system/src/main/resources/application-dev.yml
+# Module-generic: every service's gitignored dev credentials (随访 fu shape) - the
+# per-service template is application-dev.yml.example (committed).
+lumen-sev/*/src/main/resources/application-dev.yml
 
 # SQL handoff artifacts are tracked despite the machine-level global *.sql ignore
 # (docs/deployment/pg-init.sql is referenced by the environment-contract spec; a
