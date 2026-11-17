@@ -13,7 +13,7 @@ PACS，LumenCollab 负责影像之外的临床/医技业务流程。包括放射
 
 ## v1 能做什么
 
-- **检查流程** —— 登记 → 检查 → 报告，沉淀为可复用内核（`lumen-exam-core`），各科室
+- **检查流程** —— 登记 → 检查 → 报告，沉淀为可复用内核（`lumen-core`），各科室
   服务共享扩展
 - **多机构就绪** —— 层级机构树（医院根 + 子机构），科室挂靠其上
 - **RBAC** —— 用户、角色、菜单树（目录/菜单/按钮）+ `perms` 权限串，支撑动态导航与
@@ -96,7 +96,7 @@ change 走 提案 → 设计 → 任务 → TDD 实现 → 三层验证 → 归�
       角色 + 菜单分配、字典、操作/登录日志
 - [ ] Web 控制台 —— OPS 风格设计系统、认证流、动态导航、系统管理页面（*进行中*）
 - [ ] `lumen-patient` —— EMPI（主患者索引）
-- [ ] 放射科（v1 核心）—— `lumen-exam-core` 检查流程、`lumen-integration` 的 DICOM
+- [ ] 放射科（v1 核心）—— `lumen-core` 检查流程、`lumen-integration` 的 DICOM
       MWL/MPPS + HL7v2、dcm4chee-arc-light 对接
 - [ ] 超声 / 内镜科室服务
 

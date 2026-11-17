@@ -30,7 +30,7 @@ NOT be a Maven project, and no `lumen-services/` grouping layer SHALL exist.
 
 The backend SHALL provide the v1 foundation modules: `lumen-bom`, the OPS-lineage reference
 modules `framework` and `common`, and the `lumen-system` service. Department and workflow
-modules (`lumen-exam-core`, `lumen-api`, `lumen-patient`, `lumen-radiology`,
+modules (`lumen-core`, `lumen-api`, `lumen-patient`, `lumen-radiology`,
 `lumen-integration`, `lumen-us`, `lumen-endo`) SHALL NOT be created by this capability; the
 changes that give them behavior add them. The standalone `lumen-setting` module is
 REMOVED from the plan (2026-11-13 merge ruling): the exam-setting domain is hosted inside
@@ -169,7 +169,7 @@ request-context filter that lets the copied logout handler record sign events.
 - **AND** no `ice` schema exists in lumen
 
 ### Requirement: Shared Library Boundary
-`framework`, `common`, and the future `lumen-exam-core` SHALL be non-executable library
+`framework`, `common`, and the future `lumen-core` SHALL be non-executable library
 jars. They MUST NOT contain a Spring Boot application entry point, and they MUST NOT contain
 business rules belonging to a single department service. The HTTP surface of a service
 belongs to that service: controllers live in the service module, never in a shared library.

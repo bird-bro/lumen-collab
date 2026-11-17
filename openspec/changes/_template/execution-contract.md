@@ -37,6 +37,11 @@
 - **Required edge cases**: 
 - **Regression-sensitive areas**: 
 
+## Verification Budget
+
+- **Required verification**: checks tied to Approved Behavior, Test Obligations, or user/project-mandated gates
+- **Optional checks**: run only when the concrete failure and next action are identified
+
 ## Execution Mode
 
 - **Mode**: `Inline` | `Batch Inline` | `SDD`

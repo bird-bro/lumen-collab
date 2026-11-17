@@ -45,14 +45,14 @@ lumen-collab/                         monorepo root (harness + frontend + deploy
 ├── lumen-sev/                        ★ backend Maven aggregator (pom.xml here)
 │   ├── lumen-bom/                    dependency versions (single source)
 │   ├── lumen-common/                 shared libs (jar): core / web / mybatis / security / dicom
-│   ├── lumen-exam-core/              ★ exam workflow kernel: booking→registration→exam→report state machine
+│   ├── lumen-core/              ★ exam workflow kernel: booking→registration→exam→report state machine
 │   ├── lumen-api/                    inter-service contracts: patient-api / integration-api (Feign + DTO)
 │   ├── lumen-gateway/                Spring Cloud Gateway
 │   ├── lumen-auth/                   users, roles, departments, permissions (JWT)
 │   ├── lumen-patient/                patient master index (EMPI), shared across departments
-│   ├── lumen-radiology/                    radiology business (v1 ★) - depends on lumen-exam-core
-│   ├── lumen-us/                     ultrasound (v2) - depends on lumen-exam-core
-│   ├── lumen-endo/                   endoscopy (v2) - depends on lumen-exam-core
+│   ├── lumen-radiology/                    radiology business (v1 ★) - depends on lumen-core
+│   ├── lumen-us/                     ultrasound (v2) - depends on lumen-core
+│   ├── lumen-endo/                   endoscopy (v2) - depends on lumen-core
 │   └── lumen-integration/            DICOM MWL/MPPS SCP + HL7v2, routes by department
 ├── lumen-web/                        React SPA (frontend stack dir)
 └── docker/                           docker-compose incl. dcm4chee-arc-light
@@ -60,7 +60,7 @@ lumen-collab/                         monorepo root (harness + frontend + deploy
 
 ### Architecture
 - **Service split**: platform services (gateway / auth / patient / integration) + department services (ris, later us / endo). Splitting by department provides **fault isolation**; HA additionally needs multi-instance + redundancy (gateway / Nacos / PG).
-- **New department = thin service** on `lumen-exam-core`, extending only department differences (exam items, report templates, device wiring).
+- **New department = thin service** on `lumen-core`, extending only department differences (exam items, report templates, device wiring).
 - **Communication**: sync query = OpenFeign + Sentinel fallback; state change = RocketMQ event (transactional message = atomic local-DB write + event publish). No cross-service distributed transactions.
 - **DB per service** (`lumen_auth` / `lumen_patient` / `lumen_ris` / `lumen_us` ...): no cross-DB queries - services talk via API/events only.
 - **DICOM/HL7 convergence**: modality devices see only `lumen-integration` (one MWL/MPPS address); department services stay pure business. HIS orders via HL7v2 ORM^O01; manual order entry as fallback.

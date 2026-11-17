@@ -49,7 +49,7 @@ those services assign them and update this table.
   prove. Build-green is the acceptance bar. - 2026-10-29
 - **Backend scope is the v1 foundation subset only (revised)** - `lumen-bom`, the OPS
   `framework` + `common` modules copied verbatim, and the `lumen-auth` shell.
-  `lumen-exam-core`, `lumen-api/*`, `lumen-patient`, `lumen-radiology`, `lumen-integration`, and
+  `lumen-core`, `lumen-api/*`, `lumen-patient`, `lumen-radiology`, `lumen-integration`, and
   the v2 department services are deferred to the changes that give them behavior. Matches
   the handoff doc's recommended execution order step 1. - 2026-10-29
 - **No Java gateway; nginx is the unified entry (removes `lumen-gateway` from the project)** -
@@ -156,7 +156,7 @@ those services assign them and update this table.
 - **Package naming: dual root by code origin** - user decision 2026-10-29. groupId
   `org.birdbro` everywhere; copied modules keep `org.birdbro.{framework,common}`; new
   modules use `org.birdbro.lumen.*` (`org.birdbro.lumen.{auth,patient,radiology,us,endo,
-  integration,examcore}`, `org.birdbro.lumen.api.{patient,integration}`). In-service
+  integration,core}`, `org.birdbro.lumen.api.{patient,integration}`). In-service
   layering `controller/service/mapper/entity/dto`; application class in the service root
   package; services scan `org.birdbro` (OPS `LaunchApplication` habit). Author attribution
   (birdbro) preserved in headers/pom/LICENSE/images. Rules written to
@@ -177,7 +177,7 @@ those services assign them and update this table.
   (SCG + Nacos discovery + RocketMQ) is the **cloud product's** runtime form. Two binding disciplines hold inside each product: **inter-module calls only
   through `lumen-api` Feign contracts; events only through the `EventPublisher` abstraction**
   (local product = Spring Event / HTTP callback with replay, cloud product = RocketMQ).
-  `exam-core` version pinning per service preserves release isolation for the shared kernel.
+  `lumen-core` version pinning per service preserves release isolation for the shared kernel.
   - 2026-10-29
 - **Two products, not two assemblies (supersedes "one codebase, two assemblies")** - user
   correction 2026-10-29: in the cloud business **only radiology can be diagnosed remotely;
@@ -186,7 +186,7 @@ those services assign them and update this table.
   Local product = full department suite, on-site diagnosis. Cloud product = radiology-only
   remote diagnosis - its own frontend and backend assembly; **us/endo never deploy there**.
   The two products share the foundation as versioned libraries (`lumen-bom`, `framework`,
-  `common`, `lumen-exam-core`, `lumen-api`) - this is NOT the fork anti-pattern from NOTES
+  `common`, `lumen-core`, `lumen-api`) - this is NOT the fork anti-pattern from NOTES
   lesson #1 (that was two copies of the same business code drifting); sharing the kernel is
   exactly that lesson's prescription, and the products' different business scope removes the
   drift surface. Repo topology for the cloud product (second product dir in this monorepo vs

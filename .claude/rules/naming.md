@@ -16,7 +16,7 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
   - Modules copied from OPS keep name, artifactId, and package:
     `framework` → `org.birdbro.framework`, `common` → `org.birdbro.common`.
   - New lumen modules use `org.birdbro.lumen.<module>`:
-    `org.birdbro.lumen.api.{patient,integration}`, `org.birdbro.lumen.{patient,radiology,us,endo,integration,examcore}`.
+    `org.birdbro.lumen.api.{patient,integration}`, `org.birdbro.lumen.{patient,radiology,us,endo,integration,core}`.
     EXCEPTION (user action 2026-11-13): the `lumen-system` module's FIRST domain
     rebranded `system` → `manage` (IDEA package rename, user-executed) - the jar hosts
     `org.birdbro.lumen.manage` (系统管理域) + `org.birdbro.lumen.setting` (检查设置域,
@@ -84,7 +84,7 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
   normalized to birdbro (adaptation (f), 2026-10-30; original `@date` lines preserved);
   pom `<developer><id>birdbro</id>`; Apache-2.0 LICENSE & NOTICE `Copyright 2026 birdbro`;
   Docker images `LABEL org.opencontainers.image.authors="birdbro"`.
-- **Library boundaries**: `framework`/`common`/`exam-core` are non-executable jars - no
-  `@SpringBootApplication`, and `exam-core` carries no controllers (the HTTP surface belongs
+- **Library boundaries**: `framework`/`common`/`lumen-core` are non-executable jars - no
+  `@SpringBootApplication`, and `lumen-core` carries no controllers (the HTTP surface belongs
   to each department service).
 

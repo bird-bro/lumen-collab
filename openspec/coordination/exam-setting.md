@@ -68,7 +68,7 @@ service so us/endo inherit the same catalog when their workstations land.
 
 ## Decisions (all 2026-11-12 unless noted)
 
-1. Standalone service `lumen-setting` — NOT inside `lumen-exam-core` (kernel is a
+1. Standalone service `lumen-setting` — NOT inside `lumen-core` (kernel is a
    no-controller library; per-department copies would split the hospital catalog)
    and NOT named `lumen-core` (collides with framework/common semantics). User
    proposed the module itself; name confirmed after `lumen-catalog` comparison.

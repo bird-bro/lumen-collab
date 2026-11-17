@@ -16,7 +16,7 @@ the web console is the work in progress.
 
 ## What it does (v1)
 
-- **Exam workflow** — registration → exam → report, as a reusable kernel (`lumen-exam-core`)
+- **Exam workflow** — registration → exam → report, as a reusable kernel (`lumen-core`)
   shared by every department service
 - **Multi-tenancy ready** — hierarchical org tree (hospital roots + sub-orgs), departments
   anchored to it
@@ -105,7 +105,7 @@ proposal summaries live in `docs/proposals/*.zh.md`; the guide is `docs/GUIDE.zh
 - [ ] Web console — OPS-style design system, auth flow, dynamic navigation, system
       administration pages *(in progress)*
 - [ ] `lumen-patient` — EMPI (master patient index)
-- [ ] Radiology (v1 core) — exam workflow on `lumen-exam-core`, DICOM MWL/MPPS + HL7v2 via
+- [ ] Radiology (v1 core) — exam workflow on `lumen-core`, DICOM MWL/MPPS + HL7v2 via
       `lumen-integration`, dcm4chee-arc-light linkage
 - [ ] Ultrasound / endoscopy department services
 

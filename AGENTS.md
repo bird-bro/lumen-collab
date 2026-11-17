@@ -17,7 +17,7 @@ lumen-collab/
 ```
 
 ## Business Context
-Open-source medical imaging collaboration platform (brand: LumenCollab) that pairs with the open-source PACS **dcm4chee-arc-light**. v1 delivers a RIS (radiology); ultrasound / endoscopy departments follow as independent microservices, all sharing one exam-workflow kernel (`lumen-exam-core`: booking → registration → exam → report).
+Open-source medical imaging collaboration platform (brand: LumenCollab) that pairs with the open-source PACS **dcm4chee-arc-light**. v1 delivers a RIS (radiology); ultrasound / endoscopy departments follow as independent microservices, all sharing one exam-workflow kernel (`lumen-core`: booking → registration → exam → report).
 
 ## Tech Stack
 | Layer | Tech |
@@ -77,6 +77,13 @@ Cross-domain ban unchanged: each agent still writes only its own stack's code.
 - During apply, run affected tests; run the configured suite during verify.
 - Ask clarifications in one batch (max 3); do not ask serial one-off questions.
 - On resume, read loop-state/progress/tasks first; do not re-read archives or unrelated changes.
+
+### HERO Scope Limits
+- Report real problems, including rare cases reachable through supported use; propose fixes only for that scope.
+- Verification is welcome; over-defense is not. Do not add hashes, checksums, or compatibility wrappers unless they replace materially more expensive work and change the next action.
+- Where judgment is needed, judge; do not replace settled decisions with scorecards, checklists, or repeated audits.
+- Required security, migration, verification, review, TDD, and user/project/higher-priority gates override HERO.
+- Before an optional check, state the concrete failure it detects and what changes next; no answer means do not run it.
 
 ### Session Commands
 `/resume` · `/branch` · `/rewind`
