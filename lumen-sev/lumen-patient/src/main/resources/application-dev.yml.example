@@ -7,10 +7,11 @@ spring:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: org.postgresql.Driver
     druid:
-      # stringtype=unspecified is REQUIRED: the outbox payload is a jsonb column
-      # written through a String field + JacksonTypeHandler (setString binds as the
-      # jsonb target type; the pgjdbc VARCHAR default would reject the write).
-      url: jdbc:postgresql://<PG_HOST>:<PG_PORT>/lumen?currentSchema=patient,public&stringtype=unspecified
+      # NO stringtype=unspecified on this URL: the outbox payload is a jsonb column
+      # written through PatientJsonbTypeHandler (setObject Types.OTHER - the pgjdbc
+      # unspecified-type idiom, b2-review amendment); a URL flag would mask a
+      # handler-route regression.
+      url: jdbc:postgresql://<PG_HOST>:<PG_PORT>/lumen?currentSchema=patient,public
       username: <PG_USER>
       password: <PG_PASSWORD>
       initial-size: 5

@@ -1,11 +1,13 @@
 package org.birdbro.lumen.patient;
 
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
-import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import org.birdbro.lumen.patient.entity.PatientEventOutbox;
@@ -33,9 +35,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  * Data-layer proof (patient-domain task 2.1): the five MyBatis-Plus entities/mappers
  * work against the team test server - per-entity insert/select round trips, the shared
  * {@code EntityBase @TableLogic} soft-delete transition, the outbox {@code payload}
- * jsonb round trip (brief decision 6 route: String field + JacksonTypeHandler +
- * {@code autoResultMap = true}), and the {@code stamp_value} NULL pre-issuance state
- * (B1 amendment).
+ * jsonb round trip as a REAL jsonb OBJECT (b2-review amendment route: Map field +
+ * {@code PatientJsonbTypeHandler} + {@code autoResultMap = true} - the handler writes
+ * {@code setObject(Types.OTHER)}, so no URL {@code stringtype} flag is involved), and
+ * the {@code stamp_value} NULL pre-issuance state (B1 amendment).
  *
  * <p>Fixture discipline (brief decision 9): dedicated fixture families only - rule
  * types prefixed {@code b2_}, master {@code pat_id}s prefixed {@code B2T-}, merge
@@ -208,8 +211,10 @@ class PatientDataLayerTests extends PatientIntegrationTestBase {
                 .build();
         patientMasterMapper.insert(master);
 
-        String payload = "{\"patientId\":" + master.getId()
-                + ",\"name\":\"张三\",\"tags\":[\"v1\",\"v2\"]}";
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("patientId", master.getId());
+        payload.put("name", "张三");
+        payload.put("tags", Arrays.asList("v1", "v2"));
         PatientEventOutbox event = PatientEventOutbox.builder()
                 .eventType("b2_ECHO")
                 .patientId(master.getId())
@@ -224,8 +229,15 @@ class PatientDataLayerTests extends PatientIntegrationTestBase {
         assertEquals(master.getId(), loaded.getPatientId());
         assertEquals("PENDING", loaded.getStatus(),
                 "the DB default status must surface when the insert omits it (append-only, D2)");
-        assertEquals(JSONUtil.parseObj(payload), JSONUtil.parseObj(loaded.getPayload()),
-                "the payload must round-trip JSON-equal, not merely string-equal");
+        assertEquals(payload, loaded.getPayload(),
+                "the jsonb payload must round-trip as a REAL OBJECT (Map-equal), not a "
+                        + "double-encoded quoted string");
+        assertEquals("张三",
+                jdbcTemplate.queryForObject(
+                        "SELECT payload->>'name' FROM patient_event_outbox WHERE id = ?",
+                        String.class, event.getId()),
+                "payload->> must reach INTO the object - a quoted scalar string would "
+                        + "return NULL here");
     }
 
     @Test

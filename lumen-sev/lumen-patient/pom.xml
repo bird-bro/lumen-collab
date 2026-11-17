@@ -68,6 +68,15 @@
             <artifactId>commons-pool2</artifactId>
         </dependency>
 
+        <!-- TinyPinyin (brief decision 9): the engine Hutool's PinyinUtil auto-detects
+             for server-side patient pinyin - EIS 1:1 coordinates, pinned in lumen-bom
+             (EIS-lineage pin). Polyphonic imperfection is accepted: wrong pinyin only
+             degrades search, never identity. -->
+        <dependency>
+            <groupId>io.github.biezhi</groupId>
+            <artifactId>TinyPinyin</artifactId>
+        </dependency>
+
         <!-- test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

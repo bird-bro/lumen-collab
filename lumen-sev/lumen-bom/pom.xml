@@ -184,7 +184,7 @@
             <dependency>
                 <groupId>io.github.biezhi</groupId>
                 <artifactId>TinyPinyin</artifactId>
-                <version>2.0.3.RELEASE</version>
+                <version>2.0.3.RELEASE</version><!-- EIS-lineage pin: the hutool PinyinUtil engine (patient-domain b3) -->
             </dependency>
             <dependency>
                 <groupId>com.alibaba.fastjson2</groupId>

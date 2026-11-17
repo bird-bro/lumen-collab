@@ -25,6 +25,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -244,6 +245,10 @@ class PatientNumberIssuanceTests extends PatientIntegrationTestBase {
         @Transactional
         public void issueThenFail(String ruleType) {
             patientNumberService.issue(ruleType);
+            // b2-review premise assert: the throw below must roll back an ACTUAL outer
+            // transaction, or the burn proof would be vacuous (nothing to roll back).
+            assertTrue(TransactionSynchronizationManager.isActualTransactionActive(),
+                    "harness premise broken: issueThenFail must run inside a real transaction");
             throw new IllegalStateException("simulated archive-creation failure after issuance");
         }
     }

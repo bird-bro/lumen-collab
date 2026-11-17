@@ -143,13 +143,17 @@ class PatientSchemaMigrationTests extends PatientIntegrationTestBase {
 
     @Test
     void defaultPatIdRuleSeedRowIsLive() {
-        // CONTAINS-style: at least one live pat_id rule in the ruled seed shape
-        // (yyMMdd Java-pattern stamp + 4-digit serial; stamp_value NULL until the
-        // first issuance).
+        // CONTAINS-style: at least one live pat_id rule in the ruled seed CONFIGURATION
+        // (yyMMdd Java-pattern stamp + 4-digit serial). Runtime state (serial_cur /
+        // stamp_value) is deliberately NOT asserted here: batch 3's archive tests
+        // consume REAL serials from this seeded rule (b3 brief decision 10 - accepted
+        // residue, gap-tolerant), which advances serial_cur and writes stamp_value.
+        // The pre-issuance stamp_value-NULL state stays covered on dedicated fixture
+        // rules by PatientDataLayerTests.
         Integer seeds = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM patient.patient_number_rule "
                 + "WHERE rule_type = 'pat_id' AND active = 1 AND deleted = 0 "
-                + "AND serial_length = 4 AND stamp = 'yyMMdd' AND stamp_value IS NULL",
+                + "AND serial_length = 4 AND stamp = 'yyMMdd'",
                 Integer.class);
         assertTrue(seeds != null && seeds >= 1,
                 "the guarded default pat_id rule seed (yyMMdd stamp, 4-digit serial) "
