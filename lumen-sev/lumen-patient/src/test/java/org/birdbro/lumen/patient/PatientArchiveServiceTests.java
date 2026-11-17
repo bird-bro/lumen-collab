@@ -5,7 +5,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.birdbro.common.exception.BusinessException;import org.birdbro.lumen.patient.dto.PatientArchivePageQuery;
+import org.birdbro.common.exception.BusinessException;
+import org.birdbro.lumen.patient.dto.PatientArchivePageQuery;
 import org.birdbro.lumen.patient.dto.PatientArchiveSaveRequest;
 import org.birdbro.lumen.patient.dto.PatientArchiveUpdateRequest;
 import org.birdbro.lumen.patient.dto.PatientResolveRequest;
@@ -91,9 +92,11 @@ class PatientArchiveServiceTests extends PatientIntegrationTestBase {
         assertEquals("RESOLVED", loaded.getArchiveStatus(), "a create without the flag is RESOLVED");
         assertEquals("01", loaded.getIdType());
         assertNotNull(loaded.getPinyin(), "pinyin is generated server-side for a Chinese name");
-        assertEquals(loaded.getPinyin(), loaded.getPinyin().toUpperCase(),
-                "the helper stores full pinyin uppercased (EIS precedent)");
-        assertTrue(loaded.getPinyin().contains("ZHANG") && loaded.getPinyin().contains("SAN"),
+        assertEquals(loaded.getPinyin(), loaded.getPinyin().toLowerCase(),
+                "the helper stores the NORMALIZED lowercase pinyin (b4 decision 11)");
+        assertFalse(loaded.getPinyin().contains(" "),
+                "the normalized pinyin is space-stripped: " + loaded.getPinyin());
+        assertTrue(loaded.getPinyin().contains("zhang") && loaded.getPinyin().contains("san"),
                 "张三 must convert to its full pinyin, got: " + loaded.getPinyin());
     }
 

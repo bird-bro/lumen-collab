@@ -7,9 +7,10 @@ import org.birdbro.framework.config.PageSizeConfig;
 
 /**
  * Archive list query (patient-domain task 3.1): name substring, pinyin PREFIX
- * (LIKE 'x%', uppercased to match the server-stored uppercase pinyin), exact
- * pat_id, exact id_no, and phone substring - over LIVE UNMERGED archives only
- * (deleted = 0 via {@code @TableLogic}, merged_into IS NULL), ordered id desc.
+ * (LIKE 'x%', verbatim against the NORMALIZED space-stripped lowercase stored
+ * pinyin - decision 11), exact pat_id, exact id_no, and phone substring - over
+ * LIVE UNMERGED archives only (deleted = 0 via {@code @TableLogic}, merged_into
+ * IS NULL), ordered id desc.
  *
  * @author birdbro
  */

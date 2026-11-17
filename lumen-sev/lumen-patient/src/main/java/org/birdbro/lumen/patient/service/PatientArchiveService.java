@@ -59,6 +59,25 @@ public interface PatientArchiveService {
     PatientMaster create(PatientArchiveSaveRequest request);
 
     /**
+     * OID-CARRYING CREATE (patient-domain b4 amendment 1 - ADDITIVE overload, the
+     * house never-modify rule): identical flow to {@link #create(PatientArchiveSaveRequest)}
+     * plus the issuer organization id (spec: "the archive SHALL carry the issuer
+     * organization id"). The value comes from the JWT principal's
+     * {@code UserSign.entry.oid} - NEVER from the request body (a client-supplied
+     * issuer is spoofable); {@code null} means unknown ("filled when known", the V1
+     * column comment). The one-arg method delegates with a null oid, so every b3
+     * caller and test keeps its exact behavior.
+     *
+     * @param request the archive request (identity + demographics + identifiers +
+     *        provisional flag)
+     * @param oid the issuer organization id from the authenticated principal (nullable)
+     * @return the persisted archive (id + pat_id + server pinyin + oid filled)
+     * @throws org.birdbro.common.exception.BusinessException the same codes as the
+     *         one-arg create
+     */
+    PatientMaster create(PatientArchiveSaveRequest request, Integer oid);
+
+    /**
      * Updates demographics (identity document included; pinyin regenerated on a name
      * change) and writes PATIENT_CHANGED with the UPDATED archive as payload.
      *

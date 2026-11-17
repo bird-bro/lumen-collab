@@ -39,3 +39,17 @@ CREATE SCHEMA IF NOT EXISTS integration;
 --   public.dict_catal, public.dict_detail, public.log_info, public.log_sign
 --   TO lumen_system_role, lumen_patient_role, lumen_radiology_role,
 --      lumen_us_role, lumen_endo_role, lumen_integration_role;
+
+-- =====================================================================
+-- 七、患者配置菜单种子跨 schema 授权（patient-domain，2026-11-17）
+-- =====================================================================
+-- lumen-patient 的菜单种子（lumen-sev/lumen-patient V2__patient_menu.sql）按裁决 D5
+-- 挂在本服务自己的 Flyway ledger 上、跨 schema 写 system.menu_info / system.role_menu
+-- （内容守卫的 V22/V32 纪律）。生产库中该迁移以 lumen_patient_role 连接执行，故该角色
+-- 须对这两张表（及其序列）有写权限；system schema 的 USAGE 亦不可少。以下为注释块，
+-- 按需启用（角色须先存在，见上文角色块）；lumen-system 等其他服务角色不受影响：
+-- GRANT USAGE ON SCHEMA system TO lumen_patient_role;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON system.menu_info, system.role_menu
+--   TO lumen_patient_role;
+-- GRANT USAGE, SELECT ON SEQUENCE system.menu_info_id_seq, system.role_menu_id_seq
+--   TO lumen_patient_role;

@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -107,6 +106,13 @@ public class PatientArchiveServiceImpl implements PatientArchiveService {
     @Override
     @Transactional
     public PatientMaster create(PatientArchiveSaveRequest request) {
+        // the one-arg form stays byte-compatible for the b3 callers: no issuer org
+        return create(request, null);
+    }
+
+    @Override
+    @Transactional
+    public PatientMaster create(PatientArchiveSaveRequest request, Integer oid) {
         // (a0) the identity index does not pin id_type - the service check is the
         // only NULL-id_type guard (b1 review carry-forward)
         if (StrUtil.isNotBlank(request.getIdNo()) && StrUtil.isBlank(request.getIdType())) {
@@ -125,6 +131,9 @@ public class PatientArchiveServiceImpl implements PatientArchiveService {
         PatientMaster master = new PatientMaster();
         BeanUtil.copyProperties(request, master, true);
         master.setPatId(patId);
+        // the issuer org rides the authenticated principal (b4 amendment 1) - never
+        // the request body; null = "filled when known" (the V1 column comment)
+        master.setOid(oid);
         // (c) server pinyin; NULL name -> NULL pinyin (unnamed emergency is legal)
         master.setPinyin(patientPinyinHelper.toPinyin(request.getName()));
         master.setArchiveStatus(Boolean.TRUE.equals(request.getProvisional())
@@ -161,7 +170,8 @@ public class PatientArchiveServiceImpl implements PatientArchiveService {
         }
         if (current.getMergedInto() != null) {
             throw new BusinessException(ExceptionEnum.ERROR_B0003,
-                    "档案已合并至 id=" + current.getMergedInto() + "，历史记录不可修改: archive id " + id);
+                    "archive already merged into id=" + current.getMergedInto()
+                            + " (merged history is immutable): archive id " + id);
         }
         if (StrUtil.isNotBlank(request.getIdNo())) {
             // the effective pair: the request value, else the row's current id_type
@@ -200,9 +210,10 @@ public class PatientArchiveServiceImpl implements PatientArchiveService {
     @Override
     public IPage<PatientMaster> page(PatientArchivePageQuery query) {
         // MP wrapper args evaluate EAGERLY even for a false condition - compute the
-        // uppercased prefix (stored pinyin is uppercased, EIS precedent) null-safely
+        // prefix null-safely (the stored pinyin is NORMALIZED space-stripped lowercase,
+        // decision 11; the query prefix matches it verbatim)
         String pinyinPrefix = StrUtil.isNotBlank(query.getPinyin())
-                ? query.getPinyin().toUpperCase(Locale.ROOT) : null;
+                ? query.getPinyin() : null;
         LambdaQueryWrapper<PatientMaster> wrapper = new LambdaQueryWrapper<PatientMaster>()
                 .like(StrUtil.isNotBlank(query.getName()), PatientMaster::getName, query.getName())
                 .likeRight(pinyinPrefix != null, PatientMaster::getPinyin, pinyinPrefix)
@@ -334,9 +345,13 @@ public class PatientArchiveServiceImpl implements PatientArchiveService {
 
     /**
      * The live-archive identity lookup: {@code deleted = 0} (via {@code @TableLogic})
-     * + {@code merged_into IS NULL} + the exact (id_type, id_no) pair - the same
-     * domain the partial unique index {@code uk_patient_master_identity} pins, so at
-     * most one row can exist.
+     * + {@code merged_into IS NULL} + the exact (id_type, id_no) pair. NOTE: this does
+     * NOT match the exact domain the partial unique index
+     * {@code uk_patient_master_identity} pins - the index keys only on
+     * {@code id_no IS NOT NULL AND merged_into IS NULL} (id_type unpinned, soft-deleted
+     * rows keep occupying the key); the check is service-side only and at most one row
+     * comes back under it in v1 (no archive delete path exists to create the
+     * soft-deleted-duplicate case).
      */
     private PatientMaster existingLiveByIdentity(String idType, String idNo) {
         if (StrUtil.isBlank(idNo) || StrUtil.isBlank(idType)) {
