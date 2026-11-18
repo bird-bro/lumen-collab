@@ -28,6 +28,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * NULL), the D3/D8 field-naming rejections, the full-replace null conversion, and
  * the tree staying content-free. Timestamped fixtures, hard-deleted afterwards
  * (user ruling 2026-11-07 - the "ut模板" prefix family is already sweep-registered).
+ *
+ * <p>Batch 2 closes the review carry-overs (M1/M3): the structured
+ * update-to-page round-trip over the wrapper typeHandler-mapping write path, the
+ * update-route rejections, the explicit {@code impression: null} round-trip
+ * (present-as-null, never an absent key), and the empty-measures-array edge.</p>
  */
 class RepTempContentApiTests extends SettingIntegrationTestBase {
 
@@ -224,6 +229,207 @@ class RepTempContentApiTests extends SettingIntegrationTestBase {
         hardDeleteTemp(folder);
     }
 
+    @Test
+    void structuredUpdateRoundTripsContentThroughWrapperMapping() throws Exception {
+        long ts = System.currentTimeMillis();
+        String token = fullPermToken();
+        int folder = createTemp(token, "ut模板目录_改节_" + ts, null);
+        int temp = createTempWithContent(token, "ut模板_改节_" + ts, folder,
+                "{\"version\":1,\"sections\":[{\"name\":\"心脏\",\"measures\":[]}]}");
+
+        // M1: the update-with-content branch is the ONLY wrapper
+        // typeHandler-mapping jsonb write route - it must land the NEW content as
+        // a REAL jsonb object (a failed mapping resolution would silently
+        // double-encode it into jsonb_typeof='string'), with the prose pair NULL.
+        ResponseEntity<String> updated = exchangeJson(HttpMethod.PUT,
+                TEMP_URL + "/" + temp,
+                body(updateBody("ut模板_改节二_" + ts, folder,
+                        "{\"version\":1,\"sections\":[{"
+                                + "\"name\":\"胃\",\"finding\":\"镜下所见文本\",\"measures\":["
+                                + "{\"code\":\"ULO\",\"label\":\"溃疡面积\",\"unit\":\"mm2\","
+                                + "\"normal\":null}]}],\"impression\":\"内镜影像学意见\"}")),
+                token);
+        assertEquals("200", parse(updated).path("code").asText(),
+                "the structured update must succeed: " + updated);
+
+        Map<String, Object> stored = jdbcTemplate.queryForMap(
+                "SELECT finding, impression, jsonb_typeof(content) AS content_type "
+                        + "FROM system.rep_temp WHERE id = ?", temp);
+        assertNull(stored.get("finding"), "the update must keep finding NULL (D1)");
+        assertNull(stored.get("impression"), "the update must keep impression NULL (D1)");
+        assertEquals("object", stored.get("content_type"),
+                "the wrapper-mapped update must store a REAL jsonb object, not a quoted scalar");
+
+        // The page payload must carry the NEW content - the update really wrote.
+        JsonNode page = parse(exchangeJson(HttpMethod.GET,
+                TEMP_URL + "/page?modality=CT&type=1&upId=" + folder, null, token));
+        assertEquals(1, page.path("data").path("total").asLong(-1),
+                "the fixture template must be the page's only row: " + page);
+        JsonNode row = page.path("data").path("records").get(0);
+        assertTrue(row.path("finding").isNull(),
+                "the page payload must not surface prose finding on the updated row");
+        assertTrue(row.path("impression").isNull(),
+                "the page payload must not surface prose impression on the updated row");
+        JsonNode round = row.path("content");
+        assertEquals(1, round.path("version").asInt(-1), "version must round-trip");
+        assertEquals("内镜影像学意见", round.path("impression").asText(),
+                "the NEW impression must round-trip");
+        assertEquals(1, round.path("sections").size(), "the new section must round-trip");
+        JsonNode stomach = round.path("sections").get(0);
+        assertEquals("胃", stomach.path("name").asText(),
+                "the NEW section name must round-trip");
+        assertEquals("镜下所见文本", stomach.path("finding").asText(),
+                "the section finding must round-trip");
+        assertEquals(1, stomach.path("measures").size(), "the measure must round-trip");
+        assertEquals("ULO", stomach.path("measures").get(0).path("code").asText());
+        assertEquals("溃疡面积", stomach.path("measures").get(0).path("label").asText());
+        assertEquals("mm2", stomach.path("measures").get(0).path("unit").asText());
+        assertTrue(stomach.path("measures").get(0).path("normal").isNull(),
+                "a null measure normal must round-trip as null");
+
+        hardDeleteTemp(temp);
+        hardDeleteTemp(folder);
+    }
+
+    @Test
+    void updatePathRejectsInvalidContentNamingTheField() throws Exception {
+        long ts = System.currentTimeMillis();
+        String token = fullPermToken();
+        int folder = createTemp(token, "ut模板目录_拒改_" + ts, null);
+        int temp = createTempWithContent(token, "ut模板_拒改_" + ts, folder,
+                "{\"version\":1,\"sections\":[{\"name\":\"心脏\",\"measures\":[]}]}");
+
+        // Blank section name (Bean Validation cascade, PUT route).
+        ResponseEntity<String> blankName = exchangeJson(HttpMethod.PUT,
+                TEMP_URL + "/" + temp,
+                body(updateBody("ut模板_拒改名_" + ts, folder,
+                        "{\"version\":1,\"sections\":[{\"name\":\" \",\"measures\":[]}]}")),
+                token);
+        assertEquals("A0400", parse(blankName).path("code").asText(),
+                "a blank section name must reject on update: " + blankName);
+        assertTrue(parse(blankName).path("msg").asText().contains("name"),
+                "the rejection must name the field: " + blankName);
+
+        // Blank measure code.
+        ResponseEntity<String> blankCode = exchangeJson(HttpMethod.PUT,
+                TEMP_URL + "/" + temp,
+                body(updateBody("ut模板_拒改码_" + ts, folder,
+                        "{\"version\":1,\"sections\":[{\"name\":\"心脏\",\"measures\":["
+                                + "{\"code\":\"\",\"label\":\"标签\"}]}]}")),
+                token);
+        assertEquals("A0400", parse(blankCode).path("code").asText(),
+                "a blank measure code must reject on update: " + blankCode);
+        assertTrue(parse(blankCode).path("msg").asText().contains("code"),
+                "the rejection must name the field: " + blankCode);
+
+        // Blank measure label.
+        ResponseEntity<String> blankLabel = exchangeJson(HttpMethod.PUT,
+                TEMP_URL + "/" + temp,
+                body(updateBody("ut模板_拒改标_" + ts, folder,
+                        "{\"version\":1,\"sections\":[{\"name\":\"心脏\",\"measures\":["
+                                + "{\"code\":\"AO\",\"label\":\" \"}]}]}")),
+                token);
+        assertEquals("A0400", parse(blankLabel).path("code").asText(),
+                "a blank measure label must reject on update: " + blankLabel);
+        assertTrue(parse(blankLabel).path("msg").asText().contains("label"),
+                "the rejection must name the field: " + blankLabel);
+
+        // version other than 1 (service-layer assert, PUT route).
+        ResponseEntity<String> wrongVersion = exchangeJson(HttpMethod.PUT,
+                TEMP_URL + "/" + temp,
+                body(updateBody("ut模板_拒改版_" + ts, folder,
+                        "{\"version\":2,\"sections\":[{\"name\":\"心脏\"}]}")),
+                token);
+        assertEquals("A0400", parse(wrongVersion).path("code").asText(),
+                "version != 1 must reject on update: " + wrongVersion);
+        assertTrue(parse(wrongVersion).path("msg").asText().contains("content.version"),
+                "the rejection must name the field: " + wrongVersion);
+
+        // A directory node (flag=0) carrying content through update (D8, PUT route).
+        ResponseEntity<String> dirContent = exchangeJson(HttpMethod.PUT,
+                TEMP_URL + "/" + folder,
+                body("{\"modality\":\"CT\",\"flag\":0,\"name\":\"ut模板目录_拒改节_"
+                        + ts + "\",\"content\":{\"version\":1,"
+                        + "\"sections\":[{\"name\":\"心脏\"}]}}"),
+                token);
+        assertEquals("A0400", parse(dirContent).path("code").asText(),
+                "a directory node must not carry content on update (D8): " + dirContent);
+        assertTrue(parse(dirContent).path("msg").asText().contains("content"),
+                "the rejection must name the field: " + dirContent);
+
+        hardDeleteTemp(temp);
+        hardDeleteTemp(folder);
+    }
+
+    @Test
+    void explicitNullImpressionRoundTripsAsJsonNull() throws Exception {
+        long ts = System.currentTimeMillis();
+        String token = fullPermToken();
+        int folder = createTemp(token, "ut模板目录_空议_" + ts, null);
+        int temp = createTempWithContent(token, "ut模板_空议_" + ts, folder,
+                "{\"version\":1,\"sections\":[{\"name\":\"食道\",\"finding\":\"节内所见\"}],"
+                        + "\"impression\":null}");
+
+        // M3: an explicit impression:null must round-trip as a PRESENT JSON null -
+        // the key stays in the payload, never silently dropped (非缺省).
+        JsonNode page = parse(exchangeJson(HttpMethod.GET,
+                TEMP_URL + "/page?modality=CT&type=1&upId=" + folder, null, token));
+        assertEquals(1, page.path("data").path("total").asLong(-1),
+                "the fixture template must be the page's only row: " + page);
+        JsonNode content = page.path("data").path("records").get(0).path("content");
+        assertTrue(content.has("impression"),
+                "impression:null must stay a present key in the page payload: " + content);
+        assertTrue(content.path("impression").isNull(),
+                "the explicit null impression must round-trip as null");
+
+        // The update route too: replace the content keeping impression null.
+        ResponseEntity<String> updated = exchangeJson(HttpMethod.PUT,
+                TEMP_URL + "/" + temp,
+                body(updateBody("ut模板_空议改_" + ts, folder,
+                        "{\"version\":1,\"sections\":[{\"name\":\"胃\",\"finding\":\"镜下所见\"}],"
+                                + "\"impression\":null}")),
+                token);
+        assertEquals("200", parse(updated).path("code").asText(),
+                "the impression-null update must succeed: " + updated);
+        JsonNode pageAfter = parse(exchangeJson(HttpMethod.GET,
+                TEMP_URL + "/page?modality=CT&type=1&upId=" + folder, null, token));
+        JsonNode contentAfter = pageAfter.path("data").path("records").get(0).path("content");
+        assertTrue(contentAfter.has("impression"),
+                "impression:null must stay a present key after the update: " + contentAfter);
+        assertTrue(contentAfter.path("impression").isNull(),
+                "the explicit null impression must round-trip as null after the update");
+        assertEquals("胃", contentAfter.path("sections").get(0).path("name").asText(),
+                "the updated section must round-trip");
+
+        hardDeleteTemp(temp);
+        hardDeleteTemp(folder);
+    }
+
+    @Test
+    void emptyMeasuresSectionRoundTripsAsArray() throws Exception {
+        long ts = System.currentTimeMillis();
+        String token = fullPermToken();
+        int folder = createTemp(token, "ut模板目录_空测_" + ts, null);
+        // 内镜节形态: an ENDO-style section whose measures list is an EMPTY ARRAY -
+        // legal (delta edge), and it must round-trip as [], never collapse to null.
+        int temp = createTempWithContent(token, "ut模板_空测_" + ts, folder,
+                "{\"version\":1,\"sections\":[{\"name\":\"食道\",\"finding\":\"黏膜光滑\","
+                        + "\"measures\":[]}],\"impression\":\"内镜影像学意见\"}");
+
+        JsonNode page = parse(exchangeJson(HttpMethod.GET,
+                TEMP_URL + "/page?modality=CT&type=1&upId=" + folder, null, token));
+        assertEquals(1, page.path("data").path("total").asLong(-1),
+                "the fixture template must be the page's only row: " + page);
+        JsonNode measures = page.path("data").path("records").get(0).path("content")
+                .path("sections").get(0).path("measures");
+        assertTrue(measures.isArray(),
+                "an empty measures array must round-trip as an ARRAY, not null: " + measures);
+        assertEquals(0, measures.size(), "the measures array must stay empty");
+
+        hardDeleteTemp(temp);
+        hardDeleteTemp(folder);
+    }
+
     // ===================== fixture + call helpers =====================
 
     private int createTemp(String token, String name, Integer upId) throws Exception {
@@ -251,6 +457,13 @@ class RepTempContentApiTests extends SettingIntegrationTestBase {
     private String templateBody(String name, int upId, String content) {
         return "{\"type\":1,\"modality\":\"CT\",\"flag\":1,\"upId\":" + upId
                 + ",\"name\":\"" + name + "\",\"content\":" + content + "}";
+    }
+
+    /** PUT body shape (TempUpdateRequest - no {@code type}; scope stays stored). */
+    private String updateBody(String name, Integer upId, String content) {
+        return "{\"modality\":\"CT\",\"flag\":1,\"name\":\"" + name + "\""
+                + (upId != null ? ",\"upId\":" + upId : "")
+                + ",\"content\":" + content + "}";
     }
 
     private void hardDeleteTemp(int id) {
