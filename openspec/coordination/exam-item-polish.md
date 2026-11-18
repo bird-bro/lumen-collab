@@ -40,8 +40,8 @@
 
 | Change | Stack | Scope | Status |
 |:--|:--|:--|:--|
-| `exam-item-common-filter-drop` | lumen-sev | `ItemPageQuery`/`ExamItemServiceImpl`/接口与控制器 javadoc + exam-setting spec delta | implemented |
-| `exam-item-polish-web` | lumen-web | 筛选 checkbox 下线、抽屉尾部重排、表格 备注 列、api client/types、页测 + api 测 + web-system-console spec delta | implemented |
+| `exam-item-common-filter-drop` | lumen-sev | `ItemPageQuery`/`ExamItemServiceImpl`/接口与控制器 javadoc + exam-setting spec delta | archived 2026-11-18 |
+| `exam-item-polish-web` | lumen-web | 筛选 checkbox 下线、抽屉尾部重排、表格 备注 列、api client/types、页测 + api 测 + web-system-console spec delta | archived 2026-11-18 (skip-specs: delta 为已同步终态子集) |
 
 Backend first（惯例）；两栈无运行时耦合窗口（前端停发参数、后端停收参数，
 单独落地均安全），按批次归档门禁同收。

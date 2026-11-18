@@ -23,8 +23,8 @@
 
 | Change | Stack | Scope | Status |
 |:--|:--|:--|:--|
-| `exam-item-external-code-sev` | lumen-sev | V36 迁移 + 实体/DTO + keyword LIKE 分支 + exam-setting spec delta | proposed |
-| `exam-item-external-code-web` | lumen-web | 类型 + 抽屉对照编码字段 + 表格列 + 保存载荷 + 页测/api 测 + web-system-console spec delta | proposed |
+| `exam-item-external-code-sev` | lumen-sev | V36 迁移 + 实体/DTO + keyword LIKE 分支 + exam-setting spec delta | archived 2026-11-18 |
+| `exam-item-external-code-web` | lumen-web | 类型 + 抽屉对照编码字段 + 表格列 + 保存载荷 + 页测/api 测 + web-system-console spec delta | archived 2026-11-18 |
 
 ## Dependencies / ordering
 
