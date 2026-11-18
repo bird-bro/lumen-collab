@@ -1,17 +1,22 @@
 package org.birdbro.lumen.setting.dto;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
+import org.birdbro.lumen.setting.entity.RepTempContent;
+
 /**
  * Template-node create request ({@code POST /api/v1/setting/rep-temps},
  * exam-setting-api): one tree node - directory (flag=0, content-free) or template
  * (flag=1, finding/impression). The scope rides {@code type}; for type=2 the OWNER
  * BINDING comes from the session, NEVER the request body (the
- * server-side-binding ruling).
+ * server-side-binding ruling). Carrying {@code content} (rep-template-structured-
+ * content) turns the row structured - the service forces the prose pair NULL (D1)
+ * and refuses content on directories (D8).
  *
  * @author birdbro
  */
@@ -42,4 +47,8 @@ public class TempCreateRequest {
 
     @ApiModelProperty("影像学意见 (templates only)")
     private String impression;
+
+    @ApiModelProperty("结构化分节内容 (templates only; D1 互斥——携带时 finding/impression 存 NULL)")
+    @Valid
+    private RepTempContent content;
 }

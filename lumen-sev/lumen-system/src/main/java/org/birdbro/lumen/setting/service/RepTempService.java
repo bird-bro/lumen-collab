@@ -21,7 +21,12 @@ import org.birdbro.lumen.setting.entity.RepTemp;
  *   <li>every type=2 read/write is owner-scoped - another user's private rows never
  *       render anywhere and their update/delete refuses A0400 without leaking
  *       content;</li>
- *   <li>public (type=1) rows ride the menu perms (the {@code @PreAuthorize} gates).</li>
+ *   <li>public (type=1) rows ride the menu perms (the {@code @PreAuthorize} gates);</li>
+ *   <li>structured content (rep-template-structured-content D1/D3/D8): a
+ *       content-carrying request must target a template node (flag=1) with
+ *       {@code version=1}; the write forces finding/impression NULL - content and
+ *       the prose pair never coexist on a row, and a content-null full-replace
+ *       over a structured row converts it back to prose (destructive).</li>
  * </ul>
  *
  * <p>Interface since the 2026-11-13 all-services interface+impl ruling (the
@@ -58,7 +63,10 @@ public interface RepTempService {
 
     /**
      * Full-replaces the editable surface (D9 null-aware). Scope/ownership stay as
-     * stored (they are not editable); a private row refuses a non-owner.
+     * stored (they are not editable); a private row refuses a non-owner. Carrying
+     * {@code content} turns the row structured (prose pair stored NULL, D1);
+     * {@code content: null} converts a structured row back to prose - sections are
+     * dropped (destructive, spec-declared).
      */
     Boolean update(Integer id, TempUpdateRequest request);
 

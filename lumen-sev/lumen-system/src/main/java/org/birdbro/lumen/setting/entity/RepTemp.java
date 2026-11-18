@@ -1,6 +1,7 @@
 package org.birdbro.lumen.setting.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 
@@ -11,6 +12,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import org.birdbro.common.core.base.EntityBase;
+import org.birdbro.lumen.setting.mapper.RepTempContentJsonbTypeHandler;
 
 /**
  * RepTemp ({@code rep_temp}, exam-setting-api): one node of the report-template
@@ -19,12 +21,15 @@ import org.birdbro.common.core.base.EntityBase;
  * {@code owner_uid = NULL} and are perms-gated; private rows bind {@code owner_uid}
  * (server-side, ignoring the request body) and only the owner may update/delete them.
  * Templates (flag=1) carry the 影像学表现/影像学意见 phrase pair the report writer
- * consumes; directories (flag=0) stay content-free. Scope 字段留位: a future 科室
+ * consumes; directories (flag=0) stay content-free. A template row is EITHER prose
+ * ({@code content} NULL - the phrase pair) OR structured ({@code content} non-null -
+ * the D2 section model; the two prose columns are stored NULL and not read, D1
+ * exclusivity enforced service-side). Scope 字段留位: a future 科室
  * scope adds a type value without a migration (coordination ruling 5).
  *
  * @author birdbro
  */
-@TableName("rep_temp")
+@TableName(value = "rep_temp", autoResultMap = true)
 @Data
 @Builder
 @AllArgsConstructor
@@ -59,4 +64,8 @@ public class RepTemp extends EntityBase {
 
     /** 影像学意见（模板内容，目录行保持空）. */
     private String impression;
+
+    /** 结构化分节内容（jsonb；D1 互斥——content 非空 = 分节模板，finding/impression 存 NULL 不读；目录行保持空）. */
+    @TableField(typeHandler = RepTempContentJsonbTypeHandler.class)
+    private RepTempContent content;
 }

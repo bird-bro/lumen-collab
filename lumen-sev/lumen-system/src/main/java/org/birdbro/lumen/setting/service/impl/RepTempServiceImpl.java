@@ -19,6 +19,8 @@ import org.birdbro.lumen.setting.dto.TempCreateRequest;
 import org.birdbro.lumen.setting.dto.TempPageQuery;
 import org.birdbro.lumen.setting.dto.TempUpdateRequest;
 import org.birdbro.lumen.setting.entity.RepTemp;
+import org.birdbro.lumen.setting.entity.RepTempContent;
+import org.birdbro.lumen.setting.mapper.RepTempContentJsonbTypeHandler;
 import org.birdbro.lumen.setting.mapper.RepTempMapper;
 import org.birdbro.lumen.setting.service.ExamBodyGroupService;
 import org.birdbro.lumen.setting.service.RepTempService;
@@ -28,12 +30,23 @@ import org.springframework.stereotype.Service;
  * {@link RepTempService} implementation - the body is unchanged from the former
  * concrete class (2026-11-13 all-services interface+impl ruling; injection points keep
  * autowiring the interface FQN, so controllers and tests are untouched). The scope
- * constants resolve through the implemented interface.
+ * constants resolve through the implemented interface. Structured-content writes ride
+ * the D1/D3/D8 rules (rep-template-structured-content): a content-carrying request
+ * must target a template node with version 1, and the prose pair is forced NULL
+ * whenever content is present - the pair is exclusive, never co-stored.
  *
  * @author birdbro
  */
 @Service
 public class RepTempServiceImpl implements RepTempService {
+
+    /**
+     * Wrapper placeholder mapping so a wrapper-based jsonb write rides the jsonb
+     * typeHandler - the plain {@code set(column, val)} placeholder would serialize
+     * through pgjdbc's VARCHAR route and double-encode the object as a quoted scalar.
+     */
+    private static final String CONTENT_HANDLER_MAPPING =
+            "typeHandler=" + RepTempContentJsonbTypeHandler.class.getName();
 
     private final RepTempMapper repTempMapper;
     private final ExamBodyGroupService examBodyGroupService;
@@ -90,6 +103,7 @@ public class RepTempServiceImpl implements RepTempService {
     @Override
     public Integer create(TempCreateRequest request) {
         examBodyGroupService.requireModality(request.getModality());
+        guardContent(request.getFlag(), request.getContent());
 
         RepTemp temp = new RepTemp();
         BeanUtil.copyProperties(request, temp, true);
@@ -99,6 +113,11 @@ public class RepTempServiceImpl implements RepTempService {
         } else {
             temp.setOwnerUid(null);
         }
+        if (request.getContent() != null) {
+            // D1: the prose pair is NOT read on a structured row - store it NULL.
+            temp.setFinding(null);
+            temp.setImpression(null);
+        }
         repTempMapper.insert(temp);
         return temp.getId();
     }
@@ -107,15 +126,28 @@ public class RepTempServiceImpl implements RepTempService {
     public Boolean update(Integer id, TempUpdateRequest request) {
         RepTemp current = requireOwnedRow(id);
         examBodyGroupService.requireModality(request.getModality());
+        guardContent(request.getFlag(), request.getContent());
 
-        repTempMapper.update(null, new LambdaUpdateWrapper<RepTemp>()
+        LambdaUpdateWrapper<RepTemp> wrapper = new LambdaUpdateWrapper<RepTemp>()
                 .eq(RepTemp::getId, id)
                 .set(RepTemp::getModality, request.getModality())
                 .set(RepTemp::getFlag, request.getFlag())
                 .set(RepTemp::getUpId, request.getUpId())
-                .set(RepTemp::getName, request.getName())
-                .set(RepTemp::getFinding, request.getFinding())
-                .set(RepTemp::getImpression, request.getImpression()));
+                .set(RepTemp::getName, request.getName());
+        if (request.getContent() != null) {
+            // D1: structured row - the prose pair is stored NULL; the jsonb write
+            // rides the typeHandler through the wrapper placeholder mapping (D4).
+            wrapper.set(RepTemp::getContent, request.getContent(), CONTENT_HANDLER_MAPPING)
+                    .set(RepTemp::getFinding, null)
+                    .set(RepTemp::getImpression, null);
+        } else {
+            // D9 full-replace prose path - content NULL converts a structured row to
+            // prose (sections dropped - destructive, spec-declared).
+            wrapper.set(RepTemp::getFinding, request.getFinding())
+                    .set(RepTemp::getImpression, request.getImpression())
+                    .set(RepTemp::getContent, null);
+        }
+        repTempMapper.update(null, wrapper);
         return Boolean.TRUE;
     }
 
@@ -127,6 +159,27 @@ public class RepTempServiceImpl implements RepTempService {
     }
 
     // ===================== enforcement =====================
+
+    /**
+     * D3/D8 content write guard: a content-carrying request must target a TEMPLATE
+     * node (flag=1) and pin {@code version=1}. Sections' non-emptiness and the
+     * nested name/code/label blanks ride the Bean Validation cascade (@Valid on the
+     * DTOs), so the service asserts exactly the two rules Bean Validation cannot
+     * place - the version pin and the directory refusal.
+     */
+    private void guardContent(Integer flag, RepTempContent content) {
+        if (content == null) {
+            return;
+        }
+        if (flag == null || flag == 0) {
+            throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                    "目录节点不允许携带 content");
+        }
+        if (content.getVersion() == null || content.getVersion() != 1) {
+            throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                    "content.version 必须为 1");
+        }
+    }
 
     /**
      * The scope wrapper: type=1 is the shared tree; type=2 ALWAYS adds the caller's

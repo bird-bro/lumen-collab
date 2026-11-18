@@ -1,17 +1,23 @@
 package org.birdbro.lumen.setting.dto;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
+import org.birdbro.lumen.setting.entity.RepTempContent;
+
 /**
  * Template-node full-replace update request ({@code PUT
  * /api/v1/setting/rep-temps/{id}}, exam-setting-api). Scope/ownership are NOT editable
  * through this surface - the update keeps the stored type/ownerUid (moving a private
  * row between users would defeat the enforcement; re-parenting via upId is allowed).
- * D9 null-aware on the content fields.
+ * D9 null-aware on the content fields. Carrying {@code content} turns the row
+ * structured (prose pair forced NULL, D1); {@code content: null} over a structured
+ * row converts it BACK to prose - sections are dropped, a destructive full-replace
+ * the spec declares explicitly.
  *
  * @author birdbro
  */
@@ -38,4 +44,8 @@ public class TempUpdateRequest {
 
     @ApiModelProperty("影像学意见 (absent clears)")
     private String impression;
+
+    @ApiModelProperty("结构化分节内容 (null clears - structured→prose conversion is destructive)")
+    @Valid
+    private RepTempContent content;
 }
