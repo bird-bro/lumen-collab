@@ -1,5 +1,5 @@
 # Per-change workflow state (parallel-safe: each change owns its own file).
-phase: applying
+phase: archived
 change: patient-domain
 current_task: null
 tasks_total: 17

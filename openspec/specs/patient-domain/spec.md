@@ -1,0 +1,200 @@
+# patient-domain Specification
+
+## Purpose
+
+Owns the patient master index domain: one-person-one-archive master records, multi-number
+identity binding, the identity resolution chain, the PROVISIONAL/RESOLVED archive state
+machine with minimal merge, image-number issuance rules, and the changed/merged event
+outbox contract that department workflows will consume.
+
+<!-- synced from: patient-domain 2026-11-18 -->
+
+## Requirements
+
+### Requirement: Patient Master Archive
+
+The `patient` schema SHALL keep one master archive per person (`patient_master`) carrying
+demographics (name, server-side generated pinyin, gender, birth date, phone, nation,
+address), an `archive_status` of PROVISIONAL or RESOLVED, and a `merged_into` pointer for
+merged rows. Creating an archive SHALL issue the image number (`pat_id`) from the active
+number rule inside the creation transaction, and the archive SHALL carry the issuer
+organization id. Archives SHALL NOT be hard-deleted; merged rows stay traceable.
+
+#### Scenario: Creation issues image number and pinyin
+
+- **WHEN** a client posts a create-archive request with name and demographics
+- **THEN** the archive row stores the server-generated pinyin for the name and a `pat_id`
+  issued from the active rule, and the response returns the archive with its id and
+  image number
+
+#### Scenario: Merged archive stays traceable
+
+- **WHEN** an archive has been merged into a survivor
+- **THEN** the row still exists with `merged_into` set to the survivor id and remains
+  retrievable by id
+
+### Requirement: Conditional Unique Identity
+
+The natural identity key SHALL be `(id_type, id_no)` with a partial unique index over
+live archives only (`id_no IS NOT NULL AND merged_into IS NULL`). Creating or updating an
+archive whose `id_no` duplicates a live archive SHALL be rejected with an explicit
+conflict error naming the duplicate. Additional numbers (visit card, physical exam,
+outpatient, inpatient, HIS id) SHALL live in `patient_identifier` rows bound to the
+archive, with no uniqueness enforced on the visit card number.
+
+#### Scenario: Duplicate id_no is rejected
+
+- **WHEN** a create or update request carries an `id_no` that already exists on a live
+  archive
+- **THEN** the request is rejected with a conflict error identifying the duplicate, and
+  no archive row is written
+
+#### Scenario: Card numbers are not unique
+
+- **WHEN** two archives share the same visit card number
+- **THEN** both identifier rows persist - the card number is a soft resolution key, not
+  a unique constraint
+
+#### Scenario: Merged rows do not block re-issuance
+
+- **WHEN** an archive's `id_no` matches only a merged (non-live) archive
+- **THEN** the uniqueness check passes and the new archive is created
+
+### Requirement: Identity Resolution Chain
+
+The resolve endpoint SHALL evaluate the chain in order: exact `id_no` match on a live
+archive; then exact card-number match; then soft candidates (same name + phone, or same
+name + gender + birth date); and SHALL return the first decisive hit. When only soft
+candidates match, the response SHALL return the candidate list (not an error). When
+nothing matches, the endpoint SHALL create a new archive - PROVISIONAL or RESOLVED per
+the request flag - and return it.
+
+#### Scenario: Exact id_no hit resolves immediately
+
+- **WHEN** resolve is called with an `id_no` that matches a live archive
+- **THEN** the response returns that archive and no new row is created
+
+#### Scenario: Soft match returns candidates
+
+- **WHEN** resolve finds no exact identity or card match but two archives share the
+  requested name and phone
+- **THEN** the response returns both as candidates for the caller to pick from
+
+#### Scenario: No match creates a new archive
+
+- **WHEN** resolve finds no exact or soft match and the request asks for a formal
+  archive
+- **THEN** a RESOLVED archive is created with an issued image number and returned
+
+### Requirement: Provisional and Merge State Machine
+
+`archive_status` SHALL move one-way PROVISIONAL -> RESOLVED. A PROVISIONAL placeholder
+(unnamed emergency patient) SHALL still receive an image number at creation. The
+resolve-or-merge endpoint SHALL perform the minimal merge: the merged row points
+`merged_into` at the survivor, the survivor's archive stays RESOLVED, a merge log row
+records both ids with operator and reason, and a PATIENT_MERGED outbox row is written.
+Merging an already-merged archive SHALL return the existing survivor (idempotent).
+Default archive search SHALL exclude merged rows.
+
+#### Scenario: Emergency placeholder receives an image number
+
+- **WHEN** a PROVISIONAL archive is created with no name and no id_no
+- **THEN** the row persists with an issued `pat_id` and archive_status PROVISIONAL
+
+#### Scenario: Minimal merge writes pointer and log
+
+- **WHEN** resolve-or-merge merges a PROVISIONAL placeholder into an existing archive
+- **THEN** the placeholder row points at the survivor, the merge log records both ids,
+  and a PATIENT_MERGED outbox row exists for the pair
+
+#### Scenario: Merge is idempotent
+
+- **WHEN** resolve-or-merge is called for a placeholder already merged into a survivor
+- **THEN** the response returns the same survivor and no duplicate log or outbox row is
+  written
+
+#### Scenario: Default search hides merged rows
+
+- **WHEN** the archive list or resolve chain queries archives
+- **THEN** merged rows are excluded unless explicitly requested by id
+
+### Requirement: Image Number Issuance
+
+Issuance SHALL read the active rule for the requested type, take the rule row's lock,
+increment the serial counter, and write the number inside the caller's transaction,
+the counter increment committing in its own inner transaction so a failed archive
+creation burns the serial. A rule with the timestamp stamp enabled SHALL reset its
+serial to 1 when the stamp day changes. Issued numbers SHALL be unique across
+archives; a failed archive creation MAY burn the number (gaps are tolerated, numbers
+are never reused).
+
+#### Scenario: Concurrent issuance does not duplicate
+
+- **WHEN** multiple archive creations run concurrently against the same active rule
+- **THEN** each receives a distinct serial value and every `pat_id` is unique
+
+#### Scenario: Stamp rule resets by day
+
+- **WHEN** the first issuance after a stamp-day rollover runs on a stamped rule
+- **THEN** the serial restarts at 1 and the number embeds the new stamp date
+
+### Requirement: Patient Change Event Outbox
+
+Archive events SHALL be written to `patient_event_outbox` rows: PATIENT_CHANGED on any
+archive correction (with a jsonb payload of the changed archive), PATIENT_MERGED on
+merge (payload naming survivor and merged ids). Outbox rows SHALL be append-only and
+start in PENDING status; v1 SHALL NOT publish to any message broker and SHALL NOT
+delete outbox rows.
+
+#### Scenario: Correction writes a change event
+
+- **WHEN** an archive's demographics are updated
+- **THEN** a PATIENT_CHANGED outbox row exists carrying the archive id and payload
+
+#### Scenario: Merge writes a merged event
+
+- **WHEN** the minimal merge completes
+- **THEN** a PATIENT_MERGED outbox row names the survivor and merged archive ids
+
+#### Scenario: No broker is required
+
+- **WHEN** the service runs with no message broker deployed
+- **THEN** outbox rows accumulate in PENDING status and all archive flows succeed
+
+### Requirement: Number Rule Management API
+
+Number rules SHALL be manageable through the `/api/v1/patient/**` surface under the
+`patient:rule:*` permission family: list, create, update, and delete. Exactly one rule
+SHALL be active per rule type (`pat_id` in v1); archive creation SHALL resolve the
+active rule and ignore inactive rows. Rule parameters (prefix, suffix, serial length,
+timestamp stamp) SHALL be data - changing the number format SHALL NOT require a code
+change.
+
+#### Scenario: Rule CRUD enforces perms
+
+- **WHEN** a user without `patient:rule:create` posts a rule create
+- **THEN** the request is rejected by the permission layer and no rule row is written
+
+#### Scenario: Creation resolves the active rule
+
+- **WHEN** two rules exist for `pat_id` with one active
+- **THEN** archive creation issues numbers from the active rule only
+
+### Requirement: Patient Service Surface
+
+The patient domain SHALL be served by its own executable module with URL prefix
+`/api/v1/patient/**`, its own `patient` schema and Flyway ledger, and the `patient:*`
+permission family. The module SHALL declare its reserved port per the coordination port
+table and SHALL carry no message-broker dependency.
+
+#### Scenario: Endpoints are reachable under the unified entry
+
+- **WHEN** a client calls any patient-domain endpoint
+- **THEN** the path is `/api/v1/patient/**` behind the unified nginx entry and the
+  tables resolve in the `patient` schema through the module's own ledger
+
+#### Scenario: Service identity is declared
+
+- **WHEN** the application context loads
+- **THEN** `spring.application.name` is the module name and the port matches the
+  coordination port table's patient row
