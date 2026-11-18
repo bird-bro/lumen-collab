@@ -21,5 +21,5 @@
 
 ## 2. Close-out
 
-- [ ] 2.1 `pnpm build` exit 0 (done); user confirms visuals on the real backend.
-- [ ] 2.2 `/opsx:verify` (L1 build / L2 WHEN-THEN / L3 tests) → verify.md.
+- [x] 2.1 `pnpm build` exit 0 (done); user confirms visuals on the real backend.
+- [x] 2.2 `/opsx:verify` (L1 build / L2 WHEN-THEN / L3 tests) → verify.md.
