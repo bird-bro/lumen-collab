@@ -459,7 +459,9 @@ export default function RepTemplatePage() {
     setTplParent(null)
     if (row.content) {
       setTplStructured(true)
-      setTplSections(row.content.sections.map((s) => ({ ...s, measures: s.measures.map((m) => ({ ...m })) })))
+      // Server contract allows measures: null (API-direct writes) - normalize at
+      // the boundary so the form state always holds arrays (batch3 review Minor 1).
+      setTplSections(row.content.sections.map((s) => ({ ...s, measures: (s.measures ?? []).map((m) => ({ ...m })) })))
       tplForm.setFieldsValue({
         name: row.name,
         finding: undefined,
@@ -580,7 +582,7 @@ export default function RepTemplatePage() {
       // request); prose rows render the raw column as before.
       render: (text: string | null, row) => {
         if (row.content) {
-          const measures = row.content.sections.reduce((sum, section) => sum + section.measures.length, 0)
+          const measures = row.content.sections.reduce((sum, section) => sum + (section.measures ?? []).length, 0)
           return (
             <span style={{ color: token.colorTextTertiary }}>
               {`${row.content.sections.length} 节 · ${measures} 项`}
