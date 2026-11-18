@@ -35,5 +35,5 @@
 ## 3. Verify
 
 - [x] 3.1 Backend + frontend suites pass (counts + log paths above).
-- [ ] 3.2 User visual confirm on the running dev server (chip button + dropdown) —
+- [x] 3.2 User visual confirm on the running dev server (chip button + dropdown) —
       backend on :8081 must restart to apply V36 first.

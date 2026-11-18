@@ -26,7 +26,20 @@ roles):
 
 #### Scenario: W nodes seeded and role-granted
 
-(unchanged from the synced spec — the V22 admin auto-grant contract)
+- **WHEN** the migrations run and the admin opens 角色管理's 菜单授权 tree
+- **THEN** the three W nodes render (with their type tag) among the grantable nodes
+
+#### Scenario: Station access is role-driven
+
+- **WHEN** a role is granted the 放射工作站 W node and a user binds that role
+- **THEN** the user's next login/me menu tree contains the W node and its subtree
+- **AND** a user bound only to a role WITHOUT the W node sees no workstation in the tree
+
+#### Scenario: Wrong machinery removed
+
+- **WHEN** the migrations run
+- **THEN** `user_workstation` does not exist, the workstation column is dropped, and
+  the `system:user:assign-ws` node is gone from the tree and grants
 
 #### Scenario: Department icons ride the seed
 
@@ -37,5 +50,5 @@ roles):
 #### Scenario: Icon migration re-execution is a no-op
 
 - **WHEN** the V36 statements re-run on an already-migrated database
-- **THEN** no W row is added or altered (the `icon <>` guard makes every UPDATE a
-  row-count no-op) and the icons stay `radiology` / `us` / `endo`
+- **THEN** no W row is added or altered (the `IS DISTINCT FROM` guard makes every
+  UPDATE a row-count no-op) and the icons stay `radiology` / `us` / `endo`
