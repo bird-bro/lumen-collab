@@ -867,6 +867,31 @@ export interface RepTempNode {
   children: RepTempNode[];
 }
 
+/** One measure row of a structured template section (batch-1 content model; code is the report-domain stable anchor, label the display name). */
+export interface RepTempMeasure {
+  code: string;
+  label: string;
+  unit: string | null;
+  normal: string | null;
+}
+
+/** One section of a structured template (节名 free text; 内镜-style sections may carry no measures). */
+export interface RepTempSection {
+  name: string;
+  finding: string | null;
+  measures: RepTempMeasure[];
+}
+
+/**
+ * Structured template content (`rep_temp.content` jsonb, D2 shape; version is
+ * pinned to 1 server-side - it only pre-reserves future structure evolution).
+ */
+export interface RepTempContent {
+  version: number;
+  sections: RepTempSection[];
+  impression: string | null;
+}
+
 /** Template row (`GET /setting/rep-temps/page` - flag=1 files under one parent). */
 export interface RepTemp {
   id: number;
@@ -878,6 +903,8 @@ export interface RepTemp {
   name: string;
   finding: string | null;
   impression: string | null;
+  /** D1 互斥: content != null = structured (prose columns unread/NULL); null = prose. */
+  content: RepTempContent | null;
   createTime?: string;
 }
 
@@ -889,6 +916,8 @@ export interface CreateRepTempBody {
   name: string;
   finding?: string | null;
   impression?: string | null;
+  /** null/absent = prose; structured templates carry the D2 content object. Directories (flag=0) never carry it (D8). */
+  content?: RepTempContent | null;
 }
 
 /**
@@ -902,6 +931,8 @@ export interface UpdateRepTempBody {
   name: string;
   finding?: string | null;
   impression?: string | null;
+  /** Full-replace: content null = prose (a structured row converts destructively, spec-declared); directories never carry it (D8). */
+  content?: RepTempContent | null;
 }
 
 export interface RepTempPageQuery {
