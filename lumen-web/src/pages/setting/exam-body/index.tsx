@@ -447,7 +447,7 @@ export default function ExamBodyPage() {
                 aria-label="检查类型"
                 style={{ width: 120 }}
                 value={modality || undefined}
-                onDropdownVisibleChange={(open) => setModalityOpen(open)}
+                onOpenChange={(open) => setModalityOpen(open)}
                 onChange={(value) => {
                   setModality(value)
                   setSelectedGroupId(null)
