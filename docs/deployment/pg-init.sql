@@ -51,5 +51,6 @@ CREATE SCHEMA IF NOT EXISTS integration;
 -- GRANT USAGE ON SCHEMA system TO lumen_patient_role;
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON system.menu_info, system.role_menu
 --   TO lumen_patient_role;
--- GRANT USAGE, SELECT ON SEQUENCE system.menu_info_id_seq, system.role_menu_id_seq
+-- GRANT USAGE, SELECT, UPDATE ON SEQUENCE system.menu_info_id_seq, system.role_menu_id_seq
 --   TO lumen_patient_role;
+-- （UPDATE 不可省：V2 的 setval 尾要求序列 UPDATE 权限，缺了会在迁移第 7 句半途失败）

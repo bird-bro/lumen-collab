@@ -353,6 +353,40 @@ class PatientApiTests extends PatientApiTestBase {
     }
 
     @Test
+    void activatingASecondRuleForOneTypeViaUpdateConflicts() throws Exception {
+        long ts = stamp();
+        String ruleType = PatientB4Fixtures.RULE_TYPE_MARKER + ts;
+        int first = createRule(ruleType);
+        PatientB4Fixtures.registerRule(first);
+
+        // a second INACTIVE rule for the same type is legal to create
+        JsonNode dormant = parse(exchangeJson(HttpMethod.POST, RULES_URL,
+                "{\"ruleType\":\"" + ruleType + "\",\"serialLength\":4,\"isStamp\":0,\"active\":0}",
+                fullPermToken()));
+        assertEquals("200", dormant.path("code").asText(),
+                "an inactive second rule must create: " + dormant);
+        int secondId = dormant.path("data").asInt(-1);
+        assertTrue(secondId > 0, "the inactive rule must return its id");
+        PatientB4Fixtures.registerRule(secondId);
+
+        // activating it via PUT must hit the same A0714 conflict as a create would
+        JsonNode rejected = parse(exchangeJson(HttpMethod.PUT, RULES_URL + "/" + secondId,
+                "{\"ruleType\":\"" + ruleType + "\",\"serialLength\":4,\"isStamp\":0,\"active\":1}",
+                fullPermToken()));
+        assertEquals("A0714", rejected.path("code").asText(),
+                "activating a second active rule via update must reject A0714: " + rejected);
+        assertTrue(rejected.path("msg").asText().contains(ruleType)
+                        && rejected.path("msg").asText().contains(String.valueOf(first)),
+                "the conflict detail must name the type and the existing rule: " + rejected);
+        Integer activeCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM patient_number_rule "
+                        + "WHERE rule_type = ? AND active = 1 AND deleted = 0",
+                Integer.class, ruleType);
+        assertEquals(Integer.valueOf(1), activeCount,
+                "exactly one active rule for the type must survive the rejected update");
+    }
+
+    @Test
     void invalidRulePayloadRejectsWithFieldA0400() throws Exception {
         long ts = stamp();
         JsonNode rejected = parse(exchangeJson(HttpMethod.POST, RULES_URL,

@@ -61,7 +61,11 @@ public class PatientNumberRuleServiceImpl implements PatientNumberRuleService {
         BeanUtil.copyProperties(request, rule, true);
         applyStampDefault(request.getIsStamp(), request.getStamp(), rule);
 
-        PatientNumberRule existing = activeRuleOfType(rule.getRuleType(), null);
+        // the A0714 conflict fires only when the incoming rule ACTIVATES - an inactive
+        // rule may coexist with the active one (spec: "two rules exist for pat_id with
+        // one active"); update's check gates identically
+        PatientNumberRule existing = Integer.valueOf(1).equals(request.getActive())
+                ? activeRuleOfType(rule.getRuleType(), null) : null;
         if (existing != null) {
             throw activeConflict(rule.getRuleType(), existing);
         }
@@ -101,7 +105,17 @@ public class PatientNumberRuleServiceImpl implements PatientNumberRuleService {
         BeanUtil.copyProperties(request, patch, true);
         applyStampDefault(request.getIsStamp(), request.getStamp(), patch);
         patch.setId(id);
-        patientNumberRuleMapper.updateById(patch);
+        try {
+            patientNumberRuleMapper.updateById(patch);
+        } catch (DuplicateKeyException e) {
+            // index backstop: a concurrent activation of the same type passed the
+            // in-service check - re-throw the SAME A0714 payload (create's b4 pattern)
+            PatientNumberRule concurrent = activeRuleOfType(request.getRuleType(), null);
+            if (concurrent != null) {
+                throw activeConflict(request.getRuleType(), concurrent);
+            }
+            throw e;
+        }
         return Boolean.TRUE;
     }
 

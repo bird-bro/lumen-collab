@@ -119,19 +119,15 @@ public class PatientController {
      * the request body (a client-supplied issuer is spoofable).
      */
     private Integer principalOid() {
-        try {
-            if (SecurityUtils.getAuthentication() == null
-                    || !(SecurityUtils.getAuthentication().getPrincipal() instanceof UserLogin)) {
-                return null;
-            }
-            UserLogin login = (UserLogin) SecurityUtils.getAuthentication().getPrincipal();
-            UserSign user = login.getUser();
-            if (user == null || user.getEntry() == null) {
-                return null;
-            }
-            return user.getEntry().getOid();
-        } catch (Exception e) {
+        if (SecurityUtils.getAuthentication() == null
+                || !(SecurityUtils.getAuthentication().getPrincipal() instanceof UserLogin)) {
             return null;
         }
+        UserLogin login = (UserLogin) SecurityUtils.getAuthentication().getPrincipal();
+        UserSign user = login.getUser();
+        if (user == null || user.getEntry() == null) {
+            return null;
+        }
+        return user.getEntry().getOid();
     }
 }
