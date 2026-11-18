@@ -1,0 +1,15 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: applying
+change: patient-domain
+current_task: null
+tasks_total: 17
+tasks_done: 17
+retry_count: 0
+debt_count: 0
+debug_attempts: 0
+workflow_mode: full
+artifacts_hash: a1e8543fa26f5ef5742110d014921384a2559cb7390e750504476a9d7001fe01
+contract_hash: null
+execution_mode: SDD
+batches_completed: 0
+last_updated: 2026-11-17

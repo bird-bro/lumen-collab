@@ -183,11 +183,12 @@ describe('exam-method clients', () => {
 })
 
 describe('exam-item clients', () => {
-  it('pageExamItems GETs /setting/exam-items/page with group/keyword/isCommon filters', async () => {
+  it('pageExamItems GETs /setting/exam-items/page with group/keyword filters (no isCommon)', async () => {
     const page = {
       total: 1,
       records: [{
-        id: 21, modality: 'CT', exam: '胸部CT平扫', code: 'XBCT', bodyId: 9,
+        id: 21, modality: 'CT', exam: '胸部CT平扫', code: 'XBCT', externalCode: 'HIS-CT-21',
+        bodyId: 9,
         price: 12.5, rate: 1, tag: 1, scoreRep: 7, scoreAud: 3, isCommon: true,
         sort: 1, enable: 1, remark: null, bodyName: '胸部', groupName: '胸部',
         methodNames: '平扫,增强',
@@ -196,20 +197,21 @@ describe('exam-item clients', () => {
     const fetchMock = stubOk(page)
 
     const result = await pageExamItems({
-      modality: 'CT', groupId: 5, keyword: '胸部', isCommon: true, pageNum: 1, pageSize: 20,
+      modality: 'CT', groupId: 5, keyword: '胸部', pageNum: 1, pageSize: 20,
     })
 
     const { url } = lastCall(fetchMock)
     expect(url).toContain('/api/v1/setting/exam-items/page?')
     expect(url).toContain('groupId=5')
-    expect(url).toContain('isCommon=true')
+    expect(url).not.toContain('isCommon')
     expect(result.records[0]?.methodNames).toBe('平扫,增强')
     expect(result.records[0]?.bodyName).toBe('胸部')
   })
 
   it('getExamItem returns the display-resolved VO; CRUD verbs round-trip', async () => {
     const item = {
-      id: 21, modality: 'CT', exam: '胸部CT平扫', code: 'XBCT', bodyId: 9,
+      id: 21, modality: 'CT', exam: '胸部CT平扫', code: 'XBCT', externalCode: null,
+      bodyId: 9,
       price: null, rate: null, tag: null, scoreRep: null, scoreAud: null,
       isCommon: false, sort: null, enable: 1, remark: null,
       bodyName: '胸部', groupName: '胸部', methodNames: '',
@@ -220,21 +222,23 @@ describe('exam-item clients', () => {
 
     const postMock = stubOk(22)
     expect(await createExamItem({
-      modality: 'CT', exam: '头颅CT', code: null, bodyId: 10,
+      modality: 'CT', exam: '头颅CT', code: null, externalCode: 'HIS-CT-22', bodyId: 10,
       methodIds: [3, 4], price: 30, rate: null, tag: null,
       scoreRep: null, scoreAud: null, isCommon: false, sort: null, enable: 1, remark: null,
     })).toBe(22)
     const { init } = lastCall(postMock)
     expect(init.method).toBe('POST')
     expect(JSON.parse(String(init.body)).methodIds).toEqual([3, 4])
+    expect(JSON.parse(String(init.body)).externalCode).toBe('HIS-CT-22')
 
     const putMock = stubOk(true)
     await updateExamItem(21, {
-      modality: 'CT', exam: '胸部CT平扫改', code: null, bodyId: 9,
+      modality: 'CT', exam: '胸部CT平扫改', code: null, externalCode: null, bodyId: 9,
       methodIds: [4], price: null, rate: null, tag: null,
       scoreRep: null, scoreAud: null, isCommon: true, sort: null, enable: 1, remark: null,
     })
     expect(lastCall(putMock).init.method).toBe('PUT')
+    expect(JSON.parse(String(lastCall(putMock).init.body)).externalCode).toBeNull()
 
     const deleteMock = stubOk(true)
     await deleteExamItem(21)

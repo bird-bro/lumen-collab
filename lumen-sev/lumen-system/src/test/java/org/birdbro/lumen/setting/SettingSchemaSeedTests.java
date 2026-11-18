@@ -45,8 +45,8 @@ class SettingSchemaSeedTests extends SettingIntegrationTestBase {
     private static final String[] METHOD_COLUMNS = {
             "id", "modality", "name", "code", "sort", "enable"};
     private static final String[] ITEM_COLUMNS = {
-            "id", "modality", "exam", "code", "body_id", "price", "rate", "tag",
-            "score_rep", "score_aud", "is_common", "sort", "enable", "remark"};
+            "id", "modality", "exam", "code", "external_code", "body_id", "price", "rate",
+            "tag", "score_rep", "score_aud", "is_common", "sort", "enable", "remark"};
     private static final String[] ITEM_METHOD_COLUMNS = {
             "id", "exam_id", "method_id"};
     private static final String[] TEMP_COLUMNS = {
@@ -76,6 +76,30 @@ class SettingSchemaSeedTests extends SettingIntegrationTestBase {
                 "score_rep is an optional weight - NULL excludes the item from scoring");
         assertEquals("YES", columnNullability("rep_temp", "owner_uid"),
                 "rep_temp.owner_uid is NULL for public rows, set for private rows");
+    }
+
+    @Test
+    void externalMappingCodeColumnStaysNullableAndUnindexed() {
+        // V37 (exam-item-external-code-sev): the generic external mapping code is an
+        // OPTIONAL anchor - nullable varchar(32) with NO unique index. 打包计费 (one
+        // HIS charge item ↔ several catalog items) is a legal multi-to-one mapping,
+        // in deliberate contrast to the院内 code's live-row partial unique index.
+        assertEquals("YES", columnNullability("exam_item", "external_code"),
+                "external_code must stay nullable - external mapping is optional");
+        Integer length = jdbcTemplate.queryForObject(
+                "SELECT character_maximum_length FROM information_schema.columns "
+                        + "WHERE table_schema = 'system' AND table_name = 'exam_item' "
+                        + "AND column_name = 'external_code'",
+                Integer.class);
+        assertEquals(Integer.valueOf(32), length,
+                "external_code must be varchar(32), aligned with the院内 code");
+        Integer uniqueOnExternal = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'system' "
+                        + "AND tablename = 'exam_item' AND indexdef LIKE '%UNIQUE%' "
+                        + "AND indexdef LIKE '%external_code%'",
+                Integer.class);
+        assertEquals(0, uniqueOnExternal.intValue(),
+                "external_code must carry NO unique index (打包计费 multi-to-one is legal)");
     }
 
     @Test

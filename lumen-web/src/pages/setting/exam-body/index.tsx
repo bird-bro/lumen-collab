@@ -409,7 +409,8 @@ export default function ExamBodyPage() {
     { title: '部位', key: 'name', render: (_, node) => node.name },
     {
       // 编码 header (user request 2026-11-16; the drawer label stays 部位编码),
-      // centered alongside 排序/创建时间.
+      // centered; 创建时间 left the list (2026-11-17 - the catalogs are
+      // initialization-imported data).
       title: '编码',
       key: 'code',
       align: 'center',
@@ -420,8 +421,10 @@ export default function ExamBodyPage() {
           '—'
         ),
     },
-    { title: '排序', key: 'sort', align: 'center', render: (_, node) => node.sort ?? '—' },
-    { title: '创建时间', key: 'time', align: 'center', render: (_, node) => node.createTime ?? '—' },
+    // 排序 left the table (user ruling 2026-11-16 - the drawer field stays);
+    // the 备注 column (user request 2026-11-16) takes its slot, prose-aligned
+    // and ellipsis-truncated per the roles-page idiom.
+    { title: '备注', key: 'remark', ellipsis: true, render: (_, node) => node.remark ?? '—' },
   ]
 
   return (

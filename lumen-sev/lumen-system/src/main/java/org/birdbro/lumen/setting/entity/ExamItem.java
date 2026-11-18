@@ -47,6 +47,14 @@ public class ExamItem extends EntityBase {
     /** 项目编码, unique within the modality among live rows when present. */
     private String code;
 
+    /**
+     * 对照编码 - the external-system mapping anchor (HIS is the first consumer;
+     * the future lumen-integration HL7v2 route reads it). Optional, varchar(32),
+     * deliberately NOT unique: 打包计费 (one HIS charge item ↔ several catalog
+     * items) is a legal multi-to-one mapping (exam-item-external-code, 2026-11-17).
+     */
+    private String externalCode;
+
     /** 检查部位 (exam_body.id, NOT NULL, convention reference). */
     private Integer bodyId;
 

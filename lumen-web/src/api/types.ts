@@ -808,6 +808,8 @@ export interface ExamItem {
   modality: string;
   exam: string;
   code: string | null;
+  /** 对照编码 - external-system mapping anchor (HIS first; NOT unique, 打包计费 legal). */
+  externalCode: string | null;
   bodyId: number;
   price: number | null;
   rate: number | null;
@@ -831,6 +833,7 @@ export interface CreateExamItemBody {
   modality: string;
   exam: string;
   code?: string | null;
+  externalCode?: string | null;
   bodyId: number;
   methodIds?: number[];
   price?: number | null;
@@ -853,7 +856,6 @@ export interface ExamItemPageQuery {
   modality: string;
   groupId?: number;
   keyword?: string;
-  isCommon?: boolean;
 }
 
 /** Template tree node (`GET /setting/rep-temps/tree`) - the server's node map shape. */

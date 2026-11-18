@@ -1,4 +1,4 @@
-import { Button, Checkbox, Drawer, Form, Input, InputNumber, Popconfirm, Select, Switch, Tag, message, theme } from 'antd'
+import { Button, Col, Drawer, Form, Input, InputNumber, Popconfirm, Row, Select, Switch, Tag, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useState } from 'react'
 import {
@@ -34,20 +34,35 @@ import {
 
 /**
  * 检查项目 page (exam-setting-web task 5.1; spec delta `web-system-console`
- * § Exam Item Page). The filter bar (检查类型 / 部位分组 / 常用项目 / 关键词)
- * pages server-side; the table renders the SERVER-RESOLVED display names
- * (bodyName/groupName/methodNames - D2, no client joins). The drawer's
- * 部位分组 → 检查部位 cascade reloads the body options and CLEARS the stale body
- * on group change (the spec scenario); 检查方法 is a multi-select bound to the
- * ID array (the join table, not RCP's comma string); the numeric fields carry
- * the billing block + the performance-score weights (空 = 不计), and 常用项目
- * is the isCommon switch.
+ * § Exam Item Page). The filter bar (检查类型 / 部位分组 / 关键词 — the 常用项目
+ * toggle retired by exam-item-polish-web) pages server-side; the table renders the
+ * SERVER-RESOLVED display names (bodyName/groupName/methodNames - D2, no client
+ * joins) plus the ellipsized 备注 column. The 2026-11-17 list polish
+ * (exam-item-table-polish-web): 项目名称/项目编码 collapse into ONE 项目 cell (the
+ * in-hospital code stacks on the SECOND line in the tertiary small font - the
+ * deps 科室 idiom), the external column reads 对照码,
+ * 诊断计费数量 reads 计费数量, the count/score columns center, and 创建时间 leaves
+ * the list (initialization-imported catalog data reads no create time) - the drawer
+ * keeps the list. The 2026-11-17 drawer review re-orders the form: 编码 (now
+ * REQUIRED) → 名称 (60-char cap) lead, 对照码 moves BELOW 检查方法, 排序 takes its
+ * own row, the numeric band narrows to 单价/折扣/计费数量 (3-up), and 常用项目
+ * closes BELOW 备注 (label left / switch right; round-4 revert). The ops column rides the shell
+ * chrome: delete glyph on 删除 + the refresh affordance in the 操作 header.
+ * The drawer's 部位分组 → 检查部位 cascade
+ * reloads the body options and CLEARS the stale body on group change (the spec
+ * scenario); 检查方法 is a multi-select bound to the ID array (the join table, not
+ * RCP's comma string); the 常用项目 flag is an option line (menus 是否显示 pattern,
+ * 2026-11-17 amendment - label + switch on one row between 检查方法 and the numeric
+ * bands); the tail bands the small fields with real labels — 排序 joins
+ * 单价/折扣/诊断计费数量 as a 4-up band, 诊断得分/审核得分 ride a labeled band
+ * (留空 = 不计), 备注 closes the form.
  */
 
 const DICT_MODALITY = '检查类型'
 
 interface ItemFormValues {
   code?: string
+  externalCode?: string
   exam: string
   groupId?: number
   bodyId?: number
@@ -70,7 +85,6 @@ export default function ExamItemPage() {
   const [modalityOpts, setModalityOpts] = useState<DictItem[]>([])
   const [modality, setModality] = useState<string>('')
   const [groupId, setGroupId] = useState<number | undefined>(undefined)
-  const [commonOnly, setCommonOnly] = useState(false)
   const [keyword, setKeyword] = useState('')
 
   const [groups, setGroups] = useState<ExamBodyGroup[]>([])
@@ -93,7 +107,6 @@ export default function ExamItemPage() {
     async (query: {
       modality: string
       groupId?: number
-      isCommon?: boolean
       keyword?: string
       pageNum: number
       pageSize: number
@@ -151,21 +164,19 @@ export default function ExamItemPage() {
       void load({
         modality,
         groupId,
-        isCommon: commonOnly || undefined,
         keyword: keyword || undefined,
         pageNum,
         pageSize,
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modality, groupId, commonOnly, pageNum, pageSize])
+  }, [modality, groupId, pageNum, pageSize])
 
   const search = () => {
     setPageNum(1)
     void load({
       modality,
       groupId,
-      isCommon: commonOnly || undefined,
       keyword: keyword || undefined,
       pageNum: 1,
       pageSize,
@@ -200,6 +211,7 @@ export default function ExamItemPage() {
       setDrawerGroupId(currentNode?.groupId)
       form.setFieldsValue({
         code: detail.code ?? undefined,
+        externalCode: detail.externalCode ?? undefined,
         exam: detail.exam,
         groupId: currentNode?.groupId,
         bodyId: detail.bodyId,
@@ -245,6 +257,7 @@ export default function ExamItemPage() {
           modality: editing.modality,
           exam: values.exam,
           code: values.code ?? null,
+          externalCode: values.externalCode ?? null,
           bodyId: values.bodyId,
           methodIds: values.methodIds ?? [],
           price: values.price ?? null,
@@ -263,6 +276,7 @@ export default function ExamItemPage() {
           modality,
           exam: values.exam,
           code: values.code ?? null,
+          externalCode: values.externalCode ?? null,
           bodyId: values.bodyId,
           methodIds: values.methodIds ?? [],
           price: values.price ?? null,
@@ -281,7 +295,6 @@ export default function ExamItemPage() {
       await load({
         modality,
         groupId,
-        isCommon: commonOnly || undefined,
         keyword: keyword || undefined,
         pageNum,
         pageSize,
@@ -306,7 +319,6 @@ export default function ExamItemPage() {
       await load({
         modality,
         groupId,
-        isCommon: commonOnly || undefined,
         keyword: keyword || undefined,
         pageNum,
         pageSize,
@@ -317,13 +329,41 @@ export default function ExamItemPage() {
   }
 
   const columns: TableColumnsType<ExamItem> = [
-    { title: '项目名称', dataIndex: 'exam', key: 'exam', ellipsis: true },
     {
-      title: '项目编码',
-      dataIndex: 'code',
-      key: 'code',
-      render: (code: string | null) =>
-        code ? <span style={{ color: token.colorTextTertiary }}>{code}</span> : '—',
+      // 项目 (2026-11-17 header polish; user review - the cell STACKS two lines
+      // like the deps 科室 / roles 创建人 idiom): the name truncates on the first
+      // line, the in-hospital 编码 rides the SECOND line in the tertiary small
+      // font; null codes render the name alone (no empty second line). No
+      // column-level ellipsis - the spans truncate individually.
+      title: '项目',
+      dataIndex: 'exam',
+      key: 'exam',
+      render: (_, row) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {row.exam}
+          </span>
+          {row.code ? (
+            <span
+              style={{
+                fontSize: token.fontSizeSM,
+                lineHeight: '18px',
+                color: token.colorTextTertiary,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {row.code}
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      title: '对照码',
+      dataIndex: 'externalCode',
+      key: 'externalCode',
+      render: (externalCode: string | null) =>
+        externalCode ? <span style={{ color: token.colorTextTertiary }}>{externalCode}</span> : '—',
     },
     { title: '检查部位', dataIndex: 'bodyName', key: 'bodyName', ellipsis: true },
     {
@@ -340,6 +380,7 @@ export default function ExamItemPage() {
       title: '单价（元）',
       dataIndex: 'price',
       key: 'price',
+      width: 110,
       align: 'right',
       render: (price: number | null) =>
         price != null ? price.toFixed(2) : '—',
@@ -348,41 +389,36 @@ export default function ExamItemPage() {
       title: '折扣',
       dataIndex: 'rate',
       key: 'rate',
+      width: 100,
       align: 'right',
       render: (rate: number | null) => (rate != null ? rate.toFixed(2) : '—'),
     },
-    { title: '诊断计费数量', dataIndex: 'tag', key: 'tag', align: 'right', render: (tag: number | null) => tag ?? '—' },
+    // Column widths (2026-11-17 review round 3): 单价 110, the rest of the
+    // numeric band unified at 100 (house band 70-120) - 备注/项目 keep the flex
+    // space.
+    { title: '计费数量', dataIndex: 'tag', key: 'tag', width: 100, align: 'center', render: (tag: number | null) => tag ?? '—' },
     {
       title: '诊断得分',
       dataIndex: 'scoreRep',
       key: 'scoreRep',
-      align: 'right',
+      width: 100,
+      align: 'center',
       render: (score: number | null) => score ?? '—',
     },
     {
       title: '审核得分',
       dataIndex: 'scoreAud',
       key: 'scoreAud',
-      align: 'right',
+      width: 100,
+      align: 'center',
       render: (score: number | null) => score ?? '—',
     },
-    { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 170 },
     {
-      title: '操作',
-      key: 'ops',
-      width: 130,
-      render: (_, row) => (
-        <>
-          {hasPerm('setting:item:update') && (
-            <ConsoleAction label="编辑" onClick={() => void openEdit(row)} />
-          )}
-          {hasPerm('setting:item:delete') && (
-            <Popconfirm title={`确定删除项目“${row.exam}”？`} onConfirm={() => void remove(row)}>
-              <ConsoleAction label="删除" danger onClick={() => undefined} />
-            </Popconfirm>
-          )}
-        </>
-      ),
+      title: '备注',
+      dataIndex: 'remark',
+      key: 'remark',
+      ellipsis: true,
+      render: (remark: string | null) => remark || '—',
     },
   ]
 
@@ -413,15 +449,6 @@ export default function ExamItemPage() {
             onChange={(value) => setGroupId(value)}
             options={groups.map((group) => ({ value: group.id, label: group.name }))}
           />
-          <Checkbox
-            checked={commonOnly}
-            onChange={(event) => {
-              setCommonOnly(event.target.checked)
-              setPageNum(1)
-            }}
-          >
-            常用项目
-          </Checkbox>
           <Input
             aria-label="关键词"
             style={{ width: 200 }}
@@ -437,6 +464,28 @@ export default function ExamItemPage() {
           loading={loading}
           columns={columns}
           dataSource={rows}
+          // Shared ops chrome (2026-11-17 review): the verbs move onto the
+          // shell's action column - 删除 carries the delete glyph (it rode
+          // ConsoleAction's edit-glyph default) and the 操作 header gains the
+          // right-edge refresh affordance re-running the current page query.
+          onRefresh={() =>
+            void load({ modality, groupId, keyword: keyword || undefined, pageNum, pageSize })
+          }
+          actions={{
+            width: 130,
+            render: (row) => (
+              <>
+                {hasPerm('setting:item:update') && (
+                  <ConsoleAction label="编辑" onClick={() => void openEdit(row)} />
+                )}
+                {hasPerm('setting:item:delete') && (
+                  <Popconfirm title={`确定删除项目“${row.exam}”？`} onConfirm={() => void remove(row)}>
+                    <ConsoleAction label="删除" icon="remove" danger onClick={() => undefined} />
+                  </Popconfirm>
+                )}
+              </>
+            ),
+          }}
         />
         <ConsolePagination
           current={pageNum}
@@ -486,15 +535,22 @@ export default function ExamItemPage() {
               {editing ? editing.modality : modality}
             </Tag>
           </div>
-          <Form.Item name="code" label="项目编码">
+          {/* 编码 REQUIRED (2026-11-17 drawer review): the in-hospital code is
+              the operational key (modality-scoped uniqueness + keyword search);
+              the label shortens with the list headers. */}
+          <Form.Item
+            name="code"
+            label="编码"
+            rules={[{ required: true, message: '编码不能为空' }]}
+          >
             <Input maxLength={32} />
           </Form.Item>
           <Form.Item
             name="exam"
-            label="项目名称"
-            rules={[{ required: true, message: '项目名称不能为空' }]}
+            label="名称"
+            rules={[{ required: true, message: '名称不能为空' }]}
           >
-            <Input.TextArea maxLength={50} rows={2} showCount />
+            <Input.TextArea maxLength={60} rows={2} showCount />
           </Form.Item>
           <Form.Item name="groupId" label="部位分组" rules={[{ required: true, message: '请选择部位分组' }]}>
             <Select
@@ -524,38 +580,66 @@ export default function ExamItemPage() {
               options={methodOptions.map((method) => ({ value: method.id, label: method.name }))}
             />
           </Form.Item>
+          {/* 对照码 (2026-11-17 drawer review): renamed and moved BELOW 检查方法 -
+              the external mapping anchor reads after the clinical fields, no
+              longer paired with the in-hospital code (exam-item-external-code-web
+              pairing retired). Optional; the backend carries NO uniqueness
+              (打包计费 multi-to-one). */}
+          <Form.Item name="externalCode" label="对照码">
+            <Input maxLength={32} />
+          </Form.Item>
+          {/* 排序 on its own row (2026-11-17 drawer review - it left the numeric
+              band); full-width per the group-drawer precedent. */}
           <Form.Item name="sort" label="排序">
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item label="计费与绩效权重（空 = 不计）">
-            <Input.Group compact>
-              <Form.Item name="price" noStyle>
-                <InputNumber min={0} step={0.01} placeholder="单价（元）" style={{ width: '25%' }} />
+          {/* Banded tail (2026-11-17 drawer review): the numeric band narrows to
+              单价/折扣/计费数量 (3-up, real labels); 诊断得分/审核得分 keep their
+              labeled band (留空 = 不计). */}
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="price" label="单价（元）">
+                <InputNumber min={0} step={0.01} style={{ width: '100%' }} />
               </Form.Item>
-              <Form.Item name="rate" noStyle>
-                <InputNumber min={0} max={1} step={0.01} placeholder="折扣" style={{ width: '25%' }} />
+            </Col>
+            <Col span={8}>
+              <Form.Item name="rate" label="折扣">
+                <InputNumber min={0} max={1} step={0.01} style={{ width: '100%' }} />
               </Form.Item>
-              <Form.Item name="tag" noStyle>
-                <InputNumber min={1} step={1} placeholder="诊断计费数量" style={{ width: '25%' }} />
+            </Col>
+            <Col span={8}>
+              <Form.Item name="tag" label="计费数量">
+                <InputNumber min={1} step={1} style={{ width: '100%' }} />
               </Form.Item>
-            </Input.Group>
-          </Form.Item>
-          <Form.Item label="绩效得分权重">
-            <Input.Group compact>
-              <Form.Item name="scoreRep" noStyle>
-                <InputNumber min={0} placeholder="诊断得分" style={{ width: '50%' }} />
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="scoreRep" label="诊断得分" tooltip="留空 = 不计">
+                <InputNumber min={0} style={{ width: '100%' }} />
               </Form.Item>
-              <Form.Item name="scoreAud" noStyle>
-                <InputNumber min={0} placeholder="审核得分" style={{ width: '50%' }} />
+            </Col>
+            <Col span={12}>
+              <Form.Item name="scoreAud" label="审核得分" tooltip="留空 = 不计">
+                <InputNumber min={0} style={{ width: '100%' }} />
               </Form.Item>
-            </Input.Group>
-          </Form.Item>
+            </Col>
+          </Row>
           <Form.Item name="remark" label="备注">
             <Input.TextArea rows={4} maxLength={255} style={{ minHeight: 32 }} />
           </Form.Item>
-          <Form.Item label="常用项目" valuePropName="checked" name="isCommon" initialValue={false}>
-            <Switch />
-          </Form.Item>
+          {/* 常用项目 closes the form BELOW 备注 (round 4 revert - the round-3
+              spot above 备注 read worse): label pinned left, switch pinned right
+              (space-between) so the flag reads across the full row width. */}
+          <div
+            data-item-common-row
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <label htmlFor="isCommon">常用项目</label>
+            <Form.Item name="isCommon" valuePropName="checked" initialValue={false} noStyle>
+              <Switch id="isCommon" />
+            </Form.Item>
+          </div>
         </Form>
       </Drawer>
     </ConsolePage>

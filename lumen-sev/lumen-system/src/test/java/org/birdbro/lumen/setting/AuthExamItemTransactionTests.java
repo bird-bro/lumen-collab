@@ -80,9 +80,12 @@ class AuthExamItemTransactionTests extends SettingIntegrationTestBase {
             return 1;
         });
 
+        // The payload must VALIDATE cleanly (is_common is NOT NULL since V29 - an
+        // omitted isCommon dies on the constraint BEFORE the binding rewrite, which
+        // would vacuously pass this test without ever reaching the injected failure).
         ResponseEntity<String> failed = exchangeJson(HttpMethod.PUT, ITEMS_URL + "/" + item,
                 body("{\"modality\":\"CT\",\"bodyId\":" + body + ",\"exam\":\"ut_exi_改项目_"
-                        + ts + "\",\"methodIds\":[" + m1 + "," + m2 + "],\"enable\":1}"),
+                        + ts + "\",\"methodIds\":[" + m1 + "," + m2 + "],\"isCommon\":false,\"enable\":1}"),
                 fullPermToken());
         assertTrue(!"200".equals(parse(failed).path("code").asText()),
                 "the injected failure must surface: " + failed);

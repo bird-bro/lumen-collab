@@ -44,7 +44,7 @@ const BODIES: BodyTreeNode[] = [
   {
     id: 9, modality: 'CT', groupId: 1, upId: null, name: '胸部', code: 'XB',
     sort: 1, enable: 1, remark: null, children: [
-      { id: 10, modality: 'CT', groupId: 1, upId: 9, name: '肺', code: 'XB-F', sort: 2, enable: 1, remark: null, children: [] },
+      { id: 10, modality: 'CT', groupId: 1, upId: 9, name: '肺', code: 'XB-F', sort: 2, enable: 1, remark: '含左肺与右肺', children: [] },
     ],
   },
   // second root - the prune-to-match filter must drop it on a 肺 keyword
@@ -283,7 +283,7 @@ describe('exam body page - right table polish (2026-11-16)', () => {
     ).not.toBeNull()
   })
 
-  it('centers 编码 / 排序 / 创建时间 and keeps 部位 default-aligned', async () => {
+  it('centers 编码, keeps 部位 / 备注 default-aligned, drops 排序 and 创建时间', async () => {
     renderPage()
     await screen.findByText('肺')
     const table = bodiesTable()
@@ -291,16 +291,21 @@ describe('exam body page - right table polish (2026-11-16)', () => {
     expect(within(table).getByRole('columnheader', { name: '编码' })).toHaveStyle({
       textAlign: 'center',
     })
-    expect(within(table).getByRole('columnheader', { name: '排序' })).toHaveStyle({
-      textAlign: 'center',
-    })
-    expect(within(table).getByRole('columnheader', { name: '创建时间' })).toHaveStyle({
-      textAlign: 'center',
-    })
+    // 创建时间 left the list (2026-11-17 - initialization-imported catalog data
+    // reads no create time); the payload keeps the audit field.
+    expect(within(table).queryByRole('columnheader', { name: '创建时间' })).toBeNull()
     // unspecified columns keep AntD's default (no inline center)
     expect(within(table).getByRole('columnheader', { name: '部位' })).not.toHaveStyle({
       textAlign: 'center',
     })
+    expect(within(table).getByRole('columnheader', { name: '备注' })).not.toHaveStyle({
+      textAlign: 'center',
+    })
+    // 排序 left the table (user ruling 2026-11-16); the drawer field stays.
+    expect(within(table).queryByRole('columnheader', { name: '排序' })).toBeNull()
+
+    // 备注 column (user request 2026-11-16): row remarks render verbatim.
+    expect(within(table).getByText('含左肺与右肺')).toBeTruthy()
 
     const lungRow = screen.getByText('肺').closest('tr') as HTMLElement
     expect(within(lungRow).getByText('XB-F').closest('td')).toHaveStyle({ textAlign: 'center' })

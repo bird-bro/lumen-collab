@@ -144,6 +144,32 @@ describe('exam method page - filters and table', () => {
       )
     })
   })
+
+  it('retires the 创建时间 column (2026-11-17 - initialization-imported data reads no create time)', async () => {
+    renderPage()
+    await screen.findByText('平扫')
+
+    expect(screen.queryByRole('columnheader', { name: '创建时间' })).toBeNull()
+  })
+
+  it('rides the shell ops chrome: refresh in the 操作 header, delete glyph on 删除', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('平扫')
+
+    const refresh = screen.getByRole('button', { name: '刷新列表' })
+    expect(within(refresh.closest('th') as HTMLElement).getByText('操作')).toBeTruthy()
+    vi.mocked(methodApi.pageExamMethods).mockClear()
+    await user.click(refresh)
+    await waitFor(() => {
+      expect(methodApi.pageExamMethods).toHaveBeenCalled()
+    })
+
+    const row = screen.getByText('平扫').closest('tr') as HTMLElement
+    expect(
+      within(row).getByRole('button', { name: '删除' }).querySelector('.anticon-delete'),
+    ).not.toBeNull()
+  })
 })
 
 describe('exam method page - create/edit/delete round-trips', () => {

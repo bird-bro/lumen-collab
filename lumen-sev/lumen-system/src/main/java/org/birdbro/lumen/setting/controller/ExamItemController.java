@@ -78,7 +78,7 @@ public class ExamItemController {
         return examItemService.getById(id);
     }
 
-    /** Paginated item table (modality/分组/keyword/isCommon filters, display-resolved). */
+    /** Paginated item table (modality/分组/keyword filters, display-resolved). */
     @ApiOperation("检查项目分页列表")
     @GetMapping("/page")
     public IPage<ItemVO> page(ItemPageQuery query) {

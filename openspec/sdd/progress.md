@@ -736,3 +736,179 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
   Process notes: implementer subagents abandoned after repeated API timeouts (B3/B4/web
   driven directly by the parent session); two stale-surefire-report footguns recorded;
   -am stale-jar footgun recorded in b3 report.
+
+---
+
+# Change: patient-domain
+## Execution Mode: SDD
+## Started: 2026-11-17
+## Base: 537c514 (branch: dev)
+
+### Preflight (2026-11-17)
+- Contract fresh (hash 697d708b), ensure-branch PASS (dev), DP-3 = explicit /opsx:apply
+  invocation. workflow_mode: full, execution_mode: SDD. tasks_total corrected 18→17
+  (tasks.md has 17 checkboxes; CLI count confirmed).
+- Coordinator schema clarifications pinned pre-b1: (1) identity columns id_type/id_no
+  live ON patient_master (partial unique index there — only reading consistent with
+  merged_into in the predicate); patient_identifier carries additional numbers only.
+  (2) +stamp_value varchar(16) NULL on patient_number_rule (last-issued stamp token —
+  required by the ruled day-reset; stamp = format, stamp_value = state) + idx rule_type.
+  (3) stamp stores a Java date pattern directly ('yyMMdd' seed) — makes "format is data"
+  literal; avoids the week-year-Y trap. All landed in V1 pre-apply, no repair needed.
+- Working tree carries unrelated parallel-change residue (exam-item* in
+  lumen-sev/lumen-web + openspec/) — ALL batches stage by explicit path only.
+
+### Batch 1: module scaffold + V1 ledger (tasks 1.1-1.3)
+- Status: Implementer DONE (commit 25bca2f; 14 files +1009). Reviewer dispatched.
+- TDD: RED0 module-absent exit 1 → RED1 context boots 3F+1E missing tables → GREEN 5/5
+  exit 0 → L1 compile exit 0 (logs lumen-sev/logs/b1-*.log). Both amendments landed
+  pre-V1-write. Judgment call: patient_master.name varchar(64) (user_info.name
+  precedent).
+- Batch 1 review: APPROVED (0 Critical / 0 Important / 1 minor carry-forward).
+  Independent re-run 5/5 exit 0 on real PG; DDL verified 1:1 vs binding map incl. both
+  amendments; stub rationale verified against JwtAuthenticationTokenFilter claims path.
+  Minor → b3 brief amended: id_no present WITHOUT id_type must be service-rejected
+  (index predicate doesn't pin id_type — NULL-distinct PG semantics). Brief's stale
+  'yymmdd' seed reference superseded by amendment 2 ('yyMMdd' — do not resurrect).
+- Batch 1 CLOSED (tasks 1.1-1.3 checked, 3/17).
+
+### Batch 2: entities/mappers + issuance (tasks 2.1-2.3)
+- Status: Implementer DONE (commit 2c97741; 17 files +1070). Reviewer dispatched.
+- TDD: RED exit 1 (missing packages) → GREEN exit 0 → 18/18 patient tests (logs
+  b2-{red1,green1,verify}.log). Shared-DB residue 0, seed rule untouched.
+- Deviations under review: (a) decision 6 landed JacksonTypeHandler+autoResultMap (no
+  fallback) WITH `stringtype=unspecified` added to test-base URL + dev-yml template —
+  DEPLOYMENT REQUIREMENT flagged (prod JDBC URL must carry it or jsonb inserts break);
+  (b) decision 7 A0715 landed additively after A0714 (coordination entry = coordinator).
+- b3 brief amended pre-dispatch with b1-review carry-forward: id_no without id_type →
+  service-rejected (A0410/A0400) + test added.
+- Batch 2 review: APPROVED (0C/1I/3m). Independent re-run 18/18 exit 0. Dispositions:
+  Important (stringtype=unspecified URL foot-gun) → coordinator RULING folded into b3
+  as an amendment: PatientJsonbTypeHandler (JacksonTypeHandler subclass, setObject
+  Types.OTHER — no URL flag) + payload retyped String→Map<String,Object> (REAL jsonb
+  object per spec "payload of the changed archive"; double-encoding wrinkle resolved)
+  + URL flag removed from test base + dev-yml.example. Burn-harness premise assert
+  (isActualTransactionActive) rides b3. D1 wording amendment (REQUIRES_NEW burn)
+  landed in design.md + delta spec + contract, hash refreshed. Ledger-only minors:
+  untested A0400-invalid-stamp branch + stamp_value 16-char cap (widen on demand).
+- Batch 2 CLOSED (tasks 2.1-2.3 checked, 6/17).
+
+### Batch 3: archive/resolve/merge/outbox services (tasks 3.1-3.5)
+- Status: Implementer DONE (commit 9624aaf; 23 files +1870/-29). Reviewer dispatched.
+- TDD: 44/0/0 exit 0 (18 archive + 5 merge + 3 outbox + 13 b1/b2 incl. rewritten jsonb
+  round-trip). Transient test-server outage mid-batch — implementer ran 6/6 stability
+  probes then a clean re-run; coordinator probed PG+Redis UP independently.
+- Amendment landed: PatientJsonbTypeHandler (Types.OTHER, no URL flag), payload
+  String→Map (real jsonb object), stringtype=unspecified removed from test-base URL +
+  dev-yml.example, burn-harness isActualTransactionActive premise assert.
+- Deviations recorded: append signature takes Map<String,Object>; not-found/immutable
+  = B0031/B0003; 3.5 shape = reflection (1 interface method, 0 custom outbox mapper
+  statements); b1 seed test narrowed to config-only (serial consumption moved the
+  stamp_value premise — sanctioned, test-only); hutool auto-detected the biezhi
+  TinyPinyin engine (no fallback needed); space-joined pinyin → b4 brief decision 11
+  pins space-stripped-lowercase normalization at generation.
+- Mid-green defect found+fixed honestly: MP wrapper eager arg evaluation — null pinyin
+  prefix NPE'd on name-only page queries.
+- Batch 3 CLOSED pending review (tasks 3.1-3.5 checked, 11/17).
+- Batch 3 review: APPROVED (0C/0I/4m+1watch). Independent re-run 44/0/0 exit 0.
+  All amendment items verified with round-trip proofs (payload->>'name',
+  payload->>'survivorId'). Watch → b4 amendment: oid wired from JWT principal
+  (UserLogin.user.entry.oid) via ADDITIVE create(request, oid) overload — spec SHALL
+  proven; principal-derived (never request-supplied). Minors 1-3 (javadoc over-claim,
+  jammed imports, mixed-language detail) ride b4 in passing; minor 4 (PROVISIONAL
+  crash-window sweep blind spot) ledger-only, normal runs fully covered.
+
+### Batch 4: API/perms/menu seeds (tasks 4.1-4.4)
+- Status: Implementer DONE_WITH_CONCERNS (commit 005d127; 20 files +2161/-24; 9.2h
+  runtime incl. overnight server degradation). Reviewer pending 4.4.
+- Landed: PatientController (archive 6 routes, authentication-only) +
+  PatientNumberRuleController (4 routes, patient:rule:* gating, A0301); decision-5
+  rule CRUD semantics (A0714 conflict / active-rule delete rejected A0400 / yyMMdd
+  default / serial_cur untouchable); V2__patient_menu.sql cross-schema 患者配置 seed
+  (V22/V32 discipline + IS DISTINCT FROM NULL-safe icon convergence, icon 'team');
+  oid additive overload (amendment: principal-derived via UserLogin.user.entry.oid);
+  pinyin normalization (space-stripped lowercase, decision 11); b3 minors 1-3 folded.
+- Module suite 63/0/0 (API 10 / perms 5 / seed 4 + b1-b3 44) — logs/b4-verify2.log.
+- 4.4 NOT complete: 6 overnight full-reactor attempts all interrupted by degraded
+  shared-server I/O (jstack: surefire blocked in PG SSL socketRead0, ZERO assertion
+  failures — pure I/O family). Implementer stood down on coordinator order (9.2h);
+  coordinator re-running the reactor in the daytime window. Shared-DB residue 0.
+- Coordinator note recorded: production must enable the new lumen_patient_role GRANT
+  comment block in docs/deployment/pg-init.sql (V2 cross-schema menu writes).
+- tasks 4.1-4.3 checked (14/17); 4.4 open pending the reactor run.
+- 4.4 attempt 7 (coordinator, 02:25-08:36): MVN_EXIT=1 at lumen-system. 250 tests,
+  229 green, 15F+6E — ALL infrastructure-derived (root chain: degraded Redis/network →
+  admin login 500 → downstream 203 认证失败; RedisSystem/DataAccessResourceFailure
+  errors; class times 300-3000s vs normal seconds). ZERO assertion failures anywhere;
+  bom/framework/common green (no failure lines). lumen-patient SKIPPED by reactor
+  (declared after lumen-system) — standing module evidence 63/0/0 (b4-verify2).
+  Verdict: code clean, shared test server's Redis/network degraded overnight through
+  morning. 4.4 stays open — USER ESCALATION (server is user-owned infrastructure;
+  7 consecutive I/O-family attempts across 11h). No blind retry #8 until the user
+  confirms the server. Reviewer dispatched with adjusted re-run protocol.
+- Batch 4 review: APPROVED (0C/1I/3m). Independent re-run PASSED (not blocked):
+  lumen-patient 63/0/0 exit 0 — server recovered. Important (pg-init sequence grant
+  lacked UPDATE — setval would fail production first-boot mid-migration) + minors
+  (update DKE backstop, principalOid dead catch, API coverage gaps) fixed
+  coordinator-inline, commit a038ce9 (4 files, 64/0/0 incl. new update-path A0714
+  test). BONUS spec-compliance catch beyond the review: rule create's A0714 check was
+  UNCONDITIONAL — an inactive second rule could not coexist with the active one,
+  contradicting the spec's "two rules exist for pat_id with one active" scenario;
+  fixed to gate on request.active==1 (update's check already gated).
+- 4.4 attempt 8 launched (mvn -rf :lumen-system resume; bom/framework/common already
+  proven green in attempt 7; server stable again).
+- 4.4 attempt 8 (08:48-08:52, -rf :lumen-system): MVN_EXIT=1, 9F+1E in 5 classes —
+  but class times NORMAL (3-50s, no hangs) and ALL failures are contention artifacts:
+  A0301 page-perm denials + "org id 3443 does not exist" moments after create + 500s.
+  ROOT CAUSE CONFIRMED: the parallel exam-item session's lumen-system suite was running
+  CONCURRENTLY (its setting/* surefire reports landed 08:56-08:57 in the shared tree's
+  target/) — mutual hard-DELETE sweeps + shared target-dir compilation. DB probe
+  post-run: admin grants intact (role1 = all 72 live menus incl. 4 patient rows),
+  zero residue. Window-clear monitor armed (180s quiescence + no maven procs, 40min
+  cap); attempt 9 will be a FULL CLEAN reactor (concurrent overlap may have left
+  stale-target contamination; clean removes it).
+- 4.4 attempt 9 (clean full build ~09:00-09:07): MVN_EXIT=1, 6F in 5 classes (same
+  contention shapes: 500-on-fixture / A0301 / A0201). ROOT CAUSE AGAIN CONCURRENT:
+  pgrep caught ANOTHER full ./mvnw test started 09:04:32 ON THE SAME TREE (stdout
+  /tmp/verify-backend-test3.log, "backend run3" signature = the parallel exam-item
+  session's verify attempt 3), overlapping my clean run; its surefirebooter still
+  alive. Attempt 9 failures = contention artifacts; NO clean uncontended window has
+  existed all morning. Monitor v2 armed (240s quiescence); attempt 10 after. USER
+  asked to hold the other session's verify runs for ~15 min (two sessions + one tree
+  + one shared DB = guaranteed mutual poisoning; the known parallel-session collision
+  class from memory).
+- 4.4 attempt 10 (09:07-09:21, FULL CLEAN reactor, uncontended window after monitor-v2
+  quiescence + tree-drift check): **MVN_EXIT=0 — GREEN**. Counts: common 4/0/0,
+  lumen-system 249/0/0, lumen-patient 64/0/0 = 317/0/0 (framework: no tests). Logs
+  b44-full-run4.log. Task 4.4 CLOSED. Backend implementation COMPLETE: 15/17 —
+  remaining 5.1/5.2 are the frontend page, GATED on user backend verification.
+  Night's full picture for the ledger: 10 full-reactor attempts (6 overnight I/O
+  degradation with jstack evidence, 2 concurrent-session contention events with
+  pgrep/live evidence, 1 clean PASS), zero genuine assertion failures at any point;
+  the two contention events (attempt 8 with the exam-item suite, attempt 9 with its
+  verify run3) were root-caused live via pgrep + DB probes (admin grant chain intact,
+  zero residue) — window-clear monitoring + clean builds resolved it without a single
+  blind retry.
+
+### Batch 5: 号码规则 console page (tasks 5.1-5.2)
+- Status: Complete (commit 1ec175d; 6 files +681). Backend gate satisfied by user
+  (2026-11-18: booted both services, menu seed visible; user chose 直接开始任务 5).
+- Prototype: frontend-design skill → prototype-number-rule.html (3 demo states),
+  11/11 DOM checks; ONE real bug found by the user (样式乱) — root-caused via
+  headless-Chrome rect probes: grid auto-placement let the fully-auto sidebar steal
+  row1-col2, pushing the explicit-column header to row2 and content to a 68px col1
+  row3. Fixed with explicit placement for ALL four shell regions; maskClosable=false
+  ruling honored. USER CONFIRMED visuals.
+- Implementation: self-contained src/api/patient.ts (types+client — parallel-session
+  isolation on shared types.ts, documented in-file); page per confirmed prototype
+  (ruleType code→影像号 label map with raw-code fallback; serial zero-padded 当前流水;
+  serial-length bounds via FORM RULE only — an InputNumber min/max prop clamps typed
+  values on blur and the field error could never surface); menu-paths + router lazy
+  route (patient/number-rule/index → /patient/number-rules); vite /api/v1/patient
+  proxy (must precede /api/v1; VITE_PATIENT_ENTRY_URL override, default 8082).
+- TDD: RED (module missing) → 9 tests green after two honest test-side fixes
+  (row-scoped 影像号 tag assertions; clear-before-type on the defaulted serial input).
+- Full suite: 3 runs — A failed menus-page, B failed exam-body (both PRE-EXISTING
+  files, stochastic multiple-tooltip isolation noise; exam-body = parallel-session
+  WIP territory), C = 33 files / 392 tests ALL GREEN. Build exit 0 (2.08s).
+- ALL 17/17 TASKS COMPLETE. Next: /opsx:verify patient-domain.

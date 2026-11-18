@@ -28,9 +28,10 @@ public interface ExamItemService {
 
     /**
      * Paginated item table: modality-scoped, the 部位分组 filter derived through the
-     * body (NO denormalized group column), the keyword matched against name OR code,
-     * the 常用项目 toggle applied when present. Records come back as {@link ItemVO} s
-     * with the display names resolved server-side.
+     * body (NO denormalized group column), the keyword matched against name OR code
+     * (no 常用项目 filter - the flag is a row fact, exam-item-common-filter-drop).
+     * Records come back as {@link ItemVO} s with the display names resolved
+     * server-side.
      */
     IPage<ItemVO> getPage(ItemPageQuery query);
 

@@ -1,0 +1,14 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: exam-item-external-code-web
+current_task: null
+tasks_total: 5
+tasks_done: 5
+retry_count: 0
+debt_count: 0
+debug_attempts: 0
+workflow_mode: full
+artifacts_hash: 99c66fff8390761a69a8cd1968bf5bf497905824f192559b633667228b3a2256
+execution_mode: "Batch Inline"
+batches_completed: 0
+last_updated: 2026-11-17

@@ -183,27 +183,6 @@ export default function ExamMethodPage() {
       width: 110,
       render: (value: string) => <Tag>{value}</Tag>,
     },
-    { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
-    {
-      title: '操作',
-      key: 'ops',
-      width: 130,
-      render: (_, row) => (
-        <>
-          {hasPerm('setting:method:update') && (
-            <ConsoleAction label="编辑" onClick={() => openEdit(row)} />
-          )}
-          {hasPerm('setting:method:delete') && (
-            <Popconfirm
-              title={`确定删除方法“${row.name}”？`}
-              onConfirm={() => void remove(row)}
-            >
-              <ConsoleAction label="删除" danger onClick={() => undefined} />
-            </Popconfirm>
-          )}
-        </>
-      ),
-    },
   ]
 
   return (
@@ -243,6 +222,28 @@ export default function ExamMethodPage() {
           loading={loading}
           columns={columns}
           dataSource={rows}
+          // Shared ops chrome (2026-11-17, the exam-item review convention): the
+          // verbs ride the shell's action column - 删除 carries the delete glyph
+          // and the 操作 header gains the right-edge refresh affordance.
+          onRefresh={() => void load({ modality, keyword: keyword || undefined, pageNum, pageSize })}
+          actions={{
+            width: 130,
+            render: (row) => (
+              <>
+                {hasPerm('setting:method:update') && (
+                  <ConsoleAction label="编辑" onClick={() => openEdit(row)} />
+                )}
+                {hasPerm('setting:method:delete') && (
+                  <Popconfirm
+                    title={`确定删除方法“${row.name}”？`}
+                    onConfirm={() => void remove(row)}
+                  >
+                    <ConsoleAction label="删除" icon="remove" danger onClick={() => undefined} />
+                  </Popconfirm>
+                )}
+              </>
+            ),
+          }}
         />
         <ConsolePagination
           current={pageNum}

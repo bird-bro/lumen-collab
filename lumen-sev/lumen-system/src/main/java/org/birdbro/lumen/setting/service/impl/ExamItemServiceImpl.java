@@ -86,12 +86,10 @@ public class ExamItemServiceImpl implements ExamItemService {
             }
             wrapper.in(ExamItem::getBodyId, bodyIds);
         }
-        if (query.getIsCommon() != null) {
-            wrapper.eq(ExamItem::getIsCommon, query.getIsCommon());
-        }
         if (StrUtil.isNotBlank(query.getKeyword())) {
             wrapper.and(w -> w.like(ExamItem::getExam, query.getKeyword())
-                    .or().like(ExamItem::getCode, query.getKeyword()));
+                    .or().like(ExamItem::getCode, query.getKeyword())
+                    .or().like(ExamItem::getExternalCode, query.getKeyword()));
         }
         wrapper.orderByDesc(ExamItem::getId);
 
@@ -142,6 +140,7 @@ public class ExamItemServiceImpl implements ExamItemService {
                 .set(ExamItem::getModality, request.getModality())
                 .set(ExamItem::getExam, request.getExam())
                 .set(ExamItem::getCode, request.getCode())
+                .set(ExamItem::getExternalCode, request.getExternalCode())
                 .set(ExamItem::getBodyId, request.getBodyId())
                 .set(ExamItem::getPrice, request.getPrice())
                 .set(ExamItem::getRate, request.getRate())

@@ -15,7 +15,8 @@ import type {
 
 /**
  * GET /setting/exam-items/page - the 检查项目 table's server-side query; the
- * 部位分组 filter derives through the body join server-side.
+ * 部位分组 filter derives through the body join server-side. No 常用项目 filter
+ * (retired by exam-item-polish-web - the flag stays a row fact, not a list filter).
  */
 export function pageExamItems(query: ExamItemPageQuery): Promise<Page<ExamItem>> {
   return apiRequest<Page<ExamItem>>('/setting/exam-items/page', {
@@ -26,7 +27,6 @@ export function pageExamItems(query: ExamItemPageQuery): Promise<Page<ExamItem>>
       modality: query.modality,
       groupId: query.groupId,
       keyword: query.keyword,
-      isCommon: query.isCommon,
     },
   });
 }

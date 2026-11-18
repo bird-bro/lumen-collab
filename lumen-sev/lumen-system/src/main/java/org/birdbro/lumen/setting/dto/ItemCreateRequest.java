@@ -32,6 +32,10 @@ public class ItemCreateRequest {
     @ApiModelProperty("项目编码 (optional, unique within the modality)")
     private String code;
 
+    @ApiModelProperty("对照编码 (optional, external-system mapping anchor - HIS first; "
+            + "NOT unique, 打包计费 multi-to-one is legal)")
+    private String externalCode;
+
     @ApiModelProperty("检查部位 (required)")
     @NotNull(message = "bodyId 不能为空")
     private Integer bodyId;

@@ -162,9 +162,11 @@ is referenced by any non-deleted item; a method referenced by any non-deleted it
 ### Requirement: Exam Item Endpoints
 
 The service SHALL expose `/api/v1/setting/exam-items` with `GET /page` (filters:
-modality, groupId, keyword over name/code, isCommon; paged), `GET /{id}`, `POST`
-create, `PUT /{id}` full update, `DELETE /{id}` logical delete — each gated by perms
-`setting:item:{list,create,update,delete}`.
+modality, groupId, keyword over name/code; paged), `GET /{id}`, `POST` create,
+`PUT /{id}` full update, `DELETE /{id}` logical delete — each gated by perms
+`setting:item:{list,create,update,delete}`. The page query carries NO 常用项目
+filter; the item's `is_common` fact remains create/update writable for the
+billing-page 常用清单 marker.
 
 #### Scenario: Page filter by group
 

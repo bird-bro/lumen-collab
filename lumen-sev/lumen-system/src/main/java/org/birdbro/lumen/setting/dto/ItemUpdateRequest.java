@@ -32,6 +32,10 @@ public class ItemUpdateRequest {
     @ApiModelProperty("项目编码 (absent clears)")
     private String code;
 
+    @ApiModelProperty("对照编码 (absent clears; external-system mapping anchor - HIS "
+            + "first, NOT unique, 打包计费 multi-to-one is legal)")
+    private String externalCode;
+
     @ApiModelProperty("检查部位 (required)")
     @NotNull(message = "bodyId 不能为空")
     private Integer bodyId;

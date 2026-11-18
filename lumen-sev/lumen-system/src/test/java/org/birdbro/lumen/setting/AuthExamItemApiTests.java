@@ -194,8 +194,7 @@ class AuthExamItemApiTests extends SettingIntegrationTestBase {
     }
 
     @Test
-    void itemWritesDenyThePermlessIdentityBeforeAnyControllerLogic() throws Exception {
-        String token = fullPermToken();
+    void itemWritesDenyThePermlessIdentityBeforeAnyControllerLogic() throws Exception {        String token = fullPermToken();
         long ts = System.currentTimeMillis();
         int group = createGroup("CT", "ut组_拒权_" + ts, 1);
         int body = createBody(group, "CT", "ut_exb_拒权部位_" + ts, null);
@@ -210,6 +209,83 @@ class AuthExamItemApiTests extends SettingIntegrationTestBase {
         assertEquals(Integer.valueOf(0), created.intValue(),
                 "the denied create must not reach the controller (no item row)");
 
+        hardDeleteBody(body);
+        hardDeleteGroup(group);
+    }
+
+    @Test
+    void externalMappingCodeEchoesReplacesAndStaysNullable() throws Exception {
+        String token = fullPermToken();
+        long ts = System.currentTimeMillis();
+        int group = createGroup("CT", "ut组_对照码_" + ts, 1);
+        int body = createBody(group, "CT", "ut_exb_对照部位_" + ts, null);
+
+        int mapped = createItemWithExternalCode(group, body, "ut_exi_对照甲_" + ts,
+                "ut_exi_" + ts + "_c1", "ut_his_" + ts);
+        int bare = createItemWithExternalCode(group, body, "ut_exi_对照乙_" + ts,
+                "ut_exi_" + ts + "_c2", null);
+
+        JsonNode mappedDetail = parse(exchangeJson(HttpMethod.GET, ITEMS_URL + "/" + mapped,
+                null, token));
+        assertEquals("ut_his_" + ts, mappedDetail.path("data").path("externalCode").asText(),
+                "the detail must echo the external mapping code verbatim: " + mappedDetail);
+
+        JsonNode bareDetail = parse(exchangeJson(HttpMethod.GET, ITEMS_URL + "/" + bare,
+                null, token));
+        assertTrue(bareDetail.path("data").path("externalCode").isNull()
+                        || bareDetail.path("data").path("externalCode").isMissingNode(),
+                "an item created without a mapping code must echo NULL, not a default: "
+                        + bareDetail);
+
+        // Full-replace PUT swaps the mapping code (the drawer's edit path). The
+        // NOT NULL columns ride along - a full-replace PUT omitting them is a
+        // PRE-EXISTING sharp edge outside this change's scope.
+        exchangeJson(HttpMethod.PUT, ITEMS_URL + "/" + mapped,
+                body("{\"modality\":\"CT\",\"bodyId\":" + body + ",\"exam\":\"ut_exi_对照甲_"
+                        + ts + "\",\"code\":\"ut_exi_" + ts + "_c1\",\"externalCode\":\"ut_his_"
+                        + ts + "_v2\",\"methodIds\":[],\"isCommon\":false,\"enable\":1}"), token);
+        JsonNode replaced = parse(exchangeJson(HttpMethod.GET, ITEMS_URL + "/" + mapped,
+                null, token));
+        assertEquals("ut_his_" + ts + "_v2", replaced.path("data").path("externalCode").asText(),
+                "the update must replace the mapping code: " + replaced);
+
+        hardDeleteItem(mapped);
+        hardDeleteItem(bare);
+        hardDeleteBody(body);
+        hardDeleteGroup(group);
+    }
+
+    @Test
+    void duplicateMappingCodesAreAcceptedAndKeywordHitsThem() throws Exception {
+        String token = fullPermToken();
+        long ts = System.currentTimeMillis();
+        int group = createGroup("CT", "ut组_打包_" + ts, 1);
+        int body = createBody(group, "CT", "ut_exb_打包部位_" + ts, null);
+        String his = "ut_his_" + ts;
+
+        int first = createItemWithExternalCode(group, body, "ut_exi_打包甲_" + ts,
+                "ut_exi_" + ts + "_p1", his);
+        // 打包计费: a SECOND live item in the same modality maps to the SAME HIS
+        // charge item - the create must NOT reject (no uniqueness on external_code).
+        int second = createItemWithExternalCode(group, body, "ut_exi_打包乙_" + ts,
+                "ut_exi_" + ts + "_p2", his);
+
+        Integer dup = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system.exam_item WHERE external_code = ? AND deleted = 0",
+                Integer.class, his);
+        assertEquals(Integer.valueOf(2), dup.intValue(),
+                "two live items may share one external mapping code (打包计费)");
+
+        // Keyword retrieval spans the mapping code column (the maintenance lookup).
+        JsonNode page = parse(exchangeJson(HttpMethod.GET,
+                ITEMS_URL + "/page?pageNum=1&pageSize=50&modality=CT&keyword=" + his,
+                null, token));
+        assertEquals("200", page.path("code").asText(), "the keyword page must succeed");
+        assertEquals(2, page.path("data").path("total").asLong(-1),
+                "the keyword must hit the external mapping code branch: " + page);
+
+        hardDeleteItem(first);
+        hardDeleteItem(second);
         hardDeleteBody(body);
         hardDeleteGroup(group);
     }
@@ -273,6 +349,22 @@ class AuthExamItemApiTests extends SettingIntegrationTestBase {
                 + ",\"exam\":\"" + exam + "\""
                 + (code != null ? ",\"code\":\"" + code + "\"" : "")
                 + ",\"enable\":1}";
+    }
+
+    /** Item fixture with an external mapping code (null = create without one). */
+    private int createItemWithExternalCode(int groupId, int bodyId, String exam,
+            String code, String externalCode) throws Exception {
+        String payload = itemPayload("CT", bodyId, exam, code);
+        if (externalCode != null) {
+            payload = payload.substring(0, payload.length() - 1)
+                    + ",\"externalCode\":\"" + externalCode + "\"}";
+        }
+        ResponseEntity<String> created = exchangeJson(HttpMethod.POST, ITEMS_URL,
+                body(payload), fullPermToken());
+        JsonNode createdBody = parse(created);
+        assertEquals("200", createdBody.path("code").asText(),
+                "the fixture item must create cleanly: " + created);
+        return createdBody.path("data").asInt(-1);
     }
 
     private void hardDeleteGroup(int id) {
