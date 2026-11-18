@@ -41,6 +41,7 @@ const ExamItemPage = lazy(() => import('@/pages/setting/exam-item'))
 const ExamBodyPage = lazy(() => import('@/pages/setting/exam-body'))
 const ExamMethodPage = lazy(() => import('@/pages/setting/exam-method'))
 const RepTemplatePage = lazy(() => import('@/pages/setting/rep-template'))
+const NumberRulePage = lazy(() => import('@/pages/patient/number-rule'))
 const RadiologyPage = lazy(() => import('@/pages/radiology'))
 const UltrasoundPage = lazy(() => import('@/pages/ultrasound'))
 const EndoscopyPage = lazy(() => import('@/pages/endoscopy'))
@@ -94,6 +95,7 @@ export const appRoutes: RouteObject[] = [
       { path: 'setting/exam-bodies', element: <ExamBodyPage /> },
       { path: 'setting/exam-methods', element: <ExamMethodPage /> },
       { path: 'setting/rep-templates', element: <RepTemplatePage /> },
+      { path: 'patient/number-rules', element: <NumberRulePage /> },
       { path: 'radiology', element: <RadiologyPage /> },
       { path: 'ultrasound', element: <UltrasoundPage /> },
       { path: 'endoscopy', element: <EndoscopyPage /> },

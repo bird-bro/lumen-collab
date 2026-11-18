@@ -53,6 +53,15 @@ export default defineConfig(({ mode }) => {
     // unaffected - it is port-agnostic on the dev-server side.
     port: 1573,
     proxy: {
+      // patient-domain 5.1: /api/v1/patient/** belongs to lumen-patient. In
+      // production the unified nginx entry path-routes it there; with no local
+      // nginx this MORE-SPECIFIC rule (must precede /api/v1) mirrors that
+      // routing for the two-service dev reality. Default = the coordination
+      // port table's patient row (8082); VITE_PATIENT_ENTRY_URL overrides.
+      '/api/v1/patient': {
+        target: env.VITE_PATIENT_ENTRY_URL ?? 'http://localhost:8082',
+        changeOrigin: true,
+      },
       // Unified API entry (design D3): /api/v1 goes to the nginx entry on port 80
       // per openspec/coordination/init-project-skeleton.md's port table - there is
       // no Java gateway. Override the target with VITE_API_ENTRY_URL; no service

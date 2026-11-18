@@ -36,6 +36,8 @@ const CONSOLE_ROUTE_BY_COMPONENT: Record<string, string> = {
   'setting/exam-body/index': '/setting/exam-bodies',
   'setting/exam-method/index': '/setting/exam-methods',
   'setting/rep-template/index': '/setting/rep-templates',
+  // 患者配置 (patient-domain task 5.1 - component key verbatim from the V2 seed).
+  'patient/number-rule/index': '/patient/number-rules',
 };
 
 /**
