@@ -108,7 +108,7 @@ public abstract class AuthIntegrationTestBase {
         // then the shared public schema (design D1 - the four public system tables
         // resolve behind the service's own schema).
         registry.add("spring.datasource.url", () -> "jdbc:postgresql://" + pgHost + ":"
-                + pgPort + "/" + database + "?currentSchema=system,public");
+                + pgPort + "/" + database + "?currentSchema=system,public&tcpKeepAlive=true");
         registry.add("spring.datasource.username", () -> pgUser);
         registry.add("spring.datasource.password", () -> pgPassword);
 
@@ -331,9 +331,22 @@ public abstract class AuthIntegrationTestBase {
     static void sweepRunResidue() {
         try {
             doSweepResidue();
-        } catch (SQLException e) {
-            throw new IllegalStateException("the shared-database residue sweep failed: "
-                    + e.getMessage(), e);
+        } catch (SQLException first) {
+            // Transport resets / concurrent-suite races on the shared server are
+            // transient (2026-11-18 verification history: 1-2 per WAN run) - one
+            // retry before failing the class; the prefix-scoped deletes are
+            // idempotent, so re-running the whole sweep is safe.
+            try {
+                Thread.sleep(2000);
+                doSweepResidue();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("the shared-database residue sweep failed: "
+                        + first.getMessage(), first);
+            } catch (SQLException second) {
+                throw new IllegalStateException("the shared-database residue sweep failed after retry: "
+                        + second.getMessage(), second);
+            }
         }
     }
 

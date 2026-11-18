@@ -20,6 +20,17 @@
 # @ActiveProfiles("test"), so the gitignored application-dev.yml is NOT loaded in
 # tests - the dynamic properties remain the only datasource source of truth.
 
+# Shared-server transport resilience (2026-11-18, six-run verification history): the
+# team test server sits behind a WAN link that intermittently resets idle TCP streams
+# mid-suite (Connection reset / I/O error - 1-2 per run reaching test level). Hikari's
+# keepalive pings idle pool connections before NAT/conntrack drops them; 60s covers
+# the suite's longest fixture gaps (Hikari minimum is 30s). The JDBC URLs additionally
+# carry tcpKeepAlive=true (AuthIntegrationTestBase / SettingIntegrationTestBase).
+spring:
+  datasource:
+    hikari:
+      keepalive-time: 60000
+
 # Password-transport-encryption test keypair (password-transport-encryption-api task
 # 1.2 - coordination D2). TEST-ONLY material, committed on purpose: this SM2 scalar D
 # protects nothing (the test server holds no real credentials; the seeded admin's
