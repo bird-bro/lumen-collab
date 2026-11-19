@@ -33,6 +33,17 @@ export function createCatal(body: CreateDictCatalBody): Promise<number> {
   return apiRequest<number>('/system/dicts/catal', { method: 'POST', body });
 }
 
+/** GET /system/dicts/detail/items-by-id/{catalId} - the ID-ANCHORED label lookup
+ * (dict-lookup-by-id ruling 2026-11-19: the catalog id never moves; the by-name
+ * twin breaks whenever an operator renames). Same slim `{code, value}[]`
+ * projection; an unknown/deleted/disabled catalog resolves to an empty array.
+ * Uncached transport - cache via `dictItemsById` in `@/utils/dict-items`. */
+export function fetchDictItemsById(catalId: number): Promise<DictItem[]> {
+  return apiRequest<DictItem[]>(`/system/dicts/detail/items-by-id/${catalId}`, {
+    method: 'GET',
+  });
+}
+
 /** PUT /system/dicts/catal/{id} - partial update. */
 export function updateCatal(id: number, body: UpdateDictCatalBody): Promise<boolean> {
   return apiRequest<boolean>(`/system/dicts/catal/${id}`, { method: 'PUT', body });

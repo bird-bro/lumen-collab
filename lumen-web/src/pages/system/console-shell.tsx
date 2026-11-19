@@ -5,6 +5,9 @@ import {
   LockOutlined,
   PlusOutlined,
   ReloadOutlined,
+  CloseCircleFilled,
+  ExclamationCircleFilled,
+  InfoCircleFilled,
   SafetyCertificateOutlined,
   SearchOutlined,
   StarOutlined,
@@ -12,7 +15,7 @@ import {
 import { Button, Pagination, Space, Table, Tooltip, Typography, theme } from 'antd'
 import type { TableColumnsType, TableProps } from 'antd'
 import type { FormInstance } from 'antd'
-import type { ReactNode } from 'react'
+import { Children, type ReactNode } from 'react'
 
 /**
  * Shared console page chrome (batch 6a of web-foundation-auth-console, tasks
@@ -124,13 +127,15 @@ export function ConsoleWorkArea({ aside, children }: { aside: ReactNode; childre
  * read as two independent cards (user ruling 2026-11-09, superseding the
  * transparent-search take: the OPS reference carries a background here too).
  */
-export function ConsoleToolRow({ children, trailing }: { children: ReactNode; trailing?: ReactNode }) {
+export function ConsoleToolRow({ children, trailing }: { children?: ReactNode; trailing?: ReactNode }) {
   const { token } = theme.useToken()
+  const hasChildren = Children.count(children) > 0
+
   return (
     <div
       style={{
         display: 'flex',
-        justifyContent: 'space-between',
+        justifyContent: hasChildren ? 'space-between' : 'flex-end',
         alignItems: 'center',
         gap: 12,
         flexWrap: 'wrap',
@@ -138,9 +143,11 @@ export function ConsoleToolRow({ children, trailing }: { children: ReactNode; tr
         padding: 10,
       }}
     >
-      <Space wrap size={12} style={{ flex: 1, minWidth: 0 }}>
-        {children}
-      </Space>
+      {hasChildren && (
+        <Space wrap size={12} style={{ flex: 1, minWidth: 0 }}>
+          {children}
+        </Space>
+      )}
       <Space wrap size={12}>
         {trailing}
       </Space>
@@ -363,6 +370,55 @@ export function ConsoleTable<RowType extends object>({
             : (row) => (rowKey(row) === selectedRowKey ? 'lumen-console-row-current' : '')
         }
       />
+    </div>
+  )
+}
+
+/** The hint band's severity tones (user ruling 2026-11-19: yellow = warning-class,
+ * red = error-class - ordinary hints stay on the info blue). */
+export type ConsoleFormHintTone = 'info' | 'warning' | 'error'
+
+const HINT_TONES: Record<ConsoleFormHintTone, { bg: string; fg: string; Icon: typeof InfoCircleFilled }> = {
+  info: { bg: 'colorInfoBg', fg: 'colorInfo', Icon: InfoCircleFilled },
+  warning: { bg: 'colorWarningBg', fg: 'colorWarning', Icon: ExclamationCircleFilled },
+  error: { bg: 'colorErrorBg', fg: 'colorError', Icon: CloseCircleFilled },
+}
+
+/**
+ * The drawer form-hint band (user ruling 2026-11-19, chrome reference: the OPS
+ * project's `.filter-notice` - icon + text on a soft tinted row): a standalone
+ * hint/preview block inside a drawer renders as a 16px glyph band with small
+ * text, never naked tertiary text. Default tone = info blue; yellow stays for
+ * warning-class notes and red for error-class (the semantic ruling). First
+ * consumer: the number-rule drawer's 号码形如 preview; the users reset-password
+ * and deps drawer hints follow the same chrome.
+ */
+export function ConsoleFormHint({
+  children,
+  tone = 'info',
+}: {
+  children: ReactNode
+  tone?: ConsoleFormHintTone
+}) {
+  const { token } = theme.useToken()
+  const { bg, fg, Icon } = HINT_TONES[tone]
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        margin: '0 0 16px',
+        padding: '8px 12px',
+        borderRadius: token.borderRadiusSM,
+        background: token[bg as keyof typeof token] as string,
+        color: token.colorText,
+        fontSize: token.fontSizeSM,
+        lineHeight: 1.6,
+      }}
+    >
+      <Icon style={{ fontSize: 16, color: token[fg as keyof typeof token] as string, flex: '0 0 auto' }} />
+      <span>{children}</span>
     </div>
   )
 }

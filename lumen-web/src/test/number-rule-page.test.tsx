@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ConfigProvider } from 'antd'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,6 +8,7 @@ import type { NumberRule } from '@/api/number-rules'
 import { ApiError } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { themeConfig } from '@/theme'
+import { dictItemsById } from '@/utils/dict-items'
 
 /**
  * 号码规则 page (patient-domain task 5.1; spec delta `web-system-console`
@@ -19,10 +20,15 @@ import { themeConfig } from '@/theme'
  * flows through a mock at runtime (ruling 2026-11-05).
  */
 vi.mock('@/api/number-rules')
+vi.mock('@/utils/dict-items', () => ({
+  NUMBER_TYPE_DICT_ID: 1028,
+  NUMBER_STAMP_FORMAT_DICT_ID: 1029,
+  dictItemsById: vi.fn(),
+}))
 
 function rule(partial: Partial<NumberRule> & { id: number }): NumberRule {
   return {
-    ruleType: 'pat_id',
+    ruleType: '影像号',
     prefix: null,
     suffix: null,
     serialLength: 4,
@@ -30,13 +36,14 @@ function rule(partial: Partial<NumberRule> & { id: number }): NumberRule {
     isStamp: 1,
     stamp: 'yyMMdd',
     active: 1,
+    remark: null,
     createTime: '2026-11-17 15:24:00',
     ...partial,
   }
 }
 
 const ACTIVE_RULE = rule({ id: 130, prefix: 'IM', serialCur: 7 })
-const DORMANT_RULE = rule({ id: 131, prefix: null, serialCur: 261, isStamp: 0, stamp: null, active: 0 })
+const DORMANT_RULE = rule({ id: 131, ruleType: '登记号', prefix: null, serialCur: 261, isStamp: 0, stamp: null, active: 0 })
 
 function pageFixture(records: NumberRule[]): numberRulesApi.NumberRulePage {
   return { records, total: records.length, size: 20, current: 1, pages: 1 }
@@ -50,6 +57,34 @@ function renderPage() {
   )
 }
 
+async function selectStampFormat(format: string): Promise<void> {
+  const user = userEvent.setup()
+  await user.click(await screen.findByLabelText('格式'))
+  const option = await waitFor(() => {
+    const match = Array.from(document.querySelectorAll('.ant-select-item-option')).find(
+      (element) => element.getAttribute('title') === format,
+    )
+    expect(match).toBeTruthy()
+    return match as HTMLElement
+  })
+  await user.click(option)
+}
+
+/** Picks a 规则类型 option by its visible text (the disabled family's title attr
+ * carries the refusal hint instead of the label - match on textContent). The
+ * plain fireEvent click is deliberate: the non-search Select's option responds
+ * to onClick, and the userEvent pointer sequence races the dropdown's re-render. */
+async function selectRuleType(label: string): Promise<void> {
+  const option = await waitFor(() => {
+    const match = Array.from(document.querySelectorAll('.ant-select-item-option')).find(
+      (element) => element.textContent === label,
+    )
+    expect(match).toBeTruthy()
+    return match as HTMLElement
+  })
+  fireEvent.click(option)
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   useAuthStore.getState().setSession({
@@ -59,6 +94,22 @@ beforeEach(() => {
   vi.mocked(numberRulesApi.createNumberRule).mockResolvedValue(132)
   vi.mocked(numberRulesApi.updateNumberRule).mockResolvedValue(true)
   vi.mocked(numberRulesApi.deleteNumberRule).mockResolvedValue(true)
+  // the dict seam dispatches by catalog ID - 编号类型 1028 tokens (rule_type) vs
+  // 编号格式 1029 (stamp patterns), each independently degradable
+  vi.mocked(dictItemsById).mockImplementation(async (catalId: number) => {
+    if (catalId === 1028) {
+      return [
+        { code: 1, value: '影像号' },
+        { code: 2, value: '登记号' },
+        { code: 3, value: '预约号' },
+      ]
+    }
+    return [
+      { code: 1, value: 'yyMMdd' },
+      { code: 2, value: 'yyyyMMdd' },
+      { code: 3, value: 'yyyyMMddHHmmss' },
+    ]
+  })
 })
 
 describe('number rule page - table', () => {
@@ -74,13 +125,17 @@ describe('number rule page - table', () => {
     const row = screen.getByText('IM').closest('tr') as HTMLElement
     expect(within(row).getByText('影像号')).toBeTruthy()
     expect(within(row).getByText('0007')).toBeTruthy()
-    expect(within(row).getByText('启用')).toBeTruthy()
+    // the status column rides the orgs-style switch (✓/✕ children, not text)
+    expect(within(row).getByRole('switch', { name: '启用 影像号' })).toHaveAttribute('aria-checked', 'true')
+    // the 示例 column composes prefix + the CURRENT date in the rule's pattern
+    // (Java yyMMdd → dayjs YYMMDD) + a fresh zero-padded serial
+    expect(within(row).getByText(/IM\d{6}0001/)).toBeTruthy()
     // the dormant sibling renders its state honestly
     const dormant = screen.getByText('0261').closest('tr') as HTMLElement
-    expect(within(dormant).getByText('停用')).toBeTruthy()
+    expect(within(dormant).getByRole('switch', { name: '启用 登记号' })).toHaveAttribute('aria-checked', 'false')
   })
 
-  it('shows the 日期戳 column as the format when stamped and 不带 otherwise', async () => {
+  it('shows the 格式 column as the format when stamped and 不带 otherwise', async () => {
     renderPage()
     await screen.findByText('IM')
 
@@ -106,33 +161,47 @@ describe('number rule page - table', () => {
 })
 
 describe('number rule page - create/edit round-trips', () => {
-  it('creates a stamped rule through the drawer with the default 影像号 family', async () => {
+  it('creates a stamped rule with the default 登记号 family - the active 影像号 is disabled', async () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('IM')
 
     await user.click(screen.getByRole('button', { name: /新建规则/ }))
     await screen.findByLabelText('规则类型')
-    // the picker renders the selected family's label (antd Select - the inner input
-    // carries no value; the selection item does)
+    // the picker defaults to the FIRST family without a live rule (登记号);
+    // 影像号 already holds the active rule so its option renders disabled
     const drawer = screen.getByRole('dialog')
-    expect(within(drawer).getByText('影像号')).toBeTruthy()
+    expect(within(drawer).getByText('登记号')).toBeTruthy()
+    await user.click(screen.getByLabelText('规则类型'))
+    const disabledOption = await waitFor(() => {
+      const match = Array.from(document.querySelectorAll('.ant-select-item-option')).find(
+        (element) => element.textContent === '影像号',
+      )
+      expect(match).toBeTruthy()
+      return match as HTMLElement
+    })
+    expect(disabledOption.className).toContain('ant-select-item-option-disabled')
+    await user.click(screen.getByLabelText('前缀'))
 
-    await user.type(screen.getByLabelText('前缀'), 'IM')
+    await user.type(screen.getByLabelText('前缀'), 'RG')
     // the drawer opens with the serial length defaulted to 4 - clear before
     // typing or the keystrokes append (44 fails the range rule)
-    const serialInput = screen.getByLabelText('流水长度')
+    const serialInput = screen.getByLabelText('编号长度')
     await user.clear(serialInput)
     await user.type(serialInput, '4')
+
+    await selectStampFormat('yyyyMMdd')
+
     await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
 
     await waitFor(() => {
       expect(numberRulesApi.createNumberRule).toHaveBeenCalledWith(
         expect.objectContaining({
-          ruleType: 'pat_id',
-          prefix: 'IM',
+          ruleType: '登记号',
+          prefix: 'RG',
           serialLength: 4,
           isStamp: 1,
+          stamp: 'yyyyMMdd',
         }),
       )
     })
@@ -158,30 +227,39 @@ describe('number rule page - create/edit round-trips', () => {
     await waitFor(() => {
       expect(numberRulesApi.updateNumberRule).toHaveBeenCalledWith(
         130,
-        expect.objectContaining({ ruleType: 'pat_id', prefix: 'PT', serialLength: 4 }),
+        expect.objectContaining({ ruleType: '影像号', prefix: 'PT', serialLength: 4 }),
       )
     })
   })
 
-  it('create drawer selects the platform family - 检查号 rides the payload', async () => {
+  it('create drawer selects an available family - 预约号 rides the payload', async () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('IM')
 
     await user.click(screen.getByRole('button', { name: /新建规则/ }))
-    const select = await screen.findByLabelText('规则类型')
-    await user.click(select)
-    await user.click(await screen.findByText('检查号'))
+    await user.click(await screen.findByLabelText('规则类型'))
+    // TEMP PROBE
+    const opts = Array.from(document.querySelectorAll('.ant-select-item-option'))
+    console.log('PROBE-OPTS:', JSON.stringify(opts.map((o) => ({ t: o.textContent, title: o.getAttribute('title'), cls: o.className.slice(0, 70) }))))
+    await selectRuleType('预约号')
+    // END TEMP PROBE
 
     await user.type(await screen.findByLabelText('前缀'), 'AC')
-    const serialInput = screen.getByLabelText('流水长度')
+    const serialInput = screen.getByLabelText('编号长度')
     await user.clear(serialInput)
     await user.type(serialInput, '6')
+    await selectStampFormat('yyMMdd')
     await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
 
     await waitFor(() => {
       expect(numberRulesApi.createNumberRule).toHaveBeenCalledWith(
-        expect.objectContaining({ ruleType: 'accession', prefix: 'AC', serialLength: 6 }),
+        expect.objectContaining({
+          ruleType: '预约号',
+          prefix: 'AC',
+          serialLength: 6,
+          stamp: 'yyMMdd',
+        }),
       )
     })
   })
@@ -192,13 +270,41 @@ describe('number rule page - create/edit round-trips', () => {
     await screen.findByText('IM')
 
     await user.click(screen.getByRole('button', { name: /新建规则/ }))
-    await user.type(await screen.findByLabelText('流水长度'), '11')
+    await user.type(await screen.findByLabelText('编号长度'), '11')
     await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
 
-    await screen.findByText('流水长度须在 1–10 之间')
+    await screen.findByText('编号长度须在 1–10 之间')
     expect(numberRulesApi.createNumberRule).not.toHaveBeenCalled()
     // the drawer stays open for correction (spec: the drawer stays open)
-    expect(screen.getByLabelText('流水长度')).toBeTruthy()
+    expect(screen.getByLabelText('编号长度')).toBeTruthy()
+  })
+
+  it('the 状态 switch rides the dedicated lifecycle endpoint (org-status pattern)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('IM')
+
+    await user.click(screen.getByRole('switch', { name: '启用 影像号' }))
+    await waitFor(() => {
+      expect(numberRulesApi.setNumberRuleActive).toHaveBeenCalledWith(130, 0)
+    })
+    // the list reloads after the flip (the switch state rides the rows)
+    await waitFor(() => {
+      expect(numberRulesApi.pageNumberRules).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('the duplicate-active refusal surfaces verbatim on the flip', async () => {
+    const user = userEvent.setup()
+    vi.mocked(numberRulesApi.setNumberRuleActive).mockRejectedValue(
+      new ApiError('A0714', '数据重复：号码规则冲突: rule_type=登记号 已存在启用规则（同类型仅允许一条启用规则）'),
+    )
+    renderPage()
+    await screen.findByText('IM')
+
+    // activating the dormant 登记号 row while its sibling is live
+    await user.click(screen.getByRole('switch', { name: '启用 登记号' }))
+    await screen.findByText(/同类型仅允许一条启用规则/)
   })
 })
 
@@ -206,7 +312,7 @@ describe('number rule page - delete', () => {
   it('delete confirms, calls the API, and surfaces the active-rule refusal verbatim', async () => {
     const user = userEvent.setup()
     vi.mocked(numberRulesApi.deleteNumberRule).mockRejectedValue(
-      new ApiError('A0400', '启用的规则不可删除，请先停用: rule id 130 (type pat_id)'),
+      new ApiError('A0400', '启用的规则不可删除，请先停用: rule id 130 (type 影像号)'),
     )
     renderPage()
     await screen.findByText('IM')

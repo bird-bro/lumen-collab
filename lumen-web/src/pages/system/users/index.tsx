@@ -20,6 +20,7 @@ import { SignatureUploadField } from './signature-upload'
 import {
   ConsoleAction,
   ConsoleAddButton,
+  ConsoleFormHint,
   ConsolePage,
   ConsolePagination,
   ConsoleQueryButton,
@@ -762,9 +763,9 @@ export default function UsersPage() {
         }
       >
         {resetTarget ? (
-          <p style={{ margin: '0 0 16px', fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
+          <ConsoleFormHint>
             为用户 <strong>{resetTarget.username}</strong> 设置新密码;重置后该用户首次登录须修改密码。
-          </p>
+          </ConsoleFormHint>
         ) : null}
         <Form<ResetValues> form={resetForm} layout="vertical" disabled={saving}>
           <Form.Item name="password" label="新密码" rules={[{ required: true, message: '请输入新密码' }]}>

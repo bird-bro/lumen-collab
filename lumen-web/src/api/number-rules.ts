@@ -23,6 +23,7 @@ export interface NumberRule {
   stamp: string | null;
   /** 1 = the active issuance source (exactly one per ruleType). */
   active: number;
+  remark: string | null;
   createTime: string;
 }
 
@@ -51,6 +52,8 @@ export interface CreateNumberRuleBody {
   /** Null + isStamp=1 defaults server-side to `yyMMdd`. */
   stamp?: string | null;
   active: number;
+  /** Optional operator note (V46). */
+  remark?: string | null;
 }
 
 /** Full-surface update body (same shape as create; the ruleType is immutable). */
@@ -78,6 +81,12 @@ export function createNumberRule(body: CreateNumberRuleBody): Promise<number> {
 /** PUT /system/number-rules/{id} - full-surface update (the ruleType is immutable). */
 export function updateNumberRule(id: number, body: UpdateNumberRuleBody): Promise<boolean> {
   return apiRequest<boolean>(`/system/number-rules/${id}`, { method: 'PUT', body });
+}
+
+/** PUT /system/number-rules/{id}/active - the lifecycle toggle (org-status pattern;
+ * one live rule per family - a conflicting activation refuses with A0714). */
+export function setNumberRuleActive(id: number, active: 0 | 1): Promise<boolean> {
+  return apiRequest<boolean>(`/system/number-rules/${id}/active`, { method: 'PUT', body: { active } });
 }
 
 /** DELETE /system/number-rules/{id} - logical delete (active rules refuse first). */

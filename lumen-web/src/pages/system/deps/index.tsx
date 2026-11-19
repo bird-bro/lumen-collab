@@ -9,6 +9,7 @@ import { usePerm } from '@/utils/perm'
 import {
   ConsoleAction,
   ConsoleAddButton,
+  ConsoleFormHint,
   ConsolePage,
   ConsolePanel,
   ConsolePagination,
@@ -488,9 +489,9 @@ export default function DepsPage() {
           </div>
         }
       >
-        <p style={{ margin: '0 0 16px', fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
+        <ConsoleFormHint>
           {editing ? `科室编码创建后不可修改:${editing.code}` : '科室必须归属一个启用中的院区。'}
-        </p>
+        </ConsoleFormHint>
         <Form<DepFormValues> form={form} layout="vertical" disabled={saving}>
           <Form.Item
             name="orgId"
