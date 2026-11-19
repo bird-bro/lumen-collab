@@ -120,23 +120,28 @@ Default archive search SHALL exclude merged rows.
 
 ### Requirement: Image Number Issuance
 
-Issuance SHALL read the active rule for the requested type, take the rule row's lock,
-increment the serial counter, and write the number inside the caller's transaction,
-the counter increment committing in its own inner transaction so a failed archive
-creation burns the serial. A rule with the timestamp stamp enabled SHALL reset its
-serial to 1 when the stamp day changes. Issued numbers SHALL be unique across
-archives; a failed archive creation MAY burn the number (gaps are tolerated, numbers
-are never reused).
+The patient service SHALL obtain the 影像号 (`pat_id`) from the PLATFORM number-rule
+service through the `NumberApi` Feign contract (the row-lock rule machinery is
+platform-owned — the burned-serial increment commits platform-side, and a patient-side
+rollback after issuance burns the number):
 
 #### Scenario: Concurrent issuance does not duplicate
 
-- **WHEN** multiple archive creations run concurrently against the same active rule
-- **THEN** each receives a distinct serial value and every `pat_id` is unique
+- **WHEN** two archive creations race for a pat_id
+- **THEN** the platform issuer serializes them — both succeed with distinct numbers
 
 #### Scenario: Stamp rule resets by day
 
-- **WHEN** the first issuance after a stamp-day rollover runs on a stamped rule
-- **THEN** the serial restarts at 1 and the number embeds the new stamp date
+- **WHEN** the pat_id family's day token rolls over
+- **THEN** the platform issuer restarts the serial at 1
+
+#### Scenario: Rolled-back archive creation burns the number
+
+- **WHEN** an archive creation issues a pat_id and then fails
+- **THEN** the platform-side increment has committed — the number is burned and never
+  reissued
+
+<!-- synced from: number-rule-unification-sev 2026-11-19 (issuance delegates to the platform NumberApi; the row-lock mechanism moved to the system schema) -->
 
 ### Requirement: Patient Change Event Outbox
 
@@ -161,24 +166,7 @@ delete outbox rows.
 - **WHEN** the service runs with no message broker deployed
 - **THEN** outbox rows accumulate in PENDING status and all archive flows succeed
 
-### Requirement: Number Rule Management API
-
-Number rules SHALL be manageable through the `/api/v1/patient/**` surface under the
-`patient:rule:*` permission family: list, create, update, and delete. Exactly one rule
-SHALL be active per rule type (`pat_id` in v1); archive creation SHALL resolve the
-active rule and ignore inactive rows. Rule parameters (prefix, suffix, serial length,
-timestamp stamp) SHALL be data - changing the number format SHALL NOT require a code
-change.
-
-#### Scenario: Rule CRUD enforces perms
-
-- **WHEN** a user without `patient:rule:create` posts a rule create
-- **THEN** the request is rejected by the permission layer and no rule row is written
-
-#### Scenario: Creation resolves the active rule
-
-- **WHEN** two rules exist for `pat_id` with one active
-- **THEN** archive creation issues numbers from the active rule only
+<!-- REMOVED by number-rule-unification-sev 2026-11-19 (user ruling 2026-11-18): the patient-side rule CRUD surface (patient:rule:* perms, /api/v1/patient/** routes) retired - rule administration lives in the number-rule capability (system side, system:number:*), console page migrated by number-rule-unification-web. -->
 
 ### Requirement: Patient Service Surface
 
