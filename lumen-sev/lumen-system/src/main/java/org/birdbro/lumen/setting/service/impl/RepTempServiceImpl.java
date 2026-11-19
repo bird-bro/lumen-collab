@@ -20,6 +20,9 @@ import org.birdbro.lumen.setting.dto.TempPageQuery;
 import org.birdbro.lumen.setting.dto.TempUpdateRequest;
 import org.birdbro.lumen.setting.entity.RepTemp;
 import org.birdbro.lumen.setting.entity.RepTempContent;
+import org.birdbro.lumen.setting.entity.RepTempMeasure;
+import org.birdbro.lumen.setting.entity.RepTempMeasureNormal;
+import org.birdbro.lumen.setting.entity.RepTempSection;
 import org.birdbro.lumen.setting.mapper.RepTempContentJsonbTypeHandler;
 import org.birdbro.lumen.setting.mapper.RepTempMapper;
 import org.birdbro.lumen.setting.service.ExamBodyGroupService;
@@ -216,11 +219,14 @@ public class RepTempServiceImpl implements RepTempService {
     }
 
     /**
-     * D3/D8 content write guard: a content-carrying request must target a TEMPLATE
-     * node (flag=1) and pin {@code version=1}. Sections' non-emptiness and the
-     * nested name/code/label blanks ride the Bean Validation cascade (@Valid on the
-     * DTOs), so the service asserts exactly the two rules Bean Validation cannot
-     * place - the version pin and the directory refusal.
+     * D3/D8 content write guard (rep-temp-normal-range v2): a content-carrying
+     * request must target a TEMPLATE node (flag=1) and pin {@code version=2} - the
+     * migrated-away v1 shape (version 1, or a plain-string normal refused at Jackson
+     * binding) is rejected. Sections' non-emptiness and the nested name/code/label
+     * blanks ride the Bean Validation cascade (@Valid on the DTOs); the service
+     * asserts what Bean Validation cannot place - the version pin, the directory
+     * refusal, and the per-measure normal union rules (D2: range bounds
+     * independently nullable with min ≤ max, text non-blank ≤64, kind grouping).
      */
     private void guardContent(Integer flag, RepTempContent content) {
         if (content == null) {
@@ -230,9 +236,59 @@ public class RepTempServiceImpl implements RepTempService {
             throw new BusinessException(ExceptionEnum.ERROR_A0400,
                     "目录节点不允许携带 content");
         }
-        if (content.getVersion() == null || content.getVersion() != 1) {
+        if (content.getVersion() == null || content.getVersion() != 2) {
             throw new BusinessException(ExceptionEnum.ERROR_A0400,
-                    "content.version 必须为 1");
+                    "content.version 必须为 2");
+        }
+        guardNormalUnion(content);
+    }
+
+    /**
+     * The v2 normal-union rules (rep-temp-normal-range design D2): every
+     * measures[].normal must be a valid tagged union - {@code range} with min/max as
+     * independently nullable decimals (at least one end present, min ≤ max when both
+     * are), or {@code text} non-blank and at most 64 characters; any other kind (or a
+     * missing one) is refused. All refusals are A0400 naming the rule.
+     */
+    private void guardNormalUnion(RepTempContent content) {
+        if (content.getSections() == null) {
+            return;
+        }
+        for (RepTempSection section : content.getSections()) {
+            if (section == null || section.getMeasures() == null) {
+                continue;
+            }
+            for (RepTempMeasure measure : section.getMeasures()) {
+                if (measure == null || measure.getNormal() == null) {
+                    continue;
+                }
+                RepTempMeasureNormal normal = measure.getNormal();
+                if (RepTempMeasureNormal.KIND_RANGE.equals(normal.getKind())) {
+                    boolean hasMin = normal.getMin() != null;
+                    boolean hasMax = normal.getMax() != null;
+                    if (!hasMin && !hasMax) {
+                        throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                                "正常范围区间两端不能同时为空");
+                    }
+                    if (hasMin && hasMax
+                            && normal.getMin().compareTo(normal.getMax()) > 0) {
+                        throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                                "正常范围最小值不能大于最大值");
+                    }
+                } else if (RepTempMeasureNormal.KIND_TEXT.equals(normal.getKind())) {
+                    if (normal.getText() == null || normal.getText().isBlank()) {
+                        throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                                "正常范围文本不能为空");
+                    }
+                    if (normal.getText().length() > 64) {
+                        throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                                "正常范围文本长度不能超过 64");
+                    }
+                } else {
+                    throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                            "正常范围 kind 必须为 range 或 text");
+                }
+            }
         }
     }
 

@@ -26,8 +26,9 @@ import { themeConfig } from '@/theme'
  * template edits live in the right table where the full row is loaded. The
  * 公共/个人 Segmented threads scope `type` into EVERY call and reloads both
  * panes; the server keeps private rows owner-scoped. Structured-content delta
- * (2026-11-18): the template drawer is DUAL-FORM (模板形态 radio - 简单模板 640 /
- * 分节模板 960 section cards serializing content jsonb; edits backfill by the
+ * (2026-11-18): the template drawer is DUAL-FORM (类型 select - 简单模板/分节模板;
+ * 2026-11-19 rename+restyle ex-模板形态 radio, fixed 960 width) with section
+ * cards serializing content jsonb; edits backfill by the
  * row's content; conversions mapped/refused per D6; table summary per D7).
  * Scope-keyed perms delta (rep-temp-scope-perms 2026-11-19): the Segmented
  * 公共 option needs `setting:temp:public:list`, the default scope is lazy
@@ -83,24 +84,25 @@ function pageFixture(records: RepTemp[], total = records.length): Page<RepTemp> 
   return { records, total, size: 20, current: 1, pages: 1 }
 }
 
-/** Structured row (delta 2026-11-18): 2 sections / 5 measures, prose columns NULL (D1 互斥). */
+/** Structured row (delta 2026-11-18; v2 unions since rep-temp-normal-range): 2 sections /
+ * 5 range measures, prose columns NULL (D1 互斥). */
 const STRUCTURED_TEMP: RepTemp = {
   id: 36, type: 1, ownerUid: null, modality: 'CT', flag: 1, upId: 31,
   name: '心脏超声', finding: null, impression: null,
   content: {
-    version: 1,
+    version: 2,
     sections: [
       {
         name: '心腔', finding: '左房增大。', measures: [
-          { code: 'LA', label: '左房内径', unit: 'mm', normal: '19-40' },
-          { code: 'AO', label: '主动脉根部内径', unit: 'mm', normal: '20-37' },
+          { code: 'LA', label: '左房内径', unit: 'mm', normal: { kind: 'range', min: 19, max: 40 } },
+          { code: 'AO', label: '主动脉根部内径', unit: 'mm', normal: { kind: 'range', min: 20, max: 37 } },
         ],
       },
       {
         name: '心功能', finding: null, measures: [
-          { code: 'EF', label: '射血分数', unit: '%', normal: '50-75' },
-          { code: 'FS', label: '短轴缩短率', unit: '%', normal: '25-45' },
-          { code: 'SV', label: '每搏输出量', unit: 'ml', normal: '55-90' },
+          { code: 'EF', label: '射血分数', unit: '%', normal: { kind: 'range', min: 50, max: 75 } },
+          { code: 'FS', label: '短轴缩短率', unit: '%', normal: { kind: 'range', min: 25, max: 45 } },
+          { code: 'SV', label: '每搏输出量', unit: 'ml', normal: { kind: 'range', min: 55, max: 90 } },
         ],
       },
     ],
@@ -116,16 +118,33 @@ function mockPageRows(rows: RepTemp[]) {
   )
 }
 
-/** The open template drawer's wrapper carries the mode-driven inline width (640/960). */
+/** The open template drawer's wrapper carries the FIXED inline width (960, 2026-11-19
+ * ruling - the 类型 select never resizes it). */
 function drawerWrapper(): HTMLElement {
   const wrapper = screen.getByRole('dialog').closest('.ant-drawer-content-wrapper') as HTMLElement
   expect(wrapper).toBeTruthy()
   return wrapper
 }
 
-/** antd Radio hides its input - the click lands on the wrapping label (scope-switch idiom). */
-function clickRadio(scope: HTMLElement, name: string, user: ReturnType<typeof userEvent.setup>) {
-  return user.click(within(scope).getByRole('radio', { name }).closest('label') as HTMLElement)
+/** The 类型 select's shown value (2026-11-19 restyle, ex-模板形态 radio): the antd
+ * selection item inside the dialog. The dropdown options portal beside the
+ * trigger and hide on close, so text queries would double-match; the template
+ * drawer holds exactly ONE Select. */
+function shownTemplateType(): string | null {
+  return screen.getByRole('dialog').querySelector('.ant-select-selection-item')?.textContent ?? null
+}
+
+/** Switch the template drawer's 类型 select: open the named combobox, then click
+ * the matching option row (orgs-page idiom - `.at(-1)` because antd keeps the
+ * previous dropdown in the DOM while it animates closed). */
+async function pickTemplateType(user: ReturnType<typeof userEvent.setup>, label: string) {
+  await user.click(within(screen.getByRole('dialog')).getByRole('combobox', { name: '类型' }))
+  const option = await waitFor(() => {
+    const els = Array.from(document.querySelectorAll(`.ant-select-item-option[title="${label}"]`))
+    if (els.length === 0) throw new Error(`template type option ${label} not found`)
+    return els.at(-1) as HTMLElement
+  })
+  await user.click(option)
 }
 
 function renderPage() {
@@ -351,11 +370,11 @@ describe('report template page - template drawer', () => {
     expect(within(drawer).getByLabelText('影像学意见')).toBeTruthy()
     expect(within(drawer).queryByLabelText('目录名称')).toBeNull()
     // Delta (structured content 2026-11-18): the template surface is DUAL-FORM -
-    // the 模板形态 radio (简单模板/分节模板) replaces the retired 节点类型 one and
-    // defaults to 简单模板 at the 640 width.
-    expect((within(drawer).getByRole('radio', { name: '简单模板' }) as HTMLInputElement).checked).toBe(true)
-    expect(within(drawer).getByRole('radio', { name: '分节模板' })).toBeTruthy()
-    expect(drawerWrapper().style.width).toBe('640px')
+    // the 类型 select (简单模板/分节模板; 2026-11-19 rename+restyle) replaces the
+    // retired 节点类型 one and defaults to 简单模板 at the FIXED 960 width.
+    expect(within(drawer).getByRole('combobox', { name: '类型' })).toBeTruthy()
+    expect(shownTemplateType()).toBe('简单模板')
+    expect(drawerWrapper().style.width).toBe('960px')
     expect(within(drawer).getByText('呼吸系统')).toBeTruthy()
   })
 
@@ -454,14 +473,14 @@ describe('report template page - perm gating', () => {
 })
 
 describe('report template page - structured form (dual mode)', () => {
-  it('分节模板 widens the drawer to 960 and swaps prose fields for section editors', async () => {
+  it('分节模板 swaps prose fields for section editors at the fixed 960 width', async () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('呼吸系统')
 
     await user.click(screen.getByRole('button', { name: /添加模板/ }))
     const drawer = screen.getByRole('dialog')
-    await clickRadio(drawer, '分节模板', user)
+    await pickTemplateType(user, '分节模板')
 
     expect(drawerWrapper().style.width).toBe('960px')
     expect(within(drawer).queryByLabelText('影像学表现')).toBeNull()
@@ -482,7 +501,7 @@ describe('report template page - structured form (dual mode)', () => {
     await user.click(screen.getByRole('button', { name: /添加模板/ }))
     const drawer = screen.getByRole('dialog')
     await user.type(within(drawer).getByLabelText('名称'), '心脏超声')
-    await clickRadio(drawer, '分节模板', user)
+    await pickTemplateType(user, '分节模板')
 
     await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
     await screen.findByText('节名不能为空')
@@ -508,7 +527,7 @@ describe('report template page - structured form (dual mode)', () => {
         expect.objectContaining({
           flag: 1, name: '心脏超声',
           content: {
-            version: 1,
+            version: 2,
             sections: [
               { name: '心腔', finding: null, measures: [{ code: 'LA', label: '左房内径', unit: null, normal: null }] },
             ],
@@ -527,7 +546,7 @@ describe('report template page - structured form (dual mode)', () => {
     await user.click(screen.getByRole('button', { name: /添加模板/ }))
     const drawer = screen.getByRole('dialog')
     await user.type(within(drawer).getByLabelText('名称'), '心脏超声')
-    await clickRadio(drawer, '分节模板', user)
+    await pickTemplateType(user, '分节模板')
     const card = within(drawer).getByRole('group', { name: '节卡片 1' })
     await user.type(within(card).getByLabelText('节名'), '心腔')
     await user.type(within(card).getByLabelText('节所见'), '左房增大。')
@@ -535,7 +554,8 @@ describe('report template page - structured form (dual mode)', () => {
     await user.type(within(card).getByLabelText('项目'), 'LA')
     await user.type(within(card).getByLabelText('名称'), '左房内径')
     await user.type(within(card).getByLabelText('单位'), 'mm')
-    await user.type(within(card).getByLabelText('正常范围'), '19-40')
+    await user.type(within(card).getByLabelText('正常范围最小值'), '19')
+    await user.type(within(card).getByLabelText('正常范围最大值'), '40')
     await user.type(within(drawer).getByLabelText('影像学意见'), '先随访后复查。')
     await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
 
@@ -545,9 +565,9 @@ describe('report template page - structured form (dual mode)', () => {
           type: 1, modality: 'CT', flag: 1, upId: 31, name: '心脏超声',
           finding: null, impression: null,
           content: {
-            version: 1,
+            version: 2,
             sections: [
-              { name: '心腔', finding: '左房增大。', measures: [{ code: 'LA', label: '左房内径', unit: 'mm', normal: '19-40' }] },
+              { name: '心腔', finding: '左房增大。', measures: [{ code: 'LA', label: '左房内径', unit: 'mm', normal: { kind: 'range', min: 19, max: 40 } }] },
             ],
             impression: '先随访后复查。',
           },
@@ -564,7 +584,7 @@ describe('report template page - structured form (dual mode)', () => {
     await user.click(screen.getByRole('button', { name: /添加模板/ }))
     const drawer = screen.getByRole('dialog')
     await user.type(within(drawer).getByLabelText('名称'), '心脏超声')
-    await clickRadio(drawer, '分节模板', user)
+    await pickTemplateType(user, '分节模板')
     const card = within(drawer).getByRole('group', { name: '节卡片 1' })
     await user.type(within(card).getByLabelText('节名'), '心腔')
     // Two measure rows, only the first filled; the empty second row is deleted.
@@ -586,7 +606,7 @@ describe('report template page - structured form (dual mode)', () => {
       expect(tempApi.createRepTemp).toHaveBeenCalledWith(
         expect.objectContaining({
           content: {
-            version: 1,
+            version: 2,
             sections: [
               { name: '心腔', finding: null, measures: [{ code: 'LA', label: '左房内径', unit: null, normal: null }] },
             ],
@@ -608,7 +628,7 @@ describe('report template page - mode conversion (3.3)', () => {
     const drawer = screen.getByRole('dialog')
     await user.type(within(drawer).getByLabelText('影像学表现'), '左肺上叶磨玻璃结节')
     await user.type(within(drawer).getByLabelText('影像学意见'), '建议三个月随访')
-    await clickRadio(drawer, '分节模板', user)
+    await pickTemplateType(user, '分节模板')
 
     // Delta: the first section's 节所见 carries the former 表现 text; the 意见
     // stays as the global conclusion. 节名 stays empty for the user to fill
@@ -625,15 +645,15 @@ describe('report template page - mode conversion (3.3)', () => {
 
     await user.click(screen.getByRole('button', { name: /添加模板/ }))
     const drawer = screen.getByRole('dialog')
-    await clickRadio(drawer, '分节模板', user)
+    await pickTemplateType(user, '分节模板')
     await user.type(within(drawer).getByLabelText('节名'), '心腔')
-    await clickRadio(drawer, '简单模板', user)
+    await pickTemplateType(user, '简单模板')
 
     // Delta: switching back would drop sections - warn and keep 分节模式.
     await screen.findByText('切换为简单模板将丢失分节内容')
     expect(within(drawer).getByLabelText('节名')).toBeTruthy()
     expect(within(drawer).queryByLabelText('影像学表现')).toBeNull()
-    expect((within(drawer).getByRole('radio', { name: '分节模板' }) as HTMLInputElement).checked).toBe(true)
+    expect(shownTemplateType()).toBe('分节模板')
   })
 })
 
@@ -646,8 +666,8 @@ describe('report template page - structured edit backfill (3.4)', () => {
 
     await user.click(screen.getByRole('button', { name: '编辑' }))
     const drawer = screen.getByRole('dialog')
-    // content != null lands in 分节模式 at the wide drawer - no prose 表现 field.
-    expect((within(drawer).getByRole('radio', { name: '分节模板' }) as HTMLInputElement).checked).toBe(true)
+    // content != null lands in 分节模式 at the fixed wide drawer - no prose 表现 field.
+    expect(shownTemplateType()).toBe('分节模板')
     expect(drawerWrapper().style.width).toBe('960px')
     expect(within(drawer).queryByLabelText('影像学表现')).toBeNull()
     const card1 = within(drawer).getByRole('group', { name: '节卡片 1' })
@@ -677,7 +697,7 @@ describe('report template page - structured edit backfill (3.4)', () => {
 
     await user.click(screen.getByRole('button', { name: '编辑' }))
     const drawer = screen.getByRole('dialog')
-    expect((within(drawer).getByRole('radio', { name: '简单模板' }) as HTMLInputElement).checked).toBe(true)
+    expect(shownTemplateType()).toBe('简单模板')
     expect(within(drawer).getByLabelText('影像学表现')).toBeTruthy()
     await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
 
@@ -689,6 +709,172 @@ describe('report template page - structured edit backfill (3.4)', () => {
       const arg = vi.mocked(tempApi.updateRepTemp).mock.calls.at(-1)?.[1]
       expect(arg?.content).toBeNull()
     })
+  })
+})
+
+describe('report template page - normal range union editor (rep-temp-normal-range)', () => {
+  /** v2 union fixture: a range row, a text row, and a null-normal row (version 2). */
+  const UNION_TEMP: RepTemp = {
+    id: 37, type: 1, ownerUid: null, modality: 'CT', flag: 1, upId: 31,
+    name: '甲状腺超声', finding: null, impression: null,
+    content: {
+      version: 2,
+      sections: [
+        {
+          name: '甲状腺', finding: null, measures: [
+            { code: 'TG', label: '甲状腺左叶', unit: 'mm', normal: { kind: 'range', min: 3, max: 20 } },
+            { code: 'NOD', label: '结节边界', unit: null, normal: { kind: 'text', text: '清晰' } },
+            { code: 'FLW', label: '血流信号', unit: null, normal: null },
+          ],
+        },
+      ],
+      impression: null,
+    },
+  }
+
+  it('区间 normal serializes the v2 range variant (two-sided and single-sided)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('呼吸系统')
+
+    await user.click(screen.getByRole('button', { name: /添加模板/ }))
+    const drawer = screen.getByRole('dialog')
+    await user.type(within(drawer).getByLabelText('名称'), '心脏超声')
+    await pickTemplateType(user, '分节模板')
+    const card = within(drawer).getByRole('group', { name: '节卡片 1' })
+    await user.type(within(card).getByLabelText('节名'), '心腔')
+    await user.click(within(card).getByRole('button', { name: '添加测量项' }))
+    // Row 0: two-sided decimal range.
+    await user.type(within(card).getByLabelText('项目'), 'LA')
+    await user.type(within(card).getByLabelText('名称'), '左房内径')
+    await user.type(within(card).getByLabelText('正常范围最小值'), '19.5')
+    await user.type(within(card).getByLabelText('正常范围最大值'), '40')
+    // Row 1: min-only open interval (max left blank).
+    await user.click(within(card).getByRole('button', { name: '添加测量项' }))
+    await user.type(within(card).getAllByLabelText('项目')[1], 'LV')
+    await user.type(within(card).getAllByLabelText('名称')[1], '左室内径')
+    await user.type(within(card).getAllByLabelText('正常范围最小值')[1], '3')
+    await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
+
+    await waitFor(() => {
+      expect(tempApi.createRepTemp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.objectContaining({
+            version: 2,
+            sections: [expect.objectContaining({
+              measures: [
+                { code: 'LA', label: '左房内径', unit: null, normal: { kind: 'range', min: 19.5, max: 40 } },
+                { code: 'LV', label: '左室内径', unit: null, normal: { kind: 'range', min: 3, max: null } },
+              ],
+            })],
+          }),
+        }),
+      )
+    })
+  })
+
+  it('文本 normal serializes the v2 text variant', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('呼吸系统')
+
+    await user.click(screen.getByRole('button', { name: /添加模板/ }))
+    const drawer = screen.getByRole('dialog')
+    await user.type(within(drawer).getByLabelText('名称'), '心脏超声')
+    await pickTemplateType(user, '分节模板')
+    const card = within(drawer).getByRole('group', { name: '节卡片 1' })
+    await user.type(within(card).getByLabelText('节名'), '心腔')
+    await user.click(within(card).getByRole('button', { name: '添加测量项' }))
+    await user.type(within(card).getByLabelText('项目'), 'MR')
+    await user.type(within(card).getByLabelText('名称'), '二尖瓣反流')
+    // Switch the row to 文本 and type the qualitative phrase.
+    await user.click(within(card).getByRole('radio', { name: '文本' }).closest('label') as HTMLElement)
+    await user.type(within(card).getByLabelText('正常范围'), '阴性')
+    await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
+
+    await waitFor(() => {
+      expect(tempApi.createRepTemp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: expect.objectContaining({
+            version: 2,
+            sections: [expect.objectContaining({
+              measures: [
+                { code: 'MR', label: '二尖瓣反流', unit: null, normal: { kind: 'text', text: '阴性' } },
+              ],
+            })],
+          }),
+        }),
+      )
+    })
+  })
+
+  it('empty normal serializes null (cleared 区间 stays null, never an empty object)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('呼吸系统')
+
+    await user.click(screen.getByRole('button', { name: /添加模板/ }))
+    const drawer = screen.getByRole('dialog')
+    await user.type(within(drawer).getByLabelText('名称'), '心脏超声')
+    await pickTemplateType(user, '分节模板')
+    const card = within(drawer).getByRole('group', { name: '节卡片 1' })
+    await user.type(within(card).getByLabelText('节名'), '心腔')
+    await user.click(within(card).getByRole('button', { name: '添加测量项' }))
+    await user.type(within(card).getByLabelText('项目'), 'PE')
+    await user.type(within(card).getByLabelText('名称'), '心包积液')
+    // Switch to 文本 and back to 区间 - the round-trip leaves both ends empty.
+    await user.click(within(card).getByRole('radio', { name: '文本' }).closest('label') as HTMLElement)
+    await user.click(within(card).getByRole('radio', { name: '区间' }).closest('label') as HTMLElement)
+    await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
+
+    await waitFor(() => {
+      const arg = vi.mocked(tempApi.createRepTemp).mock.calls.at(-1)?.[0]
+      const measure = arg?.content?.sections[0]?.measures[0]
+      expect(measure?.code).toBe('PE')
+      expect(measure?.normal).toBeNull()
+    })
+  })
+
+  it('inverted range is blocked client-side with a naming message and no request', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('呼吸系统')
+
+    await user.click(screen.getByRole('button', { name: /添加模板/ }))
+    const drawer = screen.getByRole('dialog')
+    await user.type(within(drawer).getByLabelText('名称'), '心脏超声')
+    await pickTemplateType(user, '分节模板')
+    const card = within(drawer).getByRole('group', { name: '节卡片 1' })
+    await user.type(within(card).getByLabelText('节名'), '心腔')
+    await user.click(within(card).getByRole('button', { name: '添加测量项' }))
+    await user.type(within(card).getByLabelText('项目'), 'AO')
+    await user.type(within(card).getByLabelText('名称'), '主动脉')
+    await user.type(within(card).getByLabelText('正常范围最小值'), '40')
+    await user.type(within(card).getByLabelText('正常范围最大值'), '19')
+    await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
+
+    await screen.findByText('正常范围最小值不能大于最大值')
+    expect(tempApi.createRepTemp).not.toHaveBeenCalled()
+  })
+
+  it('backfill reads the stored kind (text row / range row / null row)', async () => {
+    const user = userEvent.setup()
+    mockPageRows([UNION_TEMP])
+    renderPage()
+    await screen.findByText('甲状腺超声')
+
+    await user.click(screen.getByRole('button', { name: '编辑' }))
+    const drawer = screen.getByRole('dialog')
+    const card = within(drawer).getByRole('group', { name: '节卡片 1' })
+    // Row 0 (range): the stored ends backfilled.
+    expect((within(card).getAllByLabelText('正常范围最小值')[0] as HTMLInputElement).value).toBe('3')
+    expect((within(card).getAllByLabelText('正常范围最大值')[0] as HTMLInputElement).value).toBe('20')
+    // Row 1 (text): the 文本-mode input EXISTS (only a text-kind row renders it)
+    // with the stored phrase - the mode itself is the kind proof.
+    expect((within(card).getByLabelText('正常范围') as HTMLInputElement).value).toBe('清晰')
+    // Row 2 (null): 区间 default with empty ends (no third state).
+    expect((within(card).getAllByLabelText('正常范围最小值')[1] as HTMLInputElement).value).toBe('')
+    expect(within(card).getAllByLabelText('正常范围')).toHaveLength(1)
   })
 })
 
@@ -737,7 +923,7 @@ describe('report template page - structured save chain (3.6)', () => {
     await user.click(screen.getByRole('button', { name: /添加模板/ }))
     const drawer = screen.getByRole('dialog')
     await user.type(within(drawer).getByLabelText('名称'), '心脏超声')
-    await clickRadio(drawer, '分节模板', user)
+    await pickTemplateType(user, '分节模板')
     await user.type(within(drawer).getByLabelText('节名'), '心腔')
     await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
 

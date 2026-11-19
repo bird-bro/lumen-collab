@@ -859,12 +859,24 @@ export interface RepTempNode {
   children: RepTempNode[];
 }
 
-/** One measure row of a structured template section (batch-1 content model; code is the report-domain stable anchor, label the display name). */
+/**
+ * Normal-range v2 tagged union (rep-temp-normal-range 2026-11-19, spec delta
+ * exam-setting "Structured Template Content" v2): `kind: 'range'` carries min/max
+ * as INDEPENDENTLY nullable decimals (a null end is a single-sided open interval;
+ * the server rejects inverted bounds and both-ends-null), `kind: 'text'` carries a
+ * non-blank qualitative phrase of at most 64 characters. A measure without a range
+ * carries `normal: null` - no union object.
+ */
+export type RepTempMeasureNormal =
+  | { kind: 'range'; min: number | null; max: number | null }
+  | { kind: 'text'; text: string };
+
+/** One measure row of a structured section (code = the stable report anchor; normal = the v2 union). */
 export interface RepTempMeasure {
   code: string;
   label: string;
   unit: string | null;
-  normal: string | null;
+  normal: RepTempMeasureNormal | null;
 }
 
 /** One section of a structured template (节名 free text; 内镜-style sections may carry no measures). */
@@ -876,7 +888,8 @@ export interface RepTempSection {
 
 /**
  * Structured template content (`rep_temp.content` jsonb, D2 shape; version is
- * pinned to 1 server-side - it only pre-reserves future structure evolution).
+ * pinned to 2 server-side since rep-temp-normal-range - the v1 shape was retired
+ * by the V47 one-shot migration).
  */
 export interface RepTempContent {
   version: number;

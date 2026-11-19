@@ -1,5 +1,5 @@
-import { Button, Card, Drawer, Form, Input, Popconfirm, Radio, Segmented, Select, Tag, message, theme } from 'antd'
-import type { RadioChangeEvent, TableColumnsType } from 'antd'
+import { Button, Card, Drawer, Form, Input, InputNumber, Popconfirm, Segmented, Select, Tag, message, theme } from 'antd'
+import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   createRepTemp,
@@ -9,7 +9,7 @@ import {
   updateRepTemp,
 } from '@/api/rep-temp'
 import { ApiError } from '@/api/client'
-import type { Page, RepTemp, RepTempContent, RepTempMeasure, RepTempNode, RepTempSection } from '@/api/types'
+import type { Page, RepTemp, RepTempContent, RepTempMeasure, RepTempMeasureNormal, RepTempNode, RepTempSection } from '@/api/types'
 import { dictItemsByName } from '@/utils/dict-items'
 import type { DictItem } from '@/api/types'
 import { usePerm } from '@/utils/perm'
@@ -38,10 +38,11 @@ import {
  * 编辑目录 open the DIRECTORY DRAWER (上级 select + 目录名称 only), and the
  * right-pane 添加模板 / right-table 编辑 open the WIDE TEMPLATE DRAWER (目录 echo +
  * 名称/影像学表现/影像学意见 - long-form content gets a FIXED-WIDTH 960px drawer,
- * 2026-11-19 ruling - the width never follows the 模板形态) bound to the selected
+ * 2026-11-19 ruling - the width never follows the 类型 select) bound to the selected
  * directory - 添加模板 warns
  * 请先选择目录 when no directory node is selected. DUAL-FORM templates
- * (structured-content delta 2026-11-18, D6): the drawer carries a 模板形态 radio -
+ * (structured-content delta 2026-11-18, D6): the drawer carries a 类型 select
+ * (简单模板/分节模板; 2026-11-19 rename+restyle, ex-模板形态 radio) -
  * 简单模板 keeps the prose form, 分节模板 swaps in section cards
  * (节名 + measure rows + 节所见) serializing into `content` jsonb at save (D1 互斥
  * nulls the prose columns); edits backfill by the row's content, 简单→分节 maps
@@ -79,11 +80,28 @@ interface SectionCardProps {
 }
 
 /**
+ * The v2 normal union serialization (rep-temp-normal-range design D3): a range
+ * with BOTH ends empty and a blank text degrade to `null` - the measure simply
+ * has no range (never an empty union object reaches the wire).
+ */
+function serializeMeasureNormal(normal: RepTempMeasureNormal | null): RepTempMeasureNormal | null {
+  if (!normal) return null
+  if (normal.kind === 'range') {
+    if (normal.min == null && normal.max == null) return null
+    return { kind: 'range', min: normal.min ?? null, max: normal.max ?? null }
+  }
+  const text = normal.text?.trim()
+  return text ? { kind: 'text', text } : null
+}
+
+/**
  * One 分节 card of the structured template editor (dual-form delta 2026-11-18,
  * D6). Module-level so the card's 折叠 state survives the page's controlled
  * re-renders - a component defined inside the page function would remount per
  * keystroke. Card = 节名 Input + measure rows (项目 code / 名称 label / 单位 unit /
- * 正常范围 normal + row delete + 添加测量项) + 节所见 TextArea; 折叠 hides the measure
+ * 正常范围 normal as the v2 UNION editor - per-row Segmented 区间/文本, null
+ * renders 区间 with empty ends (rep-temp-normal-range design D2/D5) + row delete
+ * + 添加测量项) + 节所见 TextArea; 折叠 hides the measure
  * rows and findings (节名 stays visible), 删除节 removes the card. All state is
  * pure frontend form state - saveTemplate serializes it into the RepTempContent
  * jsonb shape (节名/code/label required, validated with field-named messages).
@@ -119,12 +137,12 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '12px 0' }}>
               {section.measures.map((measure, mi) => (
-                <div key={mi} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div key={mi} style={{ display: 'flex', gap: 6, alignItems: 'center', minWidth: 0 }}>
                   <Input
                     aria-label="项目"
                     placeholder="项目"
                     maxLength={32}
-                    style={{ width: 120 }}
+                    style={{ width: 104 }}
                     value={measure.code}
                     onChange={(e) => patchMeasure(mi, { code: e.target.value })}
                   />
@@ -132,7 +150,7 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
                     aria-label="名称"
                     placeholder="名称"
                     maxLength={64}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: 90 }}
                     value={measure.label}
                     onChange={(e) => patchMeasure(mi, { label: e.target.value })}
                   />
@@ -140,18 +158,75 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
                     aria-label="单位"
                     placeholder="单位"
                     maxLength={32}
-                    style={{ width: 80 }}
+                    style={{ width: 66 }}
                     value={measure.unit ?? ''}
                     onChange={(e) => patchMeasure(mi, { unit: e.target.value })}
                   />
-                  <Input
-                    aria-label="正常范围"
-                    placeholder="正常范围"
-                    maxLength={64}
-                    style={{ width: 110 }}
-                    value={measure.normal ?? ''}
-                    onChange={(e) => patchMeasure(mi, { normal: e.target.value })}
+                  {/* 正常范围 v2 union editor (rep-temp-normal-range design D2): a
+                      per-row Segmented 区间/文本 - a null normal renders 区间 with
+                      empty ends (no third state, D5); 区间 = min/max InputNumbers
+                      (a blank end is a single-sided open interval), 文本 = a ≤64
+                      qualitative input. Empty shapes degrade to null at save. */}
+                  <Segmented
+                    size="small"
+                    value={measure.normal?.kind ?? 'range'}
+                    onChange={(value) =>
+                      patchMeasure(mi, {
+                        normal:
+                          value === 'text'
+                            ? { kind: 'text', text: '' }
+                            : { kind: 'range', min: null, max: null },
+                      })
+                    }
+                    options={[
+                      { label: '区间', value: 'range' },
+                      { label: '文本', value: 'text' },
+                    ]}
                   />
+                  {measure.normal?.kind === 'text' ? (
+                    <Input
+                      aria-label="正常范围"
+                      placeholder="正常范围"
+                      maxLength={64}
+                      style={{ width: 120 }}
+                      value={measure.normal.text}
+                      onChange={(e) => patchMeasure(mi, { normal: { kind: 'text', text: e.target.value } })}
+                    />
+                  ) : (
+                    <>
+                      <InputNumber
+                        aria-label="正常范围最小值"
+                        placeholder="最小"
+                        style={{ width: 78 }}
+                        value={measure.normal?.kind === 'range' ? measure.normal.min : null}
+                        onChange={(value) =>
+                          patchMeasure(mi, {
+                            normal: {
+                              kind: 'range',
+                              min: value ?? null,
+                              max: measure.normal?.kind === 'range' ? measure.normal.max : null,
+                            },
+                          })
+                        }
+                      />
+                      <span>~</span>
+                      <InputNumber
+                        aria-label="正常范围最大值"
+                        placeholder="最大"
+                        style={{ width: 78 }}
+                        value={measure.normal?.kind === 'range' ? measure.normal.max : null}
+                        onChange={(value) =>
+                          patchMeasure(mi, {
+                            normal: {
+                              kind: 'range',
+                              min: measure.normal?.kind === 'range' ? measure.normal.min : null,
+                              max: value ?? null,
+                            },
+                          })
+                        }
+                      />
+                    </>
+                  )}
                   <Button
                     type="text"
                     size="small"
@@ -235,7 +310,8 @@ export default function RepTemplatePage() {
   const [tplForm] = Form.useForm<TplFormValues>()
   // Dual-form mode (D6): false = 简单模板 (prose columns), true = 分节模板
   // (sections serialize into content jsonb). Pure frontend state - the save
-  // chain serializes; the drawer width follows the mode (960 / 640).
+  // chain serializes; the drawer width is FIXED at 960 (2026-11-19 ruling) -
+  // switching the mode never resizes the drawer.
   const [tplStructured, setTplStructured] = useState(false)
   const [tplSections, setTplSections] = useState<RepTempSection[]>([])
 
@@ -445,7 +521,8 @@ export default function RepTemplatePage() {
     setTplDrawerOpen(true)
   }
 
-  // Mode radio (D6 conversion semantics): 简单→分节 maps 表现 → the first
+  // Mode select (D6 conversion semantics; 2026-11-19 rename+restyle, ex-模板形态
+  // radio): 简单→分节 maps 表现 → the first
   // section's 节所见 (auto-created; 节名 left empty for the user - the backend
   // @NotBlank is the guard); the global 意见 form field IS content.impression,
   // so it carries over untouched. 分节→简单 is REFUSED (sections would be
@@ -520,10 +597,19 @@ export default function RepTemplatePage() {
               messageApi.error('测量项名称不能为空')
               return
             }
+            // The v2 union client guard (rep-temp-normal-range spec scenario):
+            // an inverted range is blocked HERE with a naming message - no
+            // create/update request is issued (the server re-asserts, A0400).
+            const normal = measure.normal
+            if (normal?.kind === 'range' && normal.min != null && normal.max != null
+                && normal.min > normal.max) {
+              messageApi.error('正常范围最小值不能大于最大值')
+              return
+            }
           }
         }
         content = {
-          version: 1,
+          version: 2,
           sections: tplSections.map((section) => ({
             name: section.name.trim(),
             finding: section.finding?.trim() || null,
@@ -531,7 +617,7 @@ export default function RepTemplatePage() {
               code: measure.code.trim(),
               label: measure.label.trim(),
               unit: measure.unit?.trim() || null,
-              normal: measure.normal?.trim() || null,
+              normal: serializeMeasureNormal(measure.normal),
             })),
           })),
           impression: values.impression?.trim() || null,
@@ -822,14 +908,15 @@ export default function RepTemplatePage() {
       </Drawer>
 
       {/* 模板抽屉 - content only (添加模板 under the guarded directory parent /
-          编辑模板 from the right table's loaded row). WIDE drawer (2026-11-18
-          second ruling - the centered modal read as 不协调): 640px so the
-          long-form 影像学表现/意见 text areas breathe (rows 10/8); the 分节模板
-          mode widens further to 960px for the section cards (D6). House drawer
-          shape: close button top-right, maskClosable off. */}
+          编辑模板 from the right table's loaded row). WIDE drawer at a FIXED
+          960px (2026-11-19 ruling - the 分节模板 section cards' size, bigger
+          than the old 640 simple-mode drawer) so the long-form 影像学表现/意见
+          text areas breathe (rows 10/8) and switching the 类型 select never
+          resizes the drawer. House drawer shape: close button top-right,
+          maskClosable off. */}
       <Drawer
         title={editingTpl ? '编辑模板' : '添加模板'}
-        width={tplStructured ? 960 : 640}
+        width={960}
         open={tplDrawerOpen}
         onClose={() => setTplDrawerOpen(false)}
         closable={{ placement: 'end' }}
@@ -845,8 +932,14 @@ export default function RepTemplatePage() {
         }
       >
         <Form form={tplForm} layout="vertical">
-          {/* 目录 echo: the bound directory (add) or the row's stored parent
-              (edit) - the template's owning directory, not a parent chain. */}
+          {/* 目录 echo + 类型 select share ONE row (2026-11-19 ruling - the two
+              stacked full-width rows read as clutter): the owning directory Tag
+              (add) or the row's stored parent (edit) sits left, the mode select
+              (简单模板/分节模板; ex-模板形态 radio, fixed width - not a Form
+              field, state-driven) sits right - BOTH at the fixed 960 drawer
+              width, so switching never resizes it. The global 影像学意见 below
+              is the ONE field shared by both modes (structured saves it into
+              content.impression, D2). */}
           <div
             style={{
               display: 'flex',
@@ -863,22 +956,20 @@ export default function RepTemplatePage() {
             >
               {editingTpl ? resolveNodeName(editingTpl.upId) : tplParent ? tplParent.name : '顶层'}
             </Tag>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              类型
+              <Select
+                aria-label="类型"
+                style={{ width: 160 }}
+                value={tplStructured ? 'structured' : 'simple'}
+                onChange={(value) => handleTplModeSwitch(value as 'simple' | 'structured')}
+                options={[
+                  { label: '简单模板', value: 'simple' },
+                  { label: '分节模板', value: 'structured' },
+                ]}
+              />
+            </span>
           </div>
-          {/* 模板形态 mode radio (dual-form D6): 简单模板 = prose columns at 640,
-              分节模板 = section cards at 960. The global 影像学意见 below is the
-              ONE field shared by both modes (structured saves it into
-              content.impression, D2). */}
-          <Form.Item label="模板形态" style={{ marginBottom: token.marginLG }}>
-            <Radio.Group
-              value={tplStructured ? 'structured' : 'simple'}
-              onChange={(event: RadioChangeEvent) =>
-                handleTplModeSwitch(event.target.value as 'simple' | 'structured')
-              }
-            >
-              <Radio value="simple">简单模板</Radio>
-              <Radio value="structured">分节模板</Radio>
-            </Radio.Group>
-          </Form.Item>
           <Form.Item
             name="name"
             label="名称"

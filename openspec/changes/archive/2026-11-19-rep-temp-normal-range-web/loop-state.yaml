@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: rep-temp-normal-range-web
+execution_mode: Batch Inline
+tasks_total: 7
+tasks_done: 7
+workflow_mode: full
+artifacts_hash: dafbce198cdc9c50a7640ad977a120394481408a317e3f80b9b4d86a1552aaac

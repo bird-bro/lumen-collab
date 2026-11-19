@@ -10,8 +10,10 @@ import lombok.NoArgsConstructor;
 /**
  * One measurement row of {@link RepTempSection} (design D2): {@code code} is the
  * STABLE anchor the report domain renders/statistics key on (e.g. AO/EF),
- * {@code label} is the display name (主动脉根部内径) - both required; unit/normal
- * are optional template phrases.
+ * {@code label} is the display name (主动脉根部内径) - both required; unit is an
+ * optional template phrase. {@code normal} is the v2 tagged union
+ * ({@link RepTempMeasureNormal} - range/text/null, rep-temp-normal-range 2026-11-19;
+ * the former free-text string shape was retired by the V47 one-shot migration).
  *
  * @author birdbro
  */
@@ -32,6 +34,6 @@ public class RepTempMeasure {
     /** 单位（可空）. */
     private String unit;
 
-    /** 正常范围（可空）. */
-    private String normal;
+    /** 正常范围 v2 tagged union（range/text/null,可空）. */
+    private RepTempMeasureNormal normal;
 }
