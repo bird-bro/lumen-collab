@@ -31,8 +31,11 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Report-template endpoints (exam-setting-api task 5.2): the 报告模板 page's tree +
  * paged file list + CRUD, scope-switched by {@code type} (the 公共/私有 tabs). Class
- * gate = the list perm; mutating methods pin their button perms. PRIVATE-scope
- * enforcement lives in the service (session-bound owner, leak-free refusals).
+ * gate = the list perm (unchanged); the mutating methods' static pins admit EITHER
+ * family (rep-temp-scope-perms design D1 - the admit-then-assert split: the precise
+ * scope family is asserted in the service by the row's/request's type, the pins stay
+ * as defense in depth). PRIVATE-scope enforcement lives in the service (session-bound
+ * owner, leak-free refusals).
  *
  * @author birdbro
  */
@@ -51,7 +54,7 @@ public class RepTempController {
     /** Creates a tree node (private rows bind the session owner); returns the new id. */
     @Log(title = "报告模板", type = "新增")
     @ApiOperation("创建模板节点")
-    @PreAuthorize("hasAuthority('setting:temp:create')") // button-perm pin
+    @PreAuthorize("hasAnyAuthority('setting:temp:create', 'setting:temp:public:create')") // either-family button pin (D1)
     @PostMapping
     public Integer create(@Valid @RequestBody TempCreateRequest request) {
         return repTempService.create(request);
@@ -60,7 +63,7 @@ public class RepTempController {
     /** Full-replace update (D9 null-aware; scope/ownership stay as stored). */
     @Log(title = "报告模板", type = "修改")
     @ApiOperation("模板节点全量更新")
-    @PreAuthorize("hasAuthority('setting:temp:update')") // button-perm pin
+    @PreAuthorize("hasAnyAuthority('setting:temp:update', 'setting:temp:public:update')") // either-family button pin (D1)
     @PutMapping("/{id}")
     public Boolean update(@PathVariable Integer id,
             @Valid @RequestBody TempUpdateRequest request) {
@@ -70,7 +73,7 @@ public class RepTempController {
     /** Logical delete (private rows refuse non-owners). */
     @Log(title = "报告模板", type = "删除")
     @ApiOperation("逻辑删除模板节点")
-    @PreAuthorize("hasAuthority('setting:temp:delete')") // button-perm pin
+    @PreAuthorize("hasAnyAuthority('setting:temp:delete', 'setting:temp:public:delete')") // either-family button pin (D1)
     @DeleteMapping("/{id}")
     public Boolean delete(@PathVariable Integer id) {
         return repTempService.delete(id);

@@ -260,7 +260,11 @@ public abstract class SettingIntegrationTestBase {
                 "setting:body:update", "setting:body:delete", "setting:method:list",
                 "setting:method:create", "setting:method:update", "setting:method:delete",
                 "setting:temp:list", "setting:temp:create", "setting:temp:update",
-                "setting:temp:delete");
+                "setting:temp:delete",
+                // rep-temp-scope-perms: the public family - the admin shape holds BOTH
+                // families, so the legacy public-row fixtures keep flowing (design D5).
+                "setting:temp:public:list", "setting:temp:public:create",
+                "setting:temp:public:update", "setting:temp:public:delete");
     }
 
     /** Token carrying NO permissions (every perm-gated path must refuse it). */

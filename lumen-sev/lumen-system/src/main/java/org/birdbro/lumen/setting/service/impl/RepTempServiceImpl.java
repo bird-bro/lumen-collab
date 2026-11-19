@@ -24,6 +24,10 @@ import org.birdbro.lumen.setting.mapper.RepTempContentJsonbTypeHandler;
 import org.birdbro.lumen.setting.mapper.RepTempMapper;
 import org.birdbro.lumen.setting.service.ExamBodyGroupService;
 import org.birdbro.lumen.setting.service.RepTempService;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 /**
@@ -34,6 +38,16 @@ import org.springframework.stereotype.Service;
  * the D1/D3/D8 rules (rep-template-structured-content): a content-carrying request
  * must target a template node with version 1, and the prose pair is forced NULL
  * whenever content is present - the pair is exclusive, never co-stored.
+ *
+ * <p>Scope-perm enforcement (rep-temp-scope-perms design D2): every surface asserts
+ * the scope-keyed perm family via {@link #requireScopeFamily} - public (type=1)
+ * rows demand {@code setting:temp:public:*}, private (type=2) rows the base
+ * {@code setting:temp:*} family; create branches on the REQUEST's type before any
+ * validation, update/delete branch on the ROW's stored type after the ownership load
+ * (ownership first - a non-owner private write keeps its A0400), and public reads
+ * demand {@code setting:temp:public:list}. The refusal throws
+ * {@link AccessDeniedException} straight at the framework's {@code AuthDenyAdvice} -
+ * the content-free A0301 envelope.</p>
  *
  * @author birdbro
  */
@@ -59,6 +73,11 @@ public class RepTempServiceImpl implements RepTempService {
 
     @Override
     public List<Map<String, Object>> getTree(String modality, Integer type) {
+        // D2: the PUBLIC tree demands the public:list family (the PRIVATE tree stays
+        // governed by the class gate's base list perm).
+        if (type != null && type == TYPE_PUBLIC) {
+            requireScopeFamily(type, "list");
+        }
         examBodyGroupService.requireModality(modality);
         List<RepTemp> rows = repTempMapper.selectList(
                 scopeWrapper(modality, type).orderByAsc(RepTemp::getId));
@@ -88,6 +107,9 @@ public class RepTempServiceImpl implements RepTempService {
 
     @Override
     public IPage<RepTemp> getPage(TempPageQuery query) {
+        if (query.getType() != null && query.getType() == TYPE_PUBLIC) {
+            requireScopeFamily(query.getType(), "list");
+        }
         examBodyGroupService.requireModality(query.getModality());
         LambdaQueryWrapper<RepTemp> wrapper = scopeWrapper(query.getModality(), query.getType())
                 .eq(RepTemp::getFlag, 1)
@@ -102,6 +124,9 @@ public class RepTempServiceImpl implements RepTempService {
 
     @Override
     public Integer create(TempCreateRequest request) {
+        // D2: the family assert branches on the REQUEST's type and runs BEFORE any
+        // validation - a missing family refuses ahead of modality/content checks.
+        requireScopeFamily(request.getType(), "create");
         examBodyGroupService.requireModality(request.getModality());
         guardContent(request.getFlag(), request.getContent());
 
@@ -124,7 +149,11 @@ public class RepTempServiceImpl implements RepTempService {
 
     @Override
     public Boolean update(Integer id, TempUpdateRequest request) {
+        // D2 order: ownership first, THEN the row's stored type decides the family -
+        // a non-owner private write keeps its A0400, a family-missing public write
+        // refuses A0301.
         RepTemp current = requireOwnedRow(id);
+        requireScopeFamily(current.getType(), "update");
         examBodyGroupService.requireModality(request.getModality());
         guardContent(request.getFlag(), request.getContent());
 
@@ -153,12 +182,38 @@ public class RepTempServiceImpl implements RepTempService {
 
     @Override
     public Boolean delete(Integer id) {
-        requireOwnedRow(id);
+        // D2 order: ownership first, then the row's stored type decides the family.
+        RepTemp current = requireOwnedRow(id);
+        requireScopeFamily(current.getType(), "delete");
         repTempMapper.deleteById(id);
         return Boolean.TRUE;
     }
 
     // ===================== enforcement =====================
+
+    /**
+     * D2 scope-family assert (rep-temp-scope-perms): the session authorities (the SAME
+     * shape the {@code @PreAuthorize} pins see) must carry the perm family the scope
+     * demands - a public (type=1) row demands {@code setting:temp:public:<op>}, a
+     * private (type=2) row the base {@code setting:temp:<op>}. The refusal is
+     * content-free: {@link AccessDeniedException} rides the framework
+     * {@code AuthDenyAdvice} A0301 envelope - no row data, only the missing perm
+     * string.
+     */
+    private void requireScopeFamily(Integer type, String op) {
+        boolean publicScope = type != null && type == TYPE_PUBLIC;
+        String required = (publicScope ? "setting:temp:public:" : "setting:temp:") + op;
+        Authentication authentication = SecurityContextHolder.getContext()
+                .getAuthentication();
+        boolean granted = authentication != null && authentication.getAuthorities() != null
+                && authentication.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .anyMatch(required::equals);
+        if (!granted) {
+            throw new AccessDeniedException((publicScope
+                    ? "缺少公共模板权限: " : "缺少个人模板权限: ") + required);
+        }
+    }
 
     /**
      * D3/D8 content write guard: a content-carrying request must target a TEMPLATE

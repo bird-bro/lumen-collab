@@ -13,9 +13,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Report-template controller perm-pin proof (exam-setting-api task 5.2; the
- * AuthExamBodyPermPinTests shape): the mutating methods carry their exact button-perm
- * {@code @PreAuthorize} strings, the class gate is the list perm, and read methods
- * stay on the class gate only.
+ * AuthExamBodyPermPinTests shape; pins relaxed to the either-family admit by
+ * rep-temp-scope-perms task 1.3): the mutating methods carry their
+ * {@code hasAnyAuthority} button-perm strings (base OR public family - the
+ * admit-then-assert split, design D1), the class gate stays the list perm, and read
+ * methods stay on the class gate only.
  *
  * @author birdbro
  */
@@ -31,9 +33,12 @@ class AuthRepTempPermPinTests {
 
     @Test
     void tempMutatingMethodsPinTheirButtonPerms() throws Exception {
-        assertPin("create", "hasAuthority('setting:temp:create')");
-        assertPin("update", "hasAuthority('setting:temp:update')");
-        assertPin("delete", "hasAuthority('setting:temp:delete')");
+        assertPin("create",
+                "hasAnyAuthority('setting:temp:create', 'setting:temp:public:create')");
+        assertPin("update",
+                "hasAnyAuthority('setting:temp:update', 'setting:temp:public:update')");
+        assertPin("delete",
+                "hasAnyAuthority('setting:temp:delete', 'setting:temp:public:delete')");
     }
 
     @Test
