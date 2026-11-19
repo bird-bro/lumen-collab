@@ -185,6 +185,75 @@ class AuthRepTempScopePermTests extends SettingIntegrationTestBase {
         hardDeleteTemp(folder);
     }
 
+    @Test
+    void publicFamilyOnlyCannotWriteItsOwnPrivateRow() throws Exception {
+        long ts = System.currentTimeMillis();
+        String adminToken = dualFamilyToken();
+        int folder = createTemp(adminToken, 2, 0, "ut模板目录_公族私_" + ts, null);
+        int temp = createTemp(adminToken, 2, 1, "ut模板_公族私_" + ts, folder);
+
+        // The OWNER holds the public update family but NOT the base update perm -
+        // ownership passes (same uid), yet the private row's family assert still
+        // refuses: the public family NEVER unlocks private writes (D5 owner variant).
+        String ownerWithPublicUpdate = mintToken("setting:temp:list",
+                "setting:temp:public:update");
+        ResponseEntity<String> denied = exchangeJson(HttpMethod.PUT, TEMP_URL + "/" + temp,
+                body("{\"modality\":\"CT\",\"flag\":1,\"upId\":" + folder
+                        + ",\"name\":\"ut模板_公族私改_" + ts + "\"}"), ownerWithPublicUpdate);
+        assertEquals("A0301", parse(denied).path("code").asText(),
+                "a public-family-only owner must still refuse their OWN private write: "
+                        + denied);
+        assertFalse(parse(denied).toString().contains("ut模板_公族私_" + ts),
+                "the refusal envelope must stay content-free");
+
+        Integer alive = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system.rep_temp WHERE id = ? AND deleted = 0",
+                Integer.class, temp);
+        assertEquals(1, alive.intValue(), "the refused write must leave the row live");
+
+        hardDeleteTemp(temp);
+        hardDeleteTemp(folder);
+    }
+
+    @Test
+    void dualListReadOnlyUserIsolatesBothScopes() throws Exception {
+        long ts = System.currentTimeMillis();
+        String adminToken = dualFamilyToken();
+        int folder = createTemp(adminToken, 1, 0, "ut模板目录_只读_" + ts, null);
+
+        // Positive isolation: BOTH list perms and NO write perms - both scopes read,
+        // neither scope writes.
+        String readOnly = mintToken("setting:temp:list", "setting:temp:public:list");
+
+        ResponseEntity<String> publicTree = exchangeJson(HttpMethod.GET,
+                TEMP_URL + "/tree?modality=CT&type=1", null, readOnly);
+        assertEquals("200", parse(publicTree).path("code").asText(),
+                "the dual-list read-only user must read the PUBLIC tree: " + publicTree);
+        ResponseEntity<String> privateTree = exchangeJson(HttpMethod.GET,
+                TEMP_URL + "/tree?modality=CT&type=2", null, readOnly);
+        assertEquals("200", parse(privateTree).path("code").asText(),
+                "the dual-list read-only user must read their PRIVATE tree: " + privateTree);
+
+        ResponseEntity<String> deniedPublic = exchangeJson(HttpMethod.POST, TEMP_URL,
+                body("{\"type\":1,\"modality\":\"CT\",\"flag\":1,\"name\":\"ut模板_只读公建_"
+                        + ts + "\",\"finding\":\"表现\",\"impression\":\"意见\"}"), readOnly);
+        assertEquals("A0301", parse(deniedPublic).path("code").asText(),
+                "the read-only user must refuse a PUBLIC write: " + deniedPublic);
+        ResponseEntity<String> deniedPrivate = exchangeJson(HttpMethod.POST, TEMP_URL,
+                body("{\"type\":2,\"modality\":\"CT\",\"flag\":1,\"name\":\"ut模板_只读私建_"
+                        + ts + "\",\"finding\":\"表现\",\"impression\":\"意见\"}"), readOnly);
+        assertEquals("A0301", parse(deniedPrivate).path("code").asText(),
+                "the read-only user must refuse a PRIVATE write: " + deniedPrivate);
+
+        Integer leaked = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system.rep_temp WHERE deleted = 0 "
+                        + "AND (name = ? OR name = ?)",
+                Integer.class, "ut模板_只读公建_" + ts, "ut模板_只读私建_" + ts);
+        assertEquals(0, leaked.intValue(), "the refused writes must not insert rows");
+
+        hardDeleteTemp(folder);
+    }
+
     // ===================== D5 matrix: DUAL family / ownership order =============
 
     @Test
