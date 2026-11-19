@@ -1,8 +1,8 @@
-import { Button, Drawer, Form, Input, InputNumber, Popconfirm, Switch, Tag, message, theme } from 'antd'
+import { Button, Drawer, Form, Input, InputNumber, Popconfirm, Select, Switch, Tag, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { useCallback, useEffect, useState } from 'react'
-import { createNumberRule, deleteNumberRule, pageNumberRules, updateNumberRule } from '@/api/patient'
-import type { PatientNumberRule } from '@/api/patient'
+import { createNumberRule, deleteNumberRule, pageNumberRules, updateNumberRule } from '@/api/number-rules'
+import type { NumberRule } from '@/api/number-rules'
 import { ApiError } from '@/api/client'
 import { usePerm } from '@/utils/perm'
 import {
@@ -16,27 +16,37 @@ import {
 } from '@/pages/system/console-shell'
 
 /**
- * 号码规则 page (patient-domain task 5.1; spec delta `web-system-console`
- * § Number Rule Page Shell / § Number Rule Form and Delete): the paged rule
- * table against the real `/api/v1/patient/**` backend (no mock layer - ruling
- * 2026-11-05), the `patient:rule:*` perm-gated affordances, the drawer
- * create/edit with the fixed 影像号 type echo (v1), the field-level
- * serial-length validation (1-10), and the confirm-delete whose active-rule
- * refusal surfaces verbatim.
+ * 号码规则 page (number-rule-unification-web task 1.2; spec delta `web-system-console`
+ * § Number Rule Page Shell / § Number Rule Form and Delete after the 2026-11-19
+ * platform migration): the paged rule table against the real `/api/v1/system/**`
+ * backend (no mock layer - ruling 2026-11-05), the `system:number:*` perm-gated
+ * affordances, the drawer create/edit with the platform-family 规则类型 SELECT
+ * (影像号/检查号/预约号 - the create picker; the edit echo stays a Tag, the family is
+ * immutable), the field-level serial-length validation (1-10), and the confirm-delete
+ * whose active-rule refusal surfaces verbatim.
  *
- * ruleType values are codes ('pat_id' today); the label map renders the
- * console vocabulary and falls back to the raw code for future types (the
- * exam-side accession rules follow the same per-service pattern - design D3).
- * The stamp flag IS data (`stamp` carries the Java date pattern); v1's form
- * exposes only the on/off switch - a null stamp defaults server-side to
- * `yyMMdd`, so the drawer never edits the pattern itself.
+ * ruleType values are codes (pat_id/accession/booking); the label map renders the
+ * console vocabulary and falls back to the raw code for future types. The stamp flag
+ * IS data (`stamp` carries the Java date pattern); the form exposes only the on/off
+ * switch - a null stamp defaults server-side to `yyMMdd`, so the drawer never edits
+ * the pattern itself.
  */
 
-const RULE_TYPE_LABELS: Record<string, string> = { pat_id: '影像号' }
-/** The fixed v1 rule type (the archive-creation issuance source). */
-const V1_RULE_TYPE = 'pat_id'
+const RULE_TYPE_LABELS: Record<string, string> = {
+  pat_id: '影像号',
+  accession: '检查号',
+  booking: '预约号',
+}
+/** The platform rule families the create picker offers. */
+const RULE_FAMILY_OPTIONS = (['pat_id', 'accession', 'booking'] as const).map((value) => ({
+  value,
+  label: RULE_TYPE_LABELS[value],
+}))
+/** The create picker's default family (the patient-archive issuance source). */
+const DEFAULT_RULE_TYPE = 'pat_id'
 
 interface NumberRuleFormValues {
+  ruleType?: string
   prefix?: string | null
   suffix?: string | null
   serialLength: number
@@ -47,7 +57,7 @@ function ruleTypeLabel(ruleType: string): string {
   return RULE_TYPE_LABELS[ruleType] ?? ruleType
 }
 
-function paddedSerial(row: PatientNumberRule): string {
+function paddedSerial(row: NumberRule): string {
   return String(row.serialCur).padStart(Math.max(1, row.serialLength), '0')
 }
 
@@ -56,14 +66,14 @@ export default function NumberRulePage() {
   const { token } = theme.useToken()
   const [messageApi, contextHolder] = message.useMessage()
 
-  const [rows, setRows] = useState<PatientNumberRule[]>([])
+  const [rows, setRows] = useState<NumberRule[]>([])
   const [total, setTotal] = useState(0)
   const [pageNum, setPageNum] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [loading, setLoading] = useState(false)
 
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [editing, setEditing] = useState<PatientNumberRule | null>(null)
+  const [editing, setEditing] = useState<NumberRule | null>(null)
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm<NumberRuleFormValues>()
   const isStamp = Form.useWatch('isStamp', form)
@@ -94,11 +104,11 @@ export default function NumberRulePage() {
   const openAdd = () => {
     setEditing(null)
     form.resetFields()
-    form.setFieldsValue({ serialLength: 4, isStamp: true, prefix: null, suffix: null })
+    form.setFieldsValue({ ruleType: DEFAULT_RULE_TYPE, serialLength: 4, isStamp: true, prefix: null, suffix: null })
     setDrawerOpen(true)
   }
 
-  const openEdit = (row: PatientNumberRule) => {
+  const openEdit = (row: NumberRule) => {
     setEditing(row)
     form.setFieldsValue({
       prefix: row.prefix,
@@ -115,7 +125,7 @@ export default function NumberRulePage() {
       setSaving(true)
       // stamp: null + isStamp=1 defaults server-side to yyMMdd (b4 decision 5)
       const body = {
-        ruleType: editing ? editing.ruleType : V1_RULE_TYPE,
+        ruleType: editing ? editing.ruleType : values.ruleType ?? DEFAULT_RULE_TYPE,
         prefix: values.prefix || null,
         suffix: values.suffix || null,
         serialLength: values.serialLength,
@@ -147,7 +157,7 @@ export default function NumberRulePage() {
     }
   }
 
-  const remove = async (row: PatientNumberRule) => {
+  const remove = async (row: NumberRule) => {
     try {
       await deleteNumberRule(row.id)
       messageApi.success('删除成功')
@@ -158,7 +168,7 @@ export default function NumberRulePage() {
     }
   }
 
-  const columns: TableColumnsType<PatientNumberRule> = [
+  const columns: TableColumnsType<NumberRule> = [
     {
       title: '规则类型',
       dataIndex: 'ruleType',
@@ -235,14 +245,14 @@ export default function NumberRulePage() {
       <ConsolePanel>
         <ConsoleToolRow
           trailing={
-            hasPerm('patient:rule:create') && <ConsoleAddButton label="新建规则" onClick={openAdd} />
+            hasPerm('system:number:create') && <ConsoleAddButton label="新建规则" onClick={openAdd} />
           }
         >
           <span style={{ color: token.colorTextTertiary, fontSize: token.fontSizeSM }}>
-            影像号在创建患者档案时按启用规则自动发放
+            各号码族（影像号/检查号/预约号）由平台按启用规则统一发放，同族仅一条启用规则
           </span>
         </ConsoleToolRow>
-        <ConsoleTable<PatientNumberRule>
+        <ConsoleTable<NumberRule>
           rowKey={(row) => row.id}
           loading={loading}
           columns={columns}
@@ -252,10 +262,10 @@ export default function NumberRulePage() {
             width: 130,
             render: (row) => (
               <>
-                {hasPerm('patient:rule:update') && (
+                {hasPerm('system:number:update') && (
                   <ConsoleAction label="编辑" onClick={() => openEdit(row)} />
                 )}
-                {hasPerm('patient:rule:delete') && (
+                {hasPerm('system:number:delete') && (
                   <Popconfirm
                     title={`确定删除规则“${ruleTypeLabel(row.ruleType)}”？`}
                     onConfirm={() => void remove(row)}
@@ -296,23 +306,32 @@ export default function NumberRulePage() {
         }
       >
         <Form form={form} layout="vertical">
-          {/* 规则类型 echo: plain label row (the 2026-11-16 ruling - info echoes
-              merge into the label, no Form.Item control slot); v1 fixes 影像号. */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginBottom: token.marginLG,
-              color: token.colorTextHeading,
-              fontSize: token.fontSize,
-            }}
-          >
-            规则类型：
-            <Tag style={{ marginInlineEnd: 0, flex: '0 0 auto', fontSize: token.fontSize, fontWeight: 600 }}>
-              {ruleTypeLabel(editing ? editing.ruleType : V1_RULE_TYPE)}
-            </Tag>
-          </div>
+          {/* 规则类型: the create drawer offers the platform FAMILY select (the
+              number-rule-unification ruling - one page hosts every family); the edit
+              echo stays a plain label row (the 2026-11-16 ruling - info echoes merge
+              into the label, no Form.Item control slot) because the family is
+              immutable after create. */}
+          {editing ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: token.marginLG,
+                color: token.colorTextHeading,
+                fontSize: token.fontSize,
+              }}
+            >
+              规则类型：
+              <Tag style={{ marginInlineEnd: 0, flex: '0 0 auto', fontSize: token.fontSize, fontWeight: 600 }}>
+                {ruleTypeLabel(editing.ruleType)}
+              </Tag>
+            </div>
+          ) : (
+            <Form.Item name="ruleType" label="规则类型" rules={[{ required: true, message: '请选择规则类型' }]}>
+              <Select options={RULE_FAMILY_OPTIONS} />
+            </Form.Item>
+          )}
           <Form.Item
             name="prefix"
             label="前缀"

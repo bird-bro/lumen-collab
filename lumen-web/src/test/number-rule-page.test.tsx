@@ -2,9 +2,9 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ConfigProvider } from 'antd'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import NumberRulePage from '@/pages/patient/number-rule'
-import * as patientApi from '@/api/patient'
-import type { PatientNumberRule } from '@/api/patient'
+import NumberRulePage from '@/pages/system/number-rule'
+import * as numberRulesApi from '@/api/number-rules'
+import type { NumberRule } from '@/api/number-rules'
 import { ApiError } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { themeConfig } from '@/theme'
@@ -12,15 +12,15 @@ import { themeConfig } from '@/theme'
 /**
  * 号码规则 page (patient-domain task 5.1; spec delta `web-system-console`
  * § Number Rule Page Shell / § Number Rule Form and Delete): the paged rule
- * table against the REAL backend seam, the `patient:rule:*` affordance
+ * table against the REAL backend seam, the `system:number:*` affordance
  * gating, the drawer create/edit with the fixed 影像号 type echo, the field
  * -level serial-length validation, and the confirm-delete with the active
  * -rule refusal surfaced verbatim. The api seam is mocked - no page data ever
  * flows through a mock at runtime (ruling 2026-11-05).
  */
-vi.mock('@/api/patient')
+vi.mock('@/api/number-rules')
 
-function rule(partial: Partial<PatientNumberRule> & { id: number }): PatientNumberRule {
+function rule(partial: Partial<NumberRule> & { id: number }): NumberRule {
   return {
     ruleType: 'pat_id',
     prefix: null,
@@ -38,7 +38,7 @@ function rule(partial: Partial<PatientNumberRule> & { id: number }): PatientNumb
 const ACTIVE_RULE = rule({ id: 130, prefix: 'IM', serialCur: 7 })
 const DORMANT_RULE = rule({ id: 131, prefix: null, serialCur: 261, isStamp: 0, stamp: null, active: 0 })
 
-function pageFixture(records: PatientNumberRule[]): patientApi.PatientNumberRulePage {
+function pageFixture(records: NumberRule[]): numberRulesApi.NumberRulePage {
   return { records, total: records.length, size: 20, current: 1, pages: 1 }
 }
 
@@ -53,12 +53,12 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks()
   useAuthStore.getState().setSession({
-    perms: ['patient:rule:list', 'patient:rule:create', 'patient:rule:update', 'patient:rule:delete'],
+    perms: ['system:number:list', 'system:number:create', 'system:number:update', 'system:number:delete'],
   })
-  vi.mocked(patientApi.pageNumberRules).mockResolvedValue(pageFixture([ACTIVE_RULE, DORMANT_RULE]))
-  vi.mocked(patientApi.createNumberRule).mockResolvedValue(132)
-  vi.mocked(patientApi.updateNumberRule).mockResolvedValue(true)
-  vi.mocked(patientApi.deleteNumberRule).mockResolvedValue(true)
+  vi.mocked(numberRulesApi.pageNumberRules).mockResolvedValue(pageFixture([ACTIVE_RULE, DORMANT_RULE]))
+  vi.mocked(numberRulesApi.createNumberRule).mockResolvedValue(132)
+  vi.mocked(numberRulesApi.updateNumberRule).mockResolvedValue(true)
+  vi.mocked(numberRulesApi.deleteNumberRule).mockResolvedValue(true)
 })
 
 describe('number rule page - table', () => {
@@ -66,7 +66,7 @@ describe('number rule page - table', () => {
     renderPage()
     await screen.findByText('IM')
 
-    expect(patientApi.pageNumberRules).toHaveBeenCalledWith(
+    expect(numberRulesApi.pageNumberRules).toHaveBeenCalledWith(
       expect.objectContaining({ pageNum: 1, pageSize: 20 }),
     )
     // 当前流水 renders zero-padded to the serial length (0007, not 7); both rows
@@ -97,23 +97,26 @@ describe('number rule page - table', () => {
 
     const refresh = screen.getByRole('button', { name: '刷新列表' })
     expect(within(refresh.closest('th') as HTMLElement).getByText('操作')).toBeTruthy()
-    vi.mocked(patientApi.pageNumberRules).mockClear()
+    vi.mocked(numberRulesApi.pageNumberRules).mockClear()
     await user.click(refresh)
     await waitFor(() => {
-      expect(patientApi.pageNumberRules).toHaveBeenCalled()
+      expect(numberRulesApi.pageNumberRules).toHaveBeenCalled()
     })
   })
 })
 
 describe('number rule page - create/edit round-trips', () => {
-  it('creates a stamped rule through the drawer with the fixed 影像号 type', async () => {
+  it('creates a stamped rule through the drawer with the default 影像号 family', async () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('IM')
 
     await user.click(screen.getByRole('button', { name: /新建规则/ }))
-    const echo = await screen.findByText('规则类型：')
-    expect(within(echo.parentElement as HTMLElement).getByText('影像号')).toBeTruthy()
+    await screen.findByLabelText('规则类型')
+    // the picker renders the selected family's label (antd Select - the inner input
+    // carries no value; the selection item does)
+    const drawer = screen.getByRole('dialog')
+    expect(within(drawer).getByText('影像号')).toBeTruthy()
 
     await user.type(screen.getByLabelText('前缀'), 'IM')
     // the drawer opens with the serial length defaulted to 4 - clear before
@@ -124,7 +127,7 @@ describe('number rule page - create/edit round-trips', () => {
     await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
 
     await waitFor(() => {
-      expect(patientApi.createNumberRule).toHaveBeenCalledWith(
+      expect(numberRulesApi.createNumberRule).toHaveBeenCalledWith(
         expect.objectContaining({
           ruleType: 'pat_id',
           prefix: 'IM',
@@ -134,7 +137,7 @@ describe('number rule page - create/edit round-trips', () => {
       )
     })
     // the table refreshes after the drawer closes
-    expect(patientApi.pageNumberRules).toHaveBeenCalledTimes(2)
+    expect(numberRulesApi.pageNumberRules).toHaveBeenCalledTimes(2)
   })
 
   it('edits echo the row into the drawer and PUT the full surface', async () => {
@@ -143,6 +146,8 @@ describe('number rule page - create/edit round-trips', () => {
     await screen.findByText('IM')
 
     await user.click(screen.getAllByRole('button', { name: /编辑/ })[0])
+    const echo = await screen.findByText('规则类型：')
+    expect(within(echo.parentElement as HTMLElement).getByText('影像号')).toBeTruthy()
     const prefixInput = await screen.findByLabelText('前缀')
     expect((prefixInput as HTMLInputElement).value).toBe('IM')
 
@@ -151,9 +156,32 @@ describe('number rule page - create/edit round-trips', () => {
     await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
 
     await waitFor(() => {
-      expect(patientApi.updateNumberRule).toHaveBeenCalledWith(
+      expect(numberRulesApi.updateNumberRule).toHaveBeenCalledWith(
         130,
         expect.objectContaining({ ruleType: 'pat_id', prefix: 'PT', serialLength: 4 }),
+      )
+    })
+  })
+
+  it('create drawer selects the platform family - 检查号 rides the payload', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('IM')
+
+    await user.click(screen.getByRole('button', { name: /新建规则/ }))
+    const select = await screen.findByLabelText('规则类型')
+    await user.click(select)
+    await user.click(await screen.findByText('检查号'))
+
+    await user.type(await screen.findByLabelText('前缀'), 'AC')
+    const serialInput = screen.getByLabelText('流水长度')
+    await user.clear(serialInput)
+    await user.type(serialInput, '6')
+    await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
+
+    await waitFor(() => {
+      expect(numberRulesApi.createNumberRule).toHaveBeenCalledWith(
+        expect.objectContaining({ ruleType: 'accession', prefix: 'AC', serialLength: 6 }),
       )
     })
   })
@@ -168,7 +196,7 @@ describe('number rule page - create/edit round-trips', () => {
     await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
 
     await screen.findByText('流水长度须在 1–10 之间')
-    expect(patientApi.createNumberRule).not.toHaveBeenCalled()
+    expect(numberRulesApi.createNumberRule).not.toHaveBeenCalled()
     // the drawer stays open for correction (spec: the drawer stays open)
     expect(screen.getByLabelText('流水长度')).toBeTruthy()
   })
@@ -177,7 +205,7 @@ describe('number rule page - create/edit round-trips', () => {
 describe('number rule page - delete', () => {
   it('delete confirms, calls the API, and surfaces the active-rule refusal verbatim', async () => {
     const user = userEvent.setup()
-    vi.mocked(patientApi.deleteNumberRule).mockRejectedValue(
+    vi.mocked(numberRulesApi.deleteNumberRule).mockRejectedValue(
       new ApiError('A0400', '启用的规则不可删除，请先停用: rule id 130 (type pat_id)'),
     )
     renderPage()
@@ -188,15 +216,15 @@ describe('number rule page - delete', () => {
     await user.click(within(confirm).getByRole('button', { name: /确\s*定|OK/ }))
 
     await waitFor(() => {
-      expect(patientApi.deleteNumberRule).toHaveBeenCalledWith(130)
+      expect(numberRulesApi.deleteNumberRule).toHaveBeenCalledWith(130)
     })
     await screen.findByText(/启用的规则不可删除，请先停用/)
   })
 })
 
 describe('number rule page - perm gating', () => {
-  it('hides the 新建 affordance without patient:rule:create', async () => {
-    useAuthStore.getState().setSession({ perms: ['patient:rule:list'] })
+  it('hides the 新建 affordance without system:number:create', async () => {
+    useAuthStore.getState().setSession({ perms: ['system:number:list'] })
     renderPage()
     await screen.findByText('IM')
 
@@ -206,9 +234,9 @@ describe('number rule page - perm gating', () => {
     expect(screen.queryByRole('button', { name: /删除/ })).toBeNull()
   })
 
-  it('hides the 删除 affordance without patient:rule:delete', async () => {
+  it('hides the 删除 affordance without system:number:delete', async () => {
     useAuthStore.getState().setSession({
-      perms: ['patient:rule:list', 'patient:rule:create', 'patient:rule:update'],
+      perms: ['system:number:list', 'system:number:create', 'system:number:update'],
     })
     renderPage()
     await screen.findByText('IM')
