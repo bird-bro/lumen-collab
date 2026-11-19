@@ -150,6 +150,41 @@ class AuthExamMethodApiTests extends SettingIntegrationTestBase {
                 "deleting the last binding must free the method: " + freed);
     }
 
+    @Test
+    void methodRemarkRoundTripsAndClearsOnAbsentUpdate() throws Exception {
+        String token = fullPermToken();
+        long ts = System.currentTimeMillis();
+        int method = createMethod("CT", "ut_exm_备注_" + ts, "ut_exm_" + ts + "_r", 1);
+
+        // Update WITH remark: the round-trip must land in the page row.
+        ResponseEntity<String> updated = exchangeJson(HttpMethod.PUT, METHODS_URL + "/" + method,
+                body("{\"modality\":\"CT\",\"name\":\"ut_exm_备注_" + ts
+                        + "\",\"code\":\"ut_exm_" + ts + "_r\",\"sort\":1,\"enable\":1,"
+                        + "\"remark\":\"ut_remark_" + ts + "\"}"), token);
+        assertEquals("200", parse(updated).path("code").asText(),
+                "the remark-bearing update must succeed: " + updated);
+        JsonNode page = parse(exchangeJson(HttpMethod.GET,
+                METHODS_URL + "/page?pageNum=1&pageSize=10&modality=CT&keyword=" + ts,
+                null, token));
+        assertEquals("ut_remark_" + ts,
+                page.path("data").path("records").get(0).path("remark").asText(null),
+                "the page row must carry the remark: " + page);
+
+        // D9 full-replace: an update WITHOUT remark clears the column.
+        ResponseEntity<String> cleared = exchangeJson(HttpMethod.PUT, METHODS_URL + "/" + method,
+                body("{\"modality\":\"CT\",\"name\":\"ut_exm_备注_" + ts
+                        + "\",\"code\":\"ut_exm_" + ts + "_r\",\"sort\":1,\"enable\":1}"), token);
+        assertEquals("200", parse(cleared).path("code").asText(),
+                "the remark-less update must succeed: " + cleared);
+        JsonNode clearedPage = parse(exchangeJson(HttpMethod.GET,
+                METHODS_URL + "/page?pageNum=1&pageSize=10&modality=CT&keyword=" + ts,
+                null, token));
+        assertTrue(clearedPage.path("data").path("records").get(0).path("remark").isNull(),
+                "the absent remark must clear the column (D9): " + clearedPage);
+
+        hardDeleteMethod(method);
+    }
+
     // ===================== fixture + call helpers =====================
 
     private int createMethod(String modality, String name, String code, int sort)

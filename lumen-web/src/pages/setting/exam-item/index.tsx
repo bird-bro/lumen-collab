@@ -365,15 +365,20 @@ export default function ExamItemPage() {
       render: (externalCode: string | null) =>
         externalCode ? <span style={{ color: token.colorTextTertiary }}>{externalCode}</span> : '—',
     },
-    { title: '检查部位', dataIndex: 'bodyName', key: 'bodyName', ellipsis: true },
+    { title: '部位', dataIndex: 'bodyName', key: 'bodyName', ellipsis: true },
     {
       title: '检查方法',
       dataIndex: 'methodNames',
       key: 'methodNames',
+      width: 160,
       ellipsis: true,
       render: (names: string) =>
         names
-          ? names.split(',').map((name) => <Tag key={name}>{name}</Tag>)
+          ? names.split(',').map((name) => (
+              <Tag key={name} style={{ fontSize: token.fontSize }}>
+                {name}
+              </Tag>
+            ))
           : '—',
     },
     {
@@ -395,7 +400,8 @@ export default function ExamItemPage() {
     },
     // Column widths (2026-11-17 review round 3): 单价 110, the rest of the
     // numeric band unified at 100 (house band 70-120) - 备注/项目 keep the flex
-    // space.
+    // space. 检查方法 pins 160 (2026-11-18, user direct: was flex; Tags wrap
+    // within the width).
     { title: '计费数量', dataIndex: 'tag', key: 'tag', width: 100, align: 'center', render: (tag: number | null) => tag ?? '—' },
     {
       title: '诊断得分',

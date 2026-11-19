@@ -38,6 +38,7 @@ interface MethodFormValues {
   name: string
   code?: string
   sort?: number | null
+  remark?: string | null
 }
 
 export default function ExamMethodPage() {
@@ -113,7 +114,7 @@ export default function ExamMethodPage() {
 
   const openEdit = (row: ExamMethod) => {
     setEditing(row)
-    form.setFieldsValue({ name: row.name, code: row.code ?? undefined, sort: row.sort })
+    form.setFieldsValue({ name: row.name, code: row.code ?? undefined, sort: row.sort, remark: row.remark ?? undefined })
     setDrawerOpen(true)
   }
 
@@ -128,6 +129,7 @@ export default function ExamMethodPage() {
           code: values.code ?? null,
           sort: values.sort ?? null,
           enable: editing.enable,
+          remark: values.remark ?? null,
         })
         messageApi.success('修改成功')
       } else {
@@ -137,6 +139,7 @@ export default function ExamMethodPage() {
           code: values.code ?? null,
           sort: values.sort ?? null,
           enable: 1,
+          remark: values.remark ?? null,
         })
         messageApi.success('添加成功')
       }
@@ -169,20 +172,14 @@ export default function ExamMethodPage() {
   }
 
   const columns: TableColumnsType<ExamMethod> = [
-    { title: '方法名称', dataIndex: 'name', key: 'name', ellipsis: true },
+    { title: '方法', dataIndex: 'name', key: 'name', ellipsis: true },
     {
-      title: '方法编码',
+      title: '编码',
       dataIndex: 'code',
       key: 'code',
       render: (code: string | null) => (code ? <span style={{ color: token.colorTextTertiary }}>{code}</span> : '—'),
     },
-    {
-      title: '检查类型',
-      dataIndex: 'modality',
-      key: 'modality',
-      width: 110,
-      render: (value: string) => <Tag>{value}</Tag>,
-    },
+    { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true, render: (remark: string | null) => remark ?? '—' },
   ]
 
   return (
@@ -305,6 +302,9 @@ export default function ExamMethodPage() {
           </Form.Item>
           <Form.Item name="sort" label="排序">
             <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="remark" label="备注">
+            <Input.TextArea rows={4} maxLength={255} style={{ minHeight: 32 }} />
           </Form.Item>
         </Form>
       </Drawer>

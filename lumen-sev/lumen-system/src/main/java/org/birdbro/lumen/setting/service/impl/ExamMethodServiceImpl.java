@@ -99,7 +99,8 @@ public class ExamMethodServiceImpl implements ExamMethodService {
                 .set(ExamMethod::getName, request.getName())
                 .set(ExamMethod::getCode, request.getCode())
                 .set(ExamMethod::getSort, request.getSort())
-                .set(ExamMethod::getEnable, request.getEnable()));
+                .set(ExamMethod::getEnable, request.getEnable())
+                .set(ExamMethod::getRemark, request.getRemark()));
         return Boolean.TRUE;
     }
 

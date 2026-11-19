@@ -37,11 +37,12 @@ import {
  * the mixed 目录/模板 flag drawer is gone): 新建目录 / tree 新建子目录 /
  * 编辑目录 open the DIRECTORY DRAWER (上级 select + 目录名称 only), and the
  * right-pane 添加模板 / right-table 编辑 open the WIDE TEMPLATE DRAWER (目录 echo +
- * 名称/影像学表现/影像学意见 - long-form content gets the wide 640px drawer with 10/8-row text areas,
- * not the former 480px cramped one) bound to the selected directory - 添加模板 warns
+ * 名称/影像学表现/影像学意见 - long-form content gets a FIXED-WIDTH 960px drawer,
+ * 2026-11-19 ruling - the width never follows the 模板形态) bound to the selected
+ * directory - 添加模板 warns
  * 请先选择目录 when no directory node is selected. DUAL-FORM templates
  * (structured-content delta 2026-11-18, D6): the drawer carries a 模板形态 radio -
- * 简单模板 keeps the prose form (640), 分节模板 widens to 960 with section cards
+ * 简单模板 keeps the prose form, 分节模板 swaps in section cards
  * (节名 + measure rows + 节所见) serializing into `content` jsonb at save (D1 互斥
  * nulls the prose columns); edits backfill by the row's content, 简单→分节 maps
  * 表现 → first section's 节所见, 分节→简单 is refused. Tree template leaves carry

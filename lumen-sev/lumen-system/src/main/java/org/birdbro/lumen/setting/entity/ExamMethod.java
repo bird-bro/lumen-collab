@@ -46,4 +46,7 @@ public class ExamMethod extends EntityBase {
 
     /** 启用 (dict 1000 common_status codes). */
     private Integer enable;
+
+    /** 备注 (V38). */
+    private String remark;
 }

@@ -43,7 +43,7 @@ class SettingSchemaSeedTests extends SettingIntegrationTestBase {
     private static final String[] BODY_COLUMNS = {
             "id", "modality", "group_id", "up_id", "name", "code", "sort", "enable", "remark"};
     private static final String[] METHOD_COLUMNS = {
-            "id", "modality", "name", "code", "sort", "enable"};
+            "id", "modality", "name", "code", "sort", "enable", "remark"};
     private static final String[] ITEM_COLUMNS = {
             "id", "modality", "exam", "code", "external_code", "body_id", "price", "rate",
             "tag", "score_rep", "score_aud", "is_common", "sort", "enable", "remark"};
@@ -51,7 +51,7 @@ class SettingSchemaSeedTests extends SettingIntegrationTestBase {
             "id", "exam_id", "method_id"};
     private static final String[] TEMP_COLUMNS = {
             "id", "type", "owner_uid", "modality", "flag", "up_id", "name",
-            "finding", "impression"};
+            "finding", "impression", "content"};
 
     @Autowired
     private JdbcTemplate jdbcTemplate;

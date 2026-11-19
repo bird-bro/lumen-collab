@@ -42,12 +42,13 @@ function method(partial: Partial<ExamMethod> & { id: number; name: string }): Ex
     code: null,
     sort: null,
     enable: 1,
+    remark: null,
     createTime: '2026-11-12 08:40:00',
     ...partial,
   }
 }
 
-const PS = method({ id: 3, name: '平扫', code: 'PS' })
+const PS = method({ id: 3, name: '平扫', code: 'PS', remark: '备注-平扫' })
 
 function pageFixture(records: ExamMethod[], total = records.length): Page<ExamMethod> {
   return { records, total, size: 20, current: 1, pages: 1 }
@@ -199,15 +200,18 @@ describe('exam method page - create/edit/delete round-trips', () => {
     await user.click(screen.getAllByRole('button', { name: /编辑/ })[0])
     const nameInput = await screen.findByLabelText('方法名称')
     expect((nameInput as HTMLInputElement).value).toBe('平扫')
+    const remarkInput = screen.getByLabelText('备注')
+    expect((remarkInput as HTMLTextAreaElement).value).toBe('备注-平扫')
 
     await user.clear(nameInput)
     await user.type(nameInput, '平扫改')
+    await user.type(remarkInput, '追加')
     await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
 
     await waitFor(() => {
       expect(methodApi.updateExamMethod).toHaveBeenCalledWith(
         3,
-        expect.objectContaining({ modality: 'CT', name: '平扫改', code: 'PS' }),
+        expect.objectContaining({ modality: 'CT', name: '平扫改', code: 'PS', remark: '备注-平扫追加' }),
       )
     })
   })

@@ -238,11 +238,11 @@ export default function DictsPage() {
   ]
 
   // OPS dict detail columns, slimmed to the V9 model (value 是唯一文本字段，标签列
-  // 随 label 列删除；备用值对改名 标签值/标记值): 编码/数据值/标签值/标记值/排序/
-  // 颜色/样式/备注. 颜色 renders a chip when set.
+  // 随 label 列删除；备用值对改名 标签值/标记值): 编码/数据值/标签值/标记值/
+  // 颜色/样式/备注 (排序列不显示). 颜色 renders a chip when set.
   const detailColumns: TableColumnsType<DictDetail> = [
-    { title: '编码', dataIndex: 'code', width: 130, onCell: () => ({ style: { textAlign: 'center' } }) },
-    { title: '数据值', dataIndex: 'value', width: 160, render: (v: string | null) => (v ? <span style={{ fontWeight: 500 }}>{v}</span> : '') },
+    { title: '编码', dataIndex: 'code', width: 100, onCell: () => ({ style: { textAlign: 'center' } }) },
+    { title: '数据值', dataIndex: 'value', width: 260, render: (v: string | null) => (v ? <span style={{ fontWeight: 500 }}>{v}</span> : '') },
     { title: '标签', dataIndex: 'tag', width: 110, onCell: () => ({ style: { textAlign: 'center' } }) },
     { title: '标记', dataIndex: 'flag', width: 110, onCell: () => ({ style: { textAlign: 'center' } }) },
     {
@@ -271,7 +271,6 @@ export default function DictsPage() {
       render: (v: string | null) =>
         v ? <Typography.Text code>{v}</Typography.Text> : '',
     },
-    { title: '排序', dataIndex: 'sort', width: 80, onCell: () => ({ style: { textAlign: 'center' } }) },
     { title: '备注', dataIndex: 'remark' },
   ]
 

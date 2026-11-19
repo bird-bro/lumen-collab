@@ -777,6 +777,7 @@ export interface ExamMethod {
   code: string | null;
   sort: number | null;
   enable: number;
+  remark: string | null;
   createTime?: string;
 }
 
@@ -786,6 +787,7 @@ export interface CreateExamMethodBody {
   code?: string | null;
   sort?: number | null;
   enable: number;
+  remark?: string | null;
 }
 
 /** Full-replace; absent optionals CLEAR server-side (D9). */

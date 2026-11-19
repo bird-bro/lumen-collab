@@ -60,8 +60,8 @@ const BRAIN_BODIES: BodyTreeNode[] = [
 ]
 
 const METHODS = [
-  { id: 3, modality: 'CT', name: '平扫', code: 'PS', sort: 1, enable: 1 },
-  { id: 4, modality: 'CT', name: '增强', code: 'ZQ', sort: 2, enable: 1 },
+  { id: 3, modality: 'CT', name: '平扫', code: 'PS', sort: 1, enable: 1, remark: null },
+  { id: 4, modality: 'CT', name: '增强', code: 'ZQ', sort: 2, enable: 1, remark: null },
 ]
 
 function item(partial: Partial<ExamItem> & { id: number; exam: string }): ExamItem {
@@ -206,7 +206,7 @@ describe('exam item page - filters and display-resolved table', () => {
     renderPage()
     await screen.findByText('胸部CT平扫')
 
-    for (const header of ['项目', '对照码', '检查部位', '检查方法', '计费数量', '诊断得分', '审核得分', '备注']) {
+    for (const header of ['项目', '对照码', '部位', '检查方法', '计费数量', '诊断得分', '审核得分', '备注']) {
       expect(screen.getByRole('columnheader', { name: header })).toBeTruthy()
     }
     for (const retired of ['项目名称', '项目编码', '对照编码', '诊断计费数量', '创建时间']) {
