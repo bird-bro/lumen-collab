@@ -1,0 +1,16 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+# Phases: proposing -> applying -> verifying -> archived | abandoned (terminal).
+phase: applying
+change: lumen-core-registration-kernel
+current_task: null
+tasks_total: 13
+tasks_done: 13
+retry_count: 0
+debt_count: 0
+debug_attempts: 0
+workflow_mode: spec-driven
+artifacts_hash: 31371e4ba11354ba36333b23725e7463deb3d4f98c2e27d9ec8849ceef585fa1
+contract_hash: null
+execution_mode: Batch Inline
+batches_completed: 0
+last_updated: "2026-11-18"
