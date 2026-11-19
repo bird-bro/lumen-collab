@@ -30,9 +30,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class PatientSchemaMigrationTests extends PatientIntegrationTestBase {
 
-    /** The five tables of the binding DDL design, in creation order. */
+    /** The FOUR tables of the binding DDL design, in creation order (the number-rule
+     *  directory left for the platform schema - number-rule-unification-sev V3). */
     private static final List<String> FIVE_TABLES = Arrays.asList(
-            "patient_master", "patient_identifier", "patient_number_rule",
+            "patient_master", "patient_identifier",
             "patient_event_outbox", "patient_merge_log");
 
     /** The EntityBase audit block every table carries (exact columns, same order). */
@@ -53,8 +54,6 @@ class PatientSchemaMigrationTests extends PatientIntegrationTestBase {
                 "pinyin", "gender", "birth_date", "phone", "nation", "address",
                 "archive_status", "merged_into", "oid"));
         columns.put("patient_identifier", Arrays.asList("patient_id", "id_type", "id_no"));
-        columns.put("patient_number_rule", Arrays.asList("rule_type", "prefix", "suffix",
-                "serial_length", "serial_cur", "is_stamp", "stamp", "stamp_value", "active"));
         columns.put("patient_event_outbox", Arrays.asList(
                 "event_type", "patient_id", "payload", "status"));
         columns.put("patient_merge_log", Arrays.asList(
@@ -64,8 +63,6 @@ class PatientSchemaMigrationTests extends PatientIntegrationTestBase {
         Map<String, List<String>> indexes = new LinkedHashMap<>();
         indexes.put("uk_patient_master_identity", Arrays.asList(
                 "UNIQUE", "id_type, id_no", "id_no IS NOT NULL", "merged_into IS NULL"));
-        indexes.put("uk_patient_number_rule_active", Arrays.asList(
-                "UNIQUE", "rule_type", "active = 1", "deleted = 0"));
         PARTIAL_UNIQUE_INDEXES = Collections.unmodifiableMap(indexes);
     }
 
@@ -141,22 +138,4 @@ class PatientSchemaMigrationTests extends PatientIntegrationTestBase {
         }
     }
 
-    @Test
-    void defaultPatIdRuleSeedRowIsLive() {
-        // CONTAINS-style: at least one live pat_id rule in the ruled seed CONFIGURATION
-        // (yyMMdd Java-pattern stamp + 4-digit serial). Runtime state (serial_cur /
-        // stamp_value) is deliberately NOT asserted here: batch 3's archive tests
-        // consume REAL serials from this seeded rule (b3 brief decision 10 - accepted
-        // residue, gap-tolerant), which advances serial_cur and writes stamp_value.
-        // The pre-issuance stamp_value-NULL state stays covered on dedicated fixture
-        // rules by PatientDataLayerTests.
-        Integer seeds = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM patient.patient_number_rule "
-                + "WHERE rule_type = 'pat_id' AND active = 1 AND deleted = 0 "
-                + "AND serial_length = 4 AND stamp = 'yyMMdd'",
-                Integer.class);
-        assertTrue(seeds != null && seeds >= 1,
-                "the guarded default pat_id rule seed (yyMMdd stamp, 4-digit serial) "
-                + "must be live, found " + seeds);
-    }
 }

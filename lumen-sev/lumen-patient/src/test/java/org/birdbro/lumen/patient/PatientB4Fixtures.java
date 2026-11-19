@@ -27,9 +27,6 @@ final class PatientB4Fixtures {
     /** The marker prefix every batch-4 test archive name carries (sweep key). */
     static final String NAME_MARKER = "b4";
 
-    /** The marker prefix every batch-4 test rule TYPE carries (sweep key). */
-    static final String RULE_TYPE_MARKER = "b4_";
-
     /** Archive ids issued by the running batch-4 classes. */
     private static final List<Integer> ARCHIVE_IDS =
             Collections.synchronizedList(new ArrayList<>());
@@ -49,11 +46,7 @@ final class PatientB4Fixtures {
     }
 
     /** Registers a rule id for the sweep. */
-    static void registerRule(Integer ruleId) {
-        if (ruleId != null) {
-            RULE_IDS.add(ruleId);
-        }
-    }
+
 
     /**
      * Hard-DELETEs every batch-4 fixture family: the captured ids PLUS the marker-keyed
@@ -78,14 +71,6 @@ final class PatientB4Fixtures {
         }
         ARCHIVE_IDS.clear();
 
-        List<Integer> ruleIds = new ArrayList<>(RULE_IDS);
-        jdbcTemplate.queryForList(
-                "SELECT id FROM patient_number_rule WHERE rule_type LIKE 'b4\\_%' ESCAPE '\\'",
-                Integer.class)
-                .forEach(ruleIds::add);
-        for (Integer id : ruleIds) {
-            jdbcTemplate.update("DELETE FROM patient_number_rule WHERE id = ?", id);
-        }
         RULE_IDS.clear();
     }
 }

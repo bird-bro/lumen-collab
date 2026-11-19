@@ -12,6 +12,8 @@
         <module>lumen-bom</module>
         <module>framework</module>
         <module>common</module>
+        <module>lumen-api</module>
+        <module>lumen-core</module>
         <module>lumen-system</module>
         <module>lumen-patient</module>
     </modules>

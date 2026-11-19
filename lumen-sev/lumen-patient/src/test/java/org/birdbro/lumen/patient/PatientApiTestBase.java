@@ -166,6 +166,7 @@ public abstract class PatientApiTestBase extends PatientIntegrationTestBase {
         return tokenService.createToken(login);
     }
 
+
     /** Token carrying every rule perm (the all-granted administrator shape). */
     protected String fullPermToken() {
         return mintToken("patient:rule:list", "patient:rule:create",

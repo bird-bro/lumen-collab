@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.birdbro</groupId>
+        <artifactId>lumen-sev</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <name>${project.artifactId}</name>
+    <artifactId>lumen-api</artifactId>
+    <packaging>jar</packaging>
+
+    <dependencies>
+
+        <!-- lumen-api is the INTER-SERVICE CONTRACT home (number-rule-unification-sev
+             task 1.1, design D5): OpenFeign interfaces + DTOs, add-only. NON-EXECUTABLE
+             shared jar like framework/common/lumen-core (no entry point, no controllers
+             with routes - the contract DECLARED endpoints only; the HTTP surface lives
+             in the OWNING service). Dependencies stay minimal: the envelope + error
+             classes ride common, the Feign/mapping annotations ride the spring-cloud
+             train managed by lumen-bom - NO new version pins anywhere. -->
+        <dependency>
+            <groupId>org.birdbro</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+        </dependency>
+
+        <!-- test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+</project>

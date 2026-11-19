@@ -45,4 +45,14 @@ public interface DictDetailManageService {
      * D2: a mis-named consumer cannot break a page).
      */
     List<DictItemDto> listEnabledItemsByName(String name);
+
+    /**
+     * Label lookup by catalog ID (dict-lookup-by-id, user ruling 2026-11-19): the
+     * catalog id NEVER moves while the operator may rename a catalog freely (the
+     * by-name twin breaks on every rename), so NEW consumers anchor on the id. Same
+     * contract as {@link #listEnabledItemsByName(String)}: LIVE + ENABLED catalog,
+     * slim {@code {code, value}[]} projection sorted by {@code sort} ascending; an
+     * unknown, deleted or disabled catalog resolves to an EMPTY list - never an error.
+     */
+    List<DictItemDto> listEnabledItemsByCaId(Integer caId);
 }

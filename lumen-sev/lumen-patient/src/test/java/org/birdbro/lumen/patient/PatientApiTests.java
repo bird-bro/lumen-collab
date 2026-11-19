@@ -44,7 +44,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PatientApiTests extends PatientApiTestBase {
 
     private static final String PATIENTS_URL = "/api/v1/patient/patients";
-    private static final String RULES_URL = "/api/v1/patient/patient-number-rules";
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -256,154 +255,9 @@ class PatientApiTests extends PatientApiTestBase {
         PatientB4Fixtures.registerArchive(original);
     }
 
-    // ------------------------------------------------------- rule routes
 
-    @Test
-    void ruleCrudRoundTrip() throws Exception {
-        long ts = stamp();
-        String ruleType = PatientB4Fixtures.RULE_TYPE_MARKER + ts;
-        // created STAMPED with no format: the yyMMdd default must fill (decision 5)
-        JsonNode created = parse(exchangeJson(HttpMethod.POST, RULES_URL,
-                "{\"ruleType\":\"" + ruleType + "\",\"serialLength\":4,\"isStamp\":1,\"active\":1}",
-                fullPermToken()));
-        assertEquals("200", created.path("code").asText(),
-                "the rule fixture create must succeed: " + created);
-        int ruleId = created.path("data").asInt(-1);
-        assertTrue(ruleId > 0, "the rule fixture must return its id");
-        PatientB4Fixtures.registerRule(ruleId);
-
-        // page lists the new rule; the omitted stamp defaulted (decision 5)
-        Map<String, Object> row = jdbcTemplate.queryForMap(
-                "SELECT stamp, serial_cur, stamp_value, active FROM patient_number_rule "
-                        + "WHERE rule_type = ?", ruleType);
-        assertEquals("yyMMdd", row.get("stamp"),
-                "isStamp=1 with a null stamp must default to yyMMdd");
-        assertEquals(0, ((Number) row.get("serial_cur")).intValue(),
-                "a fresh rule starts its counter at 0");
-        assertEquals(1, ((Number) row.get("active")).intValue());
-
-        JsonNode page = parse(exchangeJson(HttpMethod.GET,
-                RULES_URL + "?pageNum=1&pageSize=50", null, fullPermToken()));
-        assertEquals("200", page.path("code").asText(), "the page must succeed: " + page);
-        boolean listed = false;
-        for (JsonNode record : page.path("data").path("records")) {
-            listed = listed || ruleType.equals(record.path("ruleType").asText());
-        }
-        assertTrue(listed, "the page must list the created rule: " + page);
-
-        // update replaces the format fields (serial_cur is runtime state - no CRUD DTO field)
-        JsonNode updated = parse(exchangeJson(HttpMethod.PUT, RULES_URL + "/" + ruleId,
-                "{\"ruleType\":\"" + ruleType + "\",\"prefix\":\"B4\",\"suffix\":\"X\","
-                        + "\"serialLength\":6,\"isStamp\":1,\"stamp\":\"yyMMdd\",\"active\":1}",
-                fullPermToken()));
-        assertEquals("200", updated.path("code").asText(), "the update must succeed: " + updated);
-        assertTrue(updated.path("data").asBoolean(), "the update must confirm true");
-        row = jdbcTemplate.queryForMap(
-                "SELECT prefix, suffix, serial_length, serial_cur FROM patient_number_rule "
-                        + "WHERE id = ?", ruleId);
-        assertEquals("B4", row.get("prefix"), "the prefix must replace");
-        assertEquals("X", row.get("suffix"), "the suffix must replace");
-        assertEquals(6, ((Number) row.get("serial_length")).intValue(),
-                "the serial length must replace");
-        assertEquals(0, ((Number) row.get("serial_cur")).intValue(),
-                "the runtime counter must stay untouched by the CRUD update");
-
-        // delete: only an INACTIVE rule deletes (the house logic delete)
-        JsonNode activeDelete = parse(exchangeJson(HttpMethod.DELETE, RULES_URL + "/" + ruleId,
-                null, fullPermToken()));
-        assertEquals("A0400", activeDelete.path("code").asText(),
-                "deleting the ACTIVE rule must reject A0400: " + activeDelete);
-        assertTrue(activeDelete.path("msg").asText().contains("启用的规则不可删除"),
-                "the rejection must carry the ruled detail: " + activeDelete);
-
-        JsonNode deactivated = parse(exchangeJson(HttpMethod.PUT, RULES_URL + "/" + ruleId,
-                "{\"ruleType\":\"" + ruleType + "\",\"prefix\":\"B4\",\"suffix\":\"X\","
-                        + "\"serialLength\":6,\"isStamp\":1,\"stamp\":\"yyMMdd\",\"active\":0}",
-                fullPermToken()));
-        assertEquals("200", deactivated.path("code").asText(),
-                "the deactivation must succeed: " + deactivated);
-        JsonNode deleted = parse(exchangeJson(HttpMethod.DELETE, RULES_URL + "/" + ruleId,
-                null, fullPermToken()));
-        assertEquals("200", deleted.path("code").asText(),
-                "an inactive rule must delete: " + deleted);
-        Integer deletedFlag = jdbcTemplate.queryForObject(
-                "SELECT deleted FROM patient_number_rule WHERE id = ?", Integer.class, ruleId);
-        assertEquals(Integer.valueOf(1), deletedFlag, "the delete must be logical");
-    }
-
-    @Test
-    void creatingASecondActiveRuleForOneTypeConflicts() throws Exception {
-        long ts = stamp();
-        String ruleType = PatientB4Fixtures.RULE_TYPE_MARKER + ts;
-        int first = createRule(ruleType);
-        PatientB4Fixtures.registerRule(first);
-
-        JsonNode second = parse(exchangeJson(HttpMethod.POST, RULES_URL,
-                "{\"ruleType\":\"" + ruleType + "\",\"serialLength\":4,\"isStamp\":0,\"active\":1}",
-                fullPermToken()));
-        assertEquals("A0714", second.path("code").asText(),
-                "a second active rule for one type must reject A0714: " + second);
-        assertTrue(second.path("msg").asText().contains(ruleType)
-                        && second.path("msg").asText().contains(String.valueOf(first)),
-                "the conflict detail must name the type and the existing rule: " + second);
-        Integer rows = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM patient_number_rule WHERE rule_type = ? AND deleted = 0",
-                Integer.class, ruleType);
-        assertEquals(Integer.valueOf(1), rows, "no second rule row may be written");
-    }
-
-    @Test
-    void activatingASecondRuleForOneTypeViaUpdateConflicts() throws Exception {
-        long ts = stamp();
-        String ruleType = PatientB4Fixtures.RULE_TYPE_MARKER + ts;
-        int first = createRule(ruleType);
-        PatientB4Fixtures.registerRule(first);
-
-        // a second INACTIVE rule for the same type is legal to create
-        JsonNode dormant = parse(exchangeJson(HttpMethod.POST, RULES_URL,
-                "{\"ruleType\":\"" + ruleType + "\",\"serialLength\":4,\"isStamp\":0,\"active\":0}",
-                fullPermToken()));
-        assertEquals("200", dormant.path("code").asText(),
-                "an inactive second rule must create: " + dormant);
-        int secondId = dormant.path("data").asInt(-1);
-        assertTrue(secondId > 0, "the inactive rule must return its id");
-        PatientB4Fixtures.registerRule(secondId);
-
-        // activating it via PUT must hit the same A0714 conflict as a create would
-        JsonNode rejected = parse(exchangeJson(HttpMethod.PUT, RULES_URL + "/" + secondId,
-                "{\"ruleType\":\"" + ruleType + "\",\"serialLength\":4,\"isStamp\":0,\"active\":1}",
-                fullPermToken()));
-        assertEquals("A0714", rejected.path("code").asText(),
-                "activating a second active rule via update must reject A0714: " + rejected);
-        assertTrue(rejected.path("msg").asText().contains(ruleType)
-                        && rejected.path("msg").asText().contains(String.valueOf(first)),
-                "the conflict detail must name the type and the existing rule: " + rejected);
-        Integer activeCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM patient_number_rule "
-                        + "WHERE rule_type = ? AND active = 1 AND deleted = 0",
-                Integer.class, ruleType);
-        assertEquals(Integer.valueOf(1), activeCount,
-                "exactly one active rule for the type must survive the rejected update");
-    }
-
-    @Test
-    void invalidRulePayloadRejectsWithFieldA0400() throws Exception {
-        long ts = stamp();
-        JsonNode rejected = parse(exchangeJson(HttpMethod.POST, RULES_URL,
-                "{\"ruleType\":\"" + PatientB4Fixtures.RULE_TYPE_MARKER + ts + "\","
-                        + "\"serialLength\":11,\"isStamp\":0,\"active\":1}", fullPermToken()));
-        assertEquals("A0400", rejected.path("code").asText(),
-                "an out-of-range serial length must reject A0400: " + rejected);
-        assertTrue(rejected.path("msg").asText().contains("serialLength"),
-                "the field message must surface for the web (task 5): " + rejected);
-        Integer rows = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM patient_number_rule WHERE rule_type LIKE 'b4\\_%' ESCAPE '\\'",
-                Integer.class);
-        assertEquals(Integer.valueOf(0), rows, "no rule row may be written for the rejection");
-    }
-
-    // ------------------------------------------------------- fixtures
-
+    /** Creates an unnamed PROVISIONAL placeholder (the merge absorbed row). */
+    /** Per-call timestamp suffix for the fixture namespaces. */
     private long stamp() {
         return System.currentTimeMillis();
     }
@@ -428,7 +282,7 @@ class PatientApiTests extends PatientApiTestBase {
         return id;
     }
 
-    /** Creates an unnamed PROVISIONAL placeholder (the merge absorbed row). */
+
     private int createPlaceholder() throws Exception {
         JsonNode created = parse(exchangeJson(HttpMethod.POST, PATIENTS_URL,
                 "{\"name\":\"b4占位" + stamp() + "\",\"provisional\":true}", fullPermToken()));
@@ -455,17 +309,7 @@ class PatientApiTests extends PatientApiTestBase {
     }
 
     /** Creates one ACTIVE rule through the route and registers it for the sweep. */
-    private int createRule(String ruleType) throws Exception {
-        JsonNode created = parse(exchangeJson(HttpMethod.POST, RULES_URL,
-                "{\"ruleType\":\"" + ruleType + "\",\"serialLength\":4,\"isStamp\":0,\"active\":1}",
-                fullPermToken()));
-        assertEquals("200", created.path("code").asText(),
-                "the rule fixture create must succeed: " + created);
-        int id = created.path("data").asInt(-1);
-        assertTrue(id > 0, "the rule fixture must return its id");
-        PatientB4Fixtures.registerRule(id);
-        return id;
-    }
+
 
     private ResponseEntity<String> exchangeJson(HttpMethod method, String url, String json,
             String token) {

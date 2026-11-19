@@ -14,12 +14,10 @@ import org.birdbro.lumen.patient.entity.PatientEventOutbox;
 import org.birdbro.lumen.patient.entity.PatientIdentifier;
 import org.birdbro.lumen.patient.entity.PatientMaster;
 import org.birdbro.lumen.patient.entity.PatientMergeLog;
-import org.birdbro.lumen.patient.entity.PatientNumberRule;
 import org.birdbro.lumen.patient.mapper.PatientEventOutboxMapper;
 import org.birdbro.lumen.patient.mapper.PatientIdentifierMapper;
 import org.birdbro.lumen.patient.mapper.PatientMasterMapper;
 import org.birdbro.lumen.patient.mapper.PatientMergeLogMapper;
-import org.birdbro.lumen.patient.mapper.PatientNumberRuleMapper;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,9 +62,6 @@ class PatientDataLayerTests extends PatientIntegrationTestBase {
     private PatientIdentifierMapper patientIdentifierMapper;
 
     @Autowired
-    private PatientNumberRuleMapper patientNumberRuleMapper;
-
-    @Autowired
     private PatientEventOutboxMapper patientEventOutboxMapper;
 
     @Autowired
@@ -88,7 +83,6 @@ class PatientDataLayerTests extends PatientIntegrationTestBase {
         jdbcTemplate.update("DELETE FROM patient_merge_log WHERE reason LIKE 'b2\\_%'");
         jdbcTemplate.update("DELETE FROM patient_identifier WHERE id_no LIKE 'B2T-%'");
         jdbcTemplate.update("DELETE FROM patient_master WHERE pat_id LIKE 'B2T-%'");
-        jdbcTemplate.update("DELETE FROM patient_number_rule WHERE rule_type LIKE 'b2\\_%'");
     }
 
     @Test
@@ -174,33 +168,7 @@ class PatientDataLayerTests extends PatientIntegrationTestBase {
         assertEquals(2, rows.size(), "both additional numbers of the master must list back");
     }
 
-    @Test
-    void patientNumberRuleRoundTripKeepsStampValueNullBeforeFirstIssuance() {
-        PatientNumberRule rule = PatientNumberRule.builder()
-                .ruleType("b2_dl")
-                .prefix("B2D-")
-                .serialLength(4)
-                .serialCur(0)
-                .isStamp(1)
-                .stamp("yyMMdd")
-                // stamp_value deliberately unset: NULL until the first issuance (B1 amendment)
-                .build();
-        assertEquals(1, patientNumberRuleMapper.insert(rule), "rule insert must affect one row");
-        assertNotNull(rule.getId(), "IdType.AUTO must backfill the database-generated id");
 
-        PatientNumberRule loaded = patientNumberRuleMapper.selectById(rule.getId());
-        assertNotNull(loaded, "the inserted rule must select back");
-        assertEquals("b2_dl", loaded.getRuleType());
-        assertEquals("B2D-", loaded.getPrefix());
-        assertEquals("", loaded.getSuffix(), "the DB default '' suffix must surface when omitted");
-        assertEquals(Integer.valueOf(4), loaded.getSerialLength());
-        assertEquals(Integer.valueOf(0), loaded.getSerialCur());
-        assertEquals(Integer.valueOf(1), loaded.getIsStamp());
-        assertEquals("yyMMdd", loaded.getStamp());
-        assertNull(loaded.getStampValue(), "stamp_value must stay NULL until the first issuance");
-        assertEquals(Integer.valueOf(1), loaded.getActive(),
-                "the DB default active = 1 must surface when omitted");
-    }
 
     @Test
     void patientEventOutboxPayloadJsonbRoundTrip() {

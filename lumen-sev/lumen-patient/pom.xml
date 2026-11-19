@@ -24,6 +24,10 @@
              so common's transitive bcprov-jdk16 is inert on this classpath. -->
         <dependency>
             <groupId>org.birdbro</groupId>
+            <artifactId>lumen-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.birdbro</groupId>
             <artifactId>framework</artifactId>
         </dependency>
         <dependency>

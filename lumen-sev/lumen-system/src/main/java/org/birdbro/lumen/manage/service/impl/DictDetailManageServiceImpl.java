@@ -96,6 +96,27 @@ public class DictDetailManageServiceImpl implements DictDetailManageService {
     }
 
     @Override
+    public List<DictItemDto> listEnabledItemsByCaId(Integer caId) {
+        // The catalog is addressed by its IMMUTABLE id (dict-lookup-by-id, user ruling
+        // 2026-11-19 - the operator may rename a catalog freely; the id never moves).
+        // Unknown/deleted/disabled -> empty list, never an error (the D2 degradation).
+        DictCatalEntity catal = dictCatalService.getById(caId);
+        if (catal == null || !Integer.valueOf(1).equals(catal.getEnable())) {
+            return new ArrayList<>();
+        }
+        List<DictItemDto> items = new ArrayList<>();
+        for (DictDetailEntity detail : dictDetailService.listByCaId(caId)) {
+            if (detail.getEnable() != null && detail.getEnable() == 1) {
+                DictItemDto item = new DictItemDto();
+                item.setCode(detail.getCode());
+                item.setValue(detail.getValue());
+                items.add(item);
+            }
+        }
+        return items;
+    }
+
+    @Override
     public List<DictItemDto> listEnabledItemsByName(String name) {
         // Resolve the LIVE + ENABLED catalog by its unique name (V12: the name is the
         // only handle). Unknown/disabled -> empty list, never an error (D2).

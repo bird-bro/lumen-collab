@@ -90,6 +90,24 @@ public abstract class PatientIntegrationTestBase {
         registry.add("spring.flyway.default-schema", () -> PatientTestServerBootstrap.PATIENT_SCHEMA);
     }
 
+    // The service-to-service seam (number-rule-unification-sev task 3.1): archive
+    // creation issues pat_id through the platform NumberApi Feign contract - EVERY
+    // patient test stubs it HERE (a lenient unique-number default; scenario suites
+    // override in their own @BeforeEach, which runs after this base method). The
+    // platform MECHANISM is proven system-side (NumberIssuerServiceTests).
+    @org.springframework.boot.test.mock.mockito.MockBean
+    protected org.birdbro.lumen.api.number.NumberApi numberApi;
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubPlatformIssuance() {
+        java.util.concurrent.atomic.AtomicInteger seq =
+                new java.util.concurrent.atomic.AtomicInteger(26111900);
+        org.mockito.Mockito.when(numberApi.issue(org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(inv -> org.birdbro.common.core.R.ofSuccess(
+                        org.birdbro.lumen.api.number.NumberIssueResponse.builder()
+                                .number("PB4" + seq.incrementAndGet()).build()));
+    }
+
     private static int parseIntPort(String name, String raw) {
         try {
             return Integer.parseInt(raw.trim());

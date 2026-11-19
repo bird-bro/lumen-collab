@@ -1,6 +1,7 @@
 package org.birdbro.lumen.patient;
 
 import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -32,6 +33,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication(scanBasePackages = "org.birdbro")
 @MapperScan(basePackages = "org.birdbro.**.mapper")
+@EnableFeignClients(clients = org.birdbro.lumen.api.number.NumberApi.class)
 public class PatientApplication {
 
     public static void main(String[] args) {

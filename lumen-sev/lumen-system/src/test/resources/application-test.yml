@@ -48,3 +48,7 @@ lumen:
     password-crypto:
       key-id: sm2-test
       sm2-private-key: 56d66802243a734aba690c6f2553ca69c87e8e78f9b282a19686d7fe1683cd83
+  # Internal-service key for the machine issuance endpoint (number-rule-unification-sev
+  # task 2.2): TEST-ONLY value - production values ride env vars / the gitignored
+  # application-dev.yml (never committed). Fail-closed guard on the system side.
+  internal-api-key: nr-tests-internal-key

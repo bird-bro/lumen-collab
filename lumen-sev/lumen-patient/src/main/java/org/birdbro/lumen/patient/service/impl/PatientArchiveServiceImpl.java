@@ -79,8 +79,8 @@ public class PatientArchiveServiceImpl implements PatientArchiveService {
     /** The visit-card identifier type the resolve chain matches on (decision 6). */
     private static final String IDENTIFIER_TYPE_CARD = "card";
 
-    /** The pat_id number family (the seeded issuance rule). */
-    private static final String NUMBER_RULE_PAT_ID = "pat_id";
+    /** The 影像号 number family (dict 编号类型 1028 token - seeds the master's pat_id). */
+    private static final String NUMBER_RULE_PAT_ID = "影像号";
 
     private final PatientMasterMapper patientMasterMapper;
     private final PatientIdentifierMapper patientIdentifierMapper;

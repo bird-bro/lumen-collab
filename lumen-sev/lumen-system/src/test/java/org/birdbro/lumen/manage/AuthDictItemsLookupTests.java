@@ -1,5 +1,9 @@
 package org.birdbro.lumen.manage;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -47,6 +51,7 @@ class AuthDictItemsLookupTests extends AuthIntegrationTestBase {
 
     private static final String LOGIN_URL = "/api/v1/system/login";
     private static final String ITEMS_URL = "/api/v1/system/dicts/detail/items";
+    private static final String ITEMS_BY_ID_URL = "/api/v1/system/dicts/detail/items-by-id";
     private static final String DETAIL_LIST_URL = "/api/v1/system/dicts/detail/list";
     private static final String CATAL_URL = "/api/v1/system/dicts/catal";
     private static final String DETAIL_URL = "/api/v1/system/dicts/detail";
@@ -116,6 +121,37 @@ class AuthDictItemsLookupTests extends AuthIntegrationTestBase {
                 "an unknown catalog is NOT an error (coordination D2): " + body);
         assertTrue(body.path("data").isArray() && body.path("data").size() == 0,
                 "the unknown catalog resolves to an empty array: " + body);
+    }
+
+    @Test
+    void itemsByIdAnchorsOnTheImmutableCatalogId() throws Exception {
+        // dict-lookup-by-id (user ruling 2026-11-19): the id NEVER moves while the
+        // operator may rename a catalog freely - the V44-seeded 编号类型 catalog
+        // (id 1028) resolves by id alone, operator-added items riding along
+        String token = adminToken();
+        JsonNode body = parse(exchangeJson(HttpMethod.GET,
+                ITEMS_BY_ID_URL + "/1028", null, token));
+        assertEquals("200", body.path("code").asText(),
+                "the by-id lookup must answer the success envelope: " + body);
+        JsonNode items = body.path("data");
+        assertTrue(items.isArray() && items.size() >= 3,
+                "the seeded base families ride the array: " + items);
+        Set<String> values = new HashSet<>();
+        for (int i = 0; i < items.size(); i++) {
+            JsonNode item = items.get(i);
+            assertEquals(2, item.size(), "the slim shape is code+value: " + item);
+            values.add(item.path("value").asText());
+        }
+        assertTrue(values.containsAll(List.of("影像号", "登记号", "预约号")),
+                "the three seeded families resolve by id: " + values);
+
+        // an unknown id degrades to the empty array (the D2 contract, by-id twin)
+        JsonNode unknown = parse(exchangeJson(HttpMethod.GET,
+                ITEMS_BY_ID_URL + "/999999", null, token));
+        assertEquals("200", unknown.path("code").asText(),
+                "an unknown catalog id is NOT an error: " + unknown);
+        assertTrue(unknown.path("data").isArray() && unknown.path("data").size() == 0,
+                "the unknown catalog id resolves to an empty array: " + unknown);
     }
 
     @Test

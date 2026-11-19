@@ -79,3 +79,19 @@ logging:
     org.birdbro: debug
   file:
     name: ./logs/lumen-patient.log
+
+# Platform number-rule service (number-rule-unification-sev task 3.1, design D5/D6):
+# the patient service issues pat_id through the NumberApi Feign contract against the
+# SYSTEM service - direct URL (no discovery, the 2026-11-03 local-config ruling;
+# env var wins, the local default targets the locally-running lumen-system). The
+# internal key rides the SAME value the system side checks - gitignored overrides in
+# application-dev.yml / env vars, never a committed real key (fail-closed both sides).
+feign:
+  sentinel:
+    enabled: true   # the NumberApi fail-fast fallback resolves through Sentinel
+
+lumen:
+  api:
+    system:
+      url: ${LUMEN_API_SYSTEM_URL:http://localhost:8081}
+  internal-api-key: ${LUMEN_INTERNAL_API_KEY:}

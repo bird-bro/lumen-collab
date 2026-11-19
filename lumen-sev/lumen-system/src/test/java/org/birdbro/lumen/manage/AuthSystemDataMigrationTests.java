@@ -385,6 +385,51 @@ class AuthSystemDataMigrationTests extends AuthIntegrationTestBase {
     }
 
     /**
+     * Number rules read their stamp formats from the dict (user ruling 2026-11-19):
+     * 「号码戳格式」 seeds the date patterns plus minute/second timestamp variants, and
+     * each detail VALUE is the Java pattern stored verbatim in number_rule.stamp.
+     */
+    @Test
+    void v43SeedsNumberStampFormatDictCatalog() {
+        Map<String, Object> catal = jdbcTemplate.queryForMap(
+                "SELECT name, enable, deleted FROM public.dict_catal WHERE id = 1029");
+        assertEquals("号码戳格式", catal.get("name"),
+                "catalog 1029 anchors BY NAME (the frontend by-name lookup resolves it)");
+        assertEquals(1, ((Number) catal.get("enable")).intValue(),
+                "the seeded stamp-format catalog must be enabled");
+        assertEquals(0, ((Number) catal.get("deleted")).intValue(),
+                "the seeded stamp-format catalog must be live");
+
+        Object[][] expectedDetails = {
+                {1, "yyMMdd"}, {2, "yyyyMMdd"}, {3, "yyMMddHHmm"},
+                {4, "yyyyMMddHHmm"}, {5, "yyMMddHHmmss"}, {6, "yyyyMMddHHmmss"}};
+        for (int i = 0; i < expectedDetails.length; i++) {
+            Map<String, Object> detail = jdbcTemplate.queryForMap(
+                    "SELECT code, value, sort, enable, deleted FROM public.dict_detail "
+                    + "WHERE id = ? AND ca_id = 1029", 1029001 + i);
+            assertEquals(((Number) expectedDetails[i][0]).intValue(),
+                    ((Number) detail.get("code")).intValue(),
+                    "stamp-format detail " + (1029001 + i) + " must carry sort-code "
+                    + expectedDetails[i][0]);
+            assertEquals(expectedDetails[i][1], detail.get("value"),
+                    "stamp-format detail " + (1029001 + i) + " must carry the Java pattern");
+            assertEquals(1, ((Number) detail.get("enable")).intValue(),
+                    "every seeded stamp format is a live dropdown option");
+            assertEquals(0, ((Number) detail.get("deleted")).intValue(),
+                    "every seeded stamp format must be live");
+        }
+
+        Long catalSeq = jdbcTemplate.queryForObject(
+                "SELECT last_value FROM public.dict_catal_id_seq", Long.class);
+        assertTrue(catalSeq >= 1029,
+                "dict_catal_id_seq must sit past seeded catalog 1029, but was " + catalSeq);
+        Long detailSeq = jdbcTemplate.queryForObject(
+                "SELECT last_value FROM public.dict_detail_id_seq", Long.class);
+        assertTrue(detailSeq >= 1029006,
+                "dict_detail_id_seq must sit past seeded detail 1029006, but was " + detailSeq);
+    }
+
+    /**
      * Write into an unpartitioned year lands in the default partition (spec delta
      * § System Log Tables, scenario 4 - the b2-review flagged coverage gap, closed
      * 2026-11-10): a row whose {@code date_ym} year has no child partition (1799

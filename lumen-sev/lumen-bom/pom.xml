@@ -254,6 +254,20 @@
                 <artifactId>common</artifactId>
                 <version>${revision}</version>
             </dependency>
+            <!-- Lumen shared-library + contract modules (NOT OPS-managed): the
+                 non-executable kernel (lumen-core-registration-kernel) and the
+                 inter-service contract home (number-rule-unification-sev) join the
+                 framework/common management block. -->
+            <dependency>
+                <groupId>org.birdbro</groupId>
+                <artifactId>lumen-core</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.birdbro</groupId>
+                <artifactId>lumen-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
 
             <!-- ======== Lumen-only additions (NOT OPS-managed; no OPS verification
                  inherited - design D1/D2. Managed here, consumed by no module yet.) ======== -->

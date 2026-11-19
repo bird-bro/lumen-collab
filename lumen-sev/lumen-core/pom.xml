@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.birdbro</groupId>
+        <artifactId>lumen-sev</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <name>${project.artifactId}</name>
+    <artifactId>lumen-core</artifactId>
+    <packaging>jar</packaging>
+
+    <dependencies>
+
+        <!-- lumen-core is a NON-EXECUTABLE shared library (service-topology Shared
+             Library Boundary; lumen-core-registration-kernel design D1): the
+             department-neutral exam-workflow kernel. Same dependency base as the
+             service modules (druid, PostgreSQL driver, mybatis-plus, web/redis starters
+             all ride framework/common transitively) with NO boot repackage goal and NO
+             application entry point (the architecture guard scans pom text verbatim -
+             the plugin name must not appear here, the eis-icons comment-scanner
+             lesson). The kernel carries NO controllers - the HTTP surface belongs to
+             each consuming department service. -->
+        <dependency>
+            <groupId>org.birdbro</groupId>
+            <artifactId>framework</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.birdbro</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+
+        <!-- Flyway rides TEST-SCOPE ONLY (design D2/D9): the kernel never runs
+             migrations in production - consuming services vendor the canonical DDL
+             into their own ledgers and declare their own flyway-core. The kernel's
+             TEST context applies the canonical file to the test-only core schema,
+             which needs the Flyway autoconfiguration on the test classpath. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+</project>

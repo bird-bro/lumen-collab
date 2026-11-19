@@ -66,6 +66,11 @@ swagger:
 security:
   permit-all:
     - /api/v1/system/login
+    # The machine issuance endpoint (number-rule-unification-sev design D4): exempt
+    # from user-token auth, guarded by the X-Internal-Key interceptor instead - the
+    # ONLY permit-all entry that mints anything, so the key config below is MANDATORY
+    # (fail-closed: an unconfigured key rejects every call).
+    - /api/v1/system/number-rules/issue
     # The SM2 public-key distribution for password transport encryption (coordinate D3):
     # the login page must fetch the key BEFORE it can produce a login body, so the key
     # endpoint is anonymous like /login itself.

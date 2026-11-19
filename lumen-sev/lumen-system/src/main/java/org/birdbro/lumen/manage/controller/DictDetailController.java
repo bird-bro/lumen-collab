@@ -102,4 +102,18 @@ public class DictDetailController {
     public List<DictItemDto> itemsByName(@PathVariable("catalogName") String catalogName) {
         return dictDetailManageService.listEnabledItemsByName(catalogName);
     }
+
+    /**
+     * Label lookup by catalog ID (dict-lookup-by-id, user ruling 2026-11-19): the
+     * id NEVER moves while the operator may rename a catalog freely - new consumers
+     * anchor here, the by-name twin above stays for the existing role/audit
+     * consumers. Same slim projection + {@code isAuthenticated()} semantics; an
+     * unknown, deleted or disabled catalog resolves to an empty list - never an error.
+     */
+    @ApiOperation("按目录ID取启用明细（瘦投影 code+value，仅认证；未知目录返回空数组）")
+    @GetMapping("/items-by-id/{catalId}")
+    @PreAuthorize("isAuthenticated()")
+    public List<DictItemDto> itemsById(@PathVariable("catalId") Integer catalId) {
+        return dictDetailManageService.listEnabledItemsByCaId(catalId);
+    }
 }

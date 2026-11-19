@@ -1,0 +1,38 @@
+# Test profile for lumen-core (lumen-core-registration-kernel task 2.1, design D9).
+#
+# Deliberately NO datasource properties here: KernelIntegrationTestBase injects the
+# REAL datasource, Redis, and Flyway properties via @DynamicPropertySource at context
+# creation, resolved from the gitignored lumen-sev/.env-test.local (AUTH_TEST_*
+# variables). Missing variables fail the context explicitly in KernelTestEnv.require -
+# never a silent skip. @ActiveProfiles("test") keeps the gitignored
+# application-dev.yml out of the test classpath.
+
+# Shared-server transport resilience (the 2026-11-18 six-run convention, same as
+# lumen-system): keepalive pings idle pool connections before NAT/conntrack drops
+# them; the JDBC URLs additionally carry tcpKeepAlive=true
+# (KernelIntegrationTestBase).
+spring:
+  datasource:
+    hikari:
+      keepalive-time: 60000
+
+# Framework-demanded values (lumen-core-registration-kernel task 2.1): lumen-core is a
+# LIBRARY and ships no main application.yml, but the test host scans org.birdbro and
+# the framework beans (FilterConfig xss.*, TokenService token.*, GlobalProperties
+# dispose.*) resolve @Value placeholders at context load. These are the service-yml
+# placeholder values (TEST ONLY - consumers carry their own committed application.yml;
+# production secrets ride env vars / gitignored profiles).
+token:
+  header: Authorization
+  secret: lumen-collab-jwt-secret-change-me-in-production-0123456789abcdef
+  expireTime: 1440
+
+xss:
+  enabled: true
+  excludes: /css/*,/js/*,/images/*
+  urlPatterns: /*
+
+dispose:
+  adviceFilterPackage:
+    - springfox.documentation
+    - org.springframework
