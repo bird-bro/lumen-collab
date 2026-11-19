@@ -569,11 +569,6 @@ export interface OrgDevice {
   ae: string | null;
   ip: string | null;
   port: string | null;
-  boxAdapter: string | null;
-  boxIp: string | null;
-  boxPort: string | null;
-  boxMac: string | null;
-  boxPrint: string | null;
   captureW: number | null;
   captureH: number | null;
   prune: boolean | null;
@@ -614,11 +609,6 @@ export interface CreateDeviceBody {
   ae?: string | null;
   ip?: string | null;
   port?: string | null;
-  boxAdapter?: string | null;
-  boxIp?: string | null;
-  boxPort?: string | null;
-  boxMac?: string | null;
-  boxPrint?: string | null;
   captureW?: number | null;
   captureH?: number | null;
   prune?: boolean | null;

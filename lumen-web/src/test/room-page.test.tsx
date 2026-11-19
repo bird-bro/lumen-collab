@@ -165,11 +165,6 @@ function pickDevice(): OrgDevice {
     ae: 'LUMEN_CT',
     ip: '192.168.1.50',
     port: '104',
-    boxAdapter: null,
-    boxIp: null,
-    boxPort: null,
-    boxMac: null,
-    boxPrint: null,
     captureW: null,
     captureH: null,
     prune: null,
@@ -284,6 +279,48 @@ describe('room page - org tree semantics (root = all campuses)', () => {
     await screen.findByText('东院区')
     await user.click(screen.getByText('东院区'))
     await waitFor(() => expect(lastQuery().orgId).toBe(2))
+  })
+})
+
+describe('room page - drawer lifecycle status control', () => {
+  it('hides status in the create drawer and creates an enabled room', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await waitForTableSettled()
+    await user.click(screen.getByRole('button', { name: /添加诊室/ }))
+    await screen.findByRole('dialog', { name: '添加诊室' })
+
+    const drawer = document.querySelector('.ant-drawer-open') as HTMLElement
+    expect(within(drawer).queryByRole('combobox', { name: '状态' })).toBeNull()
+    expect(within(drawer).queryByRole('switch', { name: '状态' })).toBeNull()
+
+    await user.type(screen.getByLabelText('名称'), 'DR 三号室')
+    await pickOption(user, '科室选择', '放射科')
+    await user.click(within(drawer).getByRole('button', { name: /保\s*存/ }))
+
+    await waitFor(() => expect(roomApi.createRoom).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(roomApi.createRoom).mock.calls[0][0]).toMatchObject({
+      name: 'DR 三号室',
+      enable: 1,
+    })
+  })
+
+  it('uses an edit Switch backed by the status endpoint', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await waitForTableSettled()
+    const row = (await screen.findByText('CT 一号室')).closest('tr') as HTMLElement
+    await user.click(within(row).getByRole('button', { name: /编辑/ }))
+    await screen.findByRole('dialog', { name: '编辑诊室' })
+
+    const drawer = document.querySelector('.ant-drawer-open') as HTMLElement
+    expect(within(drawer).queryByRole('combobox', { name: '状态' })).toBeNull()
+    const statusSwitch = within(drawer).getByRole('switch', { name: '状态' })
+    expect(statusSwitch).toBeChecked()
+
+    await user.click(statusSwitch)
+    await waitFor(() => expect(roomApi.setRoomStatus).toHaveBeenCalledWith(7, 0))
+    await waitFor(() => expect(statusSwitch).not.toBeChecked())
   })
 })
 

@@ -18,10 +18,11 @@ import org.birdbro.common.core.base.EntityBase;
 /**
  * OrgDevice ({@code org_device}, org-device-room-api): a medical imaging DEVICE as an
  * asset plus its DICOM access point. The 2026-11-10 split ruling keeps everything the
- * device CONNECTS with on this row - the {@code ae/ip/port} access block and the Box
- * acquisition block - while {@code org_room} stays a business place referencing a device
- * by {@code dev_id}. OPS baggage (vehicle fields, ezviz video keys, lessor, contract id)
- * is trimmed per the 2026-11-12 ruling. {@code did} is nullable on purpose: a device may
+ * device CONNECTS with on this row - the {@code ae/ip/port} access block and the
+ * 图像预设 acquisition block - while {@code org_room} stays a business place referencing
+ * a device by {@code dev_id}. OPS baggage (vehicle fields, ezviz video keys, lessor,
+ * contract id) is trimmed per the 2026-11-12 ruling; the Box (采集盒) columns left with
+ * org-device-drop-box (2026-11-19). {@code did} is nullable on purpose: a device may
  * hang off the org before a department claims it. No physical FKs - references are
  * service-enforced (A0400 on a dead parent).
  *
@@ -116,21 +117,6 @@ public class OrgDevice extends EntityBase {
 
     /** DICOM device port. */
     private String port;
-
-    /** Box 适配器. */
-    private String boxAdapter;
-
-    /** Box IP. */
-    private String boxIp;
-
-    /** Box port. */
-    private String boxPort;
-
-    /** Box MAC. */
-    private String boxMac;
-
-    /** Box 打印机. */
-    private String boxPrint;
 
     /** 图像采集宽. */
     private Integer captureW;

@@ -119,27 +119,8 @@ public class DeviceCreateRequest {
     @ApiModelProperty("设备 port")
     private String port;
 
-    // ---- acquisition block: Box + 图像预设 (kept with the access point, 2026-11-12) ----
-
-    @Size(max = 64, message = "boxAdapter must not exceed 64 characters")
-    @ApiModelProperty("Box 适配器")
-    private String boxAdapter;
-
-    @Size(max = 64, message = "boxIp must not exceed 64 characters")
-    @ApiModelProperty("Box IP")
-    private String boxIp;
-
-    @Size(max = 16, message = "boxPort must not exceed 16 characters")
-    @ApiModelProperty("Box port")
-    private String boxPort;
-
-    @Size(max = 64, message = "boxMac must not exceed 64 characters")
-    @ApiModelProperty("Box MAC")
-    private String boxMac;
-
-    @Size(max = 128, message = "boxPrint must not exceed 128 characters")
-    @ApiModelProperty("Box 打印机")
-    private String boxPrint;
+    // ---- acquisition block: 图像预设 (kept with the access point, 2026-11-12;
+    //      Box params dropped from the contract, org-device-drop-box 2026-11-19) ----
 
     @ApiModelProperty("图像采集宽")
     private Integer captureW;

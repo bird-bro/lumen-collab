@@ -151,8 +151,6 @@ class AuthDeviceApiTests extends AuthIntegrationTestBase {
                 + ",\"responsiblePhone\":\"13800000000\",\"startDate\":\"2024-03-10\""
                 + ",\"endDate\":\"2034-03-10\",\"remark\":\"验收通过\""
                 + ",\"ae\":\"LUMEN_CT\",\"ip\":\"192.168.1.50\",\"port\":\"104\""
-                + ",\"boxAdapter\":\"A1\",\"boxIp\":\"192.168.1.51\",\"boxPort\":\"9000\""
-                + ",\"boxMac\":\"AA:BB:CC:DD:EE:FF\",\"boxPrint\":\" ward-printer\""
                 + ",\"captureW\":2048,\"captureH\":1536,\"prune\":true"
                 + ",\"pruneU\":10,\"pruneD\":20,\"pruneL\":30,\"pruneR\":40}";
 
@@ -166,14 +164,13 @@ class AuthDeviceApiTests extends AuthIntegrationTestBase {
 
         // The full surface persists (spot-check the blocks the split ruling pins here).
         java.util.Map<String, Object> row = jdbcTemplate.queryForMap(
-                "SELECT brand, ae, ip, port, box_adapter, capture_w, prune, prune_l, did"
+                "SELECT brand, ae, ip, port, capture_w, prune, prune_l, did"
                         + " FROM system.org_device WHERE id = ?", deviceId);
         assertNotNull(row, "the created row must be queryable");
         assertEquals("联影", row.get("brand"), "the profile field must persist");
         assertEquals("LUMEN_CT", row.get("ae"), "the access block must persist");
         assertEquals("192.168.1.50", row.get("ip"), "the access IP must persist");
         assertEquals("104", row.get("port"), "the access port must persist");
-        assertEquals("A1", row.get("box_adapter"), "the acquisition block must persist");
         assertEquals(2048, ((Number) row.get("capture_w")).intValue(),
                 "capture width must persist");
         assertEquals(Boolean.TRUE, row.get("prune"), "the prune flag must persist");

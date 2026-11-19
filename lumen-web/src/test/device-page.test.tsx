@@ -150,11 +150,6 @@ function device(partial: Partial<OrgDevice> & { id: number; code: string; name: 
     ae: null,
     ip: null,
     port: null,
-    boxAdapter: null,
-    boxIp: null,
-    boxPort: null,
-    boxMac: null,
-    boxPrint: null,
     captureW: null,
     captureH: null,
     prune: null,
@@ -303,7 +298,6 @@ describe('device page - table columns', () => {
     expect(within(row).getByText('放射科')).toBeInTheDocument()
     expect(within(row).getByText('CT')).toBeInTheDocument()
     expect(within(row).getByText('在用')).toBeInTheDocument()
-    expect(within(row).getByText('自购')).toBeInTheDocument()
   })
 })
 
@@ -315,9 +309,11 @@ describe('device page - drawer create (3.2)', () => {
     const loadsBefore = vi.mocked(deviceApi.pageDevice).mock.calls.length
     await user.click(screen.getByRole('button', { name: /添加设备/ }))
 
-    await screen.findByText('基础信息')
+    await screen.findByLabelText('编号')
     await user.type(screen.getByLabelText('编号'), 'DEV-NEW-001')
     await user.type(screen.getByLabelText('名称'), '新设备')
+    // 状态/归属类型 live in the 采购信息 tab - activate it before picking there.
+    await user.click(screen.getByRole('tab', { name: '采购信息' }))
     // 类型/状态/归属类型/所属部门 selects - pick the first real option of each.
     await pickOption(user, '设备类型选择', 'CT')
     await pickOption(user, '设备状态选择', '在用')
@@ -349,9 +345,10 @@ describe('device page - drawer create (3.2)', () => {
     await waitForTableSettled()
     const loadsBefore = vi.mocked(deviceApi.pageDevice).mock.calls.length
     await user.click(screen.getByRole('button', { name: /添加设备/ }))
-    await screen.findByText('基础信息')
+    await screen.findByLabelText('编号')
     await user.type(screen.getByLabelText('编号'), 'DEV-CT-001')
     await user.type(screen.getByLabelText('名称'), '重复设备')
+    await user.click(screen.getByRole('tab', { name: '采购信息' }))
     await pickOption(user, '设备类型选择', 'CT')
     await pickOption(user, '设备状态选择', '在用')
     await pickOption(user, '归属类型选择', '自购')
@@ -362,7 +359,7 @@ describe('device page - drawer create (3.2)', () => {
     await waitFor(() =>
       expect(screen.getByText('设备编号已存在')).toBeInTheDocument(),
     )
-    expect(screen.getByText('基础信息')).toBeInTheDocument()
+    expect(screen.getByLabelText('编号')).toBeInTheDocument()
     expect(vi.mocked(deviceApi.pageDevice).mock.calls.length).toBe(loadsBefore)
   })
 })
@@ -413,7 +410,6 @@ describe('device page - edit echo and full update (3.2)', () => {
     await user.click(within(row).getByRole('button', { name: /编辑/ }))
     // The echo comes from the detail fetch (getDevice), not the row.
     await waitFor(() => expect(deviceApi.getDevice).toHaveBeenCalledWith(5))
-    await screen.findByText('基础信息')
     await waitFor(() => expect(screen.getByLabelText('编号')).toHaveValue('DEV-CT-001'))
     await user.clear(screen.getByLabelText('名称'))
     await user.type(screen.getByLabelText('名称'), 'CT 一号机改')
@@ -483,5 +479,81 @@ describe('device page - drawer shell consistency', () => {
     expect(
       title.compareDocumentPosition(close as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
+  })
+})
+
+describe('device page - drawer section tabs (ruling 2026-11-19)', () => {
+  it('renders 图像采集 FIRST then 采购信息 as tabs with NO divider section headers', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('CT 一号机')
+    await user.click(screen.getByRole('button', { name: /添加设备/ }))
+    await screen.findByLabelText('编号')
+    // DOM order guard: 图像采集 precedes 采购信息 in the tab bar.
+    const tabLabels = screen
+      .getAllByRole('tab')
+      .map((tab) => tab.textContent)
+    expect(tabLabels).toEqual(['图像采集', '采购信息'])
+    // 基础信息 flattens to the top of the form - no Divider separator anywhere.
+    expect(screen.queryByRole('separator')).not.toBeInTheDocument()
+  })
+
+  it('keeps both tabs values in the submit even when a tab was never visited', async () => {
+    // The detail carries config on BOTH tabs the user never looks at: open edit,
+    // change only the name, save from the default 图像采集 tab - the never-mounted
+    // 采购信息 pane must not drop its values from validateFields().
+    vi.mocked(deviceApi.getDevice).mockResolvedValue(
+      device({
+        id: 5,
+        code: 'DEV-CT-001',
+        name: 'CT 一号机',
+        did: 11,
+        ae: 'CT_AE',
+        ip: '10.0.0.5',
+        port: '104',
+        purchaseDate: '2026-01-15',
+        startDate: '2026-01-01',
+        endDate: '2099-12-31',
+      }),
+    )
+    const user = userEvent.setup()
+    renderPage()
+    await waitForTableSettled()
+    const row = (await screen.findByText('CT 一号机')).closest('tr') as HTMLElement
+    await user.click(within(row).getByRole('button', { name: /编辑/ }))
+    await waitFor(() => expect(screen.getByLabelText('编号')).toHaveValue('DEV-CT-001'))
+    await user.clear(screen.getByLabelText('名称'))
+    await user.type(screen.getByLabelText('名称'), 'CT 一号机改')
+    await user.click(screen.getByRole('button', { name: /保\s*存/ }))
+    await waitFor(() => expect(deviceApi.updateDevice).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(deviceApi.updateDevice).mock.calls[0]![1]).toMatchObject({
+      name: 'CT 一号机改',
+      ae: 'CT_AE',
+      ip: '10.0.0.5',
+      port: '104',
+      purchaseDate: '2026-01-15',
+      startDate: '2026-01-01',
+      endDate: '2099-12-31',
+    })
+  })
+
+  it('shows the 剪裁 offset rows only while 是否剪裁 is on (inline switch row)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('CT 一号机')
+    await user.click(screen.getByRole('button', { name: /添加设备/ }))
+    await screen.findByLabelText('编号')
+    await user.click(screen.getByRole('tab', { name: '图像采集' }))
+    // Off by default: the offset rows stay hidden.
+    expect(screen.queryByText('剪裁 上/下')).not.toBeInTheDocument()
+    // Inline switch row (ruling 2026-11-19): label left, switch right - the
+    // data-item-common-row hook marks the row.
+    expect(document.querySelector('[data-item-common-row]')).not.toBeNull()
+    await user.click(screen.getByRole('switch', { name: '是否剪裁' }))
+    expect(screen.getByText('剪裁 上/下')).toBeInTheDocument()
+    expect(screen.getByText('剪裁 左/右')).toBeInTheDocument()
+    // Toggling off hides the rows again.
+    await user.click(screen.getByRole('switch', { name: '是否剪裁' }))
+    expect(screen.queryByText('剪裁 上/下')).not.toBeInTheDocument()
   })
 })

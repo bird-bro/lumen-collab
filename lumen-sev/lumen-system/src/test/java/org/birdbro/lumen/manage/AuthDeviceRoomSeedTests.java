@@ -35,13 +35,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AuthDeviceRoomSeedTests extends AuthIntegrationTestBase {
 
-    /** The org_device columns V27 creates, in the ruled order (audit block the tail). */
+    /** The org_device columns V27+V48 leave, in the ruled order (audit block the tail;
+     *  the Box columns dropped by V48, org-device-drop-box 2026-11-19). */
     private static final String[] DEVICE_COLUMNS = {
             "id", "code", "name", "type", "status", "tag", "brand", "model", "spec",
             "serial_num", "manufacturer", "production_date", "purchase_date",
             "acceptance_date", "responsible", "responsible_phone", "start_date",
-            "end_date", "remark", "oid", "did", "ae", "ip", "port", "box_adapter",
-            "box_ip", "box_port", "box_mac", "box_print", "capture_w", "capture_h",
+            "end_date", "remark", "oid", "did", "ae", "ip", "port",
+            "capture_w", "capture_h",
             "prune", "prune_u", "prune_d", "prune_l", "prune_r",
             "deleted", "create_by", "create_time", "update_by", "update_time"};
 
@@ -57,6 +58,12 @@ class AuthDeviceRoomSeedTests extends AuthIntegrationTestBase {
             "dev_iot", "dev_about", "dev_tag", "dev_start_date", "dev_end_date",
             "box_adapter", "box_ip", "box_port", "box_mac", "box_print",
             "capture_w", "capture_h", "prune", "prune_u", "prune_d", "prune_l", "prune_r"};
+
+    /** The Box columns V48 dropped from org_device - absence is part of the ruled shape
+     *  (an environment that skipped V48 would otherwise keep five orphan columns the
+     *  narrowed entity never touches, silently and forever). */
+    private static final String[] FORBIDDEN_DEVICE_COLUMNS = {
+            "box_adapter", "box_ip", "box_port", "box_mac", "box_print"};
 
     /** {catalog id, name} of the three seeded catalogs (1023 + 检查类型 stay absent). */
     private static final String[][] CATALOGS = {
@@ -96,6 +103,16 @@ class AuthDeviceRoomSeedTests extends AuthIntegrationTestBase {
                 Integer.class, (Object) FORBIDDEN_ROOM_COLUMNS);
         assertEquals(0, forbidden.intValue(),
                 "org_room must carry NO inline device/box/capture column");
+
+        // org-device-drop-box: V48 dropped the Box columns from org_device (the
+        // device-side counterpart of the room guard above).
+        Integer forbiddenDevice = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.columns "
+                        + "WHERE table_schema = 'system' AND table_name = 'org_device' "
+                        + "AND column_name = ANY (?)",
+                Integer.class, (Object) FORBIDDEN_DEVICE_COLUMNS);
+        assertEquals(0, forbiddenDevice.intValue(),
+                "org_device must carry NO Box column after V48 (org-device-drop-box)");
 
         // The 2026-11-12 type rulings: device type is the modality TOKEN (varchar),
         // the room carries no type at all (rooms hang off departments).

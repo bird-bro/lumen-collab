@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: org-device-drop-box
+execution_mode: SDD
+tasks_total: 6
+tasks_done: 6
+workflow_mode: full
+artifacts_hash: e0818b305e17292c6be396ccb5623a7e0d3139fdb233d6fd69e69b3170273b6a
