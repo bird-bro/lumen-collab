@@ -29,6 +29,11 @@ import { themeConfig } from '@/theme'
  * (2026-11-18): the template drawer is DUAL-FORM (模板形态 radio - 简单模板 640 /
  * 分节模板 960 section cards serializing content jsonb; edits backfill by the
  * row's content; conversions mapped/refused per D6; table summary per D7).
+ * Scope-keyed perms delta (rep-temp-scope-perms 2026-11-19): the Segmented
+ * 公共 option needs `setting:temp:public:list`, the default scope is lazy
+ * (个人 without it), and every action consults the CURRENT scope's family -
+ * the legacy fixtures grant BOTH families (dual-family users, behavior
+ * unchanged); the trimmed-permission cases live in the last describe block.
  * Api seam mocked (ruling 2026-11-05).
  */
 vi.mock('@/api/rep-temp')
@@ -138,7 +143,14 @@ beforeEach(() => {
     return []
   })
   useAuthStore.getState().setSession({
-    perms: ['setting:temp:list', 'setting:temp:create', 'setting:temp:update', 'setting:temp:delete'],
+    // Dual-family user (rep-temp-scope-perms 2026-11-19): the legacy cases run
+    // with BOTH families granted - the base four strings plus the four public
+    // variants - so the scope-keyed actions and the lazy 公共 default behave
+    // exactly as before the ruling (enrichment, not weakening).
+    perms: [
+      'setting:temp:list', 'setting:temp:create', 'setting:temp:update', 'setting:temp:delete',
+      'setting:temp:public:list', 'setting:temp:public:create', 'setting:temp:public:update', 'setting:temp:public:delete',
+    ],
   })
   vi.mocked(tempApi.repTempTree).mockImplementation(async (_modality, type) =>
     type === 2 ? PRIVATE_TREE : PUBLIC_TREE,
@@ -431,7 +443,10 @@ describe('report template page - perm gating', () => {
   it('hides node 新建 without setting:temp:create', async () => {
     useAuthStore.getState().setSession({ perms: ['setting:temp:list'] })
     renderPage()
-    await screen.findByText('呼吸系统')
+    // Base-only user: without public:list the lazy default is 个人 - the tree
+    // loads the private fixture; the 新建 affordances still key to the (missing)
+    // base create perm.
+    await screen.findByText('我的短语')
 
     expect(screen.queryByRole('button', { name: /新建子目录/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /新建目录$/ })).toBeNull()
@@ -728,5 +743,113 @@ describe('report template page - structured save chain (3.6)', () => {
 
     await screen.findByText('content.version 必须为 1')
     expect(screen.getByRole('dialog')).toBeTruthy()
+  })
+})
+
+/**
+ * Scope-keyed perm families (rep-temp-scope-perms 2026-11-19): the Segmented
+ * 公共 option renders only for `setting:temp:public:list` holders (default
+ * scope flips to 个人 without it - no public tree/table request), and EVERY
+ * action keys its hasPerm check on the CURRENT scope - 公共 consults the
+ * `setting:temp:public:*` family, 个人 the base `setting:temp:*` family
+ * (tempPerm helper, D4). These cases use TRIMMED permission sets (re-setSession
+ * overrides); the 26 legacy cases above run as dual-family users.
+ */
+describe('report template page - scope-keyed perms (rep-temp-scope-perms)', () => {
+  const BASE_FAMILY = ['setting:temp:list', 'setting:temp:create', 'setting:temp:update', 'setting:temp:delete']
+
+  it('公共 option hidden without setting:temp:public:list - defaults to 个人 with no public requests', async () => {
+    // Delta scenario: without the public list perm the page IS a personal
+    // template library - Segmented shows 个人 alone, initial scope 个人.
+    useAuthStore.getState().setSession({ perms: [...BASE_FAMILY] })
+    renderPage()
+    await screen.findByText('我的短语')
+
+    expect(screen.queryByRole('radio', { name: '公共' })).toBeNull()
+    expect(screen.getByRole('radio', { name: '个人' })).toBeTruthy()
+    const treeCalls = vi.mocked(tempApi.repTempTree).mock.calls
+    expect(treeCalls.length).toBeGreaterThan(0)
+    expect(treeCalls.every((call) => call[1] !== 1)).toBe(true)
+    const pageCalls = vi.mocked(tempApi.pageRepTemps).mock.calls
+    expect(pageCalls.every((call) => call[0].type !== 1)).toBe(true)
+  })
+
+  it('公共 scope actions consult the public family - read-only without public create/update, base family restored on 个人', async () => {
+    const user = userEvent.setup()
+    // Base family full + public:list only: 公共 scope reads fine while every
+    // write affordance keys to the (missing) public family and hides.
+    useAuthStore.getState().setSession({ perms: [...BASE_FAMILY, 'setting:temp:public:list'] })
+    renderPage()
+    await screen.findByText('呼吸系统')
+
+    // Table read unaffected (prose finding cell renders), but the write
+    // affordances are all hidden in the 公共 scope.
+    await screen.findByText('右肺上叶见磨玻璃结节影…')
+    expect(screen.queryByRole('button', { name: /新建目录$/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /新建子目录/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /添加模板/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: '编辑' })).toBeNull()
+
+    // The same affordances reappear on the 个人 scope (base family held).
+    await user.click(screen.getByRole('radio', { name: '个人' }).closest('label') as HTMLElement)
+    await screen.findByRole('button', { name: '编辑' })
+    expect(screen.getByRole('button', { name: /新建目录$/ })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: /新建子目录/ }).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: /添加模板/ })).toBeTruthy()
+  })
+
+  it('个人 scope actions keep the base family - base-only user behaves exactly as before', async () => {
+    const user = userEvent.setup()
+    useAuthStore.getState().setSession({ perms: [...BASE_FAMILY] })
+    renderPage()
+    await screen.findByText('我的短语')
+
+    // All base-family affordances render in the 个人 scope...
+    expect(screen.getByRole('button', { name: /新建目录$/ })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: /新建子目录/ }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: '编辑目录' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: '删除节点' }).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: /添加模板/ })).toBeTruthy()
+    await screen.findByRole('button', { name: '编辑' })
+
+    // ...and a write consults the base family: the directory POST carries type=2.
+    await user.click(screen.getByRole('button', { name: /新建目录$/ }))
+    const drawer = screen.getByRole('dialog')
+    await user.type(within(drawer).getByLabelText('目录名称'), '私人目录')
+    await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
+    await waitFor(() => {
+      expect(tempApi.createRepTemp).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 2, flag: 0, name: '私人目录' }),
+      )
+    })
+  })
+
+  it('end-to-end: base-only user gets a single-option Segmented, full personal actions, zero type=1 calls', async () => {
+    const user = userEvent.setup()
+    useAuthStore.getState().setSession({ perms: [...BASE_FAMILY] })
+    renderPage()
+    await screen.findByText('我的短语')
+
+    expect(screen.queryByRole('radio', { name: '公共' })).toBeNull()
+    expect(screen.getByRole('radio', { name: '个人' })).toBeTruthy()
+
+    // The full personal write path works under the base family.
+    await screen.findByRole('button', { name: '编辑' })
+    await user.click(screen.getByRole('button', { name: /添加模板/ }))
+    const drawer = screen.getByRole('dialog')
+    await user.type(within(drawer).getByLabelText('名称'), '个人模板')
+    await user.type(within(drawer).getByLabelText('影像学表现'), '个人所见')
+    await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
+    await waitFor(() => {
+      expect(tempApi.createRepTemp).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 2, flag: 1, name: '个人模板' }),
+      )
+    })
+
+    // The whole session never issued a public (type=1) tree or page request.
+    const treeTypes = vi.mocked(tempApi.repTempTree).mock.calls.map((call) => call[1])
+    expect(treeTypes).not.toContain(1)
+    const pageTypes = vi.mocked(tempApi.pageRepTemps).mock.calls.map((call) => call[0].type)
+    expect(pageTypes).not.toContain(1)
   })
 })

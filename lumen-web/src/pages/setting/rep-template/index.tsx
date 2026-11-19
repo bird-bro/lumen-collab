@@ -48,6 +48,11 @@ import {
  * 删除 only: a tree-side template edit would PUT content-blind (tree nodes
  * carry no finding/impression and the backend update is full-replace), so
  * template edits live in the right table where the full row is loaded.
+ * Scope-keyed perms (rep-temp-scope-perms 2026-11-19): the 公共 Segmented option
+ * renders only for `setting:temp:public:list` holders - without it the page is
+ * a personal library defaulting to 个人 (no public requests) - and EVERY action
+ * consults the CURRENT scope's family via tempPerm (公共 →
+ * `setting:temp:public:*`, 个人 → the base `setting:temp:*`).
  */
 
 const DICT_MODALITY = '检查类型'
@@ -189,7 +194,20 @@ export default function RepTemplatePage() {
 
   const [modalityOpts, setModalityOpts] = useState<DictItem[]>([])
   const [modality, setModality] = useState<string>('')
-  const [scope, setScope] = useState<number>(TYPE_PUBLIC)
+  // Scope default is LAZY (rep-temp-scope-perms 2026-11-19): 公共 only when the
+  // session holds `setting:temp:public:list` - a base-only user lands on 个人
+  // and never issues a public (type=1) tree/table request.
+  const [scope, setScope] = useState<number>(() =>
+    hasPerm('setting:temp:public:list') ? TYPE_PUBLIC : TYPE_PRIVATE,
+  )
+  // Scope-keyed perm family (rep-temp-scope-perms 2026-11-19, D4): EVERY action
+  // consults the CURRENT scope's family - 公共 keys to `setting:temp:public:*`,
+  // 个人 to the base `setting:temp:*`. Single point - no scattered literals.
+  const tempPerm = useCallback(
+    (op: 'create' | 'update' | 'delete') =>
+      (scope === TYPE_PUBLIC ? 'setting:temp:public:' : 'setting:temp:') + op,
+    [scope],
+  )
 
   const [tree, setTree] = useState<RepTempNode[]>([])
   const [selectedNode, setSelectedNode] = useState<RepTempNode | null>(null)
@@ -607,10 +625,10 @@ export default function RepTemplatePage() {
       width: 130,
       render: (_, row) => (
         <>
-          {hasPerm('setting:temp:update') && (
+          {hasPerm(tempPerm('update')) && (
             <ConsoleAction label="编辑" onClick={() => openTemplateEdit(row)} />
           )}
-          {hasPerm('setting:temp:delete') && (
+          {hasPerm(tempPerm('delete')) && (
             <Popconfirm title={`确定删除模板“${row.name}”？`} onConfirm={() => void removeNode({
               id: row.id, name: row.name, flag: row.flag, upId: row.upId, children: [],
             })}>
@@ -649,13 +667,13 @@ export default function RepTemplatePage() {
           {/* Directory nodes (flag=0) manage the hierarchy (新建子目录/编辑目录);
               template leaves delete only - their content edits live in the
               right table (a tree-side edit would PUT content-blind). */}
-          {node.flag === 0 && hasPerm('setting:temp:create') && (
+          {node.flag === 0 && hasPerm(tempPerm('create')) && (
             <ConsoleAction label="新建子目录" icon="folderAdd" onClick={() => openDirectoryAdd(node.id)} />
           )}
-          {node.flag === 0 && hasPerm('setting:temp:update') && (
+          {node.flag === 0 && hasPerm(tempPerm('update')) && (
             <ConsoleAction label="编辑目录" icon="edit" onClick={() => openDirectoryEdit(node)} />
           )}
-          {hasPerm('setting:temp:delete') && (
+          {hasPerm(tempPerm('delete')) && (
             <Popconfirm title={`确定删除节点“${node.name}”？`} onConfirm={() => void removeNode(node)}>
               <ConsoleAction label="删除节点" icon="remove" danger onClick={() => undefined} />
             </Popconfirm>
@@ -682,7 +700,7 @@ export default function RepTemplatePage() {
                 no button pair. */}
             <ConsoleToolRow
               trailing={
-                hasPerm('setting:temp:create') && (
+                hasPerm(tempPerm('create')) && (
                   <ConsoleAddButton
                     label="新建目录"
                     onClick={() => openDirectoryAdd(selectedNode?.flag === 0 ? selectedNode.id : null)}
@@ -705,7 +723,11 @@ export default function RepTemplatePage() {
                 value={scope}
                 onChange={(value) => setScope(value as number)}
                 options={[
-                  { label: '公共', value: TYPE_PUBLIC },
+                  // 公共 option only for public:list holders (2026-11-19
+                  // ruling) - without it the page is a personal library; order
+                  // stays 公共前个人, just filtered (switching to an unavailable
+                  // value is unreachable).
+                  ...(hasPerm('setting:temp:public:list') ? [{ label: '公共', value: TYPE_PUBLIC }] : []),
                   { label: '个人', value: TYPE_PRIVATE },
                 ]}
               />
@@ -720,7 +742,7 @@ export default function RepTemplatePage() {
         <ConsolePanel>
           <ConsoleToolRow
             trailing={
-              hasPerm('setting:temp:create') && (
+              hasPerm(tempPerm('create')) && (
                 <ConsoleAddButton
                   label="添加模板"
                   onClick={() => openTemplateAdd(selectedNode?.flag === 0 ? selectedNode : null)}
