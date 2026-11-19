@@ -896,24 +896,46 @@ page query), Drawer form (检查类型 readout, 方法名称, 方法编码, 排�
 ### Requirement: Report Template Page
 
 The console SHALL render the 报告模板 page (component `setting/rep-template/index`)
-with a 公共/私有 tab toggle switching the scope `type` (1/2): a left pane with 检查类
-型 select (dict 1021) and the folder/template tree (node-level 新建子级/编辑/删除),
-and a right pane with the template table (模板名称 / 影像学表现 / 影像学意见) paged
-under the selected node plus name search and a Drawer form (名称, 上级 folder tree
-select, 目录/模板 flag — flag=1 reveals 影像学表现/影像学意见 textareas). Private-tab
-writes use the real owner binding; the page never offers another user's private rows.
+with a 公共/个人 Segmented scope switch (radio options) above the left folder/tree —
+检查类型 select + 新建目录 in the tool row; tree directory nodes carry
+新建子目录/编辑目录/删除节点, template leaves carry 删除 only. The right pane keeps
+the paged template table (模板名称 / 影像学表现 / 影像学意见) under the selected
+node with the name-filter tool row. Template authoring is DUAL-FORM (2026-11-18
+ruling): the 添加模板 / 编辑 surface carries a 简单模板/分节模板 mode — 简单模式
+keeps the 640 drawer with 影像学表现/影像学意见 textareas reading the prose
+columns; 分节模式 opens a WIDE 960 drawer of section cards (each card: 节名 input,
+测量项 row editor 项目/单位/正常范围 with add/remove, 节所见 textarea, collapse
+and delete) with the global 影像学意见 at the bottom writing `content.impression`.
+Converting 简单 → 分节 maps 表现 → first section's 节所见 and 意见 →
+`content.impression`; converting 分节 → 简单 is REFUSED with a warning (sections
+would be dropped). For structured rows the right table's 表现 cell renders the
+「N 节 · M 项」 summary and the 意见 cell renders `content.impression`. 添加模板
+warns 请先选择目录 when the selected node is not a directory. Private-scope writes
+use the real owner binding; the page never offers another user's private rows.
+
+<!-- synced from: rep-template-structured-content 2026-11-19 -->
 
 #### Scenario: Tab toggle switches scope without cross-leak
 
-- **WHEN** the user switches from 私有 to 公共 tab
+- **WHEN** the user switches from 个人 to 公共 scope
 - **THEN** tree and table reload with type=1 data, and switching back reloads the
   user's own type=2 tree
 
-#### Scenario: Directory node creates a child template
+#### Scenario: Directory node creates a child directory
 
-- **WHEN** the user uses a tree node's 新建 action with flag=模板
-- **THEN** the drawer opens pre-bound to that node as 上级 and saving shows the new
-  template in the right table under that node
+- **WHEN** the user uses a directory node's 新建子目录 action
+- **THEN** the directory drawer opens pre-bound to that node in the 上级 select
+  and saving shows the new directory in the left tree
+
+#### ~~Scenario: Directory node creates a child template~~
+
+~~- **WHEN** the user uses a tree node's 新建 action with flag=模板~~
+~~- **THEN** the drawer opens pre-bound to that node as 上级 and saving shows the new~~
+~~  template in the right table under that node~~
+
+<!-- superseded by rep-template-structured-content 2026-11-19: tree nodes create
+     directories only; templates are authored via 添加模板 under the selected
+     directory (dual-form), so the mixed-flag drawer scenario is retired. -->
 
 <!-- synced from: patient-domain 2026-11-18 -->
 

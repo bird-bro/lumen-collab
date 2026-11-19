@@ -912,3 +912,36 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
   files, stochastic multiple-tooltip isolation noise; exam-body = parallel-session
   WIP territory), C = 33 files / 392 tests ALL GREEN. Build exit 0 (2.08s).
 - ALL 17/17 TASKS COMPLETE. Next: /opsx:verify patient-domain.
+
+---
+
+## Change: rep-template-structured-content
+## Execution Mode: SDD
+## Started: 2026-11-18
+## Base: 389d481 (branch: dev)
+
+### Batch 1: 后端迁移+数据模型 (tasks 1.1-1.4)
+- Status: Complete + Approved (commit a62da9a)
+- Commits: 389d481..a62da9a (11 files)
+- Review: APPROVED - 0 Critical/0 Important/3 Minor; M1(update-with-content jsonb 写无测试)+M3(拒绝用例仅 POST、缺 impression=null 往返)并入 Batch 2;M2(SettingSchemaSeedTests.TEMP_COLUMNS 补 content)留 Batch 4 协调项(文件在他会话脏集)
+- Notes: V38 属另一在途会话(exam-method remark);本批迁移从 V39 起。jsonb handler 先例 = patient-domain PatientJsonbTypeHandler(Types.OTHER)
+
+### Batch 2: API 契约面测试补全 (tasks 2.1-2.2)
+- Status: Complete + Approved (commit 8e8b222, 仅测试文件)
+- Commits: a62da9a..8e8b222
+- Review: APPROVED - 0/0/0, 专检 6/6;scope note: 空 sections 的 update 路径用例按 brief 未单列(骑 @Valid 级联),4.2 知悉即可
+- Notes: M1/M3 全吸收(jsonb_typeof DB 级断言/PUT 拒绝×5/impression:null 往返/measures:[] 往返);2.2 结论 = 复用 A0400,errors spec 无 delta
+- Notes: 吸收 Batch 1 review M1(update 往返)/M3(update 拒绝+impression=null 往返);M2 留 Batch 4
+
+### Batch 3: 前端双形态模板表单 (tasks 3.1-3.6)
+- Status: Complete + Approved (commit a45ebdc + Minor1 修复 77a72bc)
+- Commits: 8e8b222..a45ebdc (4 files; 含本会话先前未提交的 typed-drawer 基线) + e17ec93 弃(污染,soft-reset)→ 77a72bc 重提
+- Review: APPROVED - 0/0/2;Minor1(measures:null 崩溃路径)已修((s.measures ?? []) 边界归一);Minor2(索引 key 折叠卡片删行外观错位)定级外观留档不修
+- Notes: orchestrator 提交时也踩过并行会话暂存 rename 坑(e17ec93 含 RM),soft-reset + pathspec 重提净化为 77a72bc;并行会话暂存态已复原
+- Notes: brief 备好于 briefs/batch3-web.md;15 存量用例为回归底线;vitest seam 不依赖后端运行时
+
+### Batch 4: 验证与收尾 (tasks 4.1-4.2)
+- Status: Complete (orchestrator in-context; verify.md 落盘 overall=PASS)
+- Commits: 77a72bc (Minor1 修复)
+- Review: final attribution 完成 — 全量首跑 manage 登录 500 = 共享服务器瞬时态(重跑恢复);SettingSchemaSeedTests 14→15 = M2 延后炸账(已修,TEMP_COLUMNS 补 content,落在他会话脏集文件未单独提交);AuthLogQuery NoSuchMethodError = orchestrator 重跑漏 -am 陈旧 jar(命令修正即绿)
+- Notes: verify.md 归因注记齐全;M2 未提交行的合流责任已写明(他会话 exam-method 提交或本 change 补 1 行)

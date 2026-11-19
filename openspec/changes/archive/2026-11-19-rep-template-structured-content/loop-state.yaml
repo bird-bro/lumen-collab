@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: rep-template-structured-content
+execution_mode: SDD
+tasks_total: 14
+tasks_done: 14
+workflow_mode: full
+artifacts_hash: 22eed78948c3072326bfbe82892893445dfce1b9fa5d07770af8233c36376a1a
