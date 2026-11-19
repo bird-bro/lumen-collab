@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: rep-temp-scope-perms
+execution_mode: SDD
+tasks_total: 8
+tasks_done: 8
+workflow_mode: full
+artifacts_hash: b2bbacbb9739de92a1e0a1ecf4a7199b5b14f2b808f3338a605f5602b109c62d

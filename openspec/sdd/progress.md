@@ -945,3 +945,29 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
 - Commits: 77a72bc (Minor1 修复)
 - Review: final attribution 完成 — 全量首跑 manage 登录 500 = 共享服务器瞬时态(重跑恢复);SettingSchemaSeedTests 14→15 = M2 延后炸账(已修,TEMP_COLUMNS 补 content,落在他会话脏集文件未单独提交);AuthLogQuery NoSuchMethodError = orchestrator 重跑漏 -am 陈旧 jar(命令修正即绿)
 - Notes: verify.md 归因注记齐全;M2 未提交行的合流责任已写明(他会话 exam-method 提交或本 change 补 1 行)
+
+---
+
+## Change: rep-temp-scope-perms
+## Execution Mode: SDD
+## Started: 2026-11-19
+## Base: 872ddce (branch: dev)
+
+### Batch 1: 后端 V42 种子+族守卫 (tasks 1.1-1.4)
+- Status: Complete + Approved (commit 9e18f6c, 6 文件 pathspec 限定)
+- Commits: 872ddce..9e18f6c
+- Review: 通过 - 0/0/3(M1 两个 D5 格子未锁→验证轮补;M2 dualFamily RED 为 canary 形态证据仍真;M3 简报四端点笔误已在工件侧修正);8/8 门过(提交纯净性含 tasks.md 夹带检查)
+- Notes: DONE_WITH_CONCERNS 已消化——V41 中途被并行 number_rule 会话占用 → 顺延 V42(工件已回写,含「三个写端点」计数笔误修正);V42 history 行删除重放一次符合 never-rewrite 裁决;RED 6F+1E/13 → GREEN 20/20;全量 -am 回归绿(manage 竞态另行 68/68 隔离复验)
+
+### Batch 2: 前端 Segmented 键控 (tasks 2.1-2.3)
+- Status: Complete + Approved (commit 43ef5f6, 2 文件)
+- Commits: 872ddce..43ef5f6
+- Review: PASS - 0/0/2(M1 RED 日志被覆盖但 reviewer 独立复验 30/30+tsc 0;M2 every() 时序加固建议,不改)
+- Notes: 并行会话暂存 rename 已自行提交(388b3a1),本批零 foreign 消耗
+
+### 事故记录(2026-11-19):批次 1 implementer 将整份台账快照误写进 rep-temp-scope-perms/tasks.md(968 行)并以其陈旧快照覆写 progress.md(冲掉批次 2 Approved 态)——tasks.md 已由 orchestrator 重建,progress.md 批准态已恢复;规则已立:sdd/progress.md 与各 change tasks.md 为 orchestrator 专责,implementer 只写自己的 reports/ 报告文件
+
+### Batch 3: 验证与收尾 (tasks 3.1-3.2)
+- Status: Complete (orchestrator in-context; verify.md overall=PASS)
+- Commits: 0b4e382 (D5 补格)
+- Notes: 后端全量 manage 瞬时态归因(隔离 68/68 链);web 首跑 414/416 两外部失败 = 并行会话 WIP(隔离 26/26),其落地后全量 418/418 绿 + 最终树 L1 exit 0;verify.md 19 场景对照逐行挂证据

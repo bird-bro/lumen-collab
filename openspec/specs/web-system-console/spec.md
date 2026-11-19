@@ -912,8 +912,16 @@ would be dropped). For structured rows the right table's 表现 cell renders the
 「N 节 · M 项」 summary and the 意见 cell renders `content.impression`. 添加模板
 warns 请先选择目录 when the selected node is not a directory. Private-scope writes
 use the real owner binding; the page never offers another user's private rows.
+Scope-keyed perm families gate the page (2026-11-19 ruling): the Segmented 公共
+option renders ONLY for users holding `setting:temp:public:list` — without it the
+page is a personal-template library defaulting to the 个人 scope; the default scope
+is 公共 only when `setting:temp:public:list` is held; and EVERY template action
+(新建目录/新建子目录/编辑目录/删除节点/添加模板/表格编辑与删除) keys its
+`hasPerm` check on the CURRENT scope — 公共 scope consults the
+`setting:temp:public:*` family, 个人 scope the base `setting:temp:*` family.
 
 <!-- synced from: rep-template-structured-content 2026-11-19 -->
+<!-- synced from: rep-temp-scope-perms 2026-11-19 -->
 
 #### Scenario: Tab toggle switches scope without cross-leak
 
@@ -926,6 +934,29 @@ use the real owner binding; the page never offers another user's private rows.
 - **WHEN** the user uses a directory node's 新建子目录 action
 - **THEN** the directory drawer opens pre-bound to that node in the 上级 select
   and saving shows the new directory in the left tree
+
+#### Scenario: 公共 option hidden without the public list perm
+
+- **WHEN** a user without `setting:temp:public:list` opens the page
+- **THEN** the Segmented shows only the 个人 option, the initial scope is 个人
+  (no 公共 tree/table request is issued), and the page reads as a personal
+  template library
+
+#### Scenario: 公共 scope actions consult the public family
+
+- **WHEN** a user holding `setting:temp:public:list` but neither
+  `setting:temp:public:create` nor `setting:temp:public:update` switches to the
+  公共 scope
+- **THEN** the tree/table read fine while 新建目录/新建子目录/添加模板/编辑
+  affordances are hidden — and the same affordances reappear on the 个人 scope
+  when the base family is held
+
+#### Scenario: 个人 scope actions keep the base family
+
+- **WHEN** a user holding the base family (no public family) works on the 个人
+  scope
+- **THEN** 新建目录/新建子目录/添加模板/编辑/删除 all consult
+  `setting:temp:*` and behave exactly as before this change
 
 #### ~~Scenario: Directory node creates a child template~~
 
