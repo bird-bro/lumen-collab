@@ -1,5 +1,6 @@
 import { Button, Card, Drawer, Form, Input, InputNumber, Popconfirm, Segmented, Select, Tag, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
+import { FolderOutlined } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   createRepTemp,
@@ -119,7 +120,8 @@ function pruneToDirectories(nodes: RepTempNode[]): RepTempNode[] {
  * D6). Module-level so the card's 折叠 state survives the page's controlled
  * re-renders - a component defined inside the page function would remount per
  * keystroke. Card = 节名 Input + measure rows (项目 code / 名称 label / 单位 unit /
- * 正常范围 normal as the v2 UNION editor - per-row Segmented 区间/文本, null
+ * 正常范围 normal as the v2 UNION editor - per-row Select 区间/文本 (kind
+ * select, user ruling 2026-11-20 ex-Segmented), null
  * renders 区间 with empty ends (rep-temp-normal-range design D2/D5) + row delete
  * + 添加测量项) + 节所见 TextArea; 折叠 hides the measure
  * rows and findings (节名 stays visible), 删除节 removes the card. All state is
@@ -182,13 +184,17 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
                     value={measure.unit ?? ''}
                     onChange={(e) => patchMeasure(mi, { unit: e.target.value })}
                   />
-                  {/* 正常范围 v2 union editor (rep-temp-normal-range design D2): a
-                      per-row Segmented 区间/文本 - a null normal renders 区间 with
-                      empty ends (no third state, D5); 区间 = min/max InputNumbers
-                      (a blank end is a single-sided open interval), 文本 = a ≤64
-                      qualitative input. Empty shapes degrade to null at save. */}
-                  <Segmented
-                    size="small"
+                  {/* 正常范围 v2 union editor (rep-temp-normal-range design D2;
+                      kind control is a Select per user ruling 2026-11-20 -
+                      rep-temp-normal-kind-select-web, the Segmented read as a
+                      data field and the dropdown felt handier): a per-row Select
+                      区间/文本 - a null normal renders 区间 with empty ends (no
+                      third state, D5); 区间 = min/max InputNumbers (a blank end
+                      is a single-sided open interval), 文本 = a ≤64 qualitative
+                      input. Empty shapes degrade to null at save. */}
+                  <Select
+                    aria-label="正常范围类型"
+                    style={{ width: 76 }}
                     value={measure.normal?.kind ?? 'range'}
                     onChange={(value) =>
                       patchMeasure(mi, {
@@ -751,7 +757,9 @@ export default function RepTemplatePage() {
           setNameFilter('')
         }}
       >
-        <span>▰</span>
+        {/* Folder glyph (2026-11-20 swap, ex-▰ text glyph): the house outlined
+            family; the icon takes the selected tint with the name. */}
+        <FolderOutlined style={{ color: selectedNode?.id === node.id ? token.colorPrimary : undefined }} />
         <span style={{ color: selectedNode?.id === node.id ? token.colorPrimary : undefined }}>
           {node.name}
         </span>

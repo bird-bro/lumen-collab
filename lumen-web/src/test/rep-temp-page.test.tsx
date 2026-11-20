@@ -150,6 +150,21 @@ async function pickTemplateType(user: ReturnType<typeof userEvent.setup>, label:
   await user.click(option)
 }
 
+/** Switch a measure row's 正常范围类型 select (kind dropdown, user ruling
+ * 2026-11-20 ex-Segmented): open the row's named combobox, then click the
+ * matching option row (`.at(-1)` because antd keeps the previous dropdown in
+ * the DOM while it animates closed; option titles 区间/文本 are unique - the
+ * drawer's 类型 select offers 简单模板/分节模板). */
+async function pickNormalKind(user: ReturnType<typeof userEvent.setup>, scope: HTMLElement, label: string) {
+  await user.click(within(scope).getByRole('combobox', { name: '正常范围类型' }))
+  const option = await waitFor(() => {
+    const els = Array.from(document.querySelectorAll(`.ant-select-item-option[title="${label}"]`))
+    if (els.length === 0) throw new Error(`normal kind option ${label} not found`)
+    return els.at(-1) as HTMLElement
+  })
+  await user.click(option)
+}
+
 function renderPage() {
   return render(
     <ConfigProvider theme={themeConfig}>
@@ -356,6 +371,8 @@ describe('report template page - directory drawer', () => {
     // selected directory (its 删除/编辑 live there).
     const treeArea = document.querySelector('div[aria-busy]') as HTMLElement
     expect(within(treeArea).queryByText('肺结节随访')).toBeNull()
+    // Directory nodes carry the folder glyph (2026-11-20 swap, ex-▰ text glyph).
+    expect(treeArea.querySelector('.anticon-folder')).not.toBeNull()
     expect(screen.getAllByRole('button', { name: '新建子目录' })).toHaveLength(3)
     expect(screen.getAllByRole('button', { name: '编辑目录' })).toHaveLength(3)
     expect(screen.getAllByRole('button', { name: '删除节点' })).toHaveLength(3)
@@ -795,7 +812,7 @@ describe('report template page - normal range union editor (rep-temp-normal-rang
     await user.type(within(card).getByLabelText('项目'), 'MR')
     await user.type(within(card).getByLabelText('名称'), '二尖瓣反流')
     // Switch the row to 文本 and type the qualitative phrase.
-    await user.click(within(card).getByRole('radio', { name: '文本' }).closest('label') as HTMLElement)
+    await pickNormalKind(user, card, '文本')
     await user.type(within(card).getByLabelText('正常范围'), '阴性')
     await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
 
@@ -830,8 +847,8 @@ describe('report template page - normal range union editor (rep-temp-normal-rang
     await user.type(within(card).getByLabelText('项目'), 'PE')
     await user.type(within(card).getByLabelText('名称'), '心包积液')
     // Switch to 文本 and back to 区间 - the round-trip leaves both ends empty.
-    await user.click(within(card).getByRole('radio', { name: '文本' }).closest('label') as HTMLElement)
-    await user.click(within(card).getByRole('radio', { name: '区间' }).closest('label') as HTMLElement)
+    await pickNormalKind(user, card, '文本')
+    await pickNormalKind(user, card, '区间')
     await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
 
     await waitFor(() => {

@@ -915,21 +915,21 @@ cards (each card: 节名 input, 测量项 row editor 项目/单位/正常范围 
 节所见 textarea, collapse and delete) with the global 影像学意见 at the bottom
 writing `content.impression`. The template drawer width is FIXED at 960px
 (2026-11-19 ruling) — switching the mode never resizes it. The 测量项 正常范围
-editor is the v2 UNION editor (rep-temp-normal-range): a per-row Segmented
-(区间/文本) — 区间 renders min/max InputNumbers (decimals allowed; a blank end is
-a single-sided open interval) and 文本 renders a ≤64-char input; serialization
-ALWAYS writes content version 2 — 区间 with both ends empty serializes
-`normal: null`, 区间 with at least one end serializes `{kind:'range',min,max}`,
-文本 non-empty serializes `{kind:'text',text}`; the editor backfills the
-Segmented and inputs from the row's stored `kind` (no v1 branch exists after the
-server migration); submitting min > max is blocked client-side with a
-field-naming message and NO request is issued. Converting 简单 → 分节 maps 表现 →
-first section's 节所见 and 意见 → `content.impression`; converting 分节 → 简单 is
-REFUSED with a warning (sections would be dropped). For structured rows the
-right table's 表现 cell renders the 「N 节 · M 项」 summary and the 意见 cell
-renders `content.impression`. 添加模板 warns 请先选择目录 when no directory is
-selected. Private-scope writes use the real owner binding; the page never offers
-another user's private rows. Scope-keyed perm families gate the page
+editor is the v2 UNION editor (rep-temp-normal-range): a per-row Select (区间/文本;
+user ruling 2026-11-20 — ex-Segmented) — 区间 renders min/max InputNumbers
+(decimals allowed; a blank end is a single-sided open interval) and 文本 renders
+a ≤64-char input; serialization ALWAYS writes content version 2 — 区间 with both
+ends empty serializes `normal: null`, 区间 with at least one end serializes
+`{kind:'range',min,max}`, 文本 non-empty serializes `{kind:'text',text}`; the
+editor backfills the select and inputs from the row's stored `kind` (no v1
+branch exists after the server migration); submitting min > max is blocked
+client-side with a field-naming message and NO request is issued. Converting
+简单 → 分节 maps 表现 → first section's 节所见 and 意见 → `content.impression`;
+converting 分节 → 简单 is REFUSED with a warning (sections would be dropped). For
+structured rows the right table's 表现 cell renders the 「N 节 · M 项」 summary and
+the 意见 cell renders `content.impression`. 添加模板 warns 请先选择目录 when no
+directory is selected. Private-scope writes use the real owner binding; the page
+never offers another user's private rows. Scope-keyed perm families gate the page
 (2026-11-19 ruling): the Segmented 公共 option renders ONLY for users holding
 `setting:temp:public:list` — without it the page is a personal-template library
 defaulting to the 个人 scope; the default scope is 公共 only when
@@ -943,6 +943,7 @@ defaulting to the 个人 scope; the default scope is 公共 only when
 <!-- synced from: rep-temp-normal-range-web 2026-11-19 -->
 <!-- synced from: rep-temp-ops-chrome-web 2026-11-20 (the right-table 操作 column rides the shared console chrome: actions/onRefresh — the refresh glyph pinned to the 操作 header's right edge, 删除 carrying the delete glyph) -->
 <!-- synced from: rep-temp-tree-dirs-only-web 2026-11-20 (the left tree renders DIRECTORIES ONLY: template leaves pruned at load — templates are managed in the right table) -->
+<!-- synced from: rep-temp-normal-kind-select-web 2026-11-20 (the measure row's 正常范围 kind control is a per-row Select 区间/文本 — user ruling ex-Segmented; union semantics unchanged) -->
 
 #### Scenario: Tab toggle switches scope without cross-leak
 
@@ -1013,8 +1014,8 @@ defaulting to the 个人 scope; the default scope is 公共 only when
 #### Scenario: Backfill reads the stored kind
 
 - **WHEN** the user edits a structured row whose measure carries a text variant
-- **THEN** the row editor shows the 文本 Segmented with the stored text; a range
-  variant row shows 区间 with the stored ends
+- **THEN** the row editor's kind select shows 文本 with the stored text input; a
+  range variant row shows 区间 with the stored ends
 
 #### Scenario: 操作 header carries the refresh affordance
 
