@@ -986,5 +986,12 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
 - Notes: V1 重放测试用抛置 schema finally 硬删；V3 重放为活 schema 行数 no-op 证明；loop-state tasks_done 3/8（verify 任务不计 total）
 
 ### Batch 2: patient internal surface + contract (tasks 2.1-2.2)
+- Status: Complete + Approved (commit 2377148; static review — 并行会话占用共享库窗口,核验为代码+测试机制+diff 取证)
+- Review: Approved — lumen-api 严格 add-only(0 改 6 增)/内钥 fail-closed(401 先于 service 层+零行副作用断言)/复合端点纯组合+REQUIRES_NEW 竞态绕行 sound(23505 落点=竞胜提交,重读必见胜者)/append-only 反射钉原样/DTO 与实体解耦
+- Minor(不阻塞): A0715 竞态测试 3s sleep 在慢库下可能假阴(verify 窗口注意);delivery limit 无上界(仅持钥消费者可达,v1 可接受)
+- 实锤存量 bug(父会话裁决项): patient create() 索引 backstop 死代码(25P02)——公共 create 竞态 500 而非 A0715;复合端点已加法绕开,根修=改既有方法体(never-modify)留待用户裁决
+- Batch-3 缺口(已入 brief): us resolve 透传需 lookup-only 语义,patient 契约 add-only 增补
+
+### Batch 3: us adapters + registration surface (tasks 3.1-3.2)
 - Status: In progress (implementer dispatched, sonnet)
-- Scope: lumen-api PatientApi 契约(照 NumberApi 先例)+patient 内部端点(InternalKeyInterceptor+resolve-or-register 复合+outbox pull/ack)
+- Scope: PatientRegistryPort/NumberIssuerPort 适配器+resolve 透传(lookup-only)+RegistrationController+RegistrationHook 孕检扩展接线+us 权限链补全

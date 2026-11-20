@@ -25,7 +25,8 @@ modify the kernel library in no way.
 The module SHALL expose the registration lifecycle over `/api/v1/us/orders/**`: create a booked
 order from a patient-registry identity + 检查项目 (setting-catalog references snapshotted into
 `exam_items`), page-query orders, transition 登记, and cancel with a reason. Creation SHALL issue
-`accession_no` through the `NumberIssuerPort` (rule `accession`) inside the creation transaction,
+`accession_no` through the `NumberIssuerPort` (the kernel resolves the accession rule token from
+the 编号类型 family — the adapter never picks a rule) inside the creation transaction,
 and the HTTP surface SHALL gate every action behind the `us:order:*` permission family.
 
 #### Scenario: Create a booked order
