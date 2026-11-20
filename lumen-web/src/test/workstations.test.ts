@@ -46,8 +46,9 @@ describe('workstation derivation + promotion filter (task 1.1)', () => {
     // the promoted bar for the radiology station contains its children as L1 entries
     const bar = sidebarMenus(TREE, 30)
     const ids = bar.map((m) => m.mid)
-    expect(ids).toContain(1) // 系统管理 resident
-    expect(ids).toContain(31) // 登记预约 promoted (was L2 under the W node)
+    // ORDER (user ruling 2026-11-20): the promoted station pages LEAD the bar -
+    // the station's own page (sort 1, 登记) ranks ABOVE the resident M L1s
+    expect(ids).toEqual([31, 1])
     expect(ids).not.toContain(30) // the W node itself NEVER enters the bar
     expect(ids).not.toContain(40) // the other station stays out
   })

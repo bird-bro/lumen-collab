@@ -22,13 +22,17 @@ export function stationNodes(menus: MenuNode[]): MenuNode[] {
 
 /**
  * The sidebar menu list for the active workstation - the PROMOTION semantics:
- * M-type L1s are resident; the ACTIVE W node's CHILDREN promote one level into the
- * bar (the W node itself never enters it); null = console view (M-type L1s alone,
- * byte-identical to pre-workstation).
+ * the ACTIVE W node's CHILDREN promote one level into the bar and LEAD it
+ * (user ruling 2026-11-20: the station's own page — sort 1 — ranks ABOVE the
+ * resident M-type L1s); the W node itself never enters the bar (it lives only
+ * in the chip dropdown); null = console view (M-type L1s alone, byte-identical
+ * to pre-workstation).
  */
 export function sidebarMenus(menus: MenuNode[], activeWsMid: number | null): MenuNode[] {
   const resident = menus.filter((m) => m.type !== 'W');
   if (activeWsMid == null) return resident;
   const station = menus.find((m) => m.mid === activeWsMid && m.type === 'W');
-  return station?.children ? [...resident, ...station.children] : resident;
+  // promoted children LEAD (ruling 2026-11-20): the station's pages first, the
+  // resident M L1s (系统管理/设置) after
+  return station?.children ? [...station.children, ...resident] : resident;
 }

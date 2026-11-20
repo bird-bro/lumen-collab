@@ -258,12 +258,14 @@ export function BasicLayout() {
     return sections
   }, [activeL1])
 
-  // Single-page workstations (user ruling 2026-11-20, us-station-registration-web):
-  // a promoted W child ALONE is the page itself - the secondary sider would wrap
-  // one self-link in ant-layout-sider-children for nothing. The sider stays OUT
-  // and the page runs full-width like a standalone L1 (multi-page stations -
-  // radiology's 预约/技师/叫号 later - keep the promoted-children sider).
-  const singlePageStation = activeL1?.type === 'W' && sidebarSections.length <= 1
+  // Leaf L1s carry the page THEMSELVES (user ruling 2026-11-20, generalized):
+  // any active top-level node that IS an actual page (type C - the US 登记 page
+  // promoted from its W node, department/standalone pages alike) renders WITHOUT
+  // the secondary sider - the sider would hold zero or one self-link inside
+  // ant-layout-sider-children for nothing, so the content runs full-width.
+  // Directory L1s (M with children) and multi-page stations keep the sider.
+  const singlePageStation =
+    activeL1?.type === 'C' || (activeL1?.type === 'W' && sidebarSections.length <= 1)
 
   return (
     <Layout
