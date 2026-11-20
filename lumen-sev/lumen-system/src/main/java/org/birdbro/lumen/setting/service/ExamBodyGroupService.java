@@ -9,7 +9,7 @@ import org.birdbro.lumen.setting.entity.ExamBodyGroup;
 /**
  * Body-group management (exam-setting-api task 2.1): CRUD over {@code exam_body_group},
  * the flat business classification of the 2026-11-12 Option-A split. Every write
- * validates the modality against dict 1027 (the single platform vocabulary - the
+ * validates the modality against dict 1024 (the single platform vocabulary - the
  * mapper behind {@link #requireModality}); the name is unique within the modality among
  * LIVE rows (service check A0400, partial unique index backstop); deletion is guarded
  * by live bodies and NAMES the blocking count so the console can surface it verbatim.
@@ -42,7 +42,7 @@ public interface ExamBodyGroupService {
     Boolean delete(Integer id);
 
     /**
-     * The modality write guard: the value must be a live, enabled detail of dict 1027
+     * The modality write guard: the value must be a live, enabled detail of dict 1024
      * 检查类型 - the setting domain defines NO vocabulary of its own (D5). Shared by
      * every sibling setting service.
      */

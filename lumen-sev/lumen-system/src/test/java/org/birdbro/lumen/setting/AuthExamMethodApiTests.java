@@ -107,7 +107,7 @@ class AuthExamMethodApiTests extends SettingIntegrationTestBase {
                 body("{\"modality\":\"XX\",\"name\":\"ut_exm_野模态_" + ts
                         + "\",\"enable\":1}"), token);
         assertEquals("A0400", parse(unknownModality).path("code").asText(),
-                "a modality absent from dict 1027 must reject A0400: " + unknownModality);
+                "a modality absent from dict 1024 must reject A0400: " + unknownModality);
 
         // The same code IS legal in another modality - scoping is per modality.
         ResponseEntity<String> otherModality = exchangeJson(HttpMethod.POST, METHODS_URL,

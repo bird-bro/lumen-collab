@@ -12,7 +12,7 @@ import org.birdbro.lumen.setting.entity.ExamMethod;
 /**
  * Method management (exam-setting-api task 3.1): CRUD over {@code exam_method} - one
  * modality's examination-technique vocabulary. Every write validates the modality
- * against dict 1027; the code is unique within the modality among LIVE rows (service
+ * against dict 1024; the code is unique within the modality among LIVE rows (service
  * check A0400, partial unique index backstop); deletion is guarded by live item
  * bindings (the {@code exam_item_method} join) and names the blocking count. Updates
  * are D9 null-aware full-replaces.

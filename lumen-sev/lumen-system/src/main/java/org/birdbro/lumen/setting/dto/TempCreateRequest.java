@@ -27,7 +27,7 @@ public class TempCreateRequest {
     @NotNull(message = "type 不能为空")
     private Integer type;
 
-    @ApiModelProperty("检查类型 (dict 1027 value, required)")
+    @ApiModelProperty("检查类型 (dict 1024 value, required)")
     @NotBlank(message = "modality 不能为空")
     private String modality;
 

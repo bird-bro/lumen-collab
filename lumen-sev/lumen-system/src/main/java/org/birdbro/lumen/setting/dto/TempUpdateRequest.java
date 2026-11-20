@@ -24,7 +24,7 @@ import org.birdbro.lumen.setting.entity.RepTempContent;
 @Data
 public class TempUpdateRequest {
 
-    @ApiModelProperty("检查类型 (dict 1027 value, required)")
+    @ApiModelProperty("检查类型 (dict 1024 value, required)")
     @NotBlank(message = "modality 不能为空")
     private String modality;
 

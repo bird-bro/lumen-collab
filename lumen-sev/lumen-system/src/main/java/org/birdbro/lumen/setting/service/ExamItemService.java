@@ -9,7 +9,7 @@ import org.birdbro.lumen.setting.dto.ItemVO;
 
 /**
  * Item management (exam-setting-api task 4.1): CRUD over {@code exam_item} - the
- * hospital-wide catalog row. Every write validates the modality against dict 1027 AND
+ * hospital-wide catalog row. Every write validates the modality against dict 1024 AND
  * its lockstep with the body's; the code is unique within the modality among LIVE rows
  * (soft-deleted rows free theirs); the method selection rewrites
  * {@code exam_item_method} inside the item's transaction (physical wipe + batch

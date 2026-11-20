@@ -146,7 +146,7 @@ class AuthRepTempApiTests extends SettingIntegrationTestBase {
                 body("{\"type\":1,\"modality\":\"XX\",\"flag\":1,\"name\":\"ut模板_野模态_"
                         + ts + "\"}"), ownerToken);
         assertEquals("A0400", parse(unknown).path("code").asText(),
-                "a modality absent from dict 1027 must reject A0400: " + unknown);
+                "a modality absent from dict 1024 must reject A0400: " + unknown);
 
         int temp = createTemp(ownerToken, 1, null, 1, "ut模板_软删_" + ts, null);
         exchangeJson(HttpMethod.DELETE, TEMP_URL + "/" + temp, null, ownerToken);

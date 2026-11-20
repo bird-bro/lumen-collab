@@ -33,7 +33,7 @@ public class ExamBody extends EntityBase {
     @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
 
-    /** 检查类型 (dict 1027 value; must match the group's modality). */
+    /** 检查类型 (dict 1024 value; must match the group's modality). */
     private String modality;
 
     /** 所属部位分组 (exam_body_group.id, NOT NULL, convention reference). */

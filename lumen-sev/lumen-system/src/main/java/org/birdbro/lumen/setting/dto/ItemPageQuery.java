@@ -17,7 +17,7 @@ import org.birdbro.framework.config.PageSizeConfig;
 @EqualsAndHashCode(callSuper = false)
 public class ItemPageQuery extends PageSizeConfig {
 
-    @ApiModelProperty("检查类型 (dict 1027 value, required)")
+    @ApiModelProperty("检查类型 (dict 1024 value, required)")
     private String modality;
 
     @ApiModelProperty("部位分组 (optional - filters items whose body belongs to it)")

@@ -38,7 +38,7 @@ public class ExamItem extends EntityBase {
     @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
 
-    /** 检查类型 (dict 1027 value; must match the bound body's modality). */
+    /** 检查类型 (dict 1024 value; must match the bound body's modality). */
     private String modality;
 
     /** 项目名称. */

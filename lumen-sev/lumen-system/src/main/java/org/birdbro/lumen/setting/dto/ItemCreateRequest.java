@@ -21,7 +21,7 @@ import lombok.Data;
 @Data
 public class ItemCreateRequest {
 
-    @ApiModelProperty("检查类型 (dict 1027 value, must match the body's)")
+    @ApiModelProperty("检查类型 (dict 1024 value, must match the body's)")
     @NotBlank(message = "modality 不能为空")
     private String modality;
 

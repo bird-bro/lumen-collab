@@ -47,7 +47,7 @@ public class RepTemp extends EntityBase {
     /** 归属人 (user_info.id; NULL for public rows, the creating user for private). */
     private Integer ownerUid;
 
-    /** 检查类型 (dict 1027 value). */
+    /** 检查类型 (dict 1024 value). */
     private String modality;
 
     /** 节点类型 (0 目录 / 1 模板). */

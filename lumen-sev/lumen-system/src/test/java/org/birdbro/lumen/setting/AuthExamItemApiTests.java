@@ -103,7 +103,7 @@ class AuthExamItemApiTests extends SettingIntegrationTestBase {
         ResponseEntity<String> unknownModality = exchangeJson(HttpMethod.POST, ITEMS_URL,
                 body(itemPayload("XX", body, "ut_exi_野模态_" + ts, null)), token);
         assertEquals("A0400", parse(unknownModality).path("code").asText(),
-                "a modality absent from dict 1027 must reject A0400: " + unknownModality);
+                "a modality absent from dict 1024 must reject A0400: " + unknownModality);
 
         ResponseEntity<String> deadBody = exchangeJson(HttpMethod.POST, ITEMS_URL,
                 body(itemPayload("CT", 99999999, "ut_exi_孤儿项目_" + ts, null)), token);

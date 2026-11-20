@@ -35,7 +35,7 @@ public class ExamBodyGroup extends EntityBase {
     @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
 
-    /** 检查类型 (dict 1027 value - the single platform modality vocabulary). */
+    /** 检查类型 (dict 1024 value - the single platform modality vocabulary). */
     private String modality;
 
     /** 分组名称, unique within the modality among live rows (service-enforced). */

@@ -16,7 +16,7 @@ import org.birdbro.framework.config.PageSizeConfig;
 @EqualsAndHashCode(callSuper = false)
 public class MethodPageQuery extends PageSizeConfig {
 
-    @ApiModelProperty("检查类型 (dict 1027 value, required)")
+    @ApiModelProperty("检查类型 (dict 1024 value, required)")
     private String modality;
 
     @ApiModelProperty("关键字, matched against method name or code")

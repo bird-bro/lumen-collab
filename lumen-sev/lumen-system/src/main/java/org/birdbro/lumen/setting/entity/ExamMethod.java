@@ -32,7 +32,7 @@ public class ExamMethod extends EntityBase {
     @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
 
-    /** 检查类型 (dict 1027 value). */
+    /** 检查类型 (dict 1024 value). */
     private String modality;
 
     /** 方法名称. */
