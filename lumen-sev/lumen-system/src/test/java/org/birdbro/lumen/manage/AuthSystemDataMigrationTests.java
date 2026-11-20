@@ -386,15 +386,17 @@ class AuthSystemDataMigrationTests extends AuthIntegrationTestBase {
 
     /**
      * Number rules read their stamp formats from the dict (user ruling 2026-11-19):
-     * 「号码戳格式」 seeds the date patterns plus minute/second timestamp variants, and
+     * catalog 1029 seeds the date patterns plus minute/second timestamp variants, and
      * each detail VALUE is the Java pattern stored verbatim in number_rule.stamp.
+     * Consumers anchor by the STABLE id (2026-11-19 id-anchor ruling - the frontend
+     * resolves dictItemsById(1029)); the display name is operator-editable (V43
+     * seeded 号码戳格式, V45 lands the 编号格式 rename), so the name is deliberately
+     * not asserted here.
      */
     @Test
     void v43SeedsNumberStampFormatDictCatalog() {
         Map<String, Object> catal = jdbcTemplate.queryForMap(
-                "SELECT name, enable, deleted FROM public.dict_catal WHERE id = 1029");
-        assertEquals("号码戳格式", catal.get("name"),
-                "catalog 1029 anchors BY NAME (the frontend by-name lookup resolves it)");
+                "SELECT enable, deleted FROM public.dict_catal WHERE id = 1029");
         assertEquals(1, ((Number) catal.get("enable")).intValue(),
                 "the seeded stamp-format catalog must be enabled");
         assertEquals(0, ((Number) catal.get("deleted")).intValue(),
