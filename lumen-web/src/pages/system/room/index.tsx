@@ -63,7 +63,8 @@ interface RoomFormValues {
   did: number
   name: string
   code?: string
-  enable: number
+  /** The edit Switch field is boolean; the wire payload maps true/false to 1/0. */
+  enable: boolean
   callIp?: string
   callPort?: string
   /** 备注 - persisted through the repurposed callMac wire field (see drawer). */
@@ -188,7 +189,7 @@ export default function RoomPage() {
   )
 
   const openCreate = useCallback(() => {
-    form.setFieldsValue({ name: '', code: '', enable: 1 })
+    form.setFieldsValue({ name: '', code: '', enable: true })
     setBinding(NO_BINDING)
     setDialog({ kind: 'create' })
   }, [form])
@@ -202,7 +203,7 @@ export default function RoomPage() {
           did: detail.did,
           name: detail.name,
           code: detail.code ?? undefined,
-          enable: detail.enable,
+          enable: detail.enable === 1,
           callIp: detail.callIp ?? undefined,
           callPort: detail.callPort ?? undefined,
           remark: detail.callMac ?? undefined,
@@ -275,7 +276,7 @@ export default function RoomPage() {
         await updateRoom(dialog.room.id, body)
         messageApi.success('修改成功')
       } else {
-        await createRoom({ ...body, enable: values.enable })
+        await createRoom({ ...body, enable: 1 })
         messageApi.success('添加成功')
       }
       setDialog(null)
@@ -306,6 +307,21 @@ export default function RoomPage() {
       }
     },
     [currentQuery, loadPage, messageApi],
+  )
+
+  /** The edit drawer's switch uses the same enable-only command as the row switch. */
+  const handleDrawerStatus = useCallback(
+    async (checked: boolean) => {
+      if (dialog?.kind !== 'edit') return
+      try {
+        await setRoomStatus(dialog.room.id, checked ? 1 : 0)
+        form.setFieldsValue({ enable: checked })
+        await loadPage(currentQuery())
+      } catch (error) {
+        messageApi.error(error instanceof ApiError ? error.msg : '状态切换失败')
+      }
+    },
+    [currentQuery, dialog, form, loadPage, messageApi],
   )
 
   const handleDelete = useCallback(
@@ -377,6 +393,8 @@ export default function RoomPage() {
       render: (did: number) => depNameById.get(did) ?? String(did),
     },
   ]
+
+  const editing = dialog?.kind === 'edit' ? dialog.room : null
 
   return (
     <div style={{ height: '100%' }}>
@@ -617,15 +635,28 @@ export default function RoomPage() {
           <Form.Item label="编码" name="code">
             <Input placeholder="选填,如 R-CT-01" />
           </Form.Item>
-          <Form.Item label="状态" name="enable" initialValue={1}>
-            <Select
-              aria-label="状态"
-              options={[
-                { value: 1, label: '启用' },
-                { value: 0, label: '停用' },
-              ]}
-            />
-          </Form.Item>
+          {editing ? (
+            <div
+              data-item-common-row
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: token.marginLG,
+              }}
+            >
+              <label htmlFor="roomStatus">状态</label>
+              <Form.Item name="enable" valuePropName="checked" noStyle>
+                <Switch
+                  id="roomStatus"
+                  checkedChildren="启用"
+                  unCheckedChildren="停用"
+                  disabled={!canStatus}
+                  onChange={(checked) => void handleDrawerStatus(checked)}
+                />
+              </Form.Item>
+            </div>
+          ) : null}
 
           <Form.Item label="叫号屏">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

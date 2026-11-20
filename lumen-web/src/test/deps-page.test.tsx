@@ -418,6 +418,54 @@ describe('dep page - code handling (delta: Department Code Handling)', () => {
   })
 })
 
+describe('dep page - drawer lifecycle status control', () => {
+  it('hides status in the create drawer and creates an enabled department', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await waitForRow('radiology')
+
+    await user.click(screen.getByRole('button', { name: /新建科室/ }))
+    const drawer = document.querySelector('.ant-drawer-open') as HTMLElement
+    expect(within(drawer).queryByRole('combobox', { name: '状态' })).toBeNull()
+    expect(within(drawer).queryByRole('switch', { name: '状态' })).toBeNull()
+
+    await user.click(screen.getByLabelText('所属院区'))
+    await user.click(
+      within(document.querySelector('.ant-select-dropdown') as HTMLElement).getByText('总院区'),
+    )
+    await user.type(screen.getByLabelText('科室编码'), 'pathology')
+    await user.type(screen.getByLabelText('科室名称'), '病理科')
+    await user.click(within(drawer).getByRole('button', { name: '保 存' }))
+
+    await expectDialogClosed()
+    expect(orgDepsApi.createDep).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'pathology', name: '病理科', status: 1 }),
+    )
+  })
+
+  it('uses an edit Switch and sends the 0/1 wire value', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await waitForRow('radiology')
+
+    await waitForTableReady()
+    await user.click(within(rowOf('radiology')).getByRole('button', { name: '编辑科室' }))
+    const drawer = document.querySelector('.ant-drawer-open') as HTMLElement
+    expect(within(drawer).queryByRole('combobox', { name: '状态' })).toBeNull()
+    const statusSwitch = within(drawer).getByRole('switch', { name: '状态' })
+    expect(statusSwitch).toBeChecked()
+
+    await user.click(statusSwitch)
+    await user.click(within(drawer).getByRole('button', { name: '保 存' }))
+
+    await expectDialogClosed()
+    expect(orgDepsApi.updateDep).toHaveBeenCalledWith(
+      11,
+      expect.objectContaining({ name: '放射科', status: 0 }),
+    )
+  })
+})
+
 describe('dep page - delete and perms (delta: mutation affordances follow system:dep:list)', () => {
   it('deletes a department after confirmation and refreshes the page', async () => {
     const user = userEvent.setup()

@@ -54,7 +54,8 @@ interface DepFormValues {
   orgId: number
   code: string
   name: string
-  status: number
+  /** The Switch field is boolean; the wire payload maps true/false to 1/0. */
+  status: boolean
 }
 
 type DepDialog = { kind: 'create' } | { kind: 'edit'; dep: OrgDep }
@@ -187,13 +188,13 @@ export default function DepsPage() {
         // Campus-filtered view prefills the owner; the hospital-root view leaves
         // it empty and REQUIRES an explicit campus before submission.
         const prefill = isCampusSelected && selectedOrgId !== null ? selectedOrgId : undefined
-        form.setFieldsValue({ orgId: prefill, code: '', name: '', status: 1 })
+        form.setFieldsValue({ orgId: prefill, code: '', name: '', status: true })
       } else {
         form.setFieldsValue({
           orgId: next.dep.orgId,
           code: next.dep.code,
           name: next.dep.name,
-          status: next.dep.status,
+          status: next.dep.status === 1,
         })
       }
       setDialog(next)
@@ -206,6 +207,9 @@ export default function DepsPage() {
     // A rejected validateFields() must never escape the drawer footer submit handler.
     const values = await readForm(form)
     if (!values) return
+    // Create has no status control and always starts enabled; the edit Switch is
+    // boolean while the API remains the established 0/1 wire shape.
+    const status = dialog.kind === 'edit' ? (values.status ? 1 : 0) : 1
     setSaving(true)
     try {
       if (dialog.kind === 'edit') {
@@ -213,10 +217,10 @@ export default function DepsPage() {
         await updateDep(dialog.dep.id, {
           name: values.name,
           orgId: values.orgId,
-          status: values.status,
+          status,
         })
       } else {
-        await createDep({ orgId: values.orgId, code: values.code, name: values.name, status: values.status })
+        await createDep({ orgId: values.orgId, code: values.code, name: values.name, status })
       }
       closeDialog()
       await loadPage({
@@ -518,15 +522,22 @@ export default function DepsPage() {
           >
             <Input placeholder="如 病理科" autoComplete="off" />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue={1}>
-            <Select
-              aria-label="状态"
-              options={[
-                { value: 1, label: '启用' },
-                { value: 0, label: '停用' },
-              ]}
-            />
-          </Form.Item>
+          {editing ? (
+            <div
+              data-item-common-row
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: token.marginLG,
+              }}
+            >
+              <label htmlFor="depStatus">状态</label>
+              <Form.Item name="status" valuePropName="checked" noStyle>
+                <Switch id="depStatus" checkedChildren="✓" unCheckedChildren="✕" />
+              </Form.Item>
+            </div>
+          ) : null}
         </Form>
       </Drawer>
     </div>

@@ -445,6 +445,51 @@ describe('org page - campus CRUD round-trip (delta: Campus CRUD round-trip)', ()
   })
 })
 
+describe('org page - drawer lifecycle status control', () => {
+  it('hides status in the create drawer and creates an enabled campus', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await waitForCampusRow('总院区')
+
+    await user.click(screen.getByRole('button', { name: /新建院区/ }))
+    const drawer = document.querySelector('.ant-drawer-open') as HTMLElement
+    expect(within(drawer).queryByRole('combobox', { name: '状态' })).toBeNull()
+    expect(within(drawer).queryByRole('switch', { name: '状态' })).toBeNull()
+
+    await user.type(screen.getByLabelText('机构代码'), 'CAMPUS-NEW')
+    await user.type(screen.getByLabelText('机构名称'), '新院区')
+    await user.click(within(drawer).getByRole('button', { name: '保 存' }))
+
+    await expectDialogClosed()
+    expect(orgsApi.createOrg).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'CAMPUS-NEW', name: '新院区', status: 1 }),
+    )
+  })
+
+  it('uses an edit Switch and sends the 0/1 wire value', async () => {
+    const user = userEvent.setup()
+    treeFixture([hospitalWith(CAMPUS_A, CAMPUS_B)], [hospitalWith({ ...CAMPUS_A, status: 0 }, CAMPUS_B)])
+    renderPage()
+    await waitForCampusRow('总院区')
+
+    await waitForTableReady()
+    await user.click(within(rowOf('总院区')).getByRole('button', { name: '编辑院区' }))
+    const drawer = document.querySelector('.ant-drawer-open') as HTMLElement
+    expect(within(drawer).queryByRole('combobox', { name: '状态' })).toBeNull()
+    const statusSwitch = within(drawer).getByRole('switch', { name: '状态' })
+    expect(statusSwitch).toBeChecked()
+
+    await user.click(statusSwitch)
+    await user.click(within(drawer).getByRole('button', { name: '保 存' }))
+
+    await expectDialogClosed()
+    expect(orgsApi.updateOrg).toHaveBeenCalledWith(
+      274,
+      expect.objectContaining({ name: '总院区', status: 0 }),
+    )
+  })
+})
+
 describe('org page - rejection surfaces (delta: Organization rejection surfaces)', () => {
   it('keeps the dialog open and shows the backend message when a create is rejected', async () => {
     const user = userEvent.setup()
@@ -722,6 +767,15 @@ describe('org drawer logo upload (org-logo-upload-web 2.1)', () => {
       '/profile/avatar/2026/11/06/legacy.png',
     )
     expect(commonApi.uploadImage).not.toHaveBeenCalled()
+  })
+
+  it('renders the logo format hint inline after the label without an extra row', async () => {
+    await openHospitalEdit()
+    const drawer = screen.getByRole('dialog')
+    const hint = within(drawer).getByText('png/jpg/jpeg/webp ≤2MB')
+
+    expect(hint.closest('.ant-form-item-extra')).toBeNull()
+    expect(hint.closest('label')).toHaveTextContent('Logo')
   })
 
   it('uploads a picked png, stores the returned path, and submits it with the org body', async () => {

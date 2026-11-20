@@ -394,7 +394,8 @@ interface OrgFormValues {
   code: string
   name: string
   shortName?: string | null
-  status: number
+  /** The Switch field is boolean; the wire payload maps true/false to 1/0. */
+  status: boolean
   provinceCode?: string | null
   cityCode?: string | null
   districtCode?: string | null
@@ -461,28 +462,30 @@ export default function OrgsPage() {
 
   const openDialog = useCallback(
     (next: OrgDialog) => {
-      const current: Pick<
-        OrgNode,
-        | 'code'
-        | 'name'
-        | 'shortName'
-        | 'status'
-        | 'provinceCode'
-        | 'cityCode'
-        | 'districtCode'
-        | 'address'
-        | 'contact'
-        | 'phone'
-        | 'email'
-        | 'logoUrl'
-        | 'sort'
+      const current: Omit<
+        Pick<
+          OrgNode,
+          | 'code'
+          | 'name'
+          | 'shortName'
+          | 'status'
+          | 'provinceCode'
+          | 'cityCode'
+          | 'districtCode'
+          | 'address'
+          | 'contact'
+          | 'phone'
+          | 'email'
+          | 'logoUrl'
+          | 'sort'
+        >,
+        'status'
       > =
         next.kind === 'create-campus'
           ? {
               code: '',
               name: '',
               shortName: null,
-              status: 1,
               provinceCode: null,
               cityCode: null,
               districtCode: null,
@@ -500,7 +503,12 @@ export default function OrgsPage() {
         code: current.code,
         name: current.name,
         shortName: current.shortName,
-        status: current.status,
+        status:
+          next.kind === 'create-campus'
+            ? true
+            : next.kind === 'edit-campus'
+              ? next.campus.status === 1
+              : next.hospital.status === 1,
         // null → undefined: the region Selects treat undefined as "no choice"
         // (placeholder) - a Select must never hold the model's null sentinel.
         provinceCode: current.provinceCode ?? undefined,
@@ -523,6 +531,9 @@ export default function OrgsPage() {
     // A rejected validateFields() must never escape the drawer footer submit handler.
     const values = await readForm(form)
     if (!values) return
+    // Create has no status control and always starts enabled; the edit Switch is
+    // boolean while the API remains the established 0/1 wire shape.
+    const status = dialog.kind === 'create-campus' ? 1 : values.status ? 1 : 0
     // Cleared region selects arrive as undefined, but the backend partial
     // update skips absent/null fields (MyBatis-Plus NOT-NULL strategy) - the
     // empty string is the wire form of "clear this column" (Input-era parity).
@@ -537,13 +548,13 @@ export default function OrgsPage() {
       if (dialog.kind === 'create-campus') {
         // Absent keys (untouched selects) stay absent - create maps them to
         // NULL columns; no clear semantics exist on insert.
-        await createOrg({ upId: dialog.hospital.id, ...values })
+        await createOrg({ upId: dialog.hospital.id, ...values, status })
       } else if (dialog.kind === 'edit-campus') {
-        await updateOrg(dialog.campus.id, { ...withRegionClears, sort: values.sort ?? undefined })
+        await updateOrg(dialog.campus.id, { ...withRegionClears, status, sort: values.sort ?? undefined })
       } else {
         // The hospital form never carries the default-campus flag - that is
         // campus-only semantics (delta: Campus Profile Management).
-        await updateOrg(dialog.hospital.id, { ...withRegionClears, sort: values.sort ?? undefined })
+        await updateOrg(dialog.hospital.id, { ...withRegionClears, status, sort: values.sort ?? undefined })
       }
       closeDialog()
       await reload(keyword)
@@ -819,18 +830,42 @@ export default function OrgsPage() {
               Form.Item makes LogoUploadField a controlled form control (injected
               value/onChange): backfill via openDialog and the submit body contract are
               unchanged - `validateFields` keeps carrying `logoUrl`. */}
-          <Form.Item name="logoUrl" label="Logo" extra="png/jpg/jpeg/webp ≤2MB">
+          <Form.Item
+            name="logoUrl"
+            label={
+              <>
+                Logo
+                <span
+                  style={{
+                    marginLeft: 6,
+                    color: token.colorTextTertiary,
+                    fontSize: token.fontSizeSM,
+                    fontWeight: 'normal',
+                  }}
+                >
+                  png/jpg/jpeg/webp ≤2MB
+                </span>
+              </>
+            }
+          >
             <LogoUploadField />
           </Form.Item>
-          <Form.Item name="status" label="状态" initialValue={1}>
-            <Select
-              aria-label="状态"
-              options={[
-                { value: 1, label: '启用' },
-                { value: 0, label: '停用' },
-              ]}
-            />
-          </Form.Item>
+          {dialog?.kind !== 'create-campus' ? (
+            <div
+              data-item-common-row
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: token.marginLG,
+              }}
+            >
+              <label htmlFor="orgStatus">状态</label>
+              <Form.Item name="status" valuePropName="checked" noStyle>
+                <Switch id="orgStatus" checkedChildren="✓" unCheckedChildren="✕" />
+              </Form.Item>
+            </div>
+          ) : null}
           <Form.Item name="sort" label="排序" initialValue={0}>
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
