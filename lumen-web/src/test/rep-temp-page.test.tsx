@@ -20,10 +20,12 @@ import { themeConfig } from '@/theme'
  * directory (top-level when none fits), the tree 新建子目录 prebinds its
  * node, and editing can MOVE a directory - self + subtree drop from the
  * options (a parent-under-own-descendant move cycles both out of the server's
- * tree render). Tree template leaves carry 删除
- * only - a tree-side template edit would PUT content-blind (the tree node
+ * tree render). The left tree renders DIRECTORIES ONLY
+ * (rep-temp-tree-dirs-only-web 2026-11-20): template leaves never render on
+ * the left - a tree-side template edit would PUT content-blind (the tree node
  * carries no finding/impression and the backend update is full-replace), so
- * template edits live in the right table where the full row is loaded. The
+ * template edits/deletes live in the right table where the full row is
+ * loaded. The
  * 公共/个人 Segmented threads scope `type` into EVERY call and reloads both
  * panes; the server keeps private rows owner-scoped. Structured-content delta
  * (2026-11-18): the template drawer is DUAL-FORM (类型 select - 简单模板/分节模板;
@@ -344,16 +346,20 @@ describe('report template page - directory drawer', () => {
     expect(dropdown.queryByText('心律失常')).toBeNull()
   })
 
-  it('tree template leaves carry only 删除 - no 新建子目录, no 编辑', async () => {
+  it('the left tree renders directories only - template leaves stay in the right table', async () => {
     renderPage()
     await screen.findByText('肺结节随访')
 
-    // Three directory nodes own the 新建子目录/编辑目录 pairs; the template
-    // leaf (肺结节随访) deletes only - its content edits live in the right
-    // table (a tree-side edit would PUT content-blind, full-replace).
+    // Dirs-only tree (2026-11-20 ruling): the template leaf (肺结节随访,
+    // flag=1) never renders on the left; the three directory nodes keep their
+    // full verb set. The template row remains in the right table under the
+    // selected directory (its 删除/编辑 live there).
+    const treeArea = document.querySelector('div[aria-busy]') as HTMLElement
+    expect(within(treeArea).queryByText('肺结节随访')).toBeNull()
     expect(screen.getAllByRole('button', { name: '新建子目录' })).toHaveLength(3)
     expect(screen.getAllByRole('button', { name: '编辑目录' })).toHaveLength(3)
-    expect(screen.getAllByRole('button', { name: '删除节点' })).toHaveLength(4)
+    expect(screen.getAllByRole('button', { name: '删除节点' })).toHaveLength(3)
+    expect(screen.getByText('肺结节随访')).toBeTruthy()
   })
 })
 

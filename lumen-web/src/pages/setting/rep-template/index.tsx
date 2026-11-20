@@ -46,10 +46,12 @@ import {
  * 简单模板 keeps the prose form, 分节模板 swaps in section cards
  * (节名 + measure rows + 节所见) serializing into `content` jsonb at save (D1 互斥
  * nulls the prose columns); edits backfill by the row's content, 简单→分节 maps
- * 表现 → first section's 节所见, 分节→简单 is refused. Tree template leaves carry
- * 删除 only: a tree-side template edit would PUT content-blind (tree nodes
- * carry no finding/impression and the backend update is full-replace), so
- * template edits live in the right table where the full row is loaded.
+ * 表现 → first section's 节所见, 分节→简单 is refused. The left tree renders
+ * DIRECTORIES only (2026-11-20 ruling, rep-temp-tree-dirs-only-web): template
+ * leaves (flag=1) never render there - a tree-side template edit would PUT
+ * content-blind (tree nodes carry no finding/impression and the backend update
+ * is full-replace), so template edit/delete live in the right table where the
+ * full row is loaded.
  * Scope-keyed perms (rep-temp-scope-perms 2026-11-19): the 公共 Segmented option
  * renders only for `setting:temp:public:list` holders - without it the page is
  * a personal library defaulting to 个人 (no public requests) - and EVERY action
@@ -97,6 +99,19 @@ function serializeMeasureNormal(normal: RepTempMeasureNormal | null): RepTempMea
   }
   const text = normal.text?.trim()
   return text ? { kind: 'text', text } : null
+}
+
+/**
+ * Dirs-only tree (user ruling 2026-11-20): the left panel shows DIRECTORIES
+ * only - template leaves (flag=1) never render there (a leaf has no children;
+ * template edit/delete live in the right table). Pruned recursively at the
+ * load boundary so every downstream consumer (render, re-anchor, parent
+ * options) sees directories only.
+ */
+function pruneToDirectories(nodes: RepTempNode[]): RepTempNode[] {
+  return nodes
+    .filter((node) => node.flag === 0)
+    .map((node) => ({ ...node, children: pruneToDirectories(node.children) }))
 }
 
 /**
@@ -356,16 +371,20 @@ export default function RepTemplatePage() {
       setTreeLoading(true)
       try {
         const rows = await repTempTree(target, type)
-        setTree(rows)
+        // Dirs-only tree (2026-11-20 ruling): the state holds pruned rows, so
+        // the anchor below is always a directory (添加模板 lands usable).
+        const dirRows = pruneToDirectories(rows)
+        setTree(dirRows)
         // Re-anchor the right pane to the same-named node in the new scope (or
-        // the first node) - the pane never keeps a stale cross-scope parent.
+        // the first directory) - the pane never keeps a stale cross-scope
+        // parent.
         setSelectedNode((current) => {
           if (current) {
-            const flat = rows.flatMap((node) => [node, ...node.children])
+            const flat = dirRows.flatMap((node) => [node, ...node.children])
             const same = flat.find((node) => node.id === current.id)
             if (same) return same
           }
-          const flat = rows.flatMap((node) => [node, ...node.children])
+          const flat = dirRows.flatMap((node) => [node, ...node.children])
           return flat.length > 0 ? flat[0] : null
         })
       } catch (error) {
@@ -509,10 +528,10 @@ export default function RepTemplatePage() {
 
   // ===================== template drawer actions =====================
 
-  // Templates live UNDER a directory - the right-pane 添加模板 passes the
-  // selected node only when it is a directory (flag=0); anything else (no
-  // selection / a template leaf) warns instead of creating a parentless or
-  // template-parented row (the backend does not validate the parent type).
+  // Templates live UNDER a directory - the dirs-only tree (2026-11-20) makes
+  // the selected node a directory whenever one exists; null (no selection /
+  // empty tree) warns 请先选择目录 instead of creating a parentless row (the
+  // backend does not validate the parent type).
   const openTemplateAdd = (parent: RepTempNode | null) => {
     if (!parent) {
       messageApi.warning('请先选择目录')
@@ -732,18 +751,20 @@ export default function RepTemplatePage() {
           setNameFilter('')
         }}
       >
-        <span>{node.flag === 0 ? '▰' : '▤'}</span>
+        <span>▰</span>
         <span style={{ color: selectedNode?.id === node.id ? token.colorPrimary : undefined }}>
           {node.name}
         </span>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
-          {/* Directory nodes (flag=0) manage the hierarchy (新建子目录/编辑目录);
-              template leaves delete only - their content edits live in the
-              right table (a tree-side edit would PUT content-blind). */}
-          {node.flag === 0 && hasPerm(tempPerm('create')) && (
+          {/* Dirs-only tree (2026-11-20 ruling): every node here is a
+              directory (leaves pruned at load) - directories manage the
+              hierarchy (新建子目录/编辑目录) and delete; template edit/delete
+              live in the right table (a tree-side edit would PUT
+              content-blind). */}
+          {hasPerm(tempPerm('create')) && (
             <ConsoleAction label="新建子目录" icon="folderAdd" onClick={() => openDirectoryAdd(node.id)} />
           )}
-          {node.flag === 0 && hasPerm(tempPerm('update')) && (
+          {hasPerm(tempPerm('update')) && (
             <ConsoleAction label="编辑目录" icon="edit" onClick={() => openDirectoryEdit(node)} />
           )}
           {hasPerm(tempPerm('delete')) && (
@@ -776,7 +797,7 @@ export default function RepTemplatePage() {
                 hasPerm(tempPerm('create')) && (
                   <ConsoleAddButton
                     label="新建目录"
-                    onClick={() => openDirectoryAdd(selectedNode?.flag === 0 ? selectedNode.id : null)}
+                    onClick={() => openDirectoryAdd(selectedNode?.id ?? null)}
                   />
                 )
               }
@@ -818,7 +839,7 @@ export default function RepTemplatePage() {
               hasPerm(tempPerm('create')) && (
                 <ConsoleAddButton
                   label="添加模板"
-                  onClick={() => openTemplateAdd(selectedNode?.flag === 0 ? selectedNode : null)}
+                  onClick={() => openTemplateAdd(selectedNode)}
                 />
               )
             }

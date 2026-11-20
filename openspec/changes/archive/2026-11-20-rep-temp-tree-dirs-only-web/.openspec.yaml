@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-11-20
+goal: 报告模板页左侧树只渲染目录(flag=0),模板叶子不上树——模板的编辑/删除全部收敛到右表
