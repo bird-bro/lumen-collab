@@ -258,6 +258,13 @@ export function BasicLayout() {
     return sections
   }, [activeL1])
 
+  // Single-page workstations (user ruling 2026-11-20, us-station-registration-web):
+  // a promoted W child ALONE is the page itself - the secondary sider would wrap
+  // one self-link in ant-layout-sider-children for nothing. The sider stays OUT
+  // and the page runs full-width like a standalone L1 (multi-page stations -
+  // radiology's 预约/技师/叫号 later - keep the promoted-children sider).
+  const singlePageStation = activeL1?.type === 'W' && sidebarSections.length <= 1
+
   return (
     <Layout
       style={
@@ -375,7 +382,8 @@ export function BasicLayout() {
         </Layout.Header>
 
         {/* zone 3 + content */}
-        <Layout hasSider>
+        <Layout hasSider={!singlePageStation}>
+          {!singlePageStation && (
           <Layout.Sider
             className="lumen-side"
             width={SIDER_WIDTH}
@@ -518,6 +526,7 @@ export function BasicLayout() {
               </button>
             )}
           </Layout.Sider>
+          )}
           {/* Gray page tint (the theme pins colorBgLayout to the OPS page
               tint): the query rows and white table cards float on non-white. */}
           <Layout.Content

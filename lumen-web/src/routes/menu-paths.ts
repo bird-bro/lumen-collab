@@ -38,6 +38,9 @@ const CONSOLE_ROUTE_BY_COMPONENT: Record<string, string> = {
   'setting/rep-template/index': '/setting/rep-templates',
   // 患者配置 (patient-domain task 5.1 - component key verbatim from the V2 seed).
   'system/number-rule/index': '/system/number-rules',
+  // US 工作站 (us-station-registration-sev V3 seed / us-station-registration-web
+  // task 1.1 - the first department-workstation page; promoted W-child click).
+  'us/registration/index': '/us/registration',
 };
 
 /**

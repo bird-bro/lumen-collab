@@ -45,6 +45,7 @@ const NumberRulePage = lazy(() => import('@/pages/system/number-rule'))
 const RadiologyPage = lazy(() => import('@/pages/radiology'))
 const UltrasoundPage = lazy(() => import('@/pages/ultrasound'))
 const EndoscopyPage = lazy(() => import('@/pages/endoscopy'))
+const UsRegistrationPage = lazy(() => import('@/pages/us/registration'))
 
 /**
  * The `/` index child: redirect to the first menu route the session's tree
@@ -99,6 +100,7 @@ export const appRoutes: RouteObject[] = [
       { path: 'radiology', element: <RadiologyPage /> },
       { path: 'ultrasound', element: <UltrasoundPage /> },
       { path: 'endoscopy', element: <EndoscopyPage /> },
+      { path: 'us/registration', element: <UsRegistrationPage /> },
     ],
   },
 ]
