@@ -18,4 +18,4 @@
 
 ## Batch 3 — verify
 
-- [ ] 3.1 `pnpm build` + full `pnpm test` green; `/opsx:verify` credential.
+- [x] 3.1 `pnpm build` + full `pnpm test` green; `/opsx:verify` credential.
