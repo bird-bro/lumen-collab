@@ -20,7 +20,7 @@ import type {
   ExamBody,
   ExamBodyGroup,
 } from '@/api/types'
-import { dictItemsByName } from '@/utils/dict-items'
+import { dictItemsById, MODALITY_DICT_ID } from '@/utils/dict-items'
 import type { DictItem } from '@/api/types'
 import { usePerm } from '@/utils/perm'
 import {
@@ -49,8 +49,6 @@ import {
  * group stays. Permission gating: `setting:body:*` covers BOTH resources (the
  * one-resource-family ruling).
  */
-
-const DICT_MODALITY = '检查类型'
 
 /** AntD tree-row shape: the API keeps `children` on every node, but rc-table
  * reads an EMPTY array as "has children" and renders a dead collapsed expand
@@ -154,7 +152,7 @@ export default function ExamBodyPage() {
 
   useEffect(() => {
     let alive = true
-    dictItemsByName(DICT_MODALITY)
+    dictItemsById(MODALITY_DICT_ID)
       .then((items) => {
         if (!alive) return
         setModalityOpts(items)

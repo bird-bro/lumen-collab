@@ -21,7 +21,8 @@ import { themeConfig } from '@/theme'
 vi.mock('@/api/exam-body')
 vi.mock('@/api/exam-body-group')
 vi.mock('@/utils/dict-items', () => ({
-  dictItemsByName: vi.fn(),
+  MODALITY_DICT_ID: 1024,
+  dictItemsById: vi.fn(),
   resolveDictLabel: (items: { code: number; value: string }[], code: number) =>
     items.find((item) => item.code === code)?.value ?? String(code),
   resolveDictLabelByValue: (items: { value: string }[], value: string) =>
@@ -61,8 +62,8 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(dictUtils.dictItemsByName).mockImplementation(async (name: string) => {
-    if (name === '检查类型') return MODALITY_DICT
+  vi.mocked(dictUtils.dictItemsById).mockImplementation(async (catalId: number) => {
+    if (catalId === dictUtils.MODALITY_DICT_ID) return MODALITY_DICT
     return []
   })
   useAuthStore.getState().setSession({

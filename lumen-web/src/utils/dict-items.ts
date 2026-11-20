@@ -29,6 +29,16 @@ export const NUMBER_TYPE_DICT_ID = 1028;
 export const NUMBER_STAMP_FORMAT_DICT_ID = 1029;
 
 /**
+ * The modality catalog id - dict 1024 「设备类型」, the SINGLE modality catalog
+ * since the V27 unification (「检查类型」 1021 retired). ID-ANCHORED per the
+ * dict-lookup-by-id ruling 2026-11-19 (the id never moves; the operator may rename
+ * the catalog freely) - the setting pages resolve their 检查类型/设备类型 vocabulary
+ * through `dictItemsById(MODALITY_DICT_ID)`, never by name
+ * (modality-dict-id-anchor-web).
+ */
+export const MODALITY_DICT_ID = 1024;
+
+/**
  * The catalog's enabled items by NAME, session-cached (dedupes concurrent
  * calls, survives route remounts within the session).
  */

@@ -704,6 +704,7 @@ The page SHALL never invent or edit device access fields on the room form.
 - **THEN** the room row re-renders with the new device summary (or empty state)
 
 <!-- synced from: exam-item-table-polish-web 2026-11-18 -->
+
 ### Requirement: Exam Item Page
 
 The console SHALL render the 检查项目 page (menu component `setting/exam-item/index`)
@@ -810,6 +811,7 @@ Body preserved for history.*
 - **THEN** the 对照编码 column shows it (— for null), right after 项目编码
 
 <!-- synced from: exam-item-table-polish-web 2026-11-18 -->
+
 ### Requirement: Exam Body Page with In-Page Group Management
 
 The console SHALL render the 检查部位 page (component `setting/exam-body/index`): a
@@ -865,6 +867,7 @@ within the group, 部位名称, 部位编码, 排序). Group deletion that the b
 - **AND** branches without a match drop entirely; a no-hit keyword empties the table
 
 <!-- synced from: exam-item-table-polish-web 2026-11-18 -->
+
 ### Requirement: Exam Method Page
 
 The console SHALL render the 检查方法 page (component `setting/exam-method/index`):
@@ -1060,3 +1063,20 @@ Rule create/edit SHALL use a system-console drawer (`destroyOnHidden`, controls 
 
 <!-- synced from: number-rule-unification-web 2026-11-19 (the page migrated to the system IA: system:number:* perms, /system/number-rules, platform-family type select; the patient-side surface retired) -->
 <!-- synced from: number-rule-format-dict-web 2026-11-20 (dict-backed 格式 Select over the id-anchored 「编号格式」 catalog 1029; drawer chrome per the system-console conventions; 流水长度 renamed 编号长度) -->
+
+### Requirement: Modality Catalog Resolution by Id
+The setting pages (检查项目/检查部位/检查方法/报告模板) SHALL resolve the shared
+modality dict catalog by its deterministic id 1024 through the items-by-id
+endpoint - never by catalog name (dict-lookup-by-id ruling 2026-11-19: the id
+never moves, the operator may rename the catalog).
+
+#### Scenario: Pages load against the id anchor
+
+- **WHEN** a setting page loads its 检查类型 filter options
+- **THEN** the options come from the items-by-id lookup of catalog 1024, and the
+  page loads its list against the real setting endpoints
+
+#### Scenario: Catalog rename is invisible to the pages
+
+- **WHEN** catalog 1024 is renamed (display-text change)
+- **THEN** the setting pages keep loading the same vocabulary without code change

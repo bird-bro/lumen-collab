@@ -18,7 +18,7 @@ import type {
   ExamItem,
   ExamMethod,
 } from '@/api/types'
-import { dictItemsByName } from '@/utils/dict-items'
+import { dictItemsById, MODALITY_DICT_ID } from '@/utils/dict-items'
 import type { DictItem } from '@/api/types'
 import { usePerm } from '@/utils/perm'
 import {
@@ -57,8 +57,6 @@ import {
  * 单价/折扣/诊断计费数量 as a 4-up band, 诊断得分/审核得分 ride a labeled band
  * (留空 = 不计), 备注 closes the form.
  */
-
-const DICT_MODALITY = '检查类型'
 
 interface ItemFormValues {
   code?: string
@@ -127,7 +125,7 @@ export default function ExamItemPage() {
 
   useEffect(() => {
     let alive = true
-    dictItemsByName(DICT_MODALITY)
+    dictItemsById(MODALITY_DICT_ID)
       .then((items) => {
         if (!alive) return
         setModalityOpts(items)

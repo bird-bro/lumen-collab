@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createExamMethod, deleteExamMethod, pageExamMethods, updateExamMethod } from '@/api/exam-method'
 import { ApiError } from '@/api/client'
 import type { ExamMethod, ExamMethodPageQuery } from '@/api/types'
-import { dictItemsByName } from '@/utils/dict-items'
+import { dictItemsById, MODALITY_DICT_ID } from '@/utils/dict-items'
 import type { DictItem } from '@/api/types'
 import { usePerm } from '@/utils/perm'
 import {
@@ -31,8 +31,6 @@ import {
  * itself is menu-granted); each mutation affordance answers to its own F-node
  * string (`setting:method:create/update/delete`).
  */
-
-const DICT_MODALITY = '检查类型'
 
 interface MethodFormValues {
   name: string
@@ -80,7 +78,7 @@ export default function ExamMethodPage() {
 
   useEffect(() => {
     let alive = true
-    dictItemsByName(DICT_MODALITY)
+    dictItemsById(MODALITY_DICT_ID)
       .then((items) => {
         if (!alive) return
         setModalityOpts(items)

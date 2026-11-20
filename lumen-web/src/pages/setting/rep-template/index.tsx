@@ -10,7 +10,7 @@ import {
 } from '@/api/rep-temp'
 import { ApiError } from '@/api/client'
 import type { Page, RepTemp, RepTempContent, RepTempMeasure, RepTempMeasureNormal, RepTempNode, RepTempSection } from '@/api/types'
-import { dictItemsByName } from '@/utils/dict-items'
+import { dictItemsById, MODALITY_DICT_ID } from '@/utils/dict-items'
 import type { DictItem } from '@/api/types'
 import { usePerm } from '@/utils/perm'
 import {
@@ -57,7 +57,6 @@ import {
  * `setting:temp:public:*`, 个人 → the base `setting:temp:*`).
  */
 
-const DICT_MODALITY = '检查类型'
 const TYPE_PUBLIC = 1
 const TYPE_PRIVATE = 2
 
@@ -404,7 +403,7 @@ export default function RepTemplatePage() {
 
   useEffect(() => {
     let alive = true
-    dictItemsByName(DICT_MODALITY)
+    dictItemsById(MODALITY_DICT_ID)
       .then((items) => {
         if (!alive) return
         setModalityOpts(items)

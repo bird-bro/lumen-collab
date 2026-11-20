@@ -18,7 +18,8 @@ import { themeConfig } from '@/theme'
  */
 vi.mock('@/api/exam-method')
 vi.mock('@/utils/dict-items', () => ({
-  dictItemsByName: vi.fn(),
+  MODALITY_DICT_ID: 1024,
+  dictItemsById: vi.fn(),
   resolveDictLabel: (items: { code: number; value: string }[], code: number) =>
     items.find((item) => item.code === code)?.value ?? String(code),
   resolveDictLabelByValue: (items: { value: string }[], value: string) =>
@@ -84,8 +85,8 @@ async function pickOption(
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(dictUtils.dictItemsByName).mockImplementation(async (name: string) => {
-    if (name === '检查类型') return MODALITY_DICT
+  vi.mocked(dictUtils.dictItemsById).mockImplementation(async (catalId: number) => {
+    if (catalId === dictUtils.MODALITY_DICT_ID) return MODALITY_DICT
     return []
   })
   useAuthStore.getState().setSession({
@@ -108,7 +109,7 @@ describe('exam method page - filters and table', () => {
     renderPage()
     await screen.findByText('平扫')
 
-    expect(dictUtils.dictItemsByName).toHaveBeenCalledWith('检查类型')
+    expect(dictUtils.dictItemsById).toHaveBeenCalledWith(dictUtils.MODALITY_DICT_ID)
     expect(methodApi.pageExamMethods).toHaveBeenCalledWith(
       expect.objectContaining({ modality: 'CT' }),
     )
