@@ -106,64 +106,49 @@ public abstract class SettingIntegrationTestBase {
 
     /**
      * Per-class entry: idempotently ensures the ONE external dependency this domain
-     * reads - the dict 1027 检查类型 vocabulary - exists exactly as V27 seeded it. The
+     * reads - the dict 1024 modality vocabulary (「设备类型」, the SINGLE modality
+     * catalog since the V27 unification) - exists exactly as V27 seeded it. The
      * shared test database is LONG-LIVED and parallel sessions' suites have been
-     * observed physically purging V26/V27 dict rows mid-flight (1021/1023/1027 all
-     * vanished between runs on 2026-11-12), so every class restores the spec-defined
-     * rows ON CONFLICT-guarded (deterministic ids, the V27 values verbatim) before
+     * observed physically purging dict rows mid-flight (1021/1023/1027 all vanished
+     * between runs on 2026-11-12), so every class restores the spec-defined rows
+     * ON CONFLICT-guarded (deterministic ids, the V27 values verbatim) before
      * testing - additive no-op when present, spec-true restore when purged. No other
      * platform data is touched.
+     *
+     * <p><b>Repointed to the id anchor (modality-dict-id-anchor-sev, ruling
+     * 2026-11-19):</b> the guard heals the deterministic 1024 band directly - no
+     * name resolution, NO retired-catalog creation. The former behavior (self-healing
+     * a 「检查类型」 catalog into existence, historically id 1027) kept the
+     * name-anchored {@code requireModality} alive on a spec-false catalog while the
+     * real one was dead; with validation anchored to 1024 the retired name must stay
+     * absent (AuthDeviceRoomSeedTests guards exactly that).</p>
      */
     @org.junit.jupiter.api.BeforeAll
     static void ensureModalityVocabulary() {
         String[] modalities = {"DR", "CT", "MR", "DSA", "US", "ENDO"};
         try (Connection connection = openTestServerConnection();
              Statement statement = connection.createStatement()) {
-            // Resolve the catalog by its UNIQUE name - the id has flip-flopped
-            // (1021/1027) across sessions; the name is the stable anchor.
-            java.sql.ResultSet catalog = statement.executeQuery(
-                    "SELECT id FROM public.dict_catal WHERE name = '检查类型' "
-                            + "AND deleted = 0 ORDER BY id LIMIT 1");
-            long catalogId;
-            if (catalog.next()) {
-                catalogId = catalog.getLong(1);
-                catalog.close();
-            } else {
-                catalog.close();
-                try {
-                    statement.execute("INSERT INTO public.dict_catal (id, name, enable, "
-                            + "sort, remark) VALUES (1027, '检查类型', 1, 99, "
-                            + "'检查类型词表(与设备类型同值集,机器值=value模态串)')");
-                    catalogId = 1027;
-                } catch (SQLException nameTaken) {
-                    // A SOFT-DELETED catalog still squats on the unique name - revive
-                    // it instead of racing the constraint.
-                    java.sql.ResultSet squat = statement.executeQuery(
-                            "SELECT id FROM public.dict_catal WHERE name = '检查类型' "
-                                    + "ORDER BY id LIMIT 1");
-                    if (!squat.next()) {
-                        throw nameTaken;
-                    }
-                    catalogId = squat.getLong(1);
-                    squat.close();
-                    statement.execute("UPDATE public.dict_catal SET deleted = 0, "
-                            + "enable = 1 WHERE id = " + catalogId);
-                }
-            }
-            // Ensure every modality value exists under the catalog (id = ca*1000+sort,
-            // the V23/V26/V27 deterministic band - ON CONFLICT no-op when present).
+            // The catalog itself: deterministic id 1024 - ON CONFLICT heals a purged
+            // or soft-deleted row back to the spec-true seed shape.
+            statement.execute("INSERT INTO public.dict_catal (id, name, enable, "
+                    + "sort, remark) VALUES (1024, '设备类型', 1, 99, "
+                    + "'设备/检查类型共用模态词表(org-device-room-api,机器值=value模态串,"
+                    + "新增模态直接在此维护)') ON CONFLICT (id) DO UPDATE SET "
+                    + "enable = 1, deleted = 0");
+            // Ensure every modality value exists under the catalog (id = 1024*1000+sort,
+            // the V27 deterministic band). DO UPDATE heals drifted rows too: ca_id
+            // squatting, a parallel seed once writing the sort value into enable
+            // (CT landed enable=2 and the vocabulary check went blind), soft-deletes.
             for (int i = 0; i < modalities.length; i++) {
                 statement.execute("INSERT INTO public.dict_detail (id, ca_id, code, "
-                        + "value, sort, enable) VALUES (" + (catalogId * 1000 + i + 1)
-                        + ", " + catalogId + ", " + (i + 1) + ", '" + modalities[i]
+                        + "value, sort, enable) VALUES (" + (1024 * 1000 + i + 1)
+                        + ", 1024, " + (i + 1) + ", '" + modalities[i]
                         + "', " + (i + 1) + ", 1) "
-                        + "ON CONFLICT (id) DO UPDATE SET enable = 1, deleted = 0");
-                // DO UPDATE heals drifted rows too (a parallel session's seed once
-                // wrote the sort value into enable - CT landed enable=2 and the
-                // vocabulary check went blind). The heal keeps the six rows spec-true.
+                        + "ON CONFLICT (id) DO UPDATE SET ca_id = 1024, enable = 1, "
+                        + "deleted = 0");
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("the 检查类型 vocabulary guard failed: "
+            throw new IllegalStateException("the modality vocabulary guard failed: "
                     + e.getMessage(), e);
         }
     }

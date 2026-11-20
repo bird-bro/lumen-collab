@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: modality-dict-id-anchor-sev
+execution_mode: Batch Inline
+tasks_total: 4
+tasks_done: 4
+workflow_mode: full
+artifacts_hash: 710c7b9ed882554a666fdf56a244100d4733613234c76e38dce9a095501d7f66

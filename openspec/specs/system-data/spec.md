@@ -66,12 +66,15 @@ details carrying the display text in `value`, catalog re-based to id 1000) plus 
 person/org dictionaries curated from the rcp reference database - `bloodType`, `marital`,
 `gender`, `jobTitle`, `idType`, `orgType` (catalog ids 1001-1007, detail ids offset by
 100000), PLUS the user-profile business catalogs seeded by the user-page change:
-「检查类型」 (the exam-type visibility vocabulary — CT/MR/US/... modality abbreviations,
-single-text `value` = the abbreviation) and 「审核权限」 (the report-workflow authority
-tier vocabulary — 报告医生/初审医生/终审医生, plus the RCP 不参与 row), deterministic
-ids clear of the seeded bands (V23 house style: catalog id 1021/1022, detail ids
-+200000 offset), every statement ON CONFLICT-guarded. The set stays extensible through
-the management endpoints without hand-inserted rows.
+the exam-type visibility vocabulary (CT/MR/US/... modality abbreviations,
+single-text `value` = the abbreviation — seeded as catalog 1021 「检查类型」 by V26,
+RETIRED by the V27 unification: the vocabulary lives solely in catalog 1024
+「设备类型」, the single modality source, and consumers anchor it by ID) and
+「审核权限」 (the report-workflow authority tier vocabulary — 报告医生/初审医生/终审医生,
+plus the RCP 不参与 row), deterministic ids clear of the seeded bands (V23 house
+style: catalog id 1021/1022, detail ids +200000 offset), every statement
+ON CONFLICT-guarded. The set stays extensible through the management endpoints
+without hand-inserted rows.
 
 #### Scenario: Fresh database carries the starter dictionary
 
@@ -86,9 +89,10 @@ the management endpoints without hand-inserted rows.
 
 #### Scenario: Exam-type vocabulary renders abbreviations
 
-- **WHEN** a consumer resolves the 检查类型 catalog through the by-name lookup
-- **THEN** the details are the modality abbreviations (CT, MR, US, ...) as the single
-  text values, ordered by sort
+- **WHEN** a consumer resolves the modality vocabulary through the catalog
+  id 1024 lookup
+- **THEN** the details are the modality abbreviations (CT, MR, US, ...) as the
+  single text values, ordered by sort
 
 #### Scenario: Audit-authority vocabulary carries the three tiers
 
@@ -96,7 +100,8 @@ the management endpoints without hand-inserted rows.
 - **THEN** the details cover the report-workflow tiers (报告医生/初审医生/终审医生 and
   the RCP 不参与 row) as the single text values with numeric codes
 
-<!-- synced from: user-edit-delete-profile-api 2026-11-11 -->
+<!-- synced from: user-edit-delete-profile-api 2026-11-11; anchor updated by
+     modality-dict-id-anchor-sev 2026-11-20 (V27-unification reality) -->
 
 ### Requirement: Operation Log Recording
 <!-- synced from: audit-log-unify-api 2026-11-10 (absorbs the former Sign Event
@@ -435,6 +440,7 @@ the new nodes via guarded inserts.
   without any manual grant
 
 <!-- synced from: menu-settings-root 2026-11-13 -->
+
 ### Requirement: Exam Setting Menu Pages
 
 The `system` schema menu tree SHALL carry the exam-setting console group as the L1

@@ -104,7 +104,7 @@ public class ExamBodyGroupServiceImpl implements ExamBodyGroupService {
         if (StrUtil.isBlank(modality)
                 || dictModalityMapper.countLiveModality(modality) == 0) {
             throw new BusinessException(ExceptionEnum.ERROR_A0400,
-                    "检查类型 " + modality + " 不在字典 1027 检查类型 中");
+                    "检查类型 " + modality + " 不在模态词表（字典 1024）中");
         }
     }
 
