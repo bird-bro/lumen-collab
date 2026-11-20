@@ -130,13 +130,25 @@ function pruneToDirectories(nodes: RepTempNode[]): RepTempNode[] {
  */
 function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const { token } = theme.useToken()
   const patchMeasure = (mi: number, patch: Partial<RepTempMeasure>) =>
     onPatch({ measures: section.measures.map((m, i) => (i === mi ? { ...m, ...patch } : m)) })
   return (
     <div role="group" aria-label={`节卡片 ${index + 1}`}>
       <Card
         size="small"
-        title={`节 ${index + 1}`}
+        title={
+          // Title echoes the typed 节名 (prototype ruling 2026-11-20 — the bare
+          // positional 节 N read as meaningless to users); empty shows 节名未填
+          // (the save guard still blocks empty names). The gray positional tag
+          // stays for verbal reference ("节 2 那张卡").
+          <>
+            {section.name.trim() || <span style={{ color: token.colorTextTertiary }}>节名未填</span>}
+            <span style={{ color: token.colorTextTertiary, fontSize: token.fontSizeSM, marginLeft: 8, fontWeight: 400 }}>
+              节 {index + 1}
+            </span>
+          </>
+        }
         extra={
           <div style={{ display: 'flex', gap: 4 }}>
             <Button type="text" size="small" onClick={() => setCollapsed((c) => !c)}>
@@ -150,7 +162,7 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
       >
         <Input
           aria-label="节名"
-          placeholder="节名"
+          placeholder="节名（如：心腔、肝脏）"
           maxLength={64}
           value={section.name}
           onChange={(e) => onPatch({ name: e.target.value })}

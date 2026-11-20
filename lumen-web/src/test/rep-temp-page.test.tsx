@@ -497,6 +497,29 @@ describe('report template page - perm gating', () => {
 })
 
 describe('report template page - structured form (dual mode)', () => {
+  it('card title echoes the typed 节名 with the 节 N tag; empty shows 节名未填 (2026-11-20 prototype ruling)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('呼吸系统')
+
+    await user.click(screen.getByRole('button', { name: /添加模板/ }))
+    const drawer = screen.getByRole('dialog')
+    await pickTemplateType(user, '分节模板')
+
+    // Untyped card: the placeholder title 节名未填 + the positional 节 1 tag
+    // (kept for verbal reference); the 节名 placeholder carries examples.
+    const card = within(drawer).getByRole('group', { name: '节卡片 1' })
+    expect(within(card).getByText('节名未填')).toBeTruthy()
+    expect(within(card).getByText('节 1')).toBeTruthy()
+    expect(within(card).getByPlaceholderText('节名（如：心腔、肝脏）')).toBeTruthy()
+
+    // Typing the name echoes into the title; the positional tag stays.
+    await user.type(within(card).getByLabelText('节名'), '心腔')
+    expect(within(card).getByText('心腔')).toBeTruthy()
+    expect(within(card).getByText('节 1')).toBeTruthy()
+    expect(within(card).queryByText('节名未填')).toBeNull()
+  })
+
   it('分节模板 swaps prose fields for section editors at the fixed 960 width', async () => {
     const user = userEvent.setup()
     renderPage()

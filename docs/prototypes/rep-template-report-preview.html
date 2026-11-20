@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>报告模板 · 分节模板效果原型（演示数据）</title>
+<style>
+  :root {
+    --paper: #ffffff;
+    --ink: #1c2733;
+    --ink-soft: #5b6b7a;
+    --ink-faint: #94a3b3;
+    --line: #d8dfe6;
+    --line-strong: #b9c3cd;
+    --accent: #14532d;
+    --accent-2: #0f4c81;
+    --wash: #f3f1ea;
+    --wash-2: #ecebe3;
+    --card: #ffffff;
+    --serif-cn: "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif;
+    --serif-latin: Georgia, "Times New Roman", serif;
+    --sans-cn: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --mono-num: "SF Mono", "Menlo", "Consolas", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--sans-cn);
+    color: var(--ink);
+    background:
+      repeating-linear-gradient(0deg, rgba(28,39,51,0.016) 0 1px, transparent 1px 3px),
+      radial-gradient(1200px 600px at 15% -5%, #fdfcf8 0%, transparent 60%),
+      var(--wash);
+    padding: 40px 48px 72px;
+  }
+  .page { max-width: 1440px; margin: 0 auto; }
+
+  /* ── 页头 ─────────────────────────────────────── */
+  .masthead {
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+    padding-bottom: 18px; margin-bottom: 30px;
+    border-bottom: 3px double var(--line-strong);
+  }
+  .masthead h1 { font-size: 24px; letter-spacing: 0.06em; font-weight: 700; }
+  .masthead h1 em { font-style: normal; color: var(--accent-2); }
+  .badge {
+    font-size: 12px; letter-spacing: 0.12em; padding: 4px 12px;
+    border: 1px solid var(--line-strong); border-radius: 999px; color: var(--ink-soft);
+  }
+  .masthead .lead { flex-basis: 100%; font-size: 13.5px; color: var(--ink-soft); line-height: 1.8; margin-top: 4px; }
+
+  .section-eyebrow {
+    display: flex; align-items: center; gap: 14px; margin: 44px 0 16px;
+    font-size: 13px; letter-spacing: 0.28em; color: var(--ink-faint); font-weight: 600;
+  }
+  .section-eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .section-eyebrow strong { color: var(--ink); font-size: 16px; letter-spacing: 0.1em; }
+
+  /* ── 编辑形态面板 ─────────────────────────────── */
+  .editor-zone {
+    display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+    gap: 24px; align-items: start;
+  }
+  .drawer-mock {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(28, 39, 51, 0.08); overflow: hidden;
+  }
+  .drawer-mock .dm-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 20px; border-bottom: 1px solid var(--line); background: #fbfcfd;
+  }
+  .dm-head .dm-title { font-size: 15px; font-weight: 600; }
+  .dm-head .dm-x { color: var(--ink-faint); font-size: 16px; }
+  .dm-body { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+  .dm-row { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+  .dm-row .dm-label { color: var(--ink-soft); flex: 0 0 auto; }
+  .dm-field {
+    border: 1px solid var(--line-strong); border-radius: 6px; background: #fff;
+    padding: 6px 10px; font-size: 13px; color: var(--ink); display: inline-flex; align-items: center; gap: 6px;
+  }
+  .dm-field.grow { flex: 1; }
+  .dm-field .caret { color: var(--ink-faint); font-size: 10px; }
+  .dm-field .echo { color: var(--accent-2); font-weight: 600; }
+
+  .sec-card { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #fff; }
+  .sec-card .sc-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; background: #f6f8fa; border-bottom: 1px solid var(--line); font-size: 13px;
+  }
+  .sc-head .sc-title { font-weight: 600; display: flex; align-items: baseline; gap: 8px; }
+  .sc-head .sc-title .no { color: var(--ink-faint); font-weight: 400; font-size: 12px; font-family: var(--mono-num); }
+  .sc-head .sc-ops { display: flex; gap: 10px; font-size: 12px; color: var(--accent-2); }
+  .sc-head .sc-ops .danger { color: #b42334; }
+  .sc-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .m-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+  .m-cell {
+    border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; background: #fff;
+    white-space: nowrap; color: var(--ink);
+  }
+  .m-cell .ph { color: var(--ink-faint); }
+  .m-cell.w-code { width: 84px; }
+  .m-cell.w-label { flex: 1; min-width: 90px; }
+  .m-cell.w-unit { width: 58px; }
+  .m-cell.w-kind { width: 86px; display: inline-flex; justify-content: space-between; }
+  .m-cell.w-num { width: 64px; font-family: var(--mono-num); font-size: 12px; }
+  .m-tilde { color: var(--ink-faint); }
+  .m-del { color: #b42334; font-size: 12px; padding: 4px 6px; }
+  .m-findings { border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; font-size: 12.5px; color: var(--ink); min-height: 52px; background: #fff; }
+  .m-findings .ph { color: var(--ink-faint); }
+  .add-sec {
+    border: 1px dashed var(--line-strong); border-radius: 8px; padding: 9px;
+    text-align: center; font-size: 13px; color: var(--ink-soft); background: transparent;
+  }
+  .dm-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--line); background: #fbfcfd; }
+  .btn { border: 1px solid var(--line-strong); background: #fff; border-radius: 6px; padding: 6px 16px; font-size: 13px; color: var(--ink); }
+  .btn.primary { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
+
+  .notes { display: flex; flex-direction: column; gap: 12px; }
+  .note {
+    background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--accent-2);
+    border-radius: 8px; padding: 12px 16px; font-size: 13px; line-height: 1.85; color: var(--ink);
+  }
+  .note b { color: var(--accent-2); }
+  .note.dim { border-left-color: var(--line-strong); color: var(--ink-soft); }
+
+  /* ── A4 报告单 ───────────────────────────────── */
+  .sheets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px; align-items: start; }
+  .sheet-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .sheet-tag {
+    display: flex; align-items: center; gap: 10px; font-size: 13px;
+  }
+  .sheet-tag .tag-no {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: var(--wash);
+    display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-family: var(--mono-num);
+  }
+  .sheet-tag b { letter-spacing: 0.08em; }
+  .sheet-tag span { color: var(--ink-soft); font-size: 12.5px; }
+  .sheet {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    box-shadow: 0 2px 3px rgba(28,39,51,0.06), 0 14px 34px rgba(28,39,51,0.13);
+    padding: 34px 38px 28px;
+    font-family: var(--serif-cn);
+    position: relative;
+  }
+  .sheet::before {
+    content: ""; position: absolute; inset: 6px; border: 1px solid rgba(28,39,51,0.10); pointer-events: none;
+  }
+  .sheet * { font-family: inherit; }
+
+  .rp-hospital { text-align: center; font-size: 21px; letter-spacing: 0.34em; font-weight: 700; color: var(--accent-2); }
+  .rp-sub { text-align: center; font-size: 14px; letter-spacing: 0.5em; color: var(--ink); margin-top: 6px; font-weight: 600; }
+  .rp-rule { height: 2px; background: var(--ink); margin: 14px 0 0; }
+  .rp-rule.thin { height: 1px; background: var(--line-strong); margin-top: 2px; }
+
+  .rp-meta {
+    display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between;
+    gap: 4px 18px; padding: 10px 2px 8px; font-size: 12.5px; color: var(--ink);
+  }
+  .rp-meta .k { color: var(--ink-soft); margin-right: 4px; }
+  .rp-meta .v { font-family: var(--serif-latin); letter-spacing: 0.02em; }
+
+  .rp-block-title { font-size: 14px; font-weight: 700; letter-spacing: 0.2em; margin: 14px 0 8px; display: flex; align-items: center; gap: 8px; }
+  .rp-block-title::before { content: "▎"; color: var(--accent-2); font-size: 13px; }
+  .rp-prose { font-size: 13.5px; line-height: 2.05; text-align: justify; color: var(--ink); }
+  .rp-prose .sec-name { font-weight: 700; }
+  .rp-prose .meas { color: var(--ink); }
+  .rp-prose .ref { color: var(--ink-soft); font-size: 12px; font-family: var(--mono-num); }
+  .rp-prose .gap { color: var(--ink-faint); }
+
+  .rp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 4px 0 6px; }
+  .rp-table th {
+    border-top: 1.5px solid var(--ink); border-bottom: 1px solid var(--ink);
+    padding: 5px 8px; font-weight: 600; letter-spacing: 0.14em; font-size: 12px; text-align: left;
+  }
+  .rp-table td { border-bottom: 1px solid var(--line); padding: 5.5px 8px; }
+  .rp-table td.num { font-family: var(--mono-num); font-size: 12px; }
+  .rp-table td.blank { color: var(--ink-faint); }
+  .rp-table tr.out-of-range td.num.actual { color: #b42334; }
+
+  .rp-opinion {
+    margin-top: 12px; border: 1px solid var(--line-strong); padding: 10px 14px;
+    font-size: 13.5px; line-height: 1.95; background: #fcfcf9;
+  }
+  .rp-opinion .rp-block-title { margin: 0 0 6px; }
+  .rp-sign {
+    display: flex; justify-content: space-between; margin-top: 26px; padding-top: 12px;
+    border-top: 1px solid var(--line-strong); font-size: 12.5px; color: var(--ink-soft);
+  }
+  .rp-sign .sig { color: var(--ink); font-family: var(--serif-latin); font-style: italic; font-size: 15px; }
+  .rp-footnote { text-align: center; margin-top: 14px; font-size: 11px; letter-spacing: 0.3em; color: var(--ink-faint); }
+
+  /* ── 拍板点 ───────────────────────────────────── */
+  .decisions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+  .decision {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px;
+    box-shadow: 0 3px 12px rgba(28,39,51,0.05);
+  }
+  .decision .d-no { font-family: var(--mono-num); font-size: 12px; color: var(--accent-2); letter-spacing: 0.1em; }
+  .decision h3 { font-size: 14.5px; margin: 6px 0 8px; letter-spacing: 0.04em; }
+  .decision p { font-size: 13px; line-height: 1.9; color: var(--ink-soft); }
+  .decision .rec { margin-top: 10px; font-size: 12.5px; color: var(--accent); background: rgba(20,83,45,0.07); border-radius: 6px; padding: 6px 10px; display: inline-block; }
+  .decision .opt { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; margin: 2px 6px 2px 0; font-size: 12px; color: var(--ink); }
+  .decision .opt.picked { border-color: var(--accent-2); color: var(--accent-2); background: rgba(15,76,129,0.06); }
+
+  .endnote { margin-top: 36px; font-size: 12.5px; color: var(--ink-faint); text-align: center; letter-spacing: 0.08em; }
+
+  @media (max-width: 1180px) {
+    .editor-zone { grid-template-columns: 1fr; }
+    .sheets { grid-template-columns: 1fr; }
+    .decisions { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <h1>报告模板 · <em>分节模板</em> 效果原型</h1>
+    <span class="badge">静态原型 · 演示数据 · 不接后端</span>
+    <p class="lead">
+      回答两个问题：①「添加节」的编辑形态长什么样、标签怎么改才看得懂；②这样一套
+      「节名 + 测量项 + 节所见 + 意见」的模板，最终打印出的报告是什么样。两种报告排版变体
+      （A 段落式 / B 测值表式）用同一份模板数据渲染，直接对比拍板。
+    </p>
+  </header>
+
+  <!-- ═══ 编辑形态 ═══ -->
+  <div class="section-eyebrow"><strong>壹 · 编辑形态</strong>分节模板抽屉（按 2026-11-20 已定稿的下拉控件渲染）</div>
+  <div class="editor-zone">
+    <div class="drawer-mock">
+      <div class="dm-head">
+        <span class="dm-title">添加模板</span>
+        <span class="dm-x">✕</span>
+      </div>
+      <div class="dm-body">
+        <div class="dm-row">
+          目录：<span class="dm-field"><span class="echo">心脏</span></span>
+          <span class="dm-label" style="margin-left:16px">类型</span>
+          <span class="dm-field" style="width:150px; justify-content:space-between">分节模板 <span class="caret">▾</span></span>
+        </div>
+        <div class="dm-row"><span class="dm-label">名称</span><span class="dm-field grow">心脏超声（成人常规）</span></div>
+
+        <div class="sec-card">
+          <div class="sc-head">
+            <span class="sc-title">心腔 <span class="no">节 1</span></span>
+            <span class="sc-ops"><span>折叠</span><span class="danger">删除节</span></span>
+          </div>
+          <div class="sc-body">
+            <div class="m-row">
+              <span class="m-cell w-code">LA</span>
+              <span class="m-cell w-label">左房内径</span>
+              <span class="m-cell w-unit">mm</span>
+              <span class="m-cell w-kind">区间 <span class="caret">▾</span></span>
+              <span class="m-cell w-num">19</span><span class="m-tilde">~</span><span class="m-cell w-num">40</span>
+              <span class="m-del">删除</span>
+            </div>
+            <div class="m-row">
+              <span class="m-cell w-code">AO</span>
+              <span class="m-cell w-label">主动脉根部内径</span>
+              <span class="m-cell w-unit">mm</span>
+              <span class="m-cell w-kind">区间 <span class="caret">▾</span></span>
+              <span class="m-cell w-num">20</span><span class="m-tilde">~</span><span class="m-cell w-num">37</span>
+              <span class="m-del">删除</span>
+            </div>
+            <div class="m-row">
+              <span class="m-cell w-code">WALL</span>
+              <span class="m-cell w-label">室壁运动</span>
+              <span class="m-cell w-unit"><span class="ph">—</span></span>
+              <span class="m-cell w-kind">文本 <span class="caret">▾</span></span>
+              <span class="m-cell w-label" style="flex:2"><span class="ph">定性描述 ≤64 字</span></span>
+              <span class="m-del">删除</span>
+            </div>
+            <div class="m-findings">左房增大。</div>
+          </div>
+        </div>
+
+        <div class="sec-card">
+          <div class="sc-head">
+            <span class="sc-title"><span style="color:var(--ink-faint)">节名未填</span> <span class="no">节 2</span></span>
+            <span class="sc-ops"><span>折叠</span><span class="danger">删除节</span></span>
+          </div>
+          <div class="sc-body">
+            <div class="m-row">
+              <span class="m-cell w-code">EF</span>
+              <span class="m-cell w-label">射血分数</span>
+              <span class="m-cell w-unit">%</span>
+              <span class="m-cell w-kind">区间 <span class="caret">▾</span></span>
+              <span class="m-cell w-num">50</span><span class="m-tilde">~</span><span class="m-cell w-num">75</span>
+              <span class="m-del">删除</span>
+            </div>
+            <div class="m-row">
+              <span class="m-cell w-code">FS</span>
+              <span class="m-cell w-label">短轴缩短率</span>
+              <span class="m-cell w-unit">%</span>
+              <span class="m-cell w-kind">区间 <span class="caret">▾</span></span>
+              <span class="m-cell w-num">25</span><span class="m-tilde">~</span><span class="m-cell w-num">45</span>
+              <span class="m-del">删除</span>
+            </div>
+            <div class="m-findings"><span class="ph">节所见（可空）</span></div>
+          </div>
+        </div>
+
+        <div class="add-sec">＋ 添加节</div>
+      </div>
+      <div class="dm-foot"><span class="btn">取消</span><span class="btn primary">保存</span></div>
+    </div>
+
+    <div class="notes">
+      <div class="note">
+        <b>改进一（卡片标题回显节名）</b>：「节 1 / 节 2」只是位置编号，用户看不懂。
+        卡片标题改为<b>实时回显用户填的节名</b>——填了「心腔」标题就是「心腔」（右侧保留
+        灰色小号 节 1 编号便于口头沟通）；没填就显示「节名未填」提示，保存时仍被
+        节名必填拦住。节名输入框的占位文案同步加示例：「节名（如：心腔、肝脏）」。
+      </div>
+      <div class="note">
+        <b>改进二（已定稿，今日已落库）</b>：测量行的 区间/文本 切换器从 Segmented 换成
+        <b>下拉框</b>——上面第三行（室壁运动）即为文本形态的效果。v2 序列化语义零变更。
+      </div>
+      <div class="note dim">
+        <b>「节」这个字要不要换</b>：备选 部位 / 分组 / 条目。注意「部位」与检查设置里已有的
+        「检查部位 / 部位分组」撞名，不建议；「节」与「节名」「节所见」字段自洽。
+        倾向保留，见文末拍板点 ③。
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 报告效果 ═══ -->
+  <div class="section-eyebrow"><strong>贰 · 打印效果</strong>同一份模板数据的两种报告排版（测值为报告编辑期填写，模板只存参考范围）</div>
+  <div class="sheets">
+
+    <!-- 变体 A 段落式 -->
+    <div class="sheet-wrap">
+      <div class="sheet-tag"><span class="tag-no">A</span><b>段落式</b><span>测值内联在所见文字里，贴近「读一段话」的传统病历风格</span></div>
+      <div class="sheet">
+        <div class="rp-hospital">示例人民医院</div>
+        <div class="rp-sub">超声诊断报告单</div>
+        <div class="rp-rule"></div>
+        <div class="rp-rule thin"></div>
+        <div class="rp-meta">
+          <span><span class="k">姓名</span><span class="v">张三</span></span>
+          <span><span class="k">性别</span>男</span>
+          <span><span class="k">年龄</span><span class="v">56</span> 岁</span>
+          <span><span class="k">门诊号</span><span class="v">M000123</span></span>
+          <span><span class="k">检查号</span><span class="v">US20261120001</span></span>
+          <span><span class="k">检查类型</span>超声心动图</span>
+          <span><span class="k">仪器</span>便携彩超</span>
+          <span><span class="k">日期</span><span class="v">2026-11-20</span></span>
+        </div>
+
+        <div class="rp-block-title">影像学表现</div>
+        <div class="rp-prose">
+          <span class="sec-name">心腔</span>：左房增大。左房内径
+          <span class="meas">34mm</span><span class="ref">（参考 19~40）</span>、主动脉根部内径
+          <span class="meas">32mm</span><span class="ref">（参考 20~37）</span>。<br>
+          <span class="sec-name">心功能</span>：射血分数
+          <span class="meas">58%</span><span class="ref">（参考 50~75）</span>、短轴缩短率
+          <span class="meas">30%</span><span class="ref">（参考 25~45）</span>、每搏输出量
+          <span class="meas">68ml</span><span class="ref">（参考 55~90）</span>。
+        </div>
+
+        <div class="rp-opinion">
+          <div class="rp-block-title">影像学意见</div>
+          左房增大；心功能指标未见异常。建议随访复查。
+        </div>
+
+        <div class="rp-sign">
+          <span>报告医师：<span class="sig">李医生</span></span>
+          <span>审核医师：<span class="sig">王医生</span></span>
+          <span>报告时间：<span class="v" style="font-family:var(--mono-num);font-style:normal;font-size:12px">2026-11-20 15:42</span></span>
+        </div>
+        <div class="rp-footnote">示例人民医院 · 影像中心</div>
+      </div>
+    </div>
+
+    <!-- 变体 B 测值表式 -->
+    <div class="sheet-wrap">
+      <div class="sheet-tag"><span class="tag-no">B</span><b>测值表式</b><span>每节一张小测值表（名称/单位/测值/参考范围），所见文字跟在表下</span></div>
+      <div class="sheet">
+        <div class="rp-hospital">示例人民医院</div>
+        <div class="rp-sub">超声诊断报告单</div>
+        <div class="rp-rule"></div>
+        <div class="rp-rule thin"></div>
+        <div class="rp-meta">
+          <span><span class="k">姓名</span><span class="v">张三</span></span>
+          <span><span class="k">性别</span>男</span>
+          <span><span class="k">年龄</span><span class="v">56</span> 岁</span>
+          <span><span class="k">门诊号</span><span class="v">M000123</span></span>
+          <span><span class="k">检查号</span><span class="v">US20261120001</span></span>
+          <span><span class="k">检查类型</span>超声心动图</span>
+          <span><span class="k">仪器</span>便携彩超</span>
+          <span><span class="k">日期</span><span class="v">2026-11-20</span></span>
+        </div>
+
+        <div class="rp-block-title">影像学表现</div>
+        <div class="rp-prose" style="font-weight:700">一、心腔</div>
+        <table class="rp-table">
+          <thead><tr><th style="width:34%">名称</th><th style="width:14%">单位</th><th style="width:18%">测值</th><th>参考范围</th></tr></thead>
+          <tbody>
+            <tr><td>左房内径</td><td>mm</td><td class="num actual">34</td><td class="num">19 ~ 40</td></tr>
+            <tr><td>主动脉根部内径</td><td>mm</td><td class="num">32</td><td class="num">20 ~ 37</td></tr>
+          </tbody>
+        </table>
+        <div class="rp-prose">所见：左房增大。</div>
+
+        <div class="rp-prose" style="font-weight:700; margin-top:10px">二、心功能</div>
+        <table class="rp-table">
+          <thead><tr><th style="width:34%">名称</th><th style="width:14%">单位</th><th style="width:18%">测值</th><th>参考范围</th></tr></thead>
+          <tbody>
+            <tr><td>射血分数</td><td>%</td><td class="num">58</td><td class="num">50 ~ 75</td></tr>
+            <tr><td>短轴缩短率</td><td>%</td><td class="num">30</td><td class="num">25 ~ 45</td></tr>
+            <tr><td>每搏输出量</td><td>ml</td><td class="num">68</td><td class="num">55 ~ 90</td></tr>
+          </tbody>
+        </table>
+        <div class="rp-prose"><span class="gap">所见：—（该节未填）</span></div>
+
+        <div class="rp-opinion">
+          <div class="rp-block-title">影像学意见</div>
+          左房增大；心功能指标未见异常。建议随访复查。
+        </div>
+
+        <div class="rp-sign">
+          <span>报告医师：<span class="sig">李医生</span></span>
+          <span>审核医师：<span class="sig">王医生</span></span>
+          <span>报告时间：<span class="v" style="font-family:var(--mono-num);font-style:normal;font-size:12px">2026-11-20 15:42</span></span>
+        </div>
+        <div class="rp-footnote">示例人民医院 · 影像中心</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 拍板点 ═══ -->
+  <div class="section-eyebrow"><strong>叁 · 拍板点</strong>逐项定一下，定完我再落提案</div>
+  <div class="decisions">
+    <div class="decision">
+      <span class="d-no">DECISION 01</span>
+      <h3>卡片标题回显节名</h3>
+      <p>填了节名标题就变（右侧留灰色 节 N 编号），没填显示「节名未填」；节名占位文案加示例（如：心腔、肝脏）。解决「节 1 / 节 2 看不懂」。</p>
+      <span class="rec">建议：采纳（改动很小，纯前端文案级）</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 02</span>
+      <h3>报告排版变体</h3>
+      <span class="opt picked">A 段落式</span><span class="opt picked">B 测值表式</span>
+      <p>A 读起来连贯、省纸；B 测值列对齐、超差值可标红，超声科习惯测值成表。两变体也可并存为报告侧的一个排版选项。</p>
+      <span class="rec">建议：B 起步（表格是模板结构化收益最直观的兑现；A 可作为后续排版选项）</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 03</span>
+      <h3>「节」术语保留与否</h3>
+      <span class="opt picked">保留「节」</span><span class="opt">「分组」</span><span class="opt">「条目」</span>
+      <p>「部位」与检查设置既有的「检查部位 / 部位分组」撞名，不建议。「节」与节名、节所见字段自洽；改名是纯文案级变更，但要动抽屉、提示语、规格与页测。</p>
+      <span class="rec">建议：保留「节」（避免与部位体系撞名）</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 04</span>
+      <h3>节排序控件</h3>
+      <p>目前节按添加顺序排列，报告渲染顺序相同。是否需要 上移/下移（或拖拽）调整节顺序——决定报告里「一、心腔 / 二、心功能」的先后。</p>
+      <span class="rec">建议：先不加，等真实录入反馈（需要时再加，纯前端态）</span>
+    </div>
+  </div>
+
+  <p class="endnote">报告单骨架（页眉 / 患者条 / 签名区）为示意，最终以报告工作流提案定稿 · 本页数据全部为演示数据</p>
+</div>
+</body>
+</html>
