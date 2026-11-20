@@ -24,14 +24,27 @@ public class FakeNumberIssuerPort implements NumberIssuerPort {
     /** The most recently issued value (verbatim-consumption assertions read it). */
     static volatile String LAST_ISSUED;
 
+    /**
+     * The modality token of the most recent issue (the port-wire assertions of the
+     * modality-scope change read it - number-rule-modality-scope task 2.2).
+     */
+    static volatile String LAST_ISSUED_MODALITY;
+
     /** Sequential accession source - the stored number must equal this output. */
     private final AtomicInteger sequence = new AtomicInteger(0);
 
     @Override
     public String issue(String ruleType) {
+        // the single-arg contract = null modality (the family GLOBAL pool)
+        return issue(ruleType, null);
+    }
+
+    @Override
+    public String issue(String ruleType, String modality) {
         if (FAILING) {
             throw new IllegalStateException("platform issuer unreachable");
         }
+        LAST_ISSUED_MODALITY = modality;
         LAST_ISSUED = "AC-FAKE-" + String.format("%06d", sequence.incrementAndGet());
         return LAST_ISSUED;
     }

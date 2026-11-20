@@ -10,6 +10,11 @@
 - Review: Approved - zero Critical/Important; all three deviations from the literal brief load-bearing and documented in-code (mapper scoped query named `selectScopedActiveForUpdate` - MyBatis keys statements by method name, same-name overload silently ignored by MP; duplicate-active message prefix drop; single-arg SQL narrowing to `modality IS NULL`)
 - Notes: review 3 Minors fixed inline (seed COUNT=3 -> per-family >=1 shared-server robustness; toggle-informational pin test; modality trim-to-null RED->GREEN); TDD 4 RED rounds -> 32/32 green (Issuer 11 / Api 16 / Seed 5) + reactor compile green
 
+### Batch 2: contracts + kernel + US plumbing (tasks 2.1-2.3)
+- Status: Complete + Approved (coordinator commit this batch)
+- Review: Approved - F1 ruled in-batch root fix (ACCEPTED): pre-existing MP 3.5.3.1 collection-jsonb limitation (List<LinkedHashMap>) first exposed by the typed element access; new ExamItemRefListJsonbTypeHandler on the complete two-field set, write path untouched, HIS tests as regression RED; independently verified the latency claim (4 consumers, none pre-batch accessed elements)
+- Notes: 51 tests green (core 22 / US 29) across 4 RED rounds; review 2 Minors fixed (assertion message wording; Arrays.asList fixed-size javadoc note); US passthrough zero-code-change proven by reference assignment + e2e
+
 ---
 
 ## Change: init-backend-skeleton

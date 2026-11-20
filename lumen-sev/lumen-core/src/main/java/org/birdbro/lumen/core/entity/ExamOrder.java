@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import org.birdbro.common.core.base.EntityBase;
+import org.birdbro.lumen.core.mapper.ExamItemRefListJsonbTypeHandler;
 import org.birdbro.lumen.core.mapper.KernelJsonbTypeHandler;
 
 /**
@@ -65,8 +66,13 @@ public class ExamOrder extends EntityBase {
     @TableField(typeHandler = KernelJsonbTypeHandler.class)
     private PatientSnapshot patientSnapshot;
 
-    /** 检查项目引用+名称快照 (kernel holds references + snapshots, not the catalog). */
-    @TableField(typeHandler = KernelJsonbTypeHandler.class)
+    /**
+     * 检查项目引用+名称快照 (kernel holds references + snapshots, not the catalog).
+     * Reads go through the TYPED list handler (the raw {@code List.class} parse loses
+     * the element type and hands back maps - the modality-scope derivation is the
+     * kernel's first typed element accessor).
+     */
+    @TableField(typeHandler = ExamItemRefListJsonbTypeHandler.class)
     private List<ExamItemRef> examItems;
 
     /** 急诊标志 (display/notification only, the EIS semantics). */

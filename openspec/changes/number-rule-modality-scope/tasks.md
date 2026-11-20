@@ -27,16 +27,16 @@
 
 ## 2. Batch: contracts + kernel + US plumbing (sev)
 
-- [ ] 2.1 **Feign contract field** — `lumen-feign` `NumberIssueRequest` gains optional
+- [x] 2.1 **Feign contract field** — `lumen-feign` `NumberIssueRequest` gains optional
       `modality` (`NumberApi` signature unchanged); system-side issue DTO/controller
       binds it. Compile + existing `NumberRuleApiTests` green.
-- [ ] 2.2 **Kernel port overload + jsonb widening** — TDD RED first: kernel tests for
+- [x] 2.2 **Kernel port overload + jsonb widening** — TDD RED first: kernel tests for
       `ExamItemRef.modality` round-trip (old jsonb rows read null), port overload
       contract (single-arg = null modality), `registerOrder` deriving the issue modality
       from the first item's non-blank modality. `ExamItemRef` gains `modality`;
       `NumberIssuerPort` gains `issue(String ruleType, String modality)`;
       `ExamOrderRegistrationServiceImpl` uses the overload with the derived token. GREEN.
-- [ ] 2.3 **US adapter + create passthrough** — TDD RED first: `NumberIssuerPortAdapter`
+- [x] 2.3 **US adapter + create passthrough** — TDD RED first: `NumberIssuerPortAdapter`
       forwards the token to `NumberApi`; a create body whose item refs carry modality
       produces `exam_items` jsonb with modality intact and the port called with the
       first item's token (verify the request→order copy preserves the field — extend

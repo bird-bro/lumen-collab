@@ -4,11 +4,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 
 import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
 import org.birdbro.lumen.core.entity.ExamExecution;
+import org.birdbro.lumen.core.entity.ExamItemRef;
 import org.birdbro.lumen.core.entity.ExamOrder;
 import org.birdbro.lumen.core.entity.ExamReport;
 import org.birdbro.lumen.core.hooks.RegistrationContext;
@@ -83,8 +85,12 @@ public class ExamOrderRegistrationServiceImpl implements ExamOrderRegistrationSe
         if (StrUtil.isBlank(order.getAccessionNo())) {
             // the 登记号 (dict 编号类型 1028 token - the accession family) comes VERBATIM
             // from the number-issuer port (platform-owned rule machinery; fail-fast - a
-            // port failure rolls the registration back)
-            order.setAccessionNo(numberIssuerPort.issue("登记号"));
+            // port failure rolls the registration back). The modality scope rides the
+            // FIRST exam item's token (number-rule-modality-scope design D5) - null when
+            // the order carries no items or a blank token, which resolves the family's
+            // GLOBAL pool platform-side (the legacy single-arg behavior preserved).
+            order.setAccessionNo(numberIssuerPort.issue("登记号",
+                    firstExamItemModality(order.getExamItems())));
         }
         Integer orderId = examOrderAggregateService.insertWithMembers(order, execution, report);
 
@@ -98,5 +104,20 @@ public class ExamOrderRegistrationServiceImpl implements ExamOrderRegistrationSe
             hook.execute(context);
         }
         return orderId;
+    }
+
+    /**
+     * The issue modality for the accession: the FIRST exam item's token if non-blank,
+     * else {@code null} (the family global fallback). Deliberately first-item ONLY -
+     * later items are never scanned (mixed-modality orders are outside v1 scope, design
+     * D5; US issues single-项目 orders). The token is client-originated and rides
+     * UNVALIDATED - the scope semantics live platform-side. The refs may be the create
+     * path's in-memory list OR a mapper-read jsonb list (the HIS confirm feeds the
+     * cache target straight in) - both decode TYPED {@code ExamItemRef} elements
+     * through {@code ExamItemRefListJsonbTypeHandler}.
+     */
+    private String firstExamItemModality(List<ExamItemRef> examItems) {
+        ExamItemRef first = CollUtil.getFirst(examItems);
+        return first == null ? null : StrUtil.trimToNull(first.getModality());
     }
 }

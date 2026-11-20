@@ -21,10 +21,25 @@ public interface NumberIssuerPort {
     /**
      * Issues one number for the given rule family (the 登记号 and 预约号 families
      * among them - the dict 编号类型 1028 tokens; family configuration lives
-     * platform-side).
+     * platform-side). Equivalent to {@link #issue(String, String)} with a
+     * {@code null} modality: the family's GLOBAL pool (the legacy contract -
+     * signature and semantics unchanged, number-rule-modality-scope design D5).
      *
      * @param ruleType the rule family
      * @return the issued number
      */
     String issue(String ruleType);
+
+    /**
+     * Issues one number for the given rule family under the given modality scope
+     * (number-rule-modality-scope task 2.2, design D5): the platform resolves the
+     * family's modality-scoped active rule first and the family GLOBAL rule when no
+     * scoped rule exists (or the token is null/blank). The kernel never validates the
+     * token - the scope semantics live platform-side.
+     *
+     * @param ruleType the rule family
+     * @param modality the modality scope (dict 模态 1024 VALUE token); null = global
+     * @return the issued number
+     */
+    String issue(String ruleType, String modality);
 }

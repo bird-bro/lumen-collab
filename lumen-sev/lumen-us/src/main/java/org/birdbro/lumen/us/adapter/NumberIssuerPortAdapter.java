@@ -16,7 +16,12 @@ import org.springframework.stereotype.Component;
  * guarded - {@code FeignInternalKeyConfig} carries the header; direct url {@code
  * lumen.feign.system.url}). The kernel hands the rule family token (the accession family
  * is issued inside {@code ExamOrderRegistrationService.registerOrder} when the caller
- * did not bring one) - this adapter never picks or re-formats a rule.
+ * did not bring one) - this adapter never picks or re-formats a rule. The modality
+ * scope (number-rule-modality-scope task 2.3, design D6) rides the same discipline:
+ * the two-arg overload forwards the kernel's derived token VERBATIM (null stays null
+ * on the wire - never validated, never defaulted; unknown tokens fall back to the
+ * family's global pool platform-side), and the single-arg signature keeps its
+ * null-modality global contract by delegating.
  *
  * <p>Fail-fast contract (the port's own): a missing envelope/data refuses B0001, and a
  * transport failure propagates UNTOUCHED (the fail-fast fallback throws C0001) - a
@@ -38,8 +43,16 @@ public class NumberIssuerPortAdapter implements NumberIssuerPort {
 
     @Override
     public String issue(String ruleType) {
-        R<NumberIssueResponse> response =
-                numberApi.issue(NumberIssueRequest.builder().ruleType(ruleType).build());
+        // the single-arg contract = null modality (the family GLOBAL pool)
+        return issue(ruleType, null);
+    }
+
+    @Override
+    public String issue(String ruleType, String modality) {
+        R<NumberIssueResponse> response = numberApi.issue(NumberIssueRequest.builder()
+                .ruleType(ruleType)
+                .modality(modality)
+                .build());
         if (response == null || response.getData() == null
                 || response.getData().getNumber() == null) {
             throw new BusinessException(ExceptionEnum.ERROR_B0001,

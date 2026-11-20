@@ -16,6 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import org.birdbro.common.core.base.EntityBase;
+import org.birdbro.lumen.core.mapper.ExamItemRefListJsonbTypeHandler;
 import org.birdbro.lumen.core.mapper.KernelJsonbTypeHandler;
 
 /**
@@ -57,9 +58,11 @@ public class ExamApplyCache extends EntityBase {
     /**
      * 映射后项目集 (jsonb): the exam-setting catalog references + name snapshots. The
      * adapter does the catalog LOOKUP; the intake service structurally DROPS entries
-     * without a catalog reference at cache time (the unmatched-item drop rule).
+     * without a catalog reference at cache time (the unmatched-item drop rule). Reads
+     * go through the TYPED list handler - the confirm path feeds this straight into
+     * {@code registerOrder}, whose modality derivation reads the first element.
      */
-    @TableField(typeHandler = KernelJsonbTypeHandler.class)
+    @TableField(typeHandler = ExamItemRefListJsonbTypeHandler.class)
     private List<ExamItemRef> target;
 
     /** 患者提示信息 (confirm 前无身份 - the raw HIS patient fields, jsonb). */

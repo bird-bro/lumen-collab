@@ -3,6 +3,7 @@ phase: applying
 change: number-rule-modality-scope
 execution_mode: SDD
 tasks_total: 8
-tasks_done: 3
+tasks_done: 6
 workflow_mode: full
-artifacts_hash: f45a782da65b4fa28808e3e6ec86e6590167e1d94cc22ad0ebb4c49e0f1e6655
+retry_count: 1
+artifacts_hash: a16302a5dc6fa416b9c322e93def97ad2dcf176e7e6076a83c40448ad604f1c8

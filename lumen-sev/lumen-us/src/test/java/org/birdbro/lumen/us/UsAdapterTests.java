@@ -1,6 +1,7 @@
 package org.birdbro.lumen.us;
 
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import org.birdbro.lumen.feign.patient.PatientIdentityResponse;
 import org.birdbro.lumen.feign.patient.PatientLookupResult;
 import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterRequest;
 import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterResult;
+import org.birdbro.lumen.feign.number.NumberIssueRequest;
 import org.birdbro.lumen.feign.number.NumberIssueResponse;
 import org.birdbro.lumen.core.number.NumberIssuerPort;
 import org.birdbro.lumen.core.patient.PatientIdentity;
@@ -22,6 +24,7 @@ import org.birdbro.lumen.us.adapter.PatientRegistryPortAdapter;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -228,7 +231,67 @@ class UsAdapterTests extends UsIntegrationTestBase {
                 "the C0001 code propagates unmasked - numbers are never fabricated");
     }
 
+    // -------------------- modality-scoped issuance (number-rule-modality-scope task 2.3)
+
+    @Test
+    void twoArgIssueForwardsTheModalityTokenOnTheWire() {
+        AtomicReference<NumberIssueRequest> captured = captureIssue();
+        String number = numberIssuerPort.issue("登记号", "US");
+        assertTrue(number.startsWith(STUB_ACCESSION_PREFIX),
+                "the overload path still issues the platform number");
+        NumberIssueRequest request = captured.get();
+        assertNotNull(request, "the two-arg issue reached the number contract");
+        assertEquals("登记号", request.getRuleType(),
+                "the family rides the request exactly as before");
+        assertEquals("US", request.getModality(),
+                "the modality token rides the additive contract field verbatim - the "
+                        + "adapter never picks, validates, or defaults a rule/scope");
+    }
+
+    @Test
+    void singleArgIssueKeepsNullModalityOnTheWire() {
+        AtomicReference<NumberIssueRequest> captured = captureIssue();
+        numberIssuerPort.issue("登记号");
+        assertNotNull(captured.get(), "the single-arg issue reached the number contract");
+        assertNull(captured.get().getModality(),
+                "the legacy single-arg signature stays the null-modality GLOBAL contract");
+    }
+
+    @Test
+    void twoArgIssueWithNullModalityStaysNullOnTheWire() {
+        AtomicReference<NumberIssueRequest> captured = captureIssue();
+        numberIssuerPort.issue("登记号", null);
+        assertNotNull(captured.get(), "the null-token overload still reaches the contract");
+        assertNull(captured.get().getModality(),
+                "a null token stays null on the wire - never defaulted to a modality");
+    }
+
+    @Test
+    void twoArgIssueRefusesMissingData() {
+        when(numberApi.issue(any())).thenReturn(R.ofSuccess(
+                NumberIssueResponse.builder().number(null).build()));
+        BusinessException refused = assertThrows(BusinessException.class,
+                () -> numberIssuerPort.issue("登记号", "US"),
+                "the overload path keeps the fail-fast contract: a number-less envelope "
+                        + "refuses B0001, never a fabricated number");
+        assertEquals(ExceptionEnum.ERROR_B0001.getCode(), refused.getCode());
+    }
+
     // ---------------------------------------------------------------- helpers
+
+    /**
+     * Points the number seam at an Answer that CAPTURES the outgoing request body -
+     * the wire-shape assertions of the modality-scope change read it.
+     */
+    private AtomicReference<NumberIssueRequest> captureIssue() {
+        AtomicReference<NumberIssueRequest> captured = new AtomicReference<>();
+        when(numberApi.issue(any())).thenAnswer(inv -> {
+            captured.set(inv.getArgument(0));
+            return R.ofSuccess(NumberIssueResponse.builder()
+                    .number(STUB_ACCESSION_PREFIX + "MOD" + System.nanoTime()).build());
+        });
+        return captured;
+    }
 
     /** The demographics the create path hands the port. */
     private PatientRegistrationRequest request() {

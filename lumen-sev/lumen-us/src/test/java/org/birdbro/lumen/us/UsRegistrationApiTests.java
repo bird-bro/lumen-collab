@@ -22,6 +22,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.birdbro.lumen.feign.patient.PatientIdentityResponse;
 import org.birdbro.lumen.feign.patient.PatientLookupResult;
 import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterResult;
+import org.birdbro.lumen.feign.number.NumberIssueRequest;
 import org.birdbro.lumen.feign.number.NumberIssueResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -170,6 +171,75 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 "SELECT COUNT(*) FROM exam_report WHERE order_id = ?", Integer.class, orderId);
         assertEquals(Integer.valueOf(1), executionRows, "the execution member exists");
         assertEquals(Integer.valueOf(1), reportRows, "the report placeholder member exists");
+    }
+
+    // ---------------- Modality reaches the issuer port (number-rule-modality-scope 2.3)
+
+    @Test
+    void modalityReachesTheIssuerPortAndPersistsInTheExamItemsJsonb() throws Exception {
+        // spec us-station "Modality reaches the issuer port": a create body whose first
+        // item reference carries modality US issues the 登记号 family WITH that token
+        // through the number contract AND stores the item refs with the modality intact
+        int stubUid = STUB_UID_BASE + 601;
+        when(patientApi.resolveOrRegister(any())).thenReturn(org.birdbro.common.core.R.ofSuccess(
+                PatientResolveOrRegisterResult.builder()
+                        .result(PatientResolveOrRegisterResult.RESULT_MATCHED)
+                        .identity(PatientIdentityResponse.builder()
+                                .patUid(stubUid)
+                                .patId("US3-MOD")
+                                .name("us3模态档案")
+                                .gender(2)
+                                .state("RESOLVED")
+                                .build())
+                        .build()));
+        java.util.concurrent.atomic.AtomicReference<NumberIssueRequest> issued =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        when(numberApi.issue(any())).thenAnswer(inv -> {
+            issued.set(inv.getArgument(0));
+            return org.birdbro.common.core.R.ofSuccess(NumberIssueResponse.builder()
+                    .number(STUB_ACCESSION_PREFIX + "ACCUS1").build());
+        });
+
+        long ts = stamp();
+        String body = "{\"idType\":\"01\",\"idNo\":\"US3MOD-" + ts + "\","
+                + "\"name\":\"us3模态档案\",\"gender\":2,"
+                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\","
+                + "\"modality\":\"US\"}]}";
+        JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
+                fullPermToken()));
+        assertEquals("200", response.path("code").asText(),
+                "the modality-carrying create must succeed through the real chain: "
+                        + response);
+        int orderId = response.path("data").path("orderId").asInt(-1);
+        assertTrue(orderId > 0, "the order persists: " + response);
+        UsRegistrationFixtures.registerOrder(orderId);
+        assertEquals(STUB_ACCESSION_PREFIX + "ACCUS1",
+                response.path("data").path("accessionNo").asText(),
+                "the accession rides the number issued INSIDE the creation path");
+
+        // the port received the family + the first item's token TOGETHER
+        NumberIssueRequest request = issued.get();
+        assertNotNull(request, "the create path called the number-issue contract");
+        assertEquals("登记号", request.getRuleType(),
+                "the kernel picks the accession family (the adapter never does)");
+        assertEquals("US", request.getModality(),
+                "the first item's modality token reaches the issuer port verbatim");
+
+        // the exam_items jsonb carries the modality intact
+        String stored = jdbcTemplate.queryForObject(
+                "SELECT exam_items->0->>'modality' FROM exam_order WHERE id = ?",
+                String.class, orderId);
+        assertEquals("US", stored,
+                "the item reference persists in the exam_items jsonb WITH its modality");
+
+        // the read side renders the token back through the page view (the refs pass
+        // through the view untouched)
+        JsonNode page = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "?pageNum=1&pageSize=50", null, fullPermToken()));
+        JsonNode record = findRecordByOrderId(page, orderId);
+        assertNotNull(record, "the order renders in the page query");
+        assertEquals("US", record.path("examItems").get(0).path("modality").asText(),
+                "the page view renders the persisted item modality");
     }
 
     // --------------------------- Incomplete port result refused (adapter scenarios)

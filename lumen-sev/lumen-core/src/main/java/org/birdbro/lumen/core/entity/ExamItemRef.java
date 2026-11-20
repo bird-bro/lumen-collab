@@ -11,6 +11,12 @@ import lombok.NoArgsConstructor;
  * {@code itemName} is the snapshot taken at order time so history stays stable when
  * the catalog renames. Carried inside the order's {@code exam_items} jsonb array.
  *
+ * <p>jsonb widening (number-rule-modality-scope design D5): {@code modality} carries
+ * the item's dict-1024 VALUE token (the same shape {@code org_device.type} and the
+ * exam_item catalog store) so the issuer can scope the accession number by modality.
+ * Pre-widening rows simply lack the key and read as {@code null} - the null token
+ * resolves the family's GLOBAL pool.</p>
+ *
  * @author birdbro
  */
 @Data
@@ -24,4 +30,11 @@ public class ExamItemRef {
 
     /** The item name snapshot at order time. */
     private String itemName;
+
+    /**
+     * The item's modality token (dict 模态 1024 VALUE, e.g. US; client-originated from
+     * the setting catalog - the kernel neither validates nor defaults it; null/blank =
+     * the family global rule).
+     */
+    private String modality;
 }
