@@ -40,4 +40,4 @@
 
 ## Batch 5 — verify
 
-- [ ] 5.1 Full reactor `./mvnw test -q` green; `/opsx:verify` credential.
+- [x] 5.1 Full reactor `./mvnw test -q` green; `/opsx:verify` credential.
