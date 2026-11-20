@@ -69,7 +69,7 @@
 5:- [ ] 1.1 `lumen-us` module: pom (aggregator + BOM import), `UsApplication` (scan `org.birdbro`,
 9:- [ ] 1.2 Ledger V1: vendor-copy the kernel registration DDL verbatim. Test: schema migration test
 12:- [ ] 1.3 Ledger V2 `us_registration_ext` + ledger V3 cross-schema menu seed (登记 C page + F
-18:- [ ] 2.1 `lumen-api/patient`: `PatientApi` Feign contract + DTOs (resolve-or-register identity,
+18:- [ ] 2.1 `lumen-feign/patient`: `PatientApi` Feign contract + DTOs (resolve-or-register identity,
 20:- [ ] 2.2 patient-side: `InternalKeyInterceptor` config + `InternalPatientController`
 27:- [ ] 3.1 us adapters: `PatientRegistryPortAdapter`, `NumberIssuerPortAdapter`, internal-key
 29:- [ ] 3.2 `RegistrationController` (resolve passthrough / create / page query / register / cancel)

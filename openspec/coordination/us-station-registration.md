@@ -13,7 +13,7 @@
   minimal set: pregnancy status + gestational weeks + note (EIS 对照: US 登记无 EIS 特有字段, 孕检为
   lumen 决策 #5).
 - `PatientRegistryPort` adapter = Feign → **patient internal endpoints** (internal-key guarded,
-  `InternalKeyInterceptor` precedent from system's `/issue`); `lumen-api` gains the `PatientApi`
+  `InternalKeyInterceptor` precedent from system's `/issue`); `lumen-feign` gains the `PatientApi`
   contract (add-only; NumberApi precedent). patient also exposes the **outbox-pull + ack** internal
   endpoints — the `patient.changed` delivery channel is **internal polling, no MQ** (user ruling
   2026-11-20; RocketMQ stays undeployed).
@@ -36,5 +36,5 @@
 
 | Stack | Change |
 |:--|:--|
-| Backend (lumen-us + patient internal + lumen-api) | `us-station-registration-sev` |
+| Backend (lumen-us + patient internal + lumen-feign) | `us-station-registration-sev` |
 | Frontend (US workstation registration UI) | `us-station-registration-web` |

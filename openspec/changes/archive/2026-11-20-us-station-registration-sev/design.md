@@ -16,7 +16,7 @@
   V3 cross-schema menu seed (patient V2 pattern: system.menu_info + role_menu, CONTENT-guard,
   setval tail). Schema migration tests assert tables/columns per ledger step.
 - **D3 — Adapters** (both in `org.birdbro.lumen.us.adapter`): `PatientRegistryPortAdapter` →
-  `PatientApi` Feign (lumen-api, direct url `lumen.api.patient.url`, NumberApi precedent);
+  `PatientApi` Feign (lumen-feign, direct url `lumen.feign.patient.url`, NumberApi precedent);
   `NumberIssuerPortAdapter` → `NumberApi` (mirror patient's adapter). Internal key propagates via
   the existing header mechanism (patient `FeignInternalKeyConfig` precedent, copied per-service —
   additive-first; framework promotion is a future proposal).
@@ -25,7 +25,7 @@
   /patients/resolve-or-register` composes the EXISTING `PatientArchiveService` resolve + create in
   one transaction (no chain rewrite; `A0715` unchanged); `GET /events/outbox?limit=` + `POST
   /events/outbox/{id}/ack` over `patient_event_outbox` (status PENDING→CONSUMED, rows kept for
-  audit). Contract DTOs live in `lumen-api/patient` (add-only).
+  audit). Contract DTOs live in `lumen-feign/patient` (add-only).
 - **D5 — Snapshot poller** (`us/bootstrap` or `adapter`): `@Scheduled(fixedDelay)` batch pull
   (limit 50), per-entry try/catch, ack only after successful dispatch. `PATIENT_CHANGED` → non-cancelled
   orders (`status NOT IN ('BOOKING_CANCELLED','CANCELLED')` and `deleted=0`) of the payload uid →

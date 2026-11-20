@@ -10,7 +10,7 @@
 - us ledger **V1 vendor-copy** 内核登记 DDL（D2 契约，逐语句照抄）；V2 加 `us_registration_ext`（孕检扩展：妊娠状态/孕周/备注，经 `RegistrationHook` 接缝读写）；V3 跨 schema 种子 US W 节点子菜单（登记 C 页 + F 按钮，`us:order:*` 权限族，patient V2 先例）。
 - 登记.HTTP 面：`RegistrationController`（创建预约/查询分页/登记转状态/取消），薄壳直调内核 `ExamOrderRegistrationService` / `ExamOrderStateMachineService`；accession 经 `NumberIssuerPort` 适配器发号（rule `accession`）。
 - `PatientRegistryPort` 适配器 = Feign → patient **内部端点**（内部钥匙保护，system `/issue` 先例）：`resolve-or-register` 复合端点（解析链服务端原子编排，A0715 冲突语义不变）。
-- `lumen-api` 新增 `PatientApi` 契约（add-only，NumberApi 先例）；patient 侧新增内部端点族：resolve-or-register + outbox-pull/ack（内部钥匙守卫，不走用户权限）。
+- `lumen-feign` 新增 `PatientApi` 契约（add-only，NumberApi 先例）；patient 侧新增内部端点族：resolve-or-register + outbox-pull/ack（内部钥匙守卫，不走用户权限）。
 - 快照刷新接线：us 定时轮询 patient outbox（PENDING 批量拉取→按事件分派→ack 标记消费，失败保持 PENDING 幂等重试）：`PATIENT_CHANGED` 刷新非取消单快照（内核 `refreshPatientSnapshot`），`PATIENT_MERGED` repoint `exam_order.patient_uid` 后刷新（决策 #3 最小合并卫生）。**不部署 MQ**（用户裁决 2026-11-20：内部轮询端点）。
 
 ## Capabilities
@@ -26,7 +26,7 @@
 
 ## Affected Stacks
 
-- single-stack: lumen-sev（lumen-us 新模块 + lumen-api 契约 + lumen-patient 内部端点）
+- single-stack: lumen-sev（lumen-us 新模块 + lumen-feign 契约 + lumen-patient 内部端点）
 
 ## Depends-On
 

@@ -16,7 +16,7 @@
 
 ## Batch 2 — patient internal surface + contract
 
-- [x] 2.1 `lumen-api/patient`: `PatientApi` Feign contract + DTOs (resolve-or-register identity,
+- [x] 2.1 `lumen-feign/patient`: `PatientApi` Feign contract + DTOs (resolve-or-register identity,
       outbox entry/ack) — add-only, TDD against the contract shape.
 - [x] 2.2 patient-side: `InternalKeyInterceptor` config + `InternalPatientController`
       (resolve-or-register composite over existing `PatientArchiveService`, outbox pull/ack).

@@ -3,17 +3,17 @@
 #   debugging side-path: applying -> debugging (3-strike) -> applying | proposing (rewind)
 # Copy into each change directory: openspec/changes/<name>/loop-state.yaml.
 # The global openspec/loop-state.yaml is the legacy shared default - prefer this file.
-phase: verifying
+phase: archived
 change: null
 current_task: null
-tasks_total: 5
-tasks_done: 5
+tasks_total: 8
+tasks_done: 8
 retry_count: 0
 debt_count: 0
 debug_attempts: 0
 workflow_mode: full
-artifacts_hash: 4ad25632d2bf907dcb422d6174d18498e46cfc5b7a9ba6803e59898841ff3a86
+artifacts_hash: d3df0698a86a4010aebdef4e78c386e6e9e17b205725bced2d7c52f7085bdbd2
 contract_hash: null
-execution_mode: Batch Inline
+execution_mode: SDD
 batches_completed: 0
 last_updated: null

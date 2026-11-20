@@ -7,8 +7,8 @@ The patient domain SHALL expose an internal, internal-key-guarded service surfac
 `resolve-or-register` endpoint that atomically runs the existing resolution chain and falls back to
 archive creation (placeholder archives included, `A0715` conflict semantics unchanged), and
 outbox `pull`/`ack` endpoints that hand out PENDING event entries in batches and mark them consumed.
-The `lumen-api` module SHALL declare the matching `PatientApi` Feign contract (add-only, `NumberApi`
-precedent, direct-url target `lumen.api.patient.url`).
+The `lumen-feign` module SHALL declare the matching `PatientApi` Feign contract (add-only, `NumberApi`
+precedent, direct-url target `lumen.feign.patient.url`).
 
 #### Scenario: Resolve-or-register resolves an exact match
 
