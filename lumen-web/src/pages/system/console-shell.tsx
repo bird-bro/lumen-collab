@@ -1,7 +1,6 @@
 import {
   DeleteOutlined,
   EditOutlined,
-  FolderAddOutlined,
   LockOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -205,9 +204,11 @@ const ACTION_ICONS = {
   assign: SafetyCertificateOutlined,
   /** 设为默认 - the star reads as the canonical/default marker. */
   star: StarOutlined,
-  /** 新建子目录 - the folder-add glyph is the directory-tree "add sub-folder"
-   * verb (2026-11-18 rep-template ruling: the borrowed star read as 设为默认). */
-  folderAdd: FolderAddOutlined,
+  /** 新建子目录 - a plain plus (user ruling 2026-11-20 follow-up: the
+   * folder-add glyph's folder+plus detail muddies at 14px beside the pencil
+   * and trash — the bare plus keeps the tree's [+] [✎] [🗑] trio legible;
+   * lineage: the borrowed star read as 设为默认 2026-11-18, ex-FolderAddOutlined). */
+  folderAdd: PlusOutlined,
 } as const
 
 /**
