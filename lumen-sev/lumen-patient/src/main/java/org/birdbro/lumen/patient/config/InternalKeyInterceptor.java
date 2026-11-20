@@ -1,0 +1,56 @@
+package org.birdbro.lumen.patient.config;
+
+import java.nio.charset.StandardCharsets;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import cn.hutool.core.util.StrUtil;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.web.servlet.HandlerInterceptor;
+
+/**
+ * The internal-service key guard for the patient domain's internal surface
+ * (us-station-registration-sev task 2.2, design D4 - the patient-side COPY of the
+ * system manage/config {@code InternalKeyInterceptor} precedent, additive-first: no
+ * framework change, lumen-system is not on this classpath): the
+ * {@code /api/v1/patient/internal/**} family is the patient domain's FIRST
+ * service-to-service surface - it is exempt from user-token auth (the permit-all list)
+ * and guarded by THIS interceptor instead. Fail-CLOSED: an UNCONFIGURED key rejects
+ * every call (the surface is unusable, never open); a missing or wrong header is an
+ * HTTP-401 envelope rejection and reaches NO service method. The key value rides
+ * gitignored config on BOTH sides (env var / application-dev.yml) - never committed.
+ * The heavyweight alternatives (service accounts, mTLS) defer to a future change.
+ *
+ * @author birdbro
+ */
+public class InternalKeyInterceptor implements HandlerInterceptor {
+
+    /** The internal-service key header both sides agree on. */
+    public static final String INTERNAL_KEY_HEADER = "X-Internal-Key";
+
+    private final String configuredKey;
+
+    public InternalKeyInterceptor(String configuredKey) {
+        this.configuredKey = configuredKey;
+    }
+
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response,
+            Object handler) throws Exception {
+        String provided = request.getHeader(INTERNAL_KEY_HEADER);
+        if (StrUtil.isNotBlank(configuredKey) && configuredKey.equals(provided)) {
+            return true;
+        }
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        // the unified envelope shape (string code, HTTP-status family) - an auth
+        // rejection, NOT an A-class request error: the caller is not authenticated
+        response.getWriter().write("{\"code\":\"401\",\"msg\":\"内部服务密钥缺失或不正确，患者内部端点请求被拒绝\","
+                + "\"timestamp\":\"" + java.time.LocalDateTime.now() + "\"}");
+        return false;
+    }
+}

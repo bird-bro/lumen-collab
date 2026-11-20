@@ -44,6 +44,27 @@ import org.springframework.test.context.DynamicPropertySource;
 public abstract class PatientIntegrationTestBase {
 
     /**
+     * The internal-service key configured for the TEST context (us-station-registration-sev
+     * task 2.2): the patient internal endpoints are internal-key-guarded (fail-closed -
+     * an UNCONFIGURED key rejects every call), so the shared context carries a fixed
+     * test value both the guard and the internal-surface suites agree on. Suites send it
+     * as the {@code X-Internal-Key} header; every OTHER suite is unaffected (the value
+     * only arms the interceptor on {@code /api/v1/patient/internal/**}).
+     */
+    public static final String TEST_INTERNAL_KEY = "patient-internal-test-key-usb2";
+
+    /**
+     * Registers the test internal-service key (us-station-registration-sev task 2.2).
+     * Runs alongside {@link #teamTestServerProperties} during context creation - a
+     * second {@code @DynamicPropertySource} member on the SAME base keeps every patient
+     * suite on ONE shared context (no per-suite re-boot).
+     */
+    @DynamicPropertySource
+    static void internalKeyProperty(DynamicPropertyRegistry registry) {
+        registry.add("lumen.internal-api-key", () -> TEST_INTERNAL_KEY);
+    }
+
+    /**
      * Registers the test-server properties. Runs during context creation, BEFORE the
      * context refreshes - so an unconfigured or unreachable server fails the context
      * right here, with the explicit signal.

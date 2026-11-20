@@ -150,4 +150,32 @@ public interface PatientArchiveService {
      *         absorbed archive does not exist
      */
     PatientMaster resolveOrMerge(Integer id, Integer survivorId, String reason);
+
+    /**
+     * The resolve-or-register COMPOSITE (us-station-registration-sev task 2.2, design
+     * D4; spec patient-domain "Internal Service Surface"): the registration consumers'
+     * entry point that atomically runs the EXISTING resolution chain ({@link #resolve}
+     * - its exact/card/soft lookups and the fallback archive creation share ONE
+     * transaction, no chain rewrite) and surfaces the IDENTITY RACE with the existing
+     * {@code A0715} semantics. ADDITIVE method - the {@code create(request, oid)}
+     * overload precedent; every existing member is untouched.
+     *
+     * <p>The race case: a concurrent create commits the same identity between the
+     * chain's lookups and the fallback INSERT, so the master INSERT dies on the
+     * partial unique index. The create path's own backstop lookup runs INSIDE the
+     * aborted transaction (PostgreSQL 25P02) and can never name the duplicate - this
+     * composite re-reads the winner in a FRESH (REQUIRES_NEW) transaction after the
+     * aborted one and throws the SAME A0715 payload ({@code identityConflict} shape:
+     * archive id + pat_id), never a rewritten code. When no winner is visible (the
+     * ultra-narrow window where the competing transaction has not committed yet), the
+     * raw data-integrity failure propagates as before.</p>
+     *
+     * @param request the resolve form (identity/card/soft keys + provisional flag)
+     * @return the chain result ({@code patient} on MATCHED/CREATED, {@code
+     *         candidates} on CANDIDATES)
+     * @throws org.birdbro.common.exception.BusinessException the same codes as
+     *         {@link #resolve(PatientResolveRequest)} - {@code A0410} for a typeless
+     *         id_no on creation, {@code A0715} naming the identity-race winner
+     */
+    PatientResolveResult resolveOrRegister(PatientResolveRequest request);
 }

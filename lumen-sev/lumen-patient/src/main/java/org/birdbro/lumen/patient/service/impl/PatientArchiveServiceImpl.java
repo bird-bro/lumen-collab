@@ -13,9 +13,14 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.UncategorizedSQLException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
@@ -102,6 +107,16 @@ public class PatientArchiveServiceImpl implements PatientArchiveService {
         this.patientEventOutboxService = patientEventOutboxService;
         this.patientPinyinHelper = patientPinyinHelper;
     }
+
+    /**
+     * The context transaction manager (us-station-registration-sev task 2.2): the
+     * identity-race re-read of {@link #resolveOrRegister} needs a FRESH transaction
+     * OUTSIDE the aborted one - the ADDITIVE-DI field precedent (the never-modify
+     * rule: the existing constructor stays byte-identical, documented
+     * {@code LogController} shape).
+     */
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @Override
     @Transactional
@@ -286,6 +301,36 @@ public class PatientArchiveServiceImpl implements PatientArchiveService {
                 .result(PatientResolveResult.RESULT_CREATED)
                 .patient(created)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public PatientResolveResult resolveOrRegister(PatientResolveRequest request) {
+        try {
+            // self-invocation: the chain runs within THIS method's one transaction -
+            // the exact/card/soft lookups and the fallback creation stay atomic (D4)
+            return resolve(request);
+        } catch (DuplicateKeyException | UncategorizedSQLException e) {
+            // the identity race (us-station-registration-sev task 2.2): a concurrent
+            // create committed the same identity between the chain's lookups and the
+            // fallback INSERT. The create path's own backstop lookup cannot name the
+            // duplicate - it runs INSIDE the already-aborted transaction, so
+            // PostgreSQL rejects it with 25P02 and the original DuplicateKeyException
+            // surfaces as an UncategorizedSQLException. EITHER shape lands here: this
+            // composite re-reads the winner in a FRESH (REQUIRES_NEW) transaction and
+            // surfaces the EXISTING A0715 payload verbatim; when NO live holder is
+            // confirmed the ORIGINAL failure is rethrown untouched (the conversion
+            // never masks an unrelated error).
+            TransactionTemplate freshRead = new TransactionTemplate(transactionManager);
+            freshRead.setPropagationBehavior(
+                    TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            PatientMaster winner = freshRead.execute(status ->
+                    existingLiveByIdentity(request.getIdType(), request.getIdNo()));
+            if (winner != null) {
+                throw identityConflict(winner);
+            }
+            throw e;
+        }
     }
 
     @Override

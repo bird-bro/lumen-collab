@@ -64,10 +64,24 @@ dispose:
     - springfox.documentation
     - org.springframework
 
-# Deliberately ABSENT blocks (patient-domain task 1.1):
-#   - security.permit-all: patient has NO login - every path stays token-guarded (the
-#     framework SecurityAnonymousProperties.permitAll list defaults to empty); the
-#     lumen-system-owned anonymous paths (login/auth-key) belong to the JWT issuer.
+# Service-declared anonymous paths (framework AnonymousPathCustomizer, lumen
+# adaptation (6)): the INTERNAL service surface (us-station-registration-sev design
+# D4) is exempt from user-token auth - there is no user behind a service call - and
+# guarded by the patient-side X-Internal-Key interceptor (patient
+# config/InternalKeyInterceptor, fail-closed: an unconfigured key rejects every call)
+# instead of user perms. ONLY the /internal/** family is anonymous: every user-facing
+# path stays token-guarded by the copied chain (the "203" envelope when tokenless).
+security:
+  permit-all:
+    - /api/v1/patient/internal/**
+
+# Deliberately ABSENT blocks (patient-domain task 1.1; amended by
+# us-station-registration-sev task 2.2):
+#   - security.permit-all was ABSENT while patient had NO machine surface - every path
+#     stayed token-guarded; the internal service surface now owns the ONE permit-all
+#     entry above (internal-key guarded, never user perms). Patient still has NO login
+#     of its own - the lumen-system-owned anonymous paths (login/auth-key) belong to
+#     the JWT issuer.
 #   - upload.*: framework WebMvcConfig keeps the location-less /profile/** parity
 #     registration when upload.home is absent (adaptation #7 default) - patient has
 #     no upload surface.
