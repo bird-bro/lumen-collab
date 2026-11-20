@@ -873,7 +873,8 @@ export type RepTempMeasureNormal =
 
 /** One measure row of a structured section (code = the stable report anchor; normal = the v2 union). */
 export interface RepTempMeasure {
-  code: string;
+  /** Optional since rep-template-ux-polish (2026-11-20): the UI retired the 项目 input — legacy rows keep theirs, new ones ride null. */
+  code: string | null;
   label: string;
   unit: string | null;
   normal: RepTempMeasureNormal | null;

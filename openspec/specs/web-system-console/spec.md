@@ -903,19 +903,21 @@ with a 公共/个人 Segmented scope switch (radio options) above the left folde
 检查类型 select + 新建目录 in the tool row; the left tree renders DIRECTORIES ONLY
 (2026-11-20 ruling: template leaves never render on the left — templates are
 managed in the right table), directory nodes carry 新建子目录/编辑目录/删除节点.
-The right pane keeps the paged template table (模板名称 / 影像学表现 / 影像学意见)
+The right pane keeps the paged template table (模板名称 / 影像学表现 / 影像意见)
 under the selected node with the name-filter tool row; its 操作 column SHALL ride
 the shared console-table chrome: icon-only row verbs 编辑 / 删除 gated by the
 scope-keyed family (删除 carrying the delete glyph), with the refresh affordance
 pinned to the right edge of the 操作 header re-running the current page query.
 Template authoring is DUAL-FORM (2026-11-18 ruling): the 添加模板 / 编辑 surface
-carries a 简单模板/分节模板 mode — 简单模式 keeps the 影像学表现/影像学意见
+carries a 简单模板/分节模板 mode — 简单模式 keeps the 影像学表现/影像意见
 textareas reading the prose columns; 分节模式 opens the WIDE drawer of section
-cards (each card: a title ECHOING the typed 节名 — 节名未填 placeholder while
-empty, with the gray positional 节 N tag kept for verbal reference; 节名 input
-with the example placeholder 节名（如：心腔、肝脏）, 测量项 row editor
-项目/单位/正常范围 with add/remove, 节所见 textarea, collapse and delete) with
-the global 影像学意见 at the bottom writing `content.impression`. The template
+cards (each card: the 节名 edited IN PLACE inside the card head — a borderless
+input carrying the example placeholder 节名（如：心腔、肝脏）with the gray
+positional 节 N tag beside it; 测量项 row editor 名称/单位/正常范围 with add/remove
+— the 项目 code input is RETIRED, the code rides a nullable passthrough so legacy
+rows keep theirs across the full-replace PUT; 影像所见 textarea; the verbs 折叠/
+展开, 删除节, 删除测量项, 添加测量项 rendered ICON-ONLY with their aria-labels)
+with the global 影像意见 at the bottom writing `content.impression`. The template
 drawer width is FIXED at 960px (2026-11-19 ruling) — switching the mode never
 resizes it. The 测量项 正常范围 editor is the v2 UNION editor
 (rep-temp-normal-range): a per-row Select (区间/文本; user ruling 2026-11-20 —
@@ -927,7 +929,7 @@ ALWAYS writes content version 2 — 区间 with both ends empty serializes
 and inputs from the row's stored `kind` (no v1 branch exists after the server
 migration); submitting min > max is blocked client-side with a field-naming
 message and NO request is issued. Converting 简单 → 分节 maps 表现 → first
-section's 节所见 and 意见 → `content.impression`; converting 分节 → 简单 is
+section's 影像所见 and 意见 → `content.impression`; converting 分节 → 简单 is
 REFUSED with a warning (sections would be dropped). For structured rows the
 right table's 表现 cell renders the 「N 节 · M 项」 summary and the 意见 cell
 renders `content.impression`. 添加模板 warns 请先选择目录 when no directory is
@@ -948,6 +950,7 @@ defaulting to the 个人 scope; the default scope is 公共 only when
 <!-- synced from: rep-temp-tree-dirs-only-web 2026-11-20 (the left tree renders DIRECTORIES ONLY: template leaves pruned at load — templates are managed in the right table) -->
 <!-- synced from: rep-temp-normal-kind-select-web 2026-11-20 (the measure row's 正常范围 kind control is a per-row Select 区间/文本 — user ruling ex-Segmented; union semantics unchanged) -->
 <!-- synced from: rep-temp-section-title-echo-web 2026-11-20 (section card titles echo the typed 节名 — 节名未填 while empty, gray 节 N tag kept; prototype 拍板点 1) -->
+<!-- synced from: rep-template-ux-polish-web 2026-11-20 (ux-polish batch: 预览→footer-button modal, card verbs icon-only, 节名 edits in place in the card head ex-title-echo, 项目 code input retired, 节所见→影像所见, 影像学意见→影像意见; sev pair relaxes code to optional) -->
 
 #### Scenario: Tab toggle switches scope without cross-leak
 
@@ -992,12 +995,25 @@ defaulting to the 个人 scope; the default scope is 公共 only when
 - **THEN** 新建目录/新建子目录/添加模板/编辑/删除 all consult
   `setting:temp:*` and behave exactly as before this change
 
-#### Scenario: Card title echoes the typed 节名
+#### ~~Scenario: Card title echoes the typed 节名~~
+
+*Deprecated 2026-11-20 — superseded by the 「节名 edits in place inside the card
+head」 scenario below (rep-template-ux-polish-web: the title-echo rendering and the
+standalone body row are retired — the 节名 edits directly inside the card head).
+Body preserved for history.*
 
 - **WHEN** the user types a 节名 into a section card (and while the card is empty)
 - **THEN** the card title shows the typed name live — the gray positional 节 N
   tag stays beside it for reference; an empty card shows 节名未填 until filled
   (the 节名-required save guard is unchanged)
+
+#### Scenario: 节名 edits in place inside the card head
+
+- **WHEN** the user types a 节名 into a section card's head input (and while the
+  card is fresh)
+- **THEN** the borderless head input carries the example placeholder and the
+  gray 节 N tag stays beside it; no standalone 节名 row renders in the card
+  body (the 节名-required save guard is unchanged)
 
 #### Scenario: 区间 normal serializes the v2 range variant
 
@@ -1123,26 +1139,31 @@ report-shape treatment at the render layer. The 【左|右】 delimited token
 (doctor-typed; | separates quick-pick candidates; the whole bracket is
 replaced with the actual finding at report time; an unpaired 【 degrades to
 literal text) SHALL highlight with the warning-class amber tint (`.rep-ph`)
-in the drawer's live 报告预览 and in the right table's prose
-影像学表现/影像学意见 cells. The preview SHALL render one paragraph per line
-with a 2em first-line indent (the print shape) and, in 分节模式, the B-form
-mini measure table per section (名称 / 单位 / 测值 (always — on the template) /
-参考范围 — 单侧开区间 `19 ~` / `~ 40`, both ends empty renders —). 插入占位
-SHALL splice the token at the textarea caret and re-anchor the caret after it
-(form fields via the Form.Item extra slot, 节所见 via the card's header row —
-never nested inside the <label>: a label-nested button becomes the label's
-second associated control). Save SHALL normalize leading whitespace per line
-on 影像学表现/影像学意见/节所见 (and the 简单→分节 conversion) — the indent
-belongs to the renderer, never the stored text.
+in the 报告预览 modal and in the right table's prose 影像学表现/影像意见
+cells. The 报告预览 SHALL be an ON-DEMAND modal — the template drawer's
+footer carries a 预览 button summoning it (the always-on bottom block is
+retired, ux-polish 2026-11-20); the modal renders the current draft — one
+paragraph per line with a 2em first-line indent (the print shape) and, in
+分节模式, the B-form mini measure table per section (名称 / 单位 / 测值 (always
+— on the template) / 参考范围 — 单侧开区间 `19 ~` / `~ 40`, both ends empty
+renders —). 插入占位 SHALL splice the token at the textarea caret and
+re-anchor the caret after it (the 表现/意见 fields via the Form.Item extra
+slot; the card's 影像所见 keeps no button — the token types by hand or via
+the prose fields' affordances). Save SHALL normalize leading whitespace per
+line on 影像学表现/影像意见/影像所见 (and the 简单→分节 conversion) — the
+indent belongs to the renderer, never the stored text.
+
+<!-- synced from: rep-temp-placeholder-preview-web 2026-11-20 (the 【左|右】 placeholder convention: amber .rep-ph highlight, render-layer paragraph/indent treatment, 插入占位 extra-slot splice, save-time leading-whitespace normalization) -->
+<!-- synced from: rep-template-ux-polish-web 2026-11-20 (报告预览 becomes an on-demand footer-button modal — the always-on bottom block retired; the card's 插入占位 button retired) -->
 
 #### Scenario: Live preview renders the print shape
 
-- **WHEN** the template drawer's 表现 carries two lines including a 【左|右】
-  token
-- **THEN** the 报告预览 shows the token highlighted amber and each line as a
-  paragraph with a 2em first-line indent
+- **WHEN** the drawer's 表现 carries two lines including a 【左|右】 token and
+  the user clicks the footer 预览 button
+- **THEN** the 报告预览 modal opens showing the token highlighted amber and each
+  line as a paragraph with a 2em first-line indent
 - **AND** in 分节模式 each section renders its 节名, the mini measure table and
-  its 节所见 paragraphs (reference range `19 ~ 40` for a two-sided band)
+  its 影像所见 paragraphs (reference range `19 ~ 40` for a two-sided band)
 
 #### Scenario: Placeholder tokens highlight in the right table
 

@@ -1,7 +1,7 @@
-import { Button, Card, Drawer, Form, Input, InputNumber, Popconfirm, Segmented, Select, Tag, message, theme } from 'antd'
+import { Button, Card, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Segmented, Select, Tag, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
 import type { TextAreaRef } from 'antd/es/input/TextArea'
-import { FolderOutlined } from '@ant-design/icons'
+import { DeleteOutlined, DownOutlined, FolderOutlined, PlusOutlined, UpOutlined } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, RefObject } from 'react'
 import {
@@ -41,16 +41,16 @@ import {
  * the mixed 目录/模板 flag drawer is gone): 新建目录 / tree 新建子目录 /
  * 编辑目录 open the DIRECTORY DRAWER (上级 select + 目录名称 only), and the
  * right-pane 添加模板 / right-table 编辑 open the WIDE TEMPLATE DRAWER (目录 echo +
- * 名称/影像学表现/影像学意见 - long-form content gets a FIXED-WIDTH 960px drawer,
+ * 名称/影像学表现/影像意见 - long-form content gets a FIXED-WIDTH 960px drawer,
  * 2026-11-19 ruling - the width never follows the 类型 select) bound to the selected
  * directory - 添加模板 warns
  * 请先选择目录 when no directory node is selected. DUAL-FORM templates
  * (structured-content delta 2026-11-18, D6): the drawer carries a 类型 select
  * (简单模板/分节模板; 2026-11-19 rename+restyle, ex-模板形态 radio) -
  * 简单模板 keeps the prose form, 分节模板 swaps in section cards
- * (节名 + measure rows + 节所见) serializing into `content` jsonb at save (D1 互斥
+ * (节名 + measure rows + 影像所见) serializing into `content` jsonb at save (D1 互斥
  * nulls the prose columns); edits backfill by the row's content, 简单→分节 maps
- * 表现 → first section's 节所见, 分节→简单 is refused. The left tree renders
+ * 表现 → first section's 影像所见, 分节→简单 is refused. The left tree renders
  * DIRECTORIES only (2026-11-20 ruling, rep-temp-tree-dirs-only-web): template
  * leaves (flag=1) never render there - a tree-side template edit would PUT
  * content-blind (tree nodes carry no finding/impression and the backend update
@@ -150,9 +150,9 @@ function insertPlaceholderToken(
  * BELOW the textarea). The Form.Item label stays PLAIN: nesting a button in
  * the <label> makes that button the label's second associated control
  * (HTMLLabelElement.control semantics) — accessible-name resolution then sees
- * two targets and every getByLabelText('影像学表现') double-hits. The card's
- * 节所见 keeps the header-row shape instead (its label is a plain span, no
- * <label> element involved).
+ * two targets and every getByLabelText('影像学表现') double-hits. (The card's
+ * former 插入占位 button was retired outright in rep-template-ux-polish — the
+ * token still types by hand or via the 表现/意见 affordances.)
  */
 function PlaceholderExtra({ label, onInsert }: { label: string; onInsert: () => void }) {
   return (
@@ -199,21 +199,26 @@ function PreviewParagraphs({ text, phStyle }: { text: string; phStyle: CSSProper
 
 /**
  * One 分节 card of the structured template editor (dual-form delta 2026-11-18,
- * D6). Module-level so the card's 折叠 state survives the page's controlled
- * re-renders - a component defined inside the page function would remount per
- * keystroke. Card = 节名 Input + measure rows (项目 code / 名称 label / 单位 unit /
- * 正常范围 normal as the v2 UNION editor - per-row Select 区间/文本 (kind
- * select, user ruling 2026-11-20 ex-Segmented), null
- * renders 区间 with empty ends (rep-temp-normal-range design D2/D5) + row delete
- * + 添加测量项) + 节所见 TextArea; 折叠 hides the measure
- * rows and findings (节名 stays visible), 删除节 removes the card. All state is
- * pure frontend form state - saveTemplate serializes it into the RepTempContent
- * jsonb shape (节名/code/label required, validated with field-named messages).
+ * D6; ux-polish 2026-11-20). Module-level so the card's 折叠 state survives the
+ * page's controlled re-renders - a component defined inside the page function
+ * would remount per keystroke. Card = the 节名 edited IN PLACE inside the card
+ * head (borderless input + the gray 节 N tag for verbal reference; the former
+ * body row and the title-echo rendering are retired) + measure rows
+ * (名称 label / 单位 unit / 正常范围 normal as the v2 UNION editor - per-row
+ * Select 区间/文本, null renders 区间 with empty ends + row delete) + 影像所见
+ * TextArea. The 项目 code input is RETIRED (rep-template-ux-polish: the
+ * printed B-form never shows the code) — the state keeps `code` as a nullable
+ * passthrough so legacy rows survive the full-replace PUT. Card verbs are
+ * ICON-ONLY (user ruling 2026-11-20): 折叠/展开 (Up/Down chevrons), 删除节 and
+ * 删除测量项 (trash), 添加测量项 (plus, dashed) — each keeps its aria-label so
+ * the verbs stay announceable. 折叠 hides the measure rows and findings; all
+ * state is pure frontend form state - saveTemplate serializes it into the
+ * RepTempContent jsonb shape (节名/label required, validated with field-named
+ * messages).
  */
 function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardProps) {
   const [collapsed, setCollapsed] = useState(false)
   const { token } = theme.useToken()
-  const findingAreaRef = useRef<TextAreaRef>(null)
   const patchMeasure = (mi: number, patch: Partial<RepTempMeasure>) =>
     onPatch({ measures: section.measures.map((m, i) => (i === mi ? { ...m, ...patch } : m)) })
   return (
@@ -221,12 +226,22 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
       <Card
         size="small"
         title={
-          // Title echoes the typed 节名 (prototype ruling 2026-11-20 — the bare
-          // positional 节 N read as meaningless to users); empty shows 节名未填
-          // (the save guard still blocks empty names). The gray positional tag
-          // stays for verbal reference ("节 2 那张卡").
+          // The 节名 edits IN PLACE inside the card head (ux-polish ruling
+          // 2026-11-20, replacing the former body row + title echo): a
+          // borderless input styled as the heading, with the gray positional
+          // 节 N tag beside it for verbal reference ("节 2 那张卡"). The save
+          // guard still blocks empty names.
           <>
-            {section.name.trim() || <span style={{ color: token.colorTextTertiary }}>节名未填</span>}
+            <Input
+              aria-label="节名"
+              placeholder="节名（如：心腔、肝脏）"
+              variant="borderless"
+              size="small"
+              maxLength={64}
+              value={section.name}
+              onChange={(e) => onPatch({ name: e.target.value })}
+              style={{ fontWeight: 600, paddingInline: 0 }}
+            />
             <span style={{ color: token.colorTextTertiary, fontSize: token.fontSizeSM, marginLeft: 8, fontWeight: 400 }}>
               节 {index + 1}
             </span>
@@ -234,35 +249,22 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
         }
         extra={
           <div style={{ display: 'flex', gap: 4 }}>
-            <Button type="text" size="small" onClick={() => setCollapsed((c) => !c)}>
-              {collapsed ? '展开' : '折叠'}
-            </Button>
-            <Button type="text" size="small" danger onClick={onRemove}>
-              删除节
-            </Button>
+            <Button
+              type="text"
+              size="small"
+              aria-label={collapsed ? '展开' : '折叠'}
+              icon={collapsed ? <DownOutlined /> : <UpOutlined />}
+              onClick={() => setCollapsed((c) => !c)}
+            />
+            <Button type="text" size="small" danger aria-label="删除节" icon={<DeleteOutlined />} onClick={onRemove} />
           </div>
         }
       >
-        <Input
-          aria-label="节名"
-          placeholder="节名（如：心腔、肝脏）"
-          maxLength={64}
-          value={section.name}
-          onChange={(e) => onPatch({ name: e.target.value })}
-        />
         {!collapsed && (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '12px 0' }}>
               {section.measures.map((measure, mi) => (
                 <div key={mi} style={{ display: 'flex', gap: 6, alignItems: 'center', minWidth: 0 }}>
-                  <Input
-                    aria-label="项目"
-                    placeholder="项目"
-                    maxLength={32}
-                    style={{ width: 104 }}
-                    value={measure.code}
-                    onChange={(e) => patchMeasure(mi, { code: e.target.value })}
-                  />
                   <Input
                     aria-label="名称"
                     placeholder="名称"
@@ -353,45 +355,28 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
                     size="small"
                     danger
                     aria-label="删除测量项"
+                    icon={<DeleteOutlined />}
                     onClick={() => onPatch({ measures: section.measures.filter((_, i) => i !== mi) })}
-                  >
-                    删除
-                  </Button>
+                  />
                 </div>
               ))}
               <Button
                 type="dashed"
                 size="small"
-                style={{ alignSelf: 'flex-start' }}
+                aria-label="添加测量项"
+                icon={<PlusOutlined />}
+                style={{ alignSelf: 'flex-start', width: 28 }}
                 onClick={() =>
-                  onPatch({ measures: [...section.measures, { code: '', label: '', unit: null, normal: null }] })
+                  onPatch({ measures: [...section.measures, { code: null, label: '', unit: null, normal: null }] })
                 }
-              >
-                添加测量项
-              </Button>
+              />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: token.fontSizeSM, color: token.colorTextSecondary }}>节所见</span>
-              <Button
-                type="text"
-                size="small"
-                aria-label="插入占位（节所见）"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() =>
-                  insertPlaceholderToken(
-                    findingAreaRef,
-                    () => section.finding ?? '',
-                    (next) => onPatch({ finding: next }),
-                  )
-                }
-              >
-                插入占位
-              </Button>
+            <div style={{ marginBottom: 4 }}>
+              <span style={{ fontSize: token.fontSizeSM, color: token.colorTextSecondary }}>影像所见</span>
             </div>
             <Input.TextArea
-              ref={findingAreaRef}
-              aria-label="节所见"
-              placeholder="节所见"
+              aria-label="影像所见"
+              placeholder="影像所见"
               rows={3}
               value={section.finding ?? ''}
               onChange={(e) => onPatch({ finding: e.target.value })}
@@ -468,6 +453,9 @@ export default function RepTemplatePage() {
   // switching the mode never resizes the drawer.
   const [tplStructured, setTplStructured] = useState(false)
   const [tplSections, setTplSections] = useState<RepTempSection[]>([])
+  // The 报告预览 modal (ux-polish 2026-11-20): the footer 预览 button summons
+  // it; the always-on bottom block is retired.
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   // The tree flattened once - the drawers' 上级 echo resolves a node's parent
   // NAME from its upId (tree nodes carry only their own fields).
@@ -681,7 +669,7 @@ export default function RepTemplatePage() {
 
   // Mode select (D6 conversion semantics; 2026-11-19 rename+restyle, ex-模板形态
   // radio): 简单→分节 maps 表现 → the first
-  // section's 节所见 (auto-created; 节名 left empty for the user - the backend
+  // section's 影像所见 (auto-created; 节名 left empty for the user - the backend
   // @NotBlank is the guard); the global 意见 form field IS content.impression,
   // so it carries over untouched. 分节→简单 is REFUSED (sections would be
   // dropped) - warn and keep the controlled value on 分节模板.
@@ -747,10 +735,6 @@ export default function RepTemplatePage() {
         }
         for (const section of tplSections) {
           for (const measure of section.measures) {
-            if (!measure.code.trim()) {
-              messageApi.error('测量项项目不能为空')
-              return
-            }
             if (!measure.label.trim()) {
               messageApi.error('测量项名称不能为空')
               return
@@ -772,7 +756,10 @@ export default function RepTemplatePage() {
             name: section.name.trim(),
             finding: normalizeLines(section.finding ?? '').trim() || null,
             measures: section.measures.map((measure) => ({
-              code: measure.code.trim(),
+              // The 项目 code is a nullable passthrough (rep-template-ux-polish):
+              // legacy rows keep theirs (backfill), new measures ride null — the
+              // printed B-form never shows it.
+              code: measure.code?.trim() || null,
               label: measure.label.trim(),
               unit: measure.unit?.trim() || null,
               normal: serializeMeasureNormal(measure.normal),
@@ -858,7 +845,7 @@ export default function RepTemplatePage() {
       },
     },
     {
-      title: '影像学意见',
+      title: '影像意见',
       dataIndex: 'impression',
       key: 'impression',
       ellipsis: true,
@@ -1099,11 +1086,17 @@ export default function RepTemplatePage() {
         maskClosable={false}
         destroyOnClose
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button onClick={() => setTplDrawerOpen(false)}>取消</Button>
-            <Button type="primary" loading={tplSaving} onClick={() => void saveTemplate()}>
-              保存
-            </Button>
+          // 预览 rides the footer's LEFT (ux-polish 2026-11-20: the always-on
+          // bottom preview retired — the doctor summons the print shape on
+          // demand in a modal).
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Button onClick={() => setPreviewOpen(true)}>预览</Button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button onClick={() => setTplDrawerOpen(false)}>取消</Button>
+              <Button type="primary" loading={tplSaving} onClick={() => void saveTemplate()}>
+                保存
+              </Button>
+            </div>
           </div>
         }
       >
@@ -1113,7 +1106,7 @@ export default function RepTemplatePage() {
               (add) or the row's stored parent (edit) sits left, the mode select
               (简单模板/分节模板; ex-模板形态 radio, fixed width - not a Form
               field, state-driven) sits right - BOTH at the fixed 960 drawer
-              width, so switching never resizes it. The global 影像学意见 below
+              width, so switching never resizes it. The global 影像意见 below
               is the ONE field shared by both modes (structured saves it into
               content.impression, D2). */}
           <div
@@ -1202,10 +1195,10 @@ export default function RepTemplatePage() {
           )}
           <Form.Item
             name="impression"
-            label="影像学意见"
+            label="影像意见"
             extra={
               <PlaceholderExtra
-                label="影像学意见"
+                label="影像意见"
                 onInsert={() =>
                   insertPlaceholderToken(
                     impressionAreaRef,
@@ -1220,113 +1213,110 @@ export default function RepTemplatePage() {
           </Form.Item>
         </Form>
 
-        {/* 报告预览 (rep-temp-placeholder-preview-web, ruling 2026-11-20): the
-            live print shape — one paragraph per line with the 2em first-line
-            indent, 【...】 tokens highlighted amber (the warning-class tint:
-            待编辑), and in 分节模式 the B-form mini measure table (拍板点 2:
-            B 测值表式起步; 测值 column stays — the template carries the
-            reference, the report carries the actual). Display-only: reads
-            useWatch / section state, never the wire. */}
-        <div
-          aria-label="报告预览"
-          style={{
-            border: `1px solid ${token.colorBorderSecondary}`,
-            borderRadius: token.borderRadiusLG,
-            background: token.colorFillQuaternary,
-            padding: token.paddingMD,
-          }}
+        {/* 报告预览 as an ON-DEMAND MODAL (rep-temp-placeholder-preview-web
+            2026-11-20; ux-polish ruling: the always-on bottom preview retired —
+            the footer's 预览 button summons it). The live print shape — one
+            paragraph per line with the 2em first-line indent, 【...】 tokens
+            highlighted amber (the warning-class tint: 待编辑), and in 分节模式
+            the B-form mini measure table (拍板点 2: B 测值表式起步; 测值 column
+            stays — the template carries the reference, the report carries the
+            actual). Display-only: reads useWatch / section state, never the
+            wire; draft values stay live while the drawer is open. */}
+        <Modal
+          title="报告预览"
+          open={previewOpen}
+          onCancel={() => setPreviewOpen(false)}
+          footer={null}
+          width={880}
         >
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: token.marginSM }}>
-            <span style={{ fontWeight: 600, color: token.colorTextHeading, fontSize: token.fontSizeSM }}>
-              报告预览
-            </span>
-            <span style={{ fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
+          <div aria-label="报告预览">
+            <div style={{ fontSize: token.fontSizeSM, color: token.colorTextTertiary, marginBottom: token.marginSM }}>
               段落与首行缩进为打印形态；amber 高亮为待编辑占位（【左|右】）
-            </span>
-          </div>
-          {tplStructured
-            ? tplSections.map((section, si) => (
-                <div key={si} style={{ marginBottom: si < tplSections.length - 1 ? token.marginSM : 0 }}>
-                  <div
-                    style={{ fontWeight: 600, fontSize: 13, color: token.colorTextHeading, marginBottom: 4 }}
-                  >
-                    {section.name.trim() || `节 ${si + 1}`}
-                  </div>
-                  {section.measures.length > 0 && (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginBottom: 4 }}>
-                      <thead>
-                        <tr>
-                          {['名称', '单位', '测值', '参考范围'].map((header) => (
-                            <th
-                              key={header}
-                              style={{
-                                textAlign: 'left',
-                                padding: '3px 8px',
-                                borderBottom: `1px solid ${token.colorSplit}`,
-                                color: token.colorTextSecondary,
-                                fontWeight: 500,
-                              }}
-                            >
-                              {header}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {section.measures.map((measure, mi) => (
-                          <tr key={mi}>
-                            <td style={{ padding: '3px 8px', borderBottom: `1px solid ${token.colorSplit}` }}>
-                              {measure.label || '—'}
-                            </td>
-                            <td style={{ padding: '3px 8px', borderBottom: `1px solid ${token.colorSplit}` }}>
-                              {measure.unit || '—'}
-                            </td>
-                            <td
-                              style={{
-                                padding: '3px 8px',
-                                borderBottom: `1px solid ${token.colorSplit}`,
-                                color: token.colorTextTertiary,
-                              }}
-                            >
-                              —
-                            </td>
-                            <td
-                              style={{
-                                padding: '3px 8px',
-                                borderBottom: `1px solid ${token.colorSplit}`,
-                                fontVariantNumeric: 'tabular-nums',
-                              }}
-                            >
-                              {measure.normal?.kind === 'range'
-                                ? formatRange(measure.normal.min, measure.normal.max)
-                                : measure.normal?.kind === 'text'
-                                  ? measure.normal.text || '—'
-                                  : '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                  {section.finding && <PreviewParagraphs text={section.finding} phStyle={phStyle} />}
-                </div>
-              ))
-            : findingWatch && <PreviewParagraphs text={findingWatch} phStyle={phStyle} />}
-          {impressionWatch && (
-            <div
-              style={{
-                marginTop: token.marginSM,
-                paddingTop: token.marginSM,
-                borderTop: `1px dashed ${token.colorBorderSecondary}`,
-              }}
-            >
-              <div style={{ fontWeight: 600, fontSize: 13, color: token.colorTextHeading, marginBottom: 4 }}>
-                影像学意见
-              </div>
-              <PreviewParagraphs text={impressionWatch} phStyle={phStyle} />
             </div>
-          )}
-        </div>
+            {tplStructured
+              ? tplSections.map((section, si) => (
+                  <div key={si} style={{ marginBottom: si < tplSections.length - 1 ? token.marginSM : 0 }}>
+                    <div
+                      style={{ fontWeight: 600, fontSize: 13, color: token.colorTextHeading, marginBottom: 4 }}
+                    >
+                      {section.name.trim() || `节 ${si + 1}`}
+                    </div>
+                    {section.measures.length > 0 && (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginBottom: 4 }}>
+                        <thead>
+                          <tr>
+                            {['名称', '单位', '测值', '参考范围'].map((header) => (
+                              <th
+                                key={header}
+                                style={{
+                                  textAlign: 'left',
+                                  padding: '3px 8px',
+                                  borderBottom: `1px solid ${token.colorSplit}`,
+                                  color: token.colorTextSecondary,
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {header}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {section.measures.map((measure, mi) => (
+                            <tr key={mi}>
+                              <td style={{ padding: '3px 8px', borderBottom: `1px solid ${token.colorSplit}` }}>
+                                {measure.label || '—'}
+                              </td>
+                              <td style={{ padding: '3px 8px', borderBottom: `1px solid ${token.colorSplit}` }}>
+                                {measure.unit || '—'}
+                              </td>
+                              <td
+                                style={{
+                                  padding: '3px 8px',
+                                  borderBottom: `1px solid ${token.colorSplit}`,
+                                  color: token.colorTextTertiary,
+                                }}
+                              >
+                                —
+                              </td>
+                              <td
+                                style={{
+                                  padding: '3px 8px',
+                                  borderBottom: `1px solid ${token.colorSplit}`,
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}
+                              >
+                                {measure.normal?.kind === 'range'
+                                  ? formatRange(measure.normal.min, measure.normal.max)
+                                  : measure.normal?.kind === 'text'
+                                    ? measure.normal.text || '—'
+                                    : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    {section.finding && <PreviewParagraphs text={section.finding} phStyle={phStyle} />}
+                  </div>
+                ))
+              : findingWatch && <PreviewParagraphs text={findingWatch} phStyle={phStyle} />}
+            {impressionWatch && (
+              <div
+                style={{
+                  marginTop: token.marginSM,
+                  paddingTop: token.marginSM,
+                  borderTop: `1px dashed ${token.colorBorderSecondary}`,
+                }}
+              >
+                <div style={{ fontWeight: 600, fontSize: 13, color: token.colorTextHeading, marginBottom: 4 }}>
+                  影像意见
+                </div>
+                <PreviewParagraphs text={impressionWatch} phStyle={phStyle} />
+              </div>
+            )}
+          </div>
+        </Modal>
       </Drawer>
     </ConsolePage>
   )
