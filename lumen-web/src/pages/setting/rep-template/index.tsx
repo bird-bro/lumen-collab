@@ -128,6 +128,100 @@ function formatRange(min: number | null, max: number | null): string {
 }
 
 /**
+ * The preview's mini measure table (B 测值表式, 拍板点 2; 检验报告 two-up
+ * layout, user rulings 2026-11-20): columns 项目 / 结果 / 参考范围 / 单位 —
+ * the unit stays a SEPARATE column (complex English units like g/l cannot
+ * fold into a header parenthesis) in that exact order, and the HEADERS render
+ * CENTERED. 结果 stays always — on the template (the template carries the
+ * reference, the report carries the actual). Measures lay out TWO groups per
+ * row like a 检验报告 — the right half opens after a vertical rule (borderRight
+ * on the first half's last column, a real table line), an odd tail leaves the
+ * second half blank.
+ */
+function PreviewMeasureTable({
+  section,
+  token,
+}: {
+  section: RepTempSection
+  token: ReturnType<typeof theme.useToken>['token']
+}) {
+  const valueOf = (measure: RepTempMeasure) =>
+    measure.normal?.kind === 'range'
+      ? formatRange(measure.normal.min, measure.normal.max)
+      : measure.normal?.kind === 'text'
+        ? measure.normal.text || '—'
+        : '—'
+  // Table lines (user rulings 2026-11-20: 表格线要明显 + keep ONLY the outer
+  // frame, the row lines and the ONE center vertical rule — every other
+  // vertical column line is suppressed): the table element draws the outer
+  // frame, each cell carries a colorBorder row line, and the center rule is
+  // the borderRight on the first half's last column (headers included).
+  const th = {
+    textAlign: 'center' as const,
+    padding: '3px 8px',
+    borderBottom: `1px solid ${token.colorBorder}`,
+    color: token.colorTextSecondary,
+    fontWeight: 500,
+  }
+  const td = { padding: '3px 8px', borderBottom: `1px solid ${token.colorBorder}` }
+  const centerRule = { borderRight: `1px solid ${token.colorBorder}` }
+  const pairs: RepTempMeasure[][] = []
+  for (let i = 0; i < section.measures.length; i += 2) pairs.push(section.measures.slice(i, i + 2))
+  return (
+    <table
+      style={{
+        width: '100%',
+        borderCollapse: 'collapse',
+        fontSize: 12,
+        marginBottom: 4,
+        border: `1px solid ${token.colorBorder}`,
+      }}
+    >
+      <thead>
+        <tr>
+          {['项目', '结果', '参考范围', '单位', '项目', '结果', '参考范围', '单位'].map((header, i) => (
+            <th key={i} style={{ ...th, ...(i === 3 ? centerRule : {}) }}>
+              {header}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {pairs.map((pair, pi) => (
+          <tr key={pi}>
+            {[0, 1].flatMap((slot) => {
+              const measure = pair[slot]
+              if (!measure) {
+                return [
+                  <td key={`${slot}-l`} style={{ ...td, ...centerRule }} />,
+                  <td key={`${slot}-v`} style={td} />,
+                  <td key={`${slot}-r`} style={td} />,
+                  <td key={`${slot}-u`} style={td} />,
+                ]
+              }
+              return [
+                <td key={`${slot}-l`} style={{ ...td, ...centerRule }}>
+                  {measure.label || '—'}
+                </td>,
+                <td key={`${slot}-v`} style={{ ...td, textAlign: 'center', color: token.colorTextTertiary }}>
+                  —
+                </td>,
+                <td key={`${slot}-r`} style={{ ...td, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+                  {valueOf(measure)}
+                </td>,
+                <td key={`${slot}-u`} style={{ ...td, textAlign: 'center', color: token.colorTextSecondary }}>
+                  {measure.unit?.trim() || '—'}
+                </td>,
+              ]
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+/**
  * One paragraph per line with the 2em first-line indent — the print shape.
  * The text renders NORMALIZED (leading whitespace stripped per line: the
  * indent is this CSS, never the stored text); empty lines render as short
@@ -233,8 +327,8 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
               {section.measures.map((measure, mi) => (
                 <div key={mi} style={{ display: 'flex', gap: 6, alignItems: 'center', minWidth: 0 }}>
                   <Input
-                    aria-label="名称"
-                    placeholder="名称"
+                    aria-label="项目"
+                    placeholder="项目"
                     maxLength={64}
                     style={{ flex: 1, minWidth: 90 }}
                     value={measure.label}
@@ -349,7 +443,7 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
             <Input.TextArea
               aria-label="所见"
               placeholder="所见"
-              rows={10}
+              rows={14}
               value={section.finding ?? ''}
               onChange={(e) => onPatch({ finding: e.target.value })}
             />
@@ -706,7 +800,7 @@ export default function RepTemplatePage() {
         for (const section of tplSections) {
           for (const measure of section.measures) {
             if (!measure.label.trim()) {
-              messageApi.error('测量项名称不能为空')
+              messageApi.error('测量项项目不能为空')
               return
             }
             // The v2 union client guard (rep-temp-normal-range spec scenario):
@@ -1173,21 +1267,23 @@ export default function RepTemplatePage() {
             the footer's 预览 button summons it). The live print shape — one
             paragraph per line with the 2em first-line indent, 【...】 tokens
             highlighted amber (the warning-class tint: 待编辑), and in 分节模式
-            the B-form mini measure table (拍板点 2: B 测值表式起步; 测值 column
-            stays — the template carries the reference, the report carries the
-            actual). Display-only: reads useWatch / section state, never the
-            wire; draft values stay live while the drawer is open. */}
+            the B-form mini measure table (拍板点 2: B 测值表式起步; the unit
+            rides the HEADERS in parentheses when homogeneous —
+            rep-temp-preview-unit-header-web). Display-only: reads useWatch /
+            section state, never the wire; draft values stay live while the
+            drawer is open. */}
         <Modal
           title="报告预览"
           open={previewOpen}
           onCancel={() => setPreviewOpen(false)}
           footer={null}
           width={880}
+          // Generous default height (ux-polish follow-up 2026-11-20): the
+          // preview should read like a report page, not a strip — 70vh with
+          // internal scroll.
+          styles={{ body: { height: '70vh', overflowY: 'auto' } }}
         >
           <div aria-label="报告预览">
-            <div style={{ fontSize: token.fontSizeSM, color: token.colorTextTertiary, marginBottom: token.marginSM }}>
-              段落与首行缩进为打印形态；amber 高亮为待编辑占位（【左|右】）
-            </div>
             {tplStructured
               ? tplSections.map((section, si) => (
                   <div key={si} style={{ marginBottom: si < tplSections.length - 1 ? token.marginSM : 0 }}>
@@ -1196,62 +1292,7 @@ export default function RepTemplatePage() {
                     >
                       {section.name.trim() || `节 ${si + 1}`}
                     </div>
-                    {section.measures.length > 0 && (
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginBottom: 4 }}>
-                        <thead>
-                          <tr>
-                            {['名称', '单位', '测值', '参考范围'].map((header) => (
-                              <th
-                                key={header}
-                                style={{
-                                  textAlign: 'left',
-                                  padding: '3px 8px',
-                                  borderBottom: `1px solid ${token.colorSplit}`,
-                                  color: token.colorTextSecondary,
-                                  fontWeight: 500,
-                                }}
-                              >
-                                {header}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {section.measures.map((measure, mi) => (
-                            <tr key={mi}>
-                              <td style={{ padding: '3px 8px', borderBottom: `1px solid ${token.colorSplit}` }}>
-                                {measure.label || '—'}
-                              </td>
-                              <td style={{ padding: '3px 8px', borderBottom: `1px solid ${token.colorSplit}` }}>
-                                {measure.unit || '—'}
-                              </td>
-                              <td
-                                style={{
-                                  padding: '3px 8px',
-                                  borderBottom: `1px solid ${token.colorSplit}`,
-                                  color: token.colorTextTertiary,
-                                }}
-                              >
-                                —
-                              </td>
-                              <td
-                                style={{
-                                  padding: '3px 8px',
-                                  borderBottom: `1px solid ${token.colorSplit}`,
-                                  fontVariantNumeric: 'tabular-nums',
-                                }}
-                              >
-                                {measure.normal?.kind === 'range'
-                                  ? formatRange(measure.normal.min, measure.normal.max)
-                                  : measure.normal?.kind === 'text'
-                                    ? measure.normal.text || '—'
-                                    : '—'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
+                    {section.measures.length > 0 && <PreviewMeasureTable section={section} token={token} />}
                     {section.finding && <PreviewParagraphs text={section.finding} phStyle={phStyle} />}
                   </div>
                 ))

@@ -913,7 +913,7 @@ carries a 简单模板/分节模板 mode — 简单模式 keeps the 影像学表
 textareas reading the prose columns; 分节模式 opens the WIDE drawer of section
 cards (each card: the 节名 edited IN PLACE inside the card head — a borderless
 input carrying the example placeholder 节名（如：心腔、肝脏）with the gray
-positional 节 N tag beside it; 测量项 row editor 名称/单位/正常范围 with add/remove
+positional 节 N tag beside it; 测量项 row editor 项目/单位/正常范围 with add/remove (user ruling 2026-11-20 follow-up: the row field reads 项目, ex-名称)
 — the 项目 code input is RETIRED, the code rides a nullable passthrough so legacy
 rows keep theirs across the full-replace PUT; 所见 textarea; the verbs 折叠/
 展开, 删除节, 删除测量项, 添加测量项 rendered ICON-ONLY with their aria-labels)
@@ -942,6 +942,17 @@ defaulting to the 个人 scope; the default scope is 公共 only when
 (新建目录/新建子目录/编辑目录/删除节点/添加模板/表格编辑与删除) keys its
 `hasPerm` check on the CURRENT scope — 公共 scope consults the
 `setting:temp:public:*` family, 个人 scope the base `setting:temp:*` family.
+
+<!-- synced from: rep-template-structured-content 2026-11-19 -->
+<!-- synced from: rep-temp-scope-perms 2026-11-19 -->
+<!-- synced from: rep-temp-normal-range-web 2026-11-19 -->
+<!-- synced from: rep-temp-ops-chrome-web 2026-11-20 (the right-table 操作 column rides the shared console chrome: actions/onRefresh — the refresh glyph pinned to the 操作 header's right edge, 删除 carrying the delete glyph) -->
+<!-- synced from: rep-temp-tree-dirs-only-web 2026-11-20 (the left tree renders DIRECTORIES ONLY: template leaves pruned at load — templates are managed in the right table) -->
+<!-- synced from: rep-temp-normal-kind-select-web 2026-11-20 (the measure row's 正常范围 kind control is a per-row Select 区间/文本 — user ruling ex-Segmented; union semantics unchanged) -->
+<!-- synced from: rep-temp-section-title-echo-web 2026-11-20 (section card titles echo the typed 节名 — 节名未填 while empty, gray 节 N tag kept; prototype 拍板点 1) -->
+<!-- synced from: rep-template-ux-polish-web 2026-11-20 (ux-polish batch: 预览→footer-button modal, card verbs icon-only, 节名 edits in place in the card head ex-title-echo, 项目 code input retired, 节所见→影像所见→所见, 影像学意见→影像意见; sev pair relaxes code to optional) -->
+<!-- synced from: rep-temp-section-label-web 2026-11-20 (the per-section findings label renames AGAIN: 影像所见→所见 — a section may itself be named 影像所见; the body label must not read as a second section name) -->
+<!-- synced from: rep-temp-preview-measure-table-web 2026-11-20 (the measure row editor field renames 名称→项目) -->
 
 #### Scenario: Tab toggle switches scope without cross-leak
 
@@ -1135,19 +1146,29 @@ cells. The 报告预览 SHALL be an ON-DEMAND modal — the template drawer's
 footer carries a 预览 button summoning it (the always-on bottom block is
 retired, ux-polish 2026-11-20); the modal renders the current draft — one
 paragraph per line with a 2em first-line indent (the print shape) and, in
-分节模式, the B-form mini measure table per section (名称 / 单位 / 测值 (always
-— on the template) / 参考范围 — 单侧开区间 `19 ~` / `~ 40`, both ends empty
-renders —). The 插入占位 affordances SHALL be retired outright
+分节模式, the B-form mini measure table per section — the 检验报告 TWO-UP
+layout: each table row carries TWO 项目 / 结果 / 参考范围 / 单位 groups
+(in that exact column order) separated by the ONE center vertical rule
+(rep-temp-preview-measure-table-web 2026-11-20: the table draws its outer
+frame + row lines + the center rule in the standard border token —
+表格线要明显 — while every OTHER vertical column line is suppressed; the
+HEADERS render CENTERED; the unit stays a SEPARATE column since complex
+English units like g/l cannot fold into a header parenthesis; an odd measure
+count leaves the second half blank; 结果 stays always — on the template —
+the template carries the reference, the report carries the actual; 单侧开区间
+`19 ~` / `~ 40`, both ends empty renders —). The 报告预览 modal body renders at a generous default
+height (70vh, internal scroll). The 插入占位 affordances SHALL be retired outright
 (rep-template-placeholder-insert-retire-web 2026-11-20: the card's and both
 prose fields' buttons are gone — the token types by hand). The 所见
-textarea renders SIX rows. Save SHALL normalize leading whitespace per
+textarea renders FOURTEEN rows (user ruling 2026-11-20 follow-up, 3→6→10→14 across the day). Save SHALL normalize leading whitespace per
 line on 影像学表现/影像意见/所见 (and the 简单→分节 conversion) — the
 indent belongs to the renderer, never the stored text.
 
 <!-- synced from: rep-temp-placeholder-preview-web 2026-11-20 (the 【左|右】 placeholder convention: amber .rep-ph highlight, render-layer paragraph/indent treatment, save-time leading-whitespace normalization) -->
 <!-- synced from: rep-template-ux-polish-web 2026-11-20 (报告预览 becomes an on-demand footer-button modal — the always-on bottom block retired) -->
-<!-- synced from: rep-template-placeholder-insert-retire-web 2026-11-20 (插入占位 affordances retired outright — the 【左|右】 token types by hand; 所见 textarea grows to ten rows) -->
+<!-- synced from: rep-template-placeholder-insert-retire-web 2026-11-20 (插入占位 affordances retired outright — the 【左|右】 token types by hand) -->
 <!-- synced from: rep-temp-section-label-web 2026-11-20 (影像所见 → 所见 across the per-section label/aria/placeholder and this requirement's wording) -->
+<!-- synced from: rep-temp-preview-measure-table-web 2026-11-20 (the preview measure table lands its final shape: 检验报告 two-up layout — 项目/结果/参考范围/单位 ×2 per row, outer frame + row lines + ONE center rule, other verticals suppressed, centered headers, unit a separate column; modal body 70vh; 所见 textarea FOURTEEN rows) -->
 
 #### Scenario: Live preview renders the print shape
 

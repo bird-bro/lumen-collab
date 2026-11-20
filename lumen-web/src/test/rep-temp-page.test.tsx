@@ -560,11 +560,11 @@ describe('report template page - structured form (dual mode)', () => {
     await user.type(within(drawer).getByLabelText('节名'), '心腔')
     await user.click(within(drawer).getByRole('button', { name: '添加测量项' }))
     await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
-    await screen.findByText('测量项名称不能为空')
+    await screen.findByText('测量项项目不能为空')
     expect(tempApi.createRepTemp).not.toHaveBeenCalled()
 
     const card = within(drawer).getByRole('group', { name: '节卡片 1' })
-    await user.type(within(card).getByLabelText('名称'), '左房内径')
+    await user.type(within(card).getByLabelText('项目'), '左房内径')
     await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
 
     await waitFor(() => {
@@ -596,7 +596,7 @@ describe('report template page - structured form (dual mode)', () => {
     await user.type(within(card).getByLabelText('节名'), '心腔')
     await user.type(within(card).getByLabelText('所见'), '左房增大。')
     await user.click(within(card).getByRole('button', { name: '添加测量项' }))
-    await user.type(within(card).getByLabelText('名称'), '左房内径')
+    await user.type(within(card).getByLabelText('项目'), '左房内径')
     await user.type(within(card).getByLabelText('单位'), 'mm')
     await user.type(within(card).getByLabelText('正常范围最小值'), '19')
     await user.type(within(card).getByLabelText('正常范围最大值'), '40')
@@ -634,7 +634,7 @@ describe('report template page - structured form (dual mode)', () => {
     // Two measure rows, only the first filled; the empty second row is deleted.
     await user.click(within(card).getByRole('button', { name: '添加测量项' }))
     await user.click(within(card).getByRole('button', { name: '添加测量项' }))
-    await user.type(within(card).getAllByLabelText('名称')[0], '左房内径')
+    await user.type(within(card).getAllByLabelText('项目')[0], '左房内径')
     await user.click(within(card).getAllByRole('button', { name: '删除测量项' })[1])
     // A second section is added then removed - the cards renumber back to 节 1.
     await user.click(within(drawer).getByRole('button', { name: '添加节' }))
@@ -787,12 +787,12 @@ describe('report template page - normal range union editor (rep-temp-normal-rang
     await user.type(within(card).getByLabelText('节名'), '心腔')
     await user.click(within(card).getByRole('button', { name: '添加测量项' }))
     // Row 0: two-sided decimal range.
-    await user.type(within(card).getByLabelText('名称'), '左房内径')
+    await user.type(within(card).getByLabelText('项目'), '左房内径')
     await user.type(within(card).getByLabelText('正常范围最小值'), '19.5')
     await user.type(within(card).getByLabelText('正常范围最大值'), '40')
     // Row 1: min-only open interval (max left blank).
     await user.click(within(card).getByRole('button', { name: '添加测量项' }))
-    await user.type(within(card).getAllByLabelText('名称')[1], '左室内径')
+    await user.type(within(card).getAllByLabelText('项目')[1], '左室内径')
     await user.type(within(card).getAllByLabelText('正常范围最小值')[1], '3')
     await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
 
@@ -825,7 +825,7 @@ describe('report template page - normal range union editor (rep-temp-normal-rang
     const card = within(drawer).getByRole('group', { name: '节卡片 1' })
     await user.type(within(card).getByLabelText('节名'), '心腔')
     await user.click(within(card).getByRole('button', { name: '添加测量项' }))
-    await user.type(within(card).getByLabelText('名称'), '二尖瓣反流')
+    await user.type(within(card).getByLabelText('项目'), '二尖瓣反流')
     // Switch the row to 文本 and type the qualitative phrase.
     await pickNormalKind(user, card, '文本')
     await user.type(within(card).getByLabelText('正常范围'), '阴性')
@@ -859,7 +859,7 @@ describe('report template page - normal range union editor (rep-temp-normal-rang
     const card = within(drawer).getByRole('group', { name: '节卡片 1' })
     await user.type(within(card).getByLabelText('节名'), '心腔')
     await user.click(within(card).getByRole('button', { name: '添加测量项' }))
-    await user.type(within(card).getByLabelText('名称'), '心包积液')
+    await user.type(within(card).getByLabelText('项目'), '心包积液')
     // Switch to 文本 and back to 区间 - the round-trip leaves both ends empty.
     await pickNormalKind(user, card, '文本')
     await pickNormalKind(user, card, '区间')
@@ -885,7 +885,7 @@ describe('report template page - normal range union editor (rep-temp-normal-rang
     const card = within(drawer).getByRole('group', { name: '节卡片 1' })
     await user.type(within(card).getByLabelText('节名'), '心腔')
     await user.click(within(card).getByRole('button', { name: '添加测量项' }))
-    await user.type(within(card).getByLabelText('名称'), '主动脉')
+    await user.type(within(card).getByLabelText('项目'), '主动脉')
     await user.type(within(card).getByLabelText('正常范围最小值'), '40')
     await user.type(within(card).getByLabelText('正常范围最大值'), '19')
     await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
@@ -1004,7 +1004,7 @@ describe('report template page - placeholder preview (rep-temp-placeholder-previ
     expect(paras[1].textContent).toBe('两肺纹理增多。')
   })
 
-  it('分节模式 预览弹框 shows the B-form shape: 节名 + mini measure table + 所见 paragraphs', async () => {
+  it('分节模式 预览弹框 shows the 检验报告 two-up table: 项目/结果/参考范围/单位 columns, centered headers, visible grid', async () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('呼吸系统')
@@ -1014,9 +1014,9 @@ describe('report template page - placeholder preview (rep-temp-placeholder-previ
     await user.type(within(drawer).getByLabelText('名称'), '心脏超声')
     await pickTemplateType(user, '分节模板')
     const card = within(drawer).getByRole('group', { name: '节卡片 1' })
-    await user.type(within(card).getByLabelText('节名'), '心腔')
+    await user.type(within(card).getByLabelText('节名'), '心功能')
     await user.click(within(card).getByRole('button', { name: '添加测量项' }))
-    await user.type(within(card).getByLabelText('名称'), '左房内径')
+    await user.type(within(card).getByLabelText('项目'), '左房内径')
     await user.type(within(card).getByLabelText('单位'), 'mm')
     await user.type(within(card).getByLabelText('正常范围最小值'), '19')
     await user.type(within(card).getByLabelText('正常范围最大值'), '40')
@@ -1025,12 +1025,35 @@ describe('report template page - placeholder preview (rep-temp-placeholder-previ
     await user.click(within(drawer).getByRole('button', { name: /预 览|预览/ }))
     const preview = await waitFor(() => screen.getByLabelText('报告预览'))
     await waitFor(() => {
-      expect(within(preview).getByText('心腔')).toBeTruthy()
+      // The 8-column header row: 项目/结果/参考范围/单位 ×2 halves — centered
+      // (style assert), and the unit is its own column (no parens).
+      expect(within(preview).getAllByText('项目')).toHaveLength(2)
+      expect(within(preview).getAllByText('结果')).toHaveLength(2)
+      expect(within(preview).getAllByText('参考范围')).toHaveLength(2)
+      expect(within(preview).getAllByText('单位')).toHaveLength(2)
       expect(within(preview).getByText('左房内径')).toBeTruthy()
       expect(within(preview).getByText('19 ~ 40')).toBeTruthy()
+      expect(within(preview).getByText('mm')).toBeTruthy()
     })
     const ph = preview.querySelector('.rep-ph')
     expect(ph?.textContent).toBe('【左|右】')
+    // Visible grid: the cells carry the colorBorder border (ex-colorSplit).
+    const firstTd = preview.querySelector('td') as HTMLElement
+    expect(firstTd.style.borderBottom).toContain('rgb')
+
+    // A second measure fills the RIGHT half of the same row.
+    await user.click(within(card).getByRole('button', { name: '添加测量项' }))
+    await user.type(within(card).getAllByLabelText('项目')[1], '射血分数')
+    await user.type(within(card).getAllByLabelText('单位')[1], '%')
+    await user.type(within(card).getAllByLabelText('正常范围最小值')[1], '50')
+    await user.type(within(card).getAllByLabelText('正常范围最大值')[1], '75')
+    await user.click(within(drawer).getByRole('button', { name: /预 览|预览/ }))
+
+    await waitFor(() => {
+      expect(within(preview).getByText('射血分数')).toBeTruthy()
+      expect(within(preview).getByText('50 ~ 75')).toBeTruthy()
+      expect(within(preview).getByText('%')).toBeTruthy()
+    })
   })
 
   it('right-table prose cells highlight placeholder tokens inline', async () => {
