@@ -139,16 +139,26 @@ class RepTempContentApiTests extends SettingIntegrationTestBase {
         assertTrue(parse(blankName).path("msg").asText().contains("name"),
                 "the rejection must name the field: " + blankName);
 
-        // Blank measure code.
+        // Measure code is OPTIONAL (rep-template-ux-polish 2026-11-20, user
+        // ruling: the printed B-form never shows the 项目 code and the UI retired
+        // the input — the field rides nullable for legacy rows and future stats
+        // anchoring; label stays required).
         ResponseEntity<String> blankCode = exchangeJson(HttpMethod.POST, TEMP_URL,
                 body(templateBody("ut模板_空码_" + ts, folder,
                         "{\"version\":2,\"sections\":[{\"name\":\"心脏\",\"measures\":["
                                 + "{\"code\":\"\",\"label\":\"标签\"}]}]}")),
                 token);
-        assertEquals("A0400", parse(blankCode).path("code").asText(),
-                "a blank measure code must reject: " + blankCode);
-        assertTrue(parse(blankCode).path("msg").asText().contains("code"),
-                "the rejection must name the field: " + blankCode);
+        assertEquals("200", parse(blankCode).path("code").asText(),
+                "a blank measure code must be ACCEPTED (code is optional): " + blankCode);
+
+        // A measure with NO code key at all is equally accepted.
+        ResponseEntity<String> noCode = exchangeJson(HttpMethod.POST, TEMP_URL,
+                body(templateBody("ut模板_无码_" + ts, folder,
+                        "{\"version\":2,\"sections\":[{\"name\":\"心脏\",\"measures\":["
+                                + "{\"label\":\"左房内径\",\"unit\":\"mm\",\"normal\":null}]}]}")),
+                token);
+        assertEquals("200", parse(noCode).path("code").asText(),
+                "an absent measure code must be ACCEPTED: " + noCode);
 
         // Blank measure label.
         ResponseEntity<String> blankLabel = exchangeJson(HttpMethod.POST, TEMP_URL,
@@ -319,17 +329,16 @@ class RepTempContentApiTests extends SettingIntegrationTestBase {
         assertTrue(parse(blankName).path("msg").asText().contains("name"),
                 "the rejection must name the field: " + blankName);
 
-        // Blank measure code.
+        // Measure code is OPTIONAL on update too (rep-template-ux-polish
+        // 2026-11-20): a blank code writes through; label stays required.
         ResponseEntity<String> blankCode = exchangeJson(HttpMethod.PUT,
                 TEMP_URL + "/" + temp,
                 body(updateBody("ut模板_拒改码_" + ts, folder,
                         "{\"version\":2,\"sections\":[{\"name\":\"心脏\",\"measures\":["
                                 + "{\"code\":\"\",\"label\":\"标签\"}]}]}")),
                 token);
-        assertEquals("A0400", parse(blankCode).path("code").asText(),
-                "a blank measure code must reject on update: " + blankCode);
-        assertTrue(parse(blankCode).path("msg").asText().contains("code"),
-                "the rejection must name the field: " + blankCode);
+        assertEquals("200", parse(blankCode).path("code").asText(),
+                "a blank measure code must be ACCEPTED on update (code is optional): " + blankCode);
 
         // Blank measure label.
         ResponseEntity<String> blankLabel = exchangeJson(HttpMethod.PUT,
