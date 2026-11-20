@@ -980,5 +980,11 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
 ## Base: b562573 (branch: dev)
 
 ### Batch 1: module scaffold + ledger (tasks 1.1-1.3)
-- Status: In progress (implementer dispatched, opus)
-- Scope: lumen-us 脚手架(8083)+vendored kernel DDL V1+us_registration_ext V2+菜单种子 V3
+- Status: Complete + Approved (commit 3f2c8d0; review-fix commit follows)
+- Review: Approved — vendored DDL 独立复diff 空、kernel/patient/system/api 零改动行、V3 CONTENT 锚定对 V22 实种子核验、16 测试全为共享库真 JDBC 断言（无 mock）；3 concern 全 ACCEPT（nginx/compose 顺延已录 D1 修正案、PK 无物理 FK 合 house、勾选循环管理）
+- Fixes: 3 Minor 注释措辞（分号字符回归 D2 声明）已修
+- Notes: V1 重放测试用抛置 schema finally 硬删；V3 重放为活 schema 行数 no-op 证明；loop-state tasks_done 3/8（verify 任务不计 total）
+
+### Batch 2: patient internal surface + contract (tasks 2.1-2.2)
+- Status: In progress (implementer dispatched, sonnet)
+- Scope: lumen-api PatientApi 契约(照 NumberApi 先例)+patient 内部端点(InternalKeyInterceptor+resolve-or-register 复合+outbox pull/ack)
