@@ -54,7 +54,13 @@ import {
  * renders only for `setting:temp:public:list` holders - without it the page is
  * a personal library defaulting to 个人 (no public requests) - and EVERY action
  * consults the CURRENT scope's family via tempPerm (公共 →
- * `setting:temp:public:*`, 个人 → the base `setting:temp:*`).
+ * `setting:temp:public:*`, 个人 → the base `setting:temp:*`). The right table's
+ * 操作 column rides the SHARED console chrome (rep-temp-ops-chrome-web
+ * 2026-11-20 - the page had hand-rolled a key:'ops' column, the last one in
+ * the repo): verbs go through ConsoleTable's actions/onRefresh (refresh glyph
+ * pinned to the 操作 header's right edge) and 删除 passes icon="remove" - the
+ * ConsoleAction default is the edit glyph (third recurrence; session memory
+ * console-table-ops-chrome-invariants).
  */
 
 const TYPE_PUBLIC = 1
@@ -705,25 +711,6 @@ export default function RepTemplatePage() {
       // impression column is NULL there, D1 互斥); prose rows unchanged.
       render: (text: string | null, row) => (row.content ? row.content.impression ?? '—' : text ?? '—'),
     },
-    {
-      title: '操作',
-      key: 'ops',
-      width: 130,
-      render: (_, row) => (
-        <>
-          {hasPerm(tempPerm('update')) && (
-            <ConsoleAction label="编辑" onClick={() => openTemplateEdit(row)} />
-          )}
-          {hasPerm(tempPerm('delete')) && (
-            <Popconfirm title={`确定删除模板“${row.name}”？`} onConfirm={() => void removeNode({
-              id: row.id, name: row.name, flag: row.flag, upId: row.upId, children: [],
-            })}>
-              <ConsoleAction label="删除" danger onClick={() => undefined} />
-            </Popconfirm>
-          )}
-        </>
-      ),
-    },
   ]
 
   const renderTreeNode = (node: RepTempNode, depth: number) => (
@@ -854,6 +841,31 @@ export default function RepTemplatePage() {
             loading={tableLoading}
             columns={columns}
             dataSource={files}
+            // Shared ops chrome (rep-temp-ops-chrome-web 2026-11-20 - the page
+            // had hand-rolled a key:'ops' column, the last one in the repo):
+            // the verbs ride ConsoleTable's actions column (刷新 affordance
+            // pinned to the 操作 header's right edge, re-running the current
+            // page query) and 删除 passes icon="remove" explicitly - the
+            // ConsoleAction default is the edit glyph (third recurrence of
+            // that bug; the convention now lives in the session memory).
+            onRefresh={() => void loadFiles(scope, modality, selectedNode?.id ?? null, nameFilter, pageNum, pageSize)}
+            actions={{
+              width: 130,
+              render: (row) => (
+                <>
+                  {hasPerm(tempPerm('update')) && (
+                    <ConsoleAction label="编辑" onClick={() => openTemplateEdit(row)} />
+                  )}
+                  {hasPerm(tempPerm('delete')) && (
+                    <Popconfirm title={`确定删除模板“${row.name}”？`} onConfirm={() => void removeNode({
+                      id: row.id, name: row.name, flag: row.flag, upId: row.upId, children: [],
+                    })}>
+                      <ConsoleAction label="删除" icon="remove" danger onClick={() => undefined} />
+                    </Popconfirm>
+                  )}
+                </>
+              ),
+            }}
           />
           <ConsolePagination
             current={pageNum}

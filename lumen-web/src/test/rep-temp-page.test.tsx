@@ -934,6 +934,38 @@ describe('report template page - structured save chain (3.6)', () => {
 })
 
 /**
+ * Shell ops chrome (rep-temp-ops-chrome-web 2026-11-20, the exam-method-page
+ * "rides the shell ops chrome" idiom): the right table's 操作 column rides the
+ * shared ConsoleTable chrome - the 操作 header carries the refresh glyph at its
+ * right edge re-running the current page query, and the row verbs keep their
+ * proper glyphs (删除 the delete glyph - ConsoleAction's default is the edit
+ * glyph, so the verb must pass icon="remove" explicitly).
+ */
+describe('report template page - shell ops chrome (rep-temp-ops-chrome-web)', () => {
+  it('rides the shell ops chrome: refresh in the 操作 header, delete glyph on 删除', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('肺结节随访')
+
+    const refresh = screen.getByRole('button', { name: '刷新列表' })
+    expect(within(refresh.closest('th') as HTMLElement).getByText('操作')).toBeTruthy()
+    vi.mocked(tempApi.pageRepTemps).mockClear()
+    await user.click(refresh)
+    await waitFor(() => {
+      expect(tempApi.pageRepTemps).toHaveBeenCalled()
+    })
+
+    const row = screen.getByText('右肺上叶见磨玻璃结节影…').closest('tr') as HTMLElement
+    expect(
+      within(row).getByRole('button', { name: '删除' }).querySelector('.anticon-delete'),
+    ).not.toBeNull()
+    expect(
+      within(row).getByRole('button', { name: '编辑' }).querySelector('.anticon-edit'),
+    ).not.toBeNull()
+  })
+})
+
+/**
  * Scope-keyed perm families (rep-temp-scope-perms 2026-11-19): the Segmented
  * 公共 option renders only for `setting:temp:public:list` holders (default
  * scope flips to 个人 without it - no public tree/table request), and EVERY
