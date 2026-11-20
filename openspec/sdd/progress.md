@@ -993,5 +993,13 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
 - Batch-3 缺口(已入 brief): us resolve 透传需 lookup-only 语义,patient 契约 add-only 增补
 
 ### Batch 3: us adapters + registration surface (tasks 3.1-3.2)
-- Status: In progress (implementer dispatched, sonnet)
-- Scope: PatientRegistryPort/NumberIssuerPort 适配器+resolve 透传(lookup-only)+RegistrationController+RegistrationHook 孕检扩展接线+us 权限链补全
+- Status: Complete + Approved (commit 534b88d; 34 文件; us 39/39 + patient 58/58; L1 ✓)
+- Review: Approved — lookup 契约纯增(+134/-0 实证)+ refusal 阶梯先于写+5 端点全 @PreAuthorize+内核零触碰(git diff 空)+ThreadLocal hook sound(registerOrder 同步同线程+finally 清理+回滚证明测试)+checksum 修复正当(文件未动 history 落后=repair 语义反面形态)
+- Minor: ext 块直绑实体→deleted/createBy 可被注入(并入 B4 加固);报告行数笔误;sweep SQL 补括号(并入 B4)
+- Info: spec「rule accession」措辞松——内核实际按 1028 族 token 发号,已修 spec 措辞
+- 事故附记: B1 评审修复改了已应用迁移注释→共享库校验和炸→B3 实现器按 repair 语义对齐 2 行 history(教训入 flyway 记忆)
+
+### Batch 4: snapshot poller + B3 riders (task 4.1)
+- Status: Complete, review in progress (commit b28c0d5; us 49/49; L1 ✓)
+- Scope landed: PatientSnapshotPoller(ack-after-success/poison 隔离/传输错不 ack/ISSUED 拒绝确定性 ack)+Rider1 ext 审计字段剥离(实锤真注入)+Rider2 sweep 语义钉(B3 评审前提不成立,括号本在)
+- 上抛裁决中: MERGED 载荷仅 {survivorId,mergedId} 无档案字段——repoint ✓ 但幸存者快照刷新落空(空覆盖),reviewer 裁定 accept+debt vs 小骑手 widening
