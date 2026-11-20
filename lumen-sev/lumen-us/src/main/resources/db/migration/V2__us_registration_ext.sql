@@ -1,5 +1,5 @@
 -- V2__us_registration_ext.sql - the US-specific registration extension table
--- (us-station-registration-sev task 1.3, design D2; specs/us-station "US Registration
+-- (us-station-registration-sev task 1.3, design D2 and specs/us-station "US Registration
 -- Extension"). The vendored kernel DDL (V1) stays verbatim - the US fields (user
 -- ruling 2026-11-20: 孕检为 lumen 决策 #5, EIS 对照 US 登记无 EIS 特有字段) live HERE
 -- as a 1:1 extension of the kernel order, reached through the kernel RegistrationHook
@@ -13,7 +13,8 @@
 -- plus the EntityBase audit set (deleted/create_by/create_time/update_by/update_time)
 -- every house table carries. House DDL rules honored: serial-style logical references,
 -- varchar values, and COMMENT LINES CARRY NO SEMICOLONS (the re-execution tests split
--- statements on ';' after stripping '--' lines - the V36 house lesson).
+-- statements on the semicolon character after stripping comment lines - the V36
+-- house lesson).
 -- Idempotence: a fresh-schema CREATE (the ledger applies it once - the
 -- flyway_schema_history guarantee), matching the vendored V1 shape.
 

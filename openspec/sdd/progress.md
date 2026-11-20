@@ -971,3 +971,14 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
 - Status: Complete (orchestrator in-context; verify.md overall=PASS)
 - Commits: 0b4e382 (D5 补格)
 - Notes: 后端全量 manage 瞬时态归因(隔离 68/68 链);web 首跑 414/416 两外部失败 = 并行会话 WIP(隔离 26/26),其落地后全量 418/418 绿 + 最终树 L1 exit 0;verify.md 19 场景对照逐行挂证据
+
+---
+
+## Change: us-station-registration-sev
+## Execution Mode: SDD
+## Started: 2026-11-20
+## Base: b562573 (branch: dev)
+
+### Batch 1: module scaffold + ledger (tasks 1.1-1.3)
+- Status: In progress (implementer dispatched, opus)
+- Scope: lumen-us 脚手架(8083)+vendored kernel DDL V1+us_registration_ext V2+菜单种子 V3

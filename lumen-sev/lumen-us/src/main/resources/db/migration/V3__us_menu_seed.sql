@@ -5,7 +5,7 @@
 -- contract, every statement re-runs as a row-count no-op once applied). Structure:
 --   1. the 登记 C page (path registration, component us/registration/index, perms
 --      us:order:list, sort 1) under the EXISTING US workstation W node - anchored by
---      CONTENT ONLY (up_id 0 + type W + title 超声工作站, the V22 contract keys; the
+--      CONTENT ONLY (up_id 0 + type W + title 超声工作站, the V22 contract keys - the
 --      node was seeded by lumen-system V22, icon converged by V36, ids never assumed)
 --   2. the three F buttons 新建/登记/取消 (perms us:order:{create,update,cancel},
 --      sorts 1/2/3) under the page
