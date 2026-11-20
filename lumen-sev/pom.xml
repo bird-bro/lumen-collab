@@ -16,6 +16,7 @@
         <module>lumen-core</module>
         <module>lumen-system</module>
         <module>lumen-patient</module>
+        <module>lumen-us</module>
     </modules>
 
     <name>${project.artifactId}</name>

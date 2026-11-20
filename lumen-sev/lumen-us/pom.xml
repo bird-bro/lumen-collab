@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.birdbro</groupId>
+        <artifactId>lumen-sev</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <name>${project.artifactId}</name>
+    <artifactId>lumen-us</artifactId>
+    <packaging>jar</packaging>
+
+    <dependencies>
+
+        <!-- lumen shared base, same shape as lumen-patient's module pom (us-station-
+             registration-sev task 1.1, design D1: module shape mirrors the OPS
+             single-department-service conventions). Redis arrives transitively via
+             framework/common's spring-boot-starter-data-redis; druid, the PostgreSQL
+             driver, and mybatis-plus ride framework/common too - no extra pins here. -->
+        <dependency>
+            <groupId>org.birdbro</groupId>
+            <artifactId>framework</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.birdbro</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+
+        <!-- web (Servlet stack - no reactive deps may enter) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- bean validation: common brings only validation-api (no implementation), so
+             the later batches' DTO contracts need the hibernate validator - version
+             managed by Boot's dependency management -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- No registry/config center since user decision 2026-11-03 (随访 fu-launch
+             shape, design D8): configuration is local - committed application.yml
+             (framework-demanded token/xss/dispose values) plus the GITIGNORED
+             application-dev.yml for credentials (template: application-dev.yml.example).
+             The OPS-train nacos-discovery/nacos-config/bootstrap starters stay removed. -->
+
+        <!-- Flyway: the us ledger (V1 vendored kernel registration DDL, V2 extension
+             table, V3 cross-schema menu seed) executes against the team test server's
+             lumen database (us-station-registration-sev tasks 1.2/1.3). Version managed
+             by Boot's dependency management (2.5.15 -> flyway-core 7.7.3) - no version
+             tag. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!-- commons-pool2: required by Spring Data Redis lettuce POOLING, which the
+             local-config application-dev.yml enables (spring.redis.lettuce.pool, the
+             随访 fu shape). Version managed by Boot's dependency management - no
+             version tag. -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
+
+        <!-- Deliberately ABSENT at batch 1 (us-station-registration-sev tasks 2.x/3.x):
+             lumen-core (the exam-workflow kernel) and lumen-api (the PatientApi /
+             NumberApi contracts) arrive with the adapters/controller batches that first
+             consume them - an unused dependency now would put kernel port beans on a
+             classpath whose slots no us bean satisfies yet (ExamOrderRegistrationService
+             constructor-requires PatientRegistryPort + NumberIssuerPort), booting no
+             context this batch can prove. The @MapperScan org.birdbro.**.mapper wildcard
+             already covers the kernel mappers for the day the dependency lands. -->
+
+        <!-- test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+</project>

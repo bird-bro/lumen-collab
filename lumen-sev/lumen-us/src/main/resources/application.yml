@@ -1,0 +1,105 @@
+# lumen-us local configuration (随访 fu-launch shape - user decision 2026-11-03,
+# design D8: no Nacos anywhere; local files only).
+#   - THIS FILE is committed and carries NO credentials - framework-demanded feature
+#     values plus safe local defaults only.
+#   - Credentials / environment endpoints live in the GITIGNORED application-dev.yml
+#     (template: application-dev.yml.example, same pattern as fu_sev).
+# Service identity per specs/service-topology "Service Identity" (us-station D1):
+# spring.application.name = module name, port 8083 (the port-table row after
+# lumen-patient's 8082), nginx /api/v1/us/**.
+server:
+  port: 8083
+
+spring:
+  application:
+    name: lumen-us
+  profiles:
+    active: dev                 # the dev profile (gitignored file) carries datasource/redis
+  flyway:
+    # Migration ledger + unqualified DDL are pinned to THIS service's own schema
+    # (user ruling 2026-11-03: flyway_schema_history stays in the service schema,
+    # never public). Explicit values make a misconfigured connection URL
+    # (e.g. currentSchema=public) fail loudly instead of silently migrating public.
+    # The us ledger: V1 vendored kernel registration DDL (verbatim, design D2),
+    # V2 us_registration_ext, V3 cross-schema menu seed.
+    schemas: us
+    default-schema: us
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher   # springfox 3.0 requirement on Boot 2.5
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss    # data spec: audit timestamps serialize GMT+8
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# JWT login state - demanded by framework/security/TokenService (@Value token.*).
+token:
+  header: Authorization         # clients send "Authorization: Bearer <jwt>"
+  # HS512-grade signing secret (>=64 chars) - PLACEHOLDER, production MUST replace it
+  # (env var or gitignored profile; never commit a real secret).
+  secret: lumen-collab-jwt-secret-change-me-in-production-0123456789abcdef
+  expireTime: 1440              # minutes; TokenService slides the Redis expiry
+
+# OpenAPI metadata (framework SwaggerConfig @Value; OPS literals are the defaults)
+swagger:
+  title: LumenCollab
+  description: LumenCollab US workstation service API
+  version: 1.0.0
+
+# XSS filter - demanded by framework/config/FilterConfig (@Value xss.*).
+xss:
+  enabled: true
+  excludes: /css/*,/js/*,/images/*
+  urlPatterns: /*
+
+# Unified envelope advice exclusions - framework GlobalProperties (prefix "dispose").
+dispose:
+  adviceFilterPackage:
+    - springfox.documentation
+    - org.springframework
+
+# Deliberately ABSENT blocks (us-station-registration-sev task 1.1):
+#   - security.permit-all: the US workstation has NO login - every path stays
+#     token-guarded (the framework SecurityAnonymousProperties.permitAll list defaults
+#     to empty); the lumen-system-owned anonymous paths (login/auth-key) belong to the
+#     JWT issuer. The patient-internal endpoints consumed server-side ride the
+#     internal key, never a user permission.
+#   - upload.*: framework WebMvcConfig keeps the location-less /profile/** parity
+#     registration when upload.home is absent (adaptation #7 default) - us has no
+#     upload surface.
+
+logging:
+  level:
+    org.birdbro: debug
+  file:
+    name: ./logs/lumen-us.log
+
+# Service-to-service seams (us-station-registration-sev design D3/D4): the
+# registration adapters call the PATIENT service's internal resolve-or-register +
+# outbox pull/ack endpoints (internal-key guarded, task 2.x), and accession issuance
+# calls the SYSTEM service's platform number rule (rule 'accession', task 3.x) -
+# direct URLs (no discovery, the 2026-11-03 local-config ruling; env var wins, the
+# local defaults target the locally-running services). The internal key rides the
+# SAME value both counterparties check - gitignored overrides in application-dev.yml
+# / env vars, never a committed real key (fail-closed both sides). The Feign clients
+# themselves arrive with tasks 2.x/3.x (lumen-api PatientApi + NumberApi adapters).
+feign:
+  sentinel:
+    enabled: true   # the fail-fast fallbacks resolve through Sentinel from task 3.x
+
+lumen:
+  api:
+    patient:
+      url: ${LUMEN_API_PATIENT_URL:http://localhost:8082}
+    system:
+      url: ${LUMEN_API_SYSTEM_URL:http://localhost:8081}
+  internal-api-key: ${LUMEN_INTERNAL_API_KEY:}

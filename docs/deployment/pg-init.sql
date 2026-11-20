@@ -54,3 +54,18 @@ CREATE SCHEMA IF NOT EXISTS integration;
 -- GRANT USAGE, SELECT, UPDATE ON SEQUENCE system.menu_info_id_seq, system.role_menu_id_seq
 --   TO lumen_patient_role;
 -- （UPDATE 不可省：V2 的 setval 尾要求序列 UPDATE 权限，缺了会在迁移第 7 句半途失败）
+
+-- =====================================================================
+-- 八、US 工作站登记菜单种子跨 schema 授权（us-station-registration-sev，2026-11-20）
+-- =====================================================================
+-- lumen-us 的菜单种子（lumen-sev/lumen-us V3__us_menu_seed.sql）按 D2 契约挂在本服务
+-- 自己的 Flyway ledger 上、跨 schema 写 system.menu_info / system.role_menu（内容守卫
+-- 纪律，patient V2 同款）。生产库中该迁移以 lumen_us_role 连接执行，故该角色须对这两
+-- 张表（及其序列）有写权限；system schema 的 USAGE 亦不可少。以下为注释块，按需启用
+-- （角色须先存在，见上文角色块）；其他服务角色不受影响：
+-- GRANT USAGE ON SCHEMA system TO lumen_us_role;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON system.menu_info, system.role_menu
+--   TO lumen_us_role;
+-- GRANT USAGE, SELECT, UPDATE ON SEQUENCE system.menu_info_id_seq, system.role_menu_id_seq
+--   TO lumen_us_role;
+-- （UPDATE 不可省：V3 的 setval 尾要求序列 UPDATE 权限，缺了会在迁移最后一句失败）

@@ -1,0 +1,5 @@
+# Repo-local exception: Flyway migrations MUST be versioned (project rule - schema
+# changes only via committed migrations). The developer machine's global gitignore
+# excludes *.sql (a user setting, not project policy); this negation re-includes ONLY
+# this directory's migration files.
+!*.sql
