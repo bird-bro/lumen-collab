@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import org.birdbro.common.core.R;
+import org.birdbro.common.exception.BusinessException;
 import org.birdbro.lumen.api.patient.PatientApi;
 import org.birdbro.lumen.api.patient.PatientIdentityResponse;
 import org.birdbro.lumen.api.patient.PatientOutboxEntry;
@@ -191,6 +192,21 @@ class UsSnapshotPollerTests extends UsApiTestBase {
         when(patientApi.pullOutbox(anyInt())).thenThrow(new RuntimeException("connection reset"));
         assertDoesNotThrow(() -> poller.pollOnce(),
                 "a transport failure must never escape the poller");
+        verify(patientApi, never()).ackOutbox(any());
+    }
+
+    @Test
+    void sentinelAssertionErrorFallbackDoesNotEscapeThePoller() {
+        // the Sentinel feign handler (spring-cloud-alibaba 2021.1) wraps the fail-fast
+        // fallback in an AssertionError - an Error, NOT an Exception - so a plain
+        // catch (Exception) lets it escape to the scheduler's error handler (live
+        // finding 2026-11-20: patient down -> scheduler ERROR spam every poll while
+        // nothing was wrongly acked). The transport-doubt net must catch it too.
+        when(patientApi.pullOutbox(anyInt())).thenThrow(new AssertionError(
+                new BusinessException("C0001",
+                        "调用第三方服务出错 - 患者服务不可达，outbox 拉取失败（fail-fast，绝不伪造投递）")));
+        assertDoesNotThrow(() -> poller.pollOnce(),
+                "the Sentinel AssertionError wrapper is transport doubt - never escapes");
         verify(patientApi, never()).ackOutbox(any());
     }
 

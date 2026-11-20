@@ -126,9 +126,13 @@ public class PatientSnapshotPoller {
         try {
             R<List<PatientOutboxEntry>> envelope = patientApi.pullOutbox(effectiveLimit());
             batch = envelope == null ? null : envelope.getData();
-        } catch (Exception transport) {
+        } catch (Exception | AssertionError transport) {
             // transport doubt (fail-fast C0001 fallback included): the whole batch
-            // skips - no acks anywhere, the next pass retries the same PENDING rows
+            // skips - no acks anywhere, the next pass retries the same PENDING rows.
+            // AssertionError is in the net deliberately: the Sentinel feign handler
+            // (spring-cloud-alibaba 2021.1) wraps the fallback's BusinessException in
+            // an AssertionError - an Error, not an Exception (live finding
+            // 2026-11-20; the regression test pins the wrapper shape).
             log.warn("[us-snapshot-poller] outbox pull failed - batch skipped, no acks "
                     + "(replay next pass): {}", transport.getMessage());
             return;
@@ -155,7 +159,10 @@ public class PatientSnapshotPoller {
         try {
             dispatch(entry);
             patientApi.ackOutbox(entry.getId());
-        } catch (Exception failed) {
+        } catch (Exception | AssertionError failed) {
+            // AssertionError included: Sentinel wraps fallback business exceptions in
+            // it (see the pull-site comment) - the replay contract must hold for the
+            // wrapper too.
             log.warn("[us-snapshot-poller] outbox entry {} dispatch failed - NO ack, the "
                     + "row stays PENDING for replay: {}", entry.getId(), failed.getMessage());
         }
