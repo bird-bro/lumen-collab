@@ -11,6 +11,7 @@ import io.swagger.annotations.ApiOperation;
 import cn.hutool.core.bean.BeanUtil;
 
 import org.birdbro.lumen.api.patient.PatientIdentityResponse;
+import org.birdbro.lumen.api.patient.PatientLookupResult;
 import org.birdbro.lumen.api.patient.PatientOutboxEntry;
 import org.birdbro.lumen.api.patient.PatientResolveOrRegisterRequest;
 import org.birdbro.lumen.api.patient.PatientResolveOrRegisterResult;
@@ -85,6 +86,30 @@ public class InternalPatientController {
         BeanUtil.copyProperties(request, resolve, true);
         PatientResolveResult result = patientArchiveService.resolveOrRegister(resolve);
         return toContractResult(result);
+    }
+
+    /**
+     * The LOOKUP-ONLY resolve (us-station-registration-sev task 3.1, the B2 review gap
+     * closure): the resolution chain's lookups with NO create fallback - exact |
+     * candidates | NONE, never a side effect. ORCHESTRATES ONLY the additive
+     * {@link PatientArchiveService#lookup(PatientResolveRequest)} (the same private
+     * helpers the public resolve chain runs) - the request body is the same resolve
+     * form (its {@code provisional} flag is ignored).
+     */
+    @ApiOperation("仅查询解析（内部服务专用，X-Internal-Key 门控，无建档副作用）")
+    @PostMapping("/patients/lookup")
+    public PatientLookupResult lookup(@RequestBody PatientResolveOrRegisterRequest request) {
+        PatientResolveRequest resolve = new PatientResolveRequest();
+        BeanUtil.copyProperties(request, resolve, true);
+        PatientResolveResult result = patientArchiveService.lookup(resolve);
+        return PatientLookupResult.builder()
+                .result(result.getResult())
+                .identity(toIdentity(result.getPatient()))
+                .candidates(result.getCandidates() == null ? null
+                        : result.getCandidates().stream()
+                                .map(this::toIdentity)
+                                .collect(Collectors.toList()))
+                .build();
     }
 
     /** PENDING outbox batch in id order, limit-capped (no claim - re-pull until ack). */

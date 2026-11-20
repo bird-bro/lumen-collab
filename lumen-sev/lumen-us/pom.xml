@@ -68,14 +68,25 @@
             <artifactId>commons-pool2</artifactId>
         </dependency>
 
-        <!-- Deliberately ABSENT at batch 1 (us-station-registration-sev tasks 2.x/3.x):
-             lumen-core (the exam-workflow kernel) and lumen-api (the PatientApi /
-             NumberApi contracts) arrive with the adapters/controller batches that first
-             consume them - an unused dependency now would put kernel port beans on a
-             classpath whose slots no us bean satisfies yet (ExamOrderRegistrationService
-             constructor-requires PatientRegistryPort + NumberIssuerPort), booting no
-             context this batch can prove. The @MapperScan org.birdbro.**.mapper wildcard
-             already covers the kernel mappers for the day the dependency lands. -->
+        <!-- lumen-api (us-station-registration-sev task 3.1): the PatientApi / NumberApi
+             Feign contracts the registration adapters delegate to (add-only contracts,
+             direct-url targets lumen.api.patient.url / lumen.api.system.url). -->
+        <dependency>
+            <groupId>org.birdbro</groupId>
+            <artifactId>lumen-api</artifactId>
+        </dependency>
+
+        <!-- lumen-core (us-station-registration-sev task 3.2, D6/D7): the exam-workflow
+             kernel this service HOSTS - the registration surface is a thin HTTP face over
+             the kernel services (ExamOrderRegistrationService / ExamOrderStateMachineService),
+             and the kernel's port seams (PatientRegistryPort / NumberIssuerPort /
+             RegistrationHook) are satisfied by THIS module's adapter/hook beans. The
+             kernel library is consumed, never modified (naming.md library boundaries:
+             non-executable jar, no controllers - the HTTP surface belongs here). -->
+        <dependency>
+            <groupId>org.birdbro</groupId>
+            <artifactId>lumen-core</artifactId>
+        </dependency>
 
         <!-- test -->
         <dependency>

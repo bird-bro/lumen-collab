@@ -34,6 +34,14 @@ public class PatientResolveResult {
     /** Nothing matched - a new archive was created (PROVISIONAL or RESOLVED). */
     public static final String RESULT_CREATED = "CREATED";
 
+    /**
+     * Nothing matched - EMPTY result, NO archive row written (us-station-registration-sev
+     * task 3.1: the ADDITIVE lookup-only marker; only the ADDITIVE
+     * {@code PatientArchiveService#lookup} chain returns it - the creating resolve chain
+     * never does).
+     */
+    public static final String RESULT_NONE = "NONE";
+
     @ApiModelProperty("解析结果：MATCHED / CANDIDATES / CREATED")
     private String result;
 

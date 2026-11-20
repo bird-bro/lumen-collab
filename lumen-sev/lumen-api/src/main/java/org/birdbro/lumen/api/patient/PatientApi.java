@@ -33,6 +33,9 @@ import org.springframework.web.bind.annotation.RequestParam;
  * ACK - a failed dispatch that skips the ack leaves the entry PENDING for replay);
  * {@code ackOutbox} flips the row to CONSUMED and keeps it for audit, idempotently.</p>
  *
+ * <p>Lookup semantics (task 3.1): {@code lookup} is the LOOKUP-ONLY resolve - exact |
+ * candidates | NONE, never a creation (the UI passthrough's no-side-effect read).</p>
+ *
  * <p>Fail-fast contract: the fallback THROWS (C0001) - a fabricated identity or a
  * fabricated consumption confirmation is FORBIDDEN.</p>
  *
@@ -53,6 +56,21 @@ public interface PatientApi {
     @PostMapping("/api/v1/patient/internal/patients/resolve-or-register")
     R<PatientResolveOrRegisterResult> resolveOrRegister(
             @RequestBody PatientResolveOrRegisterRequest request);
+
+    /**
+     * LOOKUP-ONLY resolve (us-station-registration-sev task 3.1 - the B2 review gap
+     * closure: the consuming UI's resolve passthrough must NOT register). Runs the
+     * resolution chain's LOOKUP steps only (exact &rarr; card &rarr; soft) - an exact
+     * identity, a candidate list, or an EMPTY result returns and NOTHING is created
+     * (no side effect, ever). The request body is the SAME resolve form (its
+     * {@code provisional} flag is ignored - no fallback archive exists on this path).
+     *
+     * @param request the resolve keys the chain walks
+     * @return the envelope carrying {@code data} = the lookup outcome ({@code result} +
+     *         the identity on MATCHED, the candidate list on CANDIDATES, nothing on NONE)
+     */
+    @PostMapping("/api/v1/patient/internal/patients/lookup")
+    R<PatientLookupResult> lookup(@RequestBody PatientResolveOrRegisterRequest request);
 
     /**
      * Pulls a batch of PENDING outbox entries in id order (entries remain visible to

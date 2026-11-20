@@ -335,6 +335,66 @@ public class PatientArchiveServiceImpl implements PatientArchiveService {
 
     @Override
     @Transactional
+    public PatientResolveResult lookup(PatientResolveRequest request) {
+        // (i) exact identity anchor on a live archive - the SAME helper the public
+        // resolve chain runs (the chain's lookup steps are REUSED, not rewritten)
+        if (StrUtil.isNotBlank(request.getIdType()) && StrUtil.isNotBlank(request.getIdNo())) {
+            PatientMaster hit = existingLiveByIdentity(request.getIdType(), request.getIdNo());
+            if (hit != null) {
+                return PatientResolveResult.builder()
+                        .result(PatientResolveResult.RESULT_MATCHED)
+                        .patient(hit)
+                        .build();
+            }
+        }
+
+        // (ii) card_no among live archives' identifier rows (one hit decisive, 2+
+        // demoted to candidates) - the SAME helper again
+        if (StrUtil.isNotBlank(request.getCardNo())) {
+            List<PatientMaster> cardHits = liveArchivesByCardNo(request.getCardNo());
+            if (cardHits.size() == 1) {
+                return PatientResolveResult.builder()
+                        .result(PatientResolveResult.RESULT_MATCHED)
+                        .patient(cardHits.get(0))
+                        .build();
+            }
+            if (cardHits.size() > 1) {
+                return PatientResolveResult.builder()
+                        .result(PatientResolveResult.RESULT_CANDIDATES)
+                        .candidates(cardHits)
+                        .build();
+            }
+        }
+
+        // (iii) soft union of (name+phone) and (name+gender+birth), deduped by id - the
+        // SAME helpers again; a candidate LIST, never an error
+        List<PatientMaster> candidates = new ArrayList<>();
+        if (StrUtil.isNotBlank(request.getName())) {
+            if (StrUtil.isNotBlank(request.getPhone())) {
+                addCandidates(candidates, liveBy(request.getName(), request.getPhone()));
+            }
+            if (request.getGender() != null && request.getBirthDate() != null) {
+                addCandidates(candidates, liveBy(request.getName(),
+                        request.getGender(), request.getBirthDate()));
+            }
+        }
+        if (!candidates.isEmpty()) {
+            return PatientResolveResult.builder()
+                    .result(PatientResolveResult.RESULT_CANDIDATES)
+                    .candidates(candidates)
+                    .build();
+        }
+
+        // (iv) nothing matched - the ADDITIVE lookup-only empty marker. Deliberately NO
+        // create fallback: the passthrough consumer must never write a side effect (the
+        // creating resolve chain's step (iv) is the ONLY creation path).
+        return PatientResolveResult.builder()
+                .result(PatientResolveResult.RESULT_NONE)
+                .build();
+    }
+
+    @Override
+    @Transactional
     public PatientMaster resolveOrMerge(Integer id, Integer survivorId, String reason) {
         if (survivorId == null) {
             throw new BusinessException(ExceptionEnum.ERROR_A0400,

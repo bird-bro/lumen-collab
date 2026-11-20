@@ -25,9 +25,9 @@
 
 ## Batch 3 — us adapters + registration surface
 
-- [ ] 3.1 us adapters: `PatientRegistryPortAdapter`, `NumberIssuerPortAdapter`, internal-key
+- [x] 3.1 us adapters: `PatientRegistryPortAdapter`, `NumberIssuerPortAdapter`, internal-key
       propagation config. Tests: Feign-seam stubs (`@MockBean` base), incomplete-identity refusal.
-- [ ] 3.2 `RegistrationController` (resolve passthrough / create / page query / register / cancel)
+- [x] 3.2 `RegistrationController` (resolve passthrough / create / page query / register / cancel)
       + `RegistrationHook` impl persisting `us_registration_ext`. Tests: real-API create with
       accession issuance, transition guard refusals verbatim, cancel reasons, ext round-trip — TDD.
 

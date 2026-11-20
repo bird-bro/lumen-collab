@@ -31,22 +31,86 @@ import org.springframework.test.context.DynamicPropertySource;
  *
  * <p>{@code @ActiveProfiles("test")} overrides the dev default of application.yml, so
  * the gitignored application-dev.yml is not loaded in tests - the dynamic properties
- * below are the ONLY datasource source of truth. {@code MOCK} web environment (the
- * KernelContextBoot precedent named by task 1.1): batch 1 proves the SHELL - no HTTP
- * surface exists yet, and the declared {@code server.port=8083} identity stays
- * assertable in the environment (specs/service-topology "Service Identity").</p>
+ * below are the ONLY datasource source of truth. {@code RANDOM_PORT} web environment
+ * (batch 3, us-station-registration-sev task 3.2 - the {@code
+ * PatientIntegrationTestBase} precedent): the registration surface is REAL HTTP under
+ * the real security chain, proven through {@code TestRestTemplate}.</p>
+ *
+ * <p>The Feign seam stubs (batch 3, design D8 - the patient base precedent): the
+ * lumen-api clients this service consumes ({@code PatientApi} / {@code NumberApi}) are
+ * {@code @MockBean}'d HERE so EVERY suite shares ONE context - no counterpart service
+ * runs in this JVM, and the adapters must never fabricate an identity or a number, so
+ * the seam is stubbed with LENIENT unique-band defaults (distinctive {@code us3} bands
+ * that never collide with real patient rows); scenario suites override in their own
+ * {@code @BeforeEach}, which runs after this base method. The platform MECHANISM is
+ * proven patient-side/system-side (PatientInternalApiTests / NumberIssuerServiceTests).</p>
  *
  * <p>Deliberately MINIMAL (batch 1): no run-admin cloning and no residue sweep - the
- * module has no API surface yet (entities/adapters/controllers arrive in later
- * batches), so the boot proof needs no authenticated identity and writes no fixtures.
- * The base is extensible: later batches add their hooks here following the lumen-system
- * pattern (run-scoped identity + hard-DELETE sweep, user ruling 2026-11-07).</p>
+ * boot/schema suites need no authenticated identity and write no fixtures. The base is
+ * extensible: {@code UsApiTestBase} layers the run-scoped identity + hard-DELETE sweep
+ * for the HTTP suites (user ruling 2026-11-07).</p>
  *
  * @author birdbro
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 public abstract class UsIntegrationTestBase {
+
+    /**
+     * The stub identity band (batch 3): the stubbed {@code patUid} values live in a
+     * distinctive per-JVM band (973000+, never a real patient_master.id) so the
+     * order-linkage assertions and the residue sweep key on values no other suite can
+     * write. The jsonb/uid references are LOGICAL (no FK) - no patient row needs to
+     * exist behind a stubbed uid.
+     */
+    public static final int STUB_UID_BASE = 973000 + (int) (System.currentTimeMillis() % 25000);
+
+    /** The stub accession prefix (batch 3) - a distinctive sweep key too. */
+    public static final String STUB_ACCESSION_PREFIX = "US3-";
+
+    private static final java.util.concurrent.atomic.AtomicInteger STUB_SEQ =
+            new java.util.concurrent.atomic.AtomicInteger(0);
+
+    /**
+     * The Feign seam stubs (design D8): lenient unique-band defaults every suite
+     * inherits - the adapters' counterparties never answer in this JVM.
+     */
+    @org.springframework.boot.test.mock.mockito.MockBean
+    protected org.birdbro.lumen.api.patient.PatientApi patientApi;
+
+    @org.springframework.boot.test.mock.mockito.MockBean
+    protected org.birdbro.lumen.api.number.NumberApi numberApi;
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubFeignCounterparties() {
+        java.util.concurrent.atomic.AtomicInteger seq = STUB_SEQ;
+        org.mockito.Mockito.when(patientApi.resolveOrRegister(
+                        org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(inv -> org.birdbro.common.core.R.ofSuccess(
+                        org.birdbro.lumen.api.patient.PatientResolveOrRegisterResult.builder()
+                                .result(org.birdbro.lumen.api.patient
+                                        .PatientResolveOrRegisterResult.RESULT_MATCHED)
+                                .identity(org.birdbro.lumen.api.patient
+                                        .PatientIdentityResponse.builder()
+                                        .patUid(STUB_UID_BASE + seq.incrementAndGet())
+                                        .patId(STUB_ACCESSION_PREFIX + "PAT" + seq.get())
+                                        .name("us3默认档案" + seq.get())
+                                        .gender(1)
+                                        .state("RESOLVED")
+                                        .build())
+                                .build()));
+        org.mockito.Mockito.when(patientApi.lookup(org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(inv -> org.birdbro.common.core.R.ofSuccess(
+                        org.birdbro.lumen.api.patient.PatientLookupResult.builder()
+                                .result(org.birdbro.lumen.api.patient
+                                        .PatientLookupResult.RESULT_NONE)
+                                .build()));
+        org.mockito.Mockito.when(numberApi.issue(org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(inv -> org.birdbro.common.core.R.ofSuccess(
+                        org.birdbro.lumen.api.number.NumberIssueResponse.builder()
+                                .number(STUB_ACCESSION_PREFIX + seq.incrementAndGet())
+                                .build()));
+    }
 
     /**
      * Registers the test-server properties. Runs during context creation, BEFORE the

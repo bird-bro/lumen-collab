@@ -31,6 +31,13 @@ public class PatientApiFallback implements PatientApi {
     }
 
     @Override
+    public R<PatientLookupResult> lookup(PatientResolveOrRegisterRequest request) {
+        throw new BusinessException(ExceptionEnum.ERROR_C0001,
+                "患者服务不可达，仅查询解析失败（fail-fast，绝不造身份）: "
+                + (request != null ? request.getIdNo() : "?"));
+    }
+
+    @Override
     public R<List<PatientOutboxEntry>> pullOutbox(Integer limit) {
         throw new BusinessException(ExceptionEnum.ERROR_C0001,
                 "患者服务不可达，outbox 拉取失败（fail-fast，绝不伪造投递）");

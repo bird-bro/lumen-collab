@@ -178,4 +178,20 @@ public interface PatientArchiveService {
      *         id_no on creation, {@code A0715} naming the identity-race winner
      */
     PatientResolveResult resolveOrRegister(PatientResolveRequest request);
+
+    /**
+     * The LOOKUP-ONLY resolve (us-station-registration-sev task 3.1 - the B2 review gap
+     * closure; ADDITIVE method, the {@code resolveOrRegister} overload precedent): the
+     * resolution chain's LOOKUP steps only - the SAME private helpers the public
+     * {@link #resolve(PatientResolveRequest)} chain runs (exact identity -&gt; card_no
+     * -&gt; soft union) with the create fallback REMOVED. The result is exact identity |
+     * candidate list | {@code RESULT_NONE} (empty), and NOTHING is ever created - the
+     * consuming UI's resolve passthrough stays side-effect-free.
+     *
+     * @param request the resolve form (identity/card/soft keys; the provisional flag is
+     *        ignored - no fallback archive exists on this path)
+     * @return the lookup result ({@code patient} on MATCHED, {@code candidates} on
+     *         CANDIDATES, neither on NONE)
+     */
+    PatientResolveResult lookup(PatientResolveRequest request);
 }

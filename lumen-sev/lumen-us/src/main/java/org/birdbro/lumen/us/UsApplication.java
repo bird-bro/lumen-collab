@@ -3,6 +3,7 @@ package org.birdbro.lumen.us;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
  * lumen-us service shell (us-station-registration-sev task 1.1, design D1: the FIRST
@@ -23,9 +24,15 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * name, {@code spring.application.name}, nginx {@code /api/v1/us/**} prefix). No
  * registry/config center exists (user decision 2026-11-03: local configuration, 随访
  * fu-launch shape) - nothing to enable; discovery registration is automatic on this
- * train (no {@code @EnableDiscoveryClient} needed). No {@code @EnableFeignClients}
- * yet either: the PatientApi/NumberApi clients ride tasks 2.x/3.x (lumen-api is not on
- * this classpath at batch 1).</p>
+ * train (no {@code @EnableDiscoveryClient} needed). The {@code @EnableFeignClients}
+ * cohort names the EXACT lumen-api clients this service consumes (task 3.1, the
+ * {@code PatientApplication} pattern - clients listed explicitly, never a package
+ * scan): {@code PatientApi} (the patient-domain internal resolve/lookup + outbox
+ * contracts the registration adapters delegate to) and {@code NumberApi} (the platform
+ * number rule the accession issuance delegates to). Both target DIRECT URLs ({@code
+ * lumen.api.patient.url} / {@code lumen.api.system.url}, the local-config ruling);
+ * their fail-fast fallbacks throw C0001 - a fabricated identity or number is
+ * forbidden.</p>
  *
  * <p>Batch 1 ships the scaffold + the Flyway ledger only: no controllers, no entities
  * yet - the kernel registration surface builds on this shell in later batches. The
@@ -38,6 +45,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication(scanBasePackages = "org.birdbro")
 @MapperScan(basePackages = "org.birdbro.**.mapper")
+@EnableFeignClients(clients = {
+        org.birdbro.lumen.api.patient.PatientApi.class,
+        org.birdbro.lumen.api.number.NumberApi.class})
 public class UsApplication {
 
     public static void main(String[] args) {
