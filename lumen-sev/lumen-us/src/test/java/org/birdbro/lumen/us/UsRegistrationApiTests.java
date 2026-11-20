@@ -1,5 +1,6 @@
 package org.birdbro.lumen.us;
 
+import java.sql.Timestamp;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -24,7 +25,9 @@ import org.birdbro.lumen.api.patient.PatientResolveOrRegisterResult;
 import org.birdbro.lumen.api.number.NumberIssueResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -386,6 +389,55 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 Integer.class, name);
         assertEquals(Integer.valueOf(0), extRows,
                 "no ext row survives either (the order never persisted)");
+    }
+
+    // --------------------- B3-review Minor-1 rider: ext audit fields are server-owned
+
+    @Test
+    void extAuditFieldsAreServerOwnedNeverClientBindable() throws Exception {
+        // the ext block binds the client body 1:1 (kept by design) - but the audit
+        // columns are SERVER-OWNED: a client-posted deleted=1 must never persist (the
+        // row would arrive soft-deleted), and create/update stamps belong to the
+        // meta-fill + DB defaults, never the body
+        when(patientApi.resolveOrRegister(any())).thenReturn(org.birdbro.common.core.R.ofSuccess(
+                PatientResolveOrRegisterResult.builder()
+                        .result(PatientResolveOrRegisterResult.RESULT_MATCHED)
+                        .identity(PatientIdentityResponse.builder()
+                                .patUid(STUB_UID_BASE + 701)
+                                .patId("US3-EXTAUDIT")
+                                .name("us3ext审计档案")
+                                .gender(2)
+                                .state("RESOLVED")
+                                .build())
+                        .build()));
+        String body = "{\"idType\":\"01\",\"idNo\":\"US3EXTAUDIT-" + stamp() + "\","
+                + "\"name\":\"us3ext审计档案\",\"gender\":2,"
+                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"超声产检\"}],"
+                + "\"ext\":{\"pregnancyStatus\":\"孕8周\",\"gestationalWeeks\":8,"
+                + "\"note\":\"us3 ext 审计\","
+                + "\"deleted\":1,\"createBy\":999,\"updateBy\":999,"
+                + "\"createTime\":\"2001-01-01 00:00:00\","
+                + "\"updateTime\":\"2001-01-01 00:00:00\"}}";
+        JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
+                fullPermToken()));
+        assertEquals("200", response.path("code").asText(),
+                "the create must succeed through the real chain: " + response);
+        int orderId = response.path("data").path("orderId").asInt(-1);
+        assertTrue(orderId > 0, "the order persists: " + response);
+        UsRegistrationFixtures.registerOrder(orderId);
+
+        Map<String, Object> ext = jdbcTemplate.queryForMap(
+                "SELECT deleted, create_by, update_by, create_time FROM us_registration_ext "
+                        + "WHERE order_id = ?", orderId);
+        assertEquals(0, ((Number) ext.get("deleted")).intValue(),
+                "a client-posted deleted=1 must NOT persist - deleted is server-owned");
+        assertEquals(runUserId().intValue(), ((Number) ext.get("create_by")).intValue(),
+                "create_by is the meta-fill's acting user, never the body's 999");
+        assertNull(ext.get("update_by"),
+                "update_by stays unset on INSERT (the house insertFill fills only "
+                        + "create_by; the body's 999 must never persist)");
+        assertNotEquals(Timestamp.valueOf("2001-01-01 00:00:00"), ext.get("create_time"),
+                "create_time is the DB default (now), never the client body's stamp");
     }
 
     // ------------------------------- resolve passthrough (three outcomes)

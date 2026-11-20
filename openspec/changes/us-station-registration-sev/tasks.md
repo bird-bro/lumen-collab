@@ -33,9 +33,10 @@
 
 ## Batch 4 — snapshot wiring
 
-- [ ] 4.1 Snapshot poller: scheduled pull → PATIENT_CHANGED refresh / PATIENT_MERGED repoint+refresh
+- [x] 4.1 Snapshot poller: scheduled pull → PATIENT_CHANGED refresh / PATIENT_MERGED repoint+refresh
       → ack; failure keeps PENDING. Tests: seeded outbox entries drive refresh + repoint + ack;
-      failed dispatch stays PENDING — TDD.
+      failed dispatch stays PENDING — TDD. (+ two B3-review riders fixed in passing:
+      ext audit fields server-owned; sweep SQL gate made explicit — see the b4 report)
 
 ## Batch 5 — verify
 

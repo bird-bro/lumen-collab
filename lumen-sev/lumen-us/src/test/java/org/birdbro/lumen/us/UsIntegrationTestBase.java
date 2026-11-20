@@ -158,6 +158,11 @@ public abstract class UsIntegrationTestBase {
         // Boot-managed train) requires default-schema to be a member of schemas.
         registry.add("spring.flyway.schemas", () -> UsTestServerBootstrap.US_SCHEMA);
         registry.add("spring.flyway.default-schema", () -> UsTestServerBootstrap.US_SCHEMA);
+
+        // The snapshot poller's scheduler (task 4.1) must never fire inside a suite: a
+        // mid-suite pollOnce() would race a suite's stubbed outbox batch. One hour -
+        // the suites drive pollOnce() directly and deterministically.
+        registry.add("lumen.us.snapshot-poll-delay-ms", () -> "3600000");
     }
 
     private static int parseIntPort(String name, String raw) {

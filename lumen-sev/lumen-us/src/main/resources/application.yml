@@ -103,3 +103,9 @@ lumen:
     system:
       url: ${LUMEN_API_SYSTEM_URL:http://localhost:8081}
   internal-api-key: ${LUMEN_INTERNAL_API_KEY:}
+  us:
+    # Snapshot-poll knobs (us-station-registration-sev task 4.1, design D5). The
+    # poller's own inline defaults match these values - the entries make the knobs
+    # ops-discoverable; a non-positive limit clamps back to 50 inside the poller.
+    snapshot-poll-delay-ms: 10000
+    snapshot-poll-limit: 50

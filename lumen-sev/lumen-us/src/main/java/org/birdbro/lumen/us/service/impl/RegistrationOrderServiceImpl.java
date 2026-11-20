@@ -112,8 +112,21 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
         order.setPatientSnapshot(buildSnapshot(request, identity));
 
         // (3) the ext block rides the kernel hook seam (inside the registration
-        // transaction - a hook failure rolls the whole registration back)
-        UsRegistrationExtHolder.set(request.getExt());
+        // transaction - a hook failure rolls the whole registration back). The entity
+        // binds the client body 1:1 (kept by design), but the AUDIT columns are
+        // SERVER-OWNED (B3 review Minor-1): a client-posted deleted=1 must never
+        // persist (the row would arrive soft-deleted), and create/update stamps belong
+        // to the meta-fill security header + the DB defaults, never the body - so the
+        // stashed ext is stripped of them right here, before the hook persists it.
+        UsRegistrationExt ext = request.getExt();
+        if (ext != null) {
+            ext.setDeleted(null);
+            ext.setCreateBy(null);
+            ext.setUpdateBy(null);
+            ext.setCreateTime(null);
+            ext.setUpdateTime(null);
+        }
+        UsRegistrationExtHolder.set(ext);
         try {
             Integer orderId = examOrderRegistrationService.registerOrder(
                     identity, order, new ExamExecution(), new ExamReport());

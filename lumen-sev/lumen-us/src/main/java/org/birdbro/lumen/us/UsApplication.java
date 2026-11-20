@@ -4,6 +4,7 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * lumen-us service shell (us-station-registration-sev task 1.1, design D1: the FIRST
@@ -41,10 +42,17 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  * org.birdbro.lumen.us.security.UsUserDetailsService} (the US workstation has no login
  * - the JWT issuer stays lumen-system).</p>
  *
+ * <p>Batch 4 adds the service's first scheduled job - the patient-snapshot poller
+ * (task 4.1, design D5): {@code @EnableScheduling} turns on the framework's scheduler
+ * for {@code PatientSnapshotPoller#scheduledPoll} (the ONLY {@code @Scheduled} bean in
+ * this context - the copied framework/common carry none, so nothing else starts
+ * running). The poll delay/batch cap are the {@code lumen.us.snapshot-poll-*} knobs.</p>
+ *
  * @author birdbro
  */
 @SpringBootApplication(scanBasePackages = "org.birdbro")
 @MapperScan(basePackages = "org.birdbro.**.mapper")
+@EnableScheduling
 @EnableFeignClients(clients = {
         org.birdbro.lumen.api.patient.PatientApi.class,
         org.birdbro.lumen.api.number.NumberApi.class})

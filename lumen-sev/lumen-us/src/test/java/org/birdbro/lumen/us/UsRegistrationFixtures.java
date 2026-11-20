@@ -50,7 +50,11 @@ final class UsRegistrationFixtures {
         List<Integer> orderIds = new ArrayList<>(ORDER_IDS);
         jdbcTemplate.queryForList(
                 "SELECT id FROM exam_order WHERE deleted = 0 AND ("
-                        + "patient_uid >= ? AND patient_uid < ?"
+                        // the band pair's inner AND is parenthesized EXPLICITLY (B3 review
+                        // Minor-3 rider) so no reader can misparse the gate as binding
+                        // only the band arm - the deleted = 0 gate applies to the WHOLE
+                        // row-match group, exactly as the sweep-semantics test pins
+                        + "(patient_uid >= ? AND patient_uid < ?)"
                         + " OR patient_snapshot->>'name' LIKE 'us3%'"
                         + " OR accession_no LIKE 'US3-%')",
                 Integer.class, UsIntegrationTestBase.STUB_UID_BASE,
