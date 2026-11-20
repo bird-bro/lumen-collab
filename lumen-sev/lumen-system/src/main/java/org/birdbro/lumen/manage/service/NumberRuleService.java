@@ -7,8 +7,9 @@ import org.birdbro.lumen.manage.dto.NumberRuleSaveRequest;
 /**
  * The number-rule directory service (number-rule-unification-sev task 2.2, design D1;
  * spec number-rule "Number Rule Directory"): rule CRUD on the platform directory.
- * Exactly one ACTIVE live rule per family (the partial unique index is the backstop;
- * the service rejects the duplicate with the A0714 data-duplication error first).
+ * Exactly one ACTIVE live rule per family AND modality scope (NULL = 全局, V49) - the
+ * partial unique index is the backstop; the service rejects the duplicate with the
+ * A0714 data-duplication error first, its message naming the scope.
  *
  * @author birdbro
  */

@@ -31,6 +31,10 @@ public class NumberRuleSaveRequest {
     @Size(max = 32, message = "规则类型最长 32 个字符")
     private String ruleType;
 
+    /** 适用范围模态（dict 模态 1024 的条目值 token，可空=全局；创建后不可改，V49）. */
+    @Size(max = 16, message = "适用范围模态最长 16 个字符")
+    private String modality;
+
     /** 号码前缀（字母/数字/短横线，可空）. */
     @Size(max = 32)
     @Pattern(regexp = "[A-Za-z0-9_-]*", message = "前缀仅限字母/数字/短横线/下划线")

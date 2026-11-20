@@ -32,10 +32,10 @@ public class NumberIssueController {
     @Autowired
     private NumberIssuerService numberIssuerService;
 
-    @ApiOperation("发放一个号码（内部服务专用，X-Internal-Key 门控）")
+    @ApiOperation("发放一个号码（内部服务专用，X-Internal-Key 门控；modality 可选，缺省走全局池）")
     @PostMapping("/issue")
     public NumberIssueResponse issue(@RequestBody NumberIssueRequest request) {
-        String number = numberIssuerService.issue(request.getRuleType());
+        String number = numberIssuerService.issue(request.getRuleType(), request.getModality());
         return NumberIssueResponse.builder().number(number).build();
     }
 }

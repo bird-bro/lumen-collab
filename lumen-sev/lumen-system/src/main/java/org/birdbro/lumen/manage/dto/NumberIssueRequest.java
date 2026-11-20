@@ -26,4 +26,10 @@ public class NumberIssueRequest {
     /** The rule family (dict 编号类型 1028 token - 影像号 / 登记号 / 预约号 / future families). */
     @NotBlank
     private String ruleType;
+
+    /**
+     * The modality scope (dict 模态 1024 VALUE token, e.g. CT; optional - absent or
+     * blank resolves the family's GLOBAL pool, V49 number-rule-modality-scope task 1.2).
+     */
+    private String modality;
 }

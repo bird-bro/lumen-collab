@@ -56,6 +56,48 @@ class NumberRuleSeedTests extends AuthIntegrationTestBase {
     }
 
     @Test
+    void modalityScopeColumnAndCoalesceUniqueIndex() {
+        // V49 (number-rule-modality-scope task 1.1): number_rule gains the nullable
+        // modality scope - the dict-1024 VALUE token (CT/DR/US), varchar(16), and
+        // NULL = 全局 (design D1). The partial unique index recreates as the COALESCE
+        // expression form so two GLOBAL actives of one family stay rejected (PG treats
+        // NULLs as distinct in a plain partial unique index, design D2).
+        Map<String, Object> column = jdbcTemplate.queryForMap(
+                "SELECT data_type, character_maximum_length FROM information_schema.columns"
+                + " WHERE table_schema = 'system' AND table_name = 'number_rule'"
+                + " AND column_name = 'modality'");
+        assertEquals("character varying", column.get("data_type"), "the scope stores the token: " + column);
+        assertEquals(16, ((Number) column.get("character_maximum_length")).intValue(),
+                "the token column is varchar(16) (dict-1024 value shape): " + column);
+
+        String indexdef = jdbcTemplate.queryForObject(
+                "SELECT indexdef FROM pg_indexes WHERE schemaname = 'system'"
+                + " AND indexname = 'uk_number_rule_active'", String.class);
+        assertTrue(indexdef.contains("UNIQUE"), "the active-pool index stays UNIQUE: " + indexdef);
+        assertTrue(indexdef.contains("COALESCE(modality"), "the NULL-safe uniqueness keys on"
+                + " COALESCE(modality, '') so two global actives still collide: " + indexdef);
+        assertTrue(indexdef.contains("rule_type") && indexdef.contains("active = 1")
+                        && indexdef.contains("deleted = 0"),
+                "the index stays the per-family active partial form: " + indexdef);
+    }
+
+    @Test
+    void seededFamilyRowsAreTheGlobalRules() {
+        // No data backfill (design D8): every existing row simply becomes its family's
+        // GLOBAL rule - modality stays NULL, the platform-wide shared pool. Per-family
+        // >=1 (not an exact count): the unique index guarantees the exactly-one-active
+        // shape, and operator-added rows on the shared test server ride along.
+        for (String family : new String[] {"影像号", "登记号", "预约号"}) {
+            Integer globalRows = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM number_rule WHERE rule_type = ?"
+                    + " AND active = 1 AND deleted = 0 AND modality IS NULL",
+                    Integer.class, family);
+            assertTrue(globalRows != null && globalRows >= 1,
+                    "family " + family + " keeps an active GLOBAL rule (modality NULL)");
+        }
+    }
+
+    @Test
     void consoleEntryMovedToSystemGroup() {
         // CONTENT-anchored (the V40 philosophy - ids are data, perms are the contract):
         // a ledger repair may re-seed the rows under fresh ids, the perms string is

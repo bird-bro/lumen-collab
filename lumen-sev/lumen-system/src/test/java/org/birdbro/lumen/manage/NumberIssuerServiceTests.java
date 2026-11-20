@@ -165,10 +165,160 @@ class NumberIssuerServiceTests extends AuthIntegrationTestBase {
                 "the rejection names the missing family");
     }
 
+    @Test
+    void scopedRowAcceptedAlongsideFamilyGlobal() {
+        // V49 (number-rule-modality-scope task 1.1; spec scenario "Scoped rule
+        // coexists with the family global rule"): the scope is part of the pool
+        // identity - an ACTIVE CT-scoped row of a family coexists with the family's
+        // ACTIVE global row (the COALESCE partial unique index keys the scope in).
+        globalRule("nr_coexist", "NRG-");
+        scopedRule("nr_coexist", "CT", "NRC-");
+
+        Integer rows = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM number_rule WHERE rule_type = 'nr_coexist' AND active = 1",
+                Integer.class);
+        assertEquals(2, rows, "same family, different scopes: both actives coexist");
+        String scopedModality = jdbcTemplate.queryForObject(
+                "SELECT modality FROM number_rule WHERE rule_type = 'nr_coexist' AND modality IS NOT NULL",
+                String.class);
+        assertEquals("CT", scopedModality, "the scoped row carries the dict-1024 token");
+    }
+
+    // ===================== modality-scoped resolution (task 1.2) =====================
+
+    @Test
+    void exactScopedRuleWins() {
+        // spec "Exact scoped rule wins": an issue request carrying modality=CT
+        // resolves the family's active CT-scoped rule - its pool and format.
+        globalRule("nr_exact", "NRG-");
+        scopedRule("nr_exact", "CT", "NRC-");
+
+        String number = numberIssuerService.issue("nr_exact", "CT");
+
+        assertEquals("NRC-0001", number, "the CT-scoped rule's pool and format issue");
+        Integer globalSerial = jdbcTemplate.queryForObject(
+                "SELECT serial_cur FROM number_rule WHERE rule_type = 'nr_exact'"
+                + " AND modality IS NULL", Integer.class);
+        assertEquals(Integer.valueOf(0), globalSerial, "the global pool must NOT advance");
+    }
+
+    @Test
+    void noScopedRuleFallsBackToFamilyGlobal() {
+        // spec "No scoped rule falls back to the family global rule": an unknown
+        // modality token matches no scoped rule - the global rule issues.
+        globalRule("nr_fall", "NRG-");
+
+        String number = numberIssuerService.issue("nr_fall", "US");
+
+        assertEquals("NRG-0001", number,
+                "the family global rule's pool and format issue for an unconfigured scope");
+        Integer globalSerial = jdbcTemplate.queryForObject(
+                "SELECT serial_cur FROM number_rule WHERE rule_type = 'nr_fall'"
+                + " AND modality IS NULL", Integer.class);
+        assertEquals(Integer.valueOf(1), globalSerial, "the global pool advances");
+    }
+
+    @Test
+    void blankOrNullModalityResolvesGlobalOnly() {
+        // spec "Blank modality resolves the global rule": absent/blank/whitespace
+        // modality ALWAYS resolves the global rule - never a scoped pool.
+        globalRule("nr_blank", "NRG-");
+        scopedRule("nr_blank", "CT", "NRC-");
+
+        assertEquals("NRG-0001", numberIssuerService.issue("nr_blank", null),
+                "null modality (the legacy single-arg shape) resolves global");
+        assertEquals("NRG-0002", numberIssuerService.issue("nr_blank", ""),
+                "blank modality resolves global");
+        assertEquals("NRG-0003", numberIssuerService.issue("nr_blank", "  "),
+                "whitespace modality resolves global");
+        Integer scopedSerial = jdbcTemplate.queryForObject(
+                "SELECT serial_cur FROM number_rule WHERE rule_type = 'nr_blank'"
+                + " AND modality = 'CT'", Integer.class);
+        assertEquals(Integer.valueOf(0), scopedSerial,
+                "a blank/null request never touches a scoped pool");
+    }
+
+    @Test
+    void twoScopesOfOneFamilyAdvanceIndependentSerials() {
+        // spec "Scoped pools count independently": CT and DR scopes of one family
+        // each advance their own serial_cur - the streams never interleave.
+        scopedRule("nr_multi", "CT", "NRC-");
+        scopedRule("nr_multi", "DR", "NRD-");
+
+        assertEquals("NRC-0001", numberIssuerService.issue("nr_multi", "CT"));
+        assertEquals("NRD-0001", numberIssuerService.issue("nr_multi", "DR"));
+        assertEquals("NRC-0002", numberIssuerService.issue("nr_multi", "CT"));
+        assertEquals("NRD-0002", numberIssuerService.issue("nr_multi", "DR"));
+
+        assertEquals(Integer.valueOf(2), jdbcTemplate.queryForObject(
+                "SELECT serial_cur FROM number_rule WHERE rule_type = 'nr_multi'"
+                + " AND modality = 'CT'", Integer.class),
+                "the CT pool carries its own burned serials");
+        assertEquals(Integer.valueOf(2), jdbcTemplate.queryForObject(
+                "SELECT serial_cur FROM number_rule WHERE rule_type = 'nr_multi'"
+                + " AND modality = 'DR'", Integer.class),
+                "the DR pool carries its own burned serials");
+    }
+
+    @Test
+    void concurrencyWithinOneScopeYieldsDistinctNumbers() throws Exception {
+        // spec "Concurrent issuance does not duplicate", scoped shape: two issuances
+        // for the same family AND scope queue on the scoped row's FOR UPDATE lock.
+        scopedRule("nr_cscope", "CT", "NRC-");
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<String>> futures = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            futures.add(pool.submit(() -> {
+                ready.countDown();
+                start.await();
+                return numberIssuerService.issue("nr_cscope", "CT");
+            }));
+        }
+        ready.await();
+        start.countDown();
+        String first = futures.get(0).get();
+        String second = futures.get(1).get();
+        pool.shutdown();
+
+        assertNotEquals(first, second,
+                "concurrent issuances of one scope must produce DISTINCT serials: "
+                + first + " vs " + second);
+        assertEquals(java.util.Set.of("0001", "0002"),
+                java.util.Set.of(first.substring(4), second.substring(4)),
+                "the scoped row lock serializes the issuances into consecutive serials");
+    }
+
+    @Test
+    void noRuleAnywhereRefusesNamingFamilyAndModality() {
+        // spec "No active rule anywhere refuses": neither a scoped nor a global rule
+        // exists - the system-state B0001 rejection names the family AND the scope.
+        BusinessException refused = assertThrows(BusinessException.class,
+                () -> numberIssuerService.issue("nr_nowhere", "CT"),
+                "a family with no active rule of any scope is a system-state error");
+        String message = String.valueOf(refused.getMessage());
+        assertTrue(message.contains("nr_nowhere") && message.contains("CT"),
+                "the rejection names the family and the modality token: " + message);
+    }
+
     private void examRule(String type, String prefix) {
         numberRuleMapper.insert(newRule(type)
                 .prefix(prefix).serialLength(4)
                 .isStamp(1).stamp(STAMP_PATTERN).build());
+    }
+
+    /** A family's GLOBAL rule (modality NULL - the platform-wide shared pool). */
+    private void globalRule(String type, String prefix) {
+        numberRuleMapper.insert(newRule(type)
+                .prefix(prefix).serialLength(4).isStamp(0).build());
+    }
+
+    /** A modality-scoped rule of one family (the dict-1024 token, e.g. CT). */
+    private void scopedRule(String type, String modality, String prefix) {
+        numberRuleMapper.insert(newRule(type)
+                .prefix(prefix).serialLength(4).isStamp(0).modality(modality).build());
     }
 
     /**

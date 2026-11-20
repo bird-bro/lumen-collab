@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: applying
+change: number-rule-modality-scope
+execution_mode: SDD
+tasks_total: 8
+tasks_done: 3
+workflow_mode: full
+artifacts_hash: f45a782da65b4fa28808e3e6ec86e6590167e1d94cc22ad0ebb4c49e0f1e6655

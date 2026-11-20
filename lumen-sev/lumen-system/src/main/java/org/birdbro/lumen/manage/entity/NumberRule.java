@@ -20,8 +20,9 @@ import org.birdbro.common.core.base.EntityBase;
  * 预约号, future families follow - the dict 编号类型 1028 vocabulary) in the
  * SYSTEM schema, replacing the per-domain duplicates. Issuance increments
  * {@code serial_cur} under {@code SELECT ... FOR UPDATE} (design D3 row lock); exactly
- * one ACTIVE live rule per type is backstopped by {@code uk_number_rule_active} - only
- * inactive rules may delete.
+ * one ACTIVE live rule per family × modality scope is backstopped by
+ * {@code uk_number_rule_active} (the COALESCE expression form, V49) - only inactive
+ * rules may delete.
  *
  * @author birdbro
  */
@@ -40,6 +41,9 @@ public class NumberRule extends EntityBase {
 
     /** 规则类型（dict 编号类型 1028 的条目值，即号码族机器 token / 未来族）. */
     private String ruleType;
+
+    /** 适用范围模态（dict 模态 1024 的条目值 token，如 CT/DR/US；NULL=全局共用池，V49）. */
+    private String modality;
 
     /** 备注 (optional operator note, V46 - the V38 exam-method remark precedent). */
     private String remark;
@@ -65,6 +69,6 @@ public class NumberRule extends EntityBase {
     /** 当前流水号对应的日期戳令牌（首次发号前为 NULL，运行态）. */
     private String stampValue;
 
-    /** 启用 1 / 停用 0（同类型唯一启用行由部分唯一索引兜底）. */
+    /** 启用 1 / 停用 0（同族同范围唯一启用行由部分唯一索引兜底）. */
     private Integer active;
 }

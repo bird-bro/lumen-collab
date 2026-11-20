@@ -1,5 +1,17 @@
 # SDD Progress Ledger
 
+## Change: number-rule-modality-scope
+## Execution Mode: SDD
+## Started: 2026-11-20
+## Base: 74d8123 (branch: dev-US)
+
+### Batch 1: lumen-system scoped rule model + issuer resolution (tasks 1.1-1.3)
+- Status: Complete + Approved (coordinator commit this batch)
+- Review: Approved - zero Critical/Important; all three deviations from the literal brief load-bearing and documented in-code (mapper scoped query named `selectScopedActiveForUpdate` - MyBatis keys statements by method name, same-name overload silently ignored by MP; duplicate-active message prefix drop; single-arg SQL narrowing to `modality IS NULL`)
+- Notes: review 3 Minors fixed inline (seed COUNT=3 -> per-family >=1 shared-server robustness; toggle-informational pin test; modality trim-to-null RED->GREEN); TDD 4 RED rounds -> 32/32 green (Issuer 11 / Api 16 / Seed 5) + reactor compile green
+
+---
+
 ## Change: init-backend-skeleton
 ## Execution Mode: SDD
 ## Started: 2026-10-29
