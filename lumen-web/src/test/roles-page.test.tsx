@@ -179,10 +179,10 @@ describe('roles page - list columns (UI polish 2026-11-09)', () => {
     expect(screen.getByText('RCP角色')).toHaveClass('ant-tag-cyan')
   })
 
-  it('carries the shield-check glyph on 菜单授权, not apartment tree or key (rulings 2026-11-09: tree read as org structure; key read as a magnifier)', async () => {
+  it('carries the shield-check glyph on 角色授权, not apartment tree or key (rulings 2026-11-09: tree read as org structure; key read as a magnifier)', async () => {
     renderPage()
     await screen.findByText('系统管理员')
-    const assignBtn = screen.getByRole('button', { name: '菜单授权' })
+    const assignBtn = screen.getByRole('button', { name: '角色授权' })
     expect(assignBtn.querySelector('.anticon-apartment')).toBeNull()
     expect(assignBtn.querySelector('.anticon-key')).toBeNull()
     expect(assignBtn.querySelector('.anticon-search')).toBeNull()
@@ -432,7 +432,7 @@ describe('roles page - menu assignment (spec: full-replace + reopen echo)', () =
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('系统管理员')
-    await user.click(screen.getByRole('button', { name: '菜单授权' }))
+    await user.click(screen.getByRole('button', { name: '角色授权' }))
     await waitFor(() => expect(menusApi.menuTree).toHaveBeenCalled())
     // Level 1 + 2 + 3 all visible on open - no switcher clicks needed.
     expect(await screen.findByText('机构管理')).toBeInTheDocument()
@@ -448,7 +448,7 @@ describe('roles page - menu assignment (spec: full-replace + reopen echo)', () =
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('系统管理员')
-    await user.click(screen.getByRole('button', { name: '菜单授权' }))
+    await user.click(screen.getByRole('button', { name: '角色授权' }))
     await screen.findByText('机构管理')
     // 3 nodes (系统管理/组织架构/机构管理) each carry one checkbox.
     const dialog = screen.getByRole('dialog')
@@ -463,7 +463,7 @@ describe('roles page - menu assignment (spec: full-replace + reopen echo)', () =
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('系统管理员')
-    await user.click(screen.getByRole('button', { name: '菜单授权' }))
+    await user.click(screen.getByRole('button', { name: '角色授权' }))
     await screen.findByText('机构管理')
     // All checked from the echo; uncheck the root → children clear too.
     await user.click(nodeCheckbox('系统管理')!)
@@ -479,7 +479,7 @@ describe('roles page - menu assignment (spec: full-replace + reopen echo)', () =
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('系统管理员')
-    await user.click(screen.getByRole('button', { name: '菜单授权' }))
+    await user.click(screen.getByRole('button', { name: '角色授权' }))
     await screen.findByText('机构管理')
     // Uncheck the button leaf (7): the ancestor path (13 → 1) follows - with
     // this single-child chain no indeterminate remains, both dirs clear.
@@ -494,7 +494,7 @@ describe('roles page - menu assignment (spec: full-replace + reopen echo)', () =
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('系统管理员')
-    await user.click(screen.getByRole('button', { name: '菜单授权' }))
+    await user.click(screen.getByRole('button', { name: '角色授权' }))
     // The saved grant is [1,13,7]; ADD nothing, uncheck nothing - saving
     // re-posts the same complete set (full replace).
     await screen.findByText('机构管理')
@@ -509,7 +509,7 @@ describe('roles page - menu assignment (spec: full-replace + reopen echo)', () =
     )
     renderPage()
     await screen.findByText('系统管理员')
-    await user.click(screen.getByRole('button', { name: '菜单授权' }))
+    await user.click(screen.getByRole('button', { name: '角色授权' }))
     await screen.findByText('机构管理')
     await user.click(screen.getByRole('button', { name: '保存授权' }))
     await waitFor(() => expect(screen.getByText(/do not exist/)).toBeInTheDocument())
@@ -522,7 +522,7 @@ describe('roles page - perms gating', () => {
     renderPage()
     expect(await screen.findByText('系统管理员')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /新建角色/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '菜单授权' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '角色授权' })).not.toBeInTheDocument()
   })
 })
 
@@ -534,7 +534,7 @@ describe('roles page - button-level gating (button-perm-enforcement-web)', () =>
     expect(screen.queryByRole('button', { name: /新建角色/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '编辑角色' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '删除角色' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '菜单授权' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '角色授权' })).not.toBeInTheDocument()
   })
 
   it('reveals the four affordances when their button perms are granted', async () => {
@@ -544,6 +544,6 @@ describe('roles page - button-level gating (button-perm-enforcement-web)', () =>
     expect(screen.getByRole('button', { name: /新建角色/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '编辑角色' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '删除角色' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '菜单授权' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '角色授权' })).toBeInTheDocument()
   })
 })

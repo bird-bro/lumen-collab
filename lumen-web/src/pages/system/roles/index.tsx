@@ -415,7 +415,7 @@ export default function RolesPage() {
                     canAssign ? (
                       <ConsoleAction
                         key="assign"
-                        label="菜单授权"
+                        label="角色授权"
                         icon="assign"
                         onClick={() => void openAssign(row)}
                       />
