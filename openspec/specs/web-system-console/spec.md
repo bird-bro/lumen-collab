@@ -1146,15 +1146,12 @@ retired, ux-polish 2026-11-20); the modal renders the current draft — one
 paragraph per line with a 2em first-line indent (the print shape) and, in
 分节模式, the B-form mini measure table per section (名称 / 单位 / 测值 (always
 — on the template) / 参考范围 — 单侧开区间 `19 ~` / `~ 40`, both ends empty
-renders —). 插入占位 SHALL splice the token at the textarea caret and
-re-anchor the caret after it (the 表现/意见 fields via the Form.Item extra
-slot; the card's 影像所见 keeps no button — the token types by hand or via
-the prose fields' affordances). Save SHALL normalize leading whitespace per
+renders —). The 插入占位 affordances SHALL be retired outright
+(rep-template-placeholder-insert-retire-web 2026-11-20: the card's and both
+prose fields' buttons are gone — the token types by hand). The 影像所见
+textarea renders SIX rows. Save SHALL normalize leading whitespace per
 line on 影像学表现/影像意见/影像所见 (and the 简单→分节 conversion) — the
 indent belongs to the renderer, never the stored text.
-
-<!-- synced from: rep-temp-placeholder-preview-web 2026-11-20 (the 【左|右】 placeholder convention: amber .rep-ph highlight, render-layer paragraph/indent treatment, 插入占位 extra-slot splice, save-time leading-whitespace normalization) -->
-<!-- synced from: rep-template-ux-polish-web 2026-11-20 (报告预览 becomes an on-demand footer-button modal — the always-on bottom block retired; the card's 插入占位 button retired) -->
 
 #### Scenario: Live preview renders the print shape
 
@@ -1171,7 +1168,13 @@ indent belongs to the renderer, never the stored text.
   token
 - **THEN** the token renders highlighted inline (`.rep-ph`) within the cell
 
-#### Scenario: 插入占位 splices at the caret
+<!-- synced from: rep-template-placeholder-insert-retire-web 2026-11-20 (插入占位 affordances retired outright — the 【左|右】 token types by hand; 影像所见 textarea grows to six rows) -->
+
+#### ~~Scenario: 插入占位 splices at the caret~~
+
+*Deprecated 2026-11-20 — superseded by the retirement above
+(rep-template-placeholder-insert-retire-web: all 插入占位 affordances are gone —
+the 【左|右】 token types by hand). Body preserved for history.*
 
 - **WHEN** the user clicks 插入占位 on an empty 表现 textarea and keeps typing
 - **THEN** the token lands first and the typing continues right after it (the

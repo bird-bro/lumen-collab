@@ -977,8 +977,8 @@ describe('report template page - structured save chain (3.6)', () => {
  * delimited token highlights amber (`.rep-ph`) in the preview modal and the
  * right table's prose cells; the modal renders paragraphs per line with a 2em
  * first-line indent (the print shape) and, in 分节模式, the B-form mini
- * measure table (拍板点 2: B 测值表式起步); 插入占位 inserts the token at the
- * textarea cursor; save normalizes leading whitespace per line (the indent
+ * measure table (拍板点 2: B 测值表式起步); insert affordances are retired (ux-polish follow-up 2026-11-20) — the token types by hand; the
+ * save normalizes leading whitespace per line (the indent
  * belongs to the renderer, never the stored text).
  */
 describe('report template page - placeholder preview (rep-temp-placeholder-preview-web)', () => {
@@ -1032,24 +1032,6 @@ describe('report template page - placeholder preview (rep-temp-placeholder-previ
     })
     const ph = preview.querySelector('.rep-ph')
     expect(ph?.textContent).toBe('【左|右】')
-  })
-
-  it('插入占位 inserts 【左|右】 and typing continues at the restored caret', async () => {
-    const user = userEvent.setup()
-    renderPage()
-    await screen.findByText('呼吸系统')
-
-    await user.click(screen.getByRole('button', { name: /添加模板/ }))
-    const drawer = screen.getByRole('dialog')
-    const area = within(drawer).getByLabelText('影像学表现') as HTMLTextAreaElement
-    await user.click(within(drawer).getByRole('button', { name: '插入占位（影像学表现）' }))
-    await waitFor(() => {
-      expect(area.value).toBe('【左|右】')
-    })
-    // The insert re-anchors the caret after the token (next-frame restore) -
-    // the doctor keeps typing right where the placeholder landed.
-    await user.type(area, '侧肺野清晰。')
-    expect(area.value).toBe('【左|右】侧肺野清晰。')
   })
 
   it('right-table prose cells highlight placeholder tokens inline', async () => {

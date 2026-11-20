@@ -1,9 +1,8 @@
 import { Button, Card, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Segmented, Select, Tag, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
-import type { TextAreaRef } from 'antd/es/input/TextArea'
 import { DeleteOutlined, DownOutlined, FolderOutlined, PlusOutlined, UpOutlined } from '@ant-design/icons'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import {
   createRepTemp,
   deleteRepTemp,
@@ -14,7 +13,7 @@ import {
 import { ApiError } from '@/api/client'
 import type { Page, RepTemp, RepTempContent, RepTempMeasure, RepTempMeasureNormal, RepTempNode, RepTempSection } from '@/api/types'
 import { dictItemsById, MODALITY_DICT_ID } from '@/utils/dict-items'
-import { PLACEHOLDER_TOKEN, normalizeLines, renderTemplateText } from '@/utils/template-text'
+import { normalizeLines, renderTemplateText } from '@/utils/template-text'
 import type { DictItem } from '@/api/types'
 import { usePerm } from '@/utils/perm'
 import {
@@ -116,52 +115,6 @@ function pruneToDirectories(nodes: RepTempNode[]): RepTempNode[] {
   return nodes
     .filter((node) => node.flag === 0)
     .map((node) => ({ ...node, children: pruneToDirectories(node.children) }))
-}
-
-/**
- * Insert the placeholder token at the textarea's cursor (rep-temp-placeholder-
- * preview-web): reads the DOM selection off the antd TextAreaRef, splices the
- * token into the current value and restores focus/selection on the next
- * frame. No ref/selection → appends (the affordance works caretless too).
- */
-function insertPlaceholderToken(
-  areaRef: RefObject<TextAreaRef | null>,
-  getValue: () => string,
-  setValue: (next: string) => void,
-) {
-  const el = areaRef.current?.resizableTextArea?.textArea
-  const current = getValue()
-  if (!el) {
-    setValue(current + PLACEHOLDER_TOKEN)
-    return
-  }
-  const start = el.selectionStart ?? current.length
-  const end = el.selectionEnd ?? start
-  setValue(current.slice(0, start) + PLACEHOLDER_TOKEN + current.slice(end))
-  const caret = start + PLACEHOLDER_TOKEN.length
-  requestAnimationFrame(() => {
-    el.focus()
-    el.setSelectionRange(caret, caret)
-  })
-}
-
-/**
- * The 插入占位 affordance riding Form.Item's `extra` slot (a right-aligned row
- * BELOW the textarea). The Form.Item label stays PLAIN: nesting a button in
- * the <label> makes that button the label's second associated control
- * (HTMLLabelElement.control semantics) — accessible-name resolution then sees
- * two targets and every getByLabelText('影像学表现') double-hits. (The card's
- * former 插入占位 button was retired outright in rep-template-ux-polish — the
- * token still types by hand or via the 表现/意见 affordances.)
- */
-function PlaceholderExtra({ label, onInsert }: { label: string; onInsert: () => void }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-      <Button type="text" size="small" aria-label={`插入占位（${label}）`} onClick={onInsert}>
-        插入占位
-      </Button>
-    </div>
-  )
 }
 
 /** Reference range for the preview's mini measure table (B 测值表式, 拍板点 2):
@@ -291,7 +244,7 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
                       input. Empty shapes degrade to null at save. */}
                   <Select
                     aria-label="正常范围类型"
-                    style={{ width: 76 }}
+                    style={{ width: 96 }}
                     value={measure.normal?.kind ?? 'range'}
                     onChange={(value) =>
                       patchMeasure(mi, {
@@ -360,16 +313,21 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
                   />
                 </div>
               ))}
+              {/* The two add buttons mirror each other (ux-polish follow-up:
+                  dashed block + plus icon, the primary color tint marking them
+                  as the row/card adders). */}
               <Button
-                type="dashed"
-                size="small"
+                color="primary"
+                variant="dashed"
+                block
                 aria-label="添加测量项"
                 icon={<PlusOutlined />}
-                style={{ alignSelf: 'flex-start', width: 28 }}
                 onClick={() =>
                   onPatch({ measures: [...section.measures, { code: null, label: '', unit: null, normal: null }] })
                 }
-              />
+              >
+                添加测量项
+              </Button>
             </div>
             <div style={{ marginBottom: 4 }}>
               <span style={{ fontSize: token.fontSizeSM, color: token.colorTextSecondary }}>影像所见</span>
@@ -377,7 +335,7 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
             <Input.TextArea
               aria-label="影像所见"
               placeholder="影像所见"
-              rows={3}
+              rows={6}
               value={section.finding ?? ''}
               onChange={(e) => onPatch({ finding: e.target.value })}
             />
@@ -433,11 +391,9 @@ export default function RepTemplatePage() {
   const [tplParent, setTplParent] = useState<RepTempNode | null>(null)
   const [tplSaving, setTplSaving] = useState(false)
   const [tplForm] = Form.useForm<TplFormValues>()
-  // Placeholder/preview (rep-temp-placeholder-preview-web): the 插入占位 caret
-  // anchors plus the live preview's form reads (useWatch re-renders per
-  // keystroke; display-only — the preview never touches the wire).
-  const findingAreaRef = useRef<TextAreaRef>(null)
-  const impressionAreaRef = useRef<TextAreaRef>(null)
+  // Placeholder/preview (rep-temp-placeholder-preview-web): the live
+  // preview's form reads (useWatch re-renders per keystroke; display-only —
+  // the preview never touches the wire).
   const findingWatch = Form.useWatch('finding', tplForm) as string | undefined
   const impressionWatch = Form.useWatch('impression', tplForm) as string | undefined
   // The placeholder highlight: amber = the warning-class tint (待编辑占位,
@@ -1151,23 +1107,10 @@ export default function RepTemplatePage() {
               name="finding"
               label="影像学表现"
               rules={[{ required: true, message: '影像学表现不能为空' }]}
-              extra={
-                <PlaceholderExtra
-                  label="影像学表现"
-                  onInsert={() =>
-                    insertPlaceholderToken(
-                      findingAreaRef,
-                      () => (tplForm.getFieldValue('finding') as string | undefined) ?? '',
-                      (next) => tplForm.setFieldsValue({ finding: next }),
-                    )
-                  }
-                />
-              }
             >
               {/* Tall text areas (2026-11-18 ruling): the findings/impression
-                  prose is long-form - 10/8 rows in the 960px drawer. The ref
-                  anchors the 插入占位 caret splice. */}
-              <Input.TextArea ref={findingAreaRef} rows={10} />
+                  prose is long-form - 10/8 rows in the 960px drawer. */}
+              <Input.TextArea rows={10} />
             </Form.Item>
           )}
           {tplStructured && (
@@ -1188,28 +1131,20 @@ export default function RepTemplatePage() {
                   onRemove={() => removeTplSection(si)}
                 />
               ))}
-              <Button type="dashed" block onClick={addTplSection}>
+              <Button
+                color="primary"
+                variant="dashed"
+                block
+                aria-label="添加节"
+                icon={<PlusOutlined />}
+                onClick={addTplSection}
+              >
                 添加节
               </Button>
             </div>
           )}
-          <Form.Item
-            name="impression"
-            label="影像意见"
-            extra={
-              <PlaceholderExtra
-                label="影像意见"
-                onInsert={() =>
-                  insertPlaceholderToken(
-                    impressionAreaRef,
-                    () => (tplForm.getFieldValue('impression') as string | undefined) ?? '',
-                    (next) => tplForm.setFieldsValue({ impression: next }),
-                  )
-                }
-              />
-            }
-          >
-            <Input.TextArea ref={impressionAreaRef} rows={8} />
+          <Form.Item name="impression" label="影像意见">
+            <Input.TextArea rows={8} />
           </Form.Item>
         </Form>
 
