@@ -26,12 +26,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * registry/config center exists (user decision 2026-11-03: local configuration, 随访
  * fu-launch shape) - nothing to enable; discovery registration is automatic on this
  * train (no {@code @EnableDiscoveryClient} needed). The {@code @EnableFeignClients}
- * cohort names the EXACT lumen-api clients this service consumes (task 3.1, the
+ * cohort names the EXACT lumen-feign clients this service consumes (task 3.1, the
  * {@code PatientApplication} pattern - clients listed explicitly, never a package
  * scan): {@code PatientApi} (the patient-domain internal resolve/lookup + outbox
  * contracts the registration adapters delegate to) and {@code NumberApi} (the platform
  * number rule the accession issuance delegates to). Both target DIRECT URLs ({@code
- * lumen.api.patient.url} / {@code lumen.api.system.url}, the local-config ruling);
+ * lumen.feign.patient.url} / {@code lumen.feign.system.url}, the local-config ruling);
  * their fail-fast fallbacks throw C0001 - a fabricated identity or number is
  * forbidden.</p>
  *
@@ -54,8 +54,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @MapperScan(basePackages = "org.birdbro.**.mapper")
 @EnableScheduling
 @EnableFeignClients(clients = {
-        org.birdbro.lumen.api.patient.PatientApi.class,
-        org.birdbro.lumen.api.number.NumberApi.class})
+        org.birdbro.lumen.feign.patient.PatientApi.class,
+        org.birdbro.lumen.feign.number.NumberApi.class})
 public class UsApplication {
 
     public static void main(String[] args) {

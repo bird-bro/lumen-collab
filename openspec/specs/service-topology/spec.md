@@ -30,7 +30,7 @@ NOT be a Maven project, and no `lumen-services/` grouping layer SHALL exist.
 
 The backend SHALL provide the v1 foundation modules: `lumen-bom`, the OPS-lineage reference
 modules `framework` and `common`, and the `lumen-system` service. Department and workflow
-modules (`lumen-core`, `lumen-api`, `lumen-patient`, `lumen-radiology`,
+modules (`lumen-core`, `lumen-feign`, `lumen-patient`, `lumen-radiology`,
 `lumen-integration`, `lumen-us`, `lumen-endo`) SHALL NOT be created by this capability; the
 changes that give them behavior add them. The standalone `lumen-setting` module is
 REMOVED from the plan (2026-11-13 merge ruling): the exam-setting domain is hosted inside
@@ -50,6 +50,8 @@ the only path that re-creates a `lumen-setting` module.
 - **WHEN** a later feature needs `lumen-radiology`
 - **THEN** that feature's change adds the module and declares it in the aggregator
 - **AND** no placeholder module exists before that change
+
+<!-- rename-lumen-api-feign 2026-11-20: module list name only (lumen-api → lumen-feign), zero behavior change -->
 
 ### Requirement: Hosted Domain Packages
 

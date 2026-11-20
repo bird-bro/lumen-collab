@@ -8,11 +8,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.birdbro.common.core.R;
 import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
-import org.birdbro.lumen.api.patient.PatientIdentityResponse;
-import org.birdbro.lumen.api.patient.PatientLookupResult;
-import org.birdbro.lumen.api.patient.PatientResolveOrRegisterRequest;
-import org.birdbro.lumen.api.patient.PatientResolveOrRegisterResult;
-import org.birdbro.lumen.api.number.NumberIssueResponse;
+import org.birdbro.lumen.feign.patient.PatientIdentityResponse;
+import org.birdbro.lumen.feign.patient.PatientLookupResult;
+import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterRequest;
+import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterResult;
+import org.birdbro.lumen.feign.number.NumberIssueResponse;
 import org.birdbro.lumen.core.number.NumberIssuerPort;
 import org.birdbro.lumen.core.patient.PatientIdentity;
 import org.birdbro.lumen.core.patient.PatientRegistrationRequest;
@@ -30,7 +30,7 @@ import static org.mockito.Mockito.when;
 /**
  * The port adapters' proof (us-station-registration-sev task 3.1, design D3/D8; specs/us-station
  * "Patient Registry Adapter" - the incomplete-result scenarios ARE the acceptance gate):
- * both adapters are stubbed at the FEIGN SEAM ({@code @MockBean} on the lumen-api
+ * both adapters are stubbed at the FEIGN SEAM ({@code @MockBean} on the lumen-feign
  * contracts - the shared-test-server feign-consumer-test-seam-stub precedent; no
  * counterpart service runs in this JVM). The adapter refuses an incomplete port result
  * (ambiguous candidates / missing identity / missing patUid / empty envelope) with the

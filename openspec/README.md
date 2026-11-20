@@ -46,7 +46,7 @@ lumen-collab/                         monorepo root (harness + frontend + deploy
 │   ├── lumen-bom/                    dependency versions (single source)
 │   ├── lumen-common/                 shared libs (jar): core / web / mybatis / security / dicom
 │   ├── lumen-core/              ★ exam workflow kernel: booking→registration→exam→report state machine
-│   ├── lumen-api/                    inter-service contracts: patient-api / integration-api (Feign + DTO)
+│   ├── lumen-feign/                  inter-service contracts: patient / number packages (Feign + DTO)
 │   ├── lumen-gateway/                Spring Cloud Gateway
 │   ├── lumen-auth/                   users, roles, departments, permissions (JWT)
 │   ├── lumen-patient/                patient master index (EMPI), shared across departments

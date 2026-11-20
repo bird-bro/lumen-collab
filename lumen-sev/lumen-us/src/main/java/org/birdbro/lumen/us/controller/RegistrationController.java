@@ -5,8 +5,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 
-import org.birdbro.lumen.api.patient.PatientLookupResult;
-import org.birdbro.lumen.api.patient.PatientResolveOrRegisterRequest;
+import org.birdbro.lumen.feign.patient.PatientLookupResult;
+import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterRequest;
 import org.birdbro.lumen.core.entity.ExamOrderStatus;
 import org.birdbro.lumen.us.dto.RegistrationCancelRequest;
 import org.birdbro.lumen.us.dto.RegistrationCreateRequest;

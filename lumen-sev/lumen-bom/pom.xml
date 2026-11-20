@@ -265,7 +265,7 @@
             </dependency>
             <dependency>
                 <groupId>org.birdbro</groupId>
-                <artifactId>lumen-api</artifactId>
+                <artifactId>lumen-feign</artifactId>
                 <version>${revision}</version>
             </dependency>
 

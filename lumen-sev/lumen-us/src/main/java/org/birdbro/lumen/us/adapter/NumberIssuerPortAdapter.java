@@ -3,9 +3,9 @@ package org.birdbro.lumen.us.adapter;
 import org.birdbro.common.core.R;
 import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
-import org.birdbro.lumen.api.number.NumberApi;
-import org.birdbro.lumen.api.number.NumberIssueRequest;
-import org.birdbro.lumen.api.number.NumberIssueResponse;
+import org.birdbro.lumen.feign.number.NumberApi;
+import org.birdbro.lumen.feign.number.NumberIssueRequest;
+import org.birdbro.lumen.feign.number.NumberIssueResponse;
 import org.birdbro.lumen.core.number.NumberIssuerPort;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
  * design D3 - MIRRORS the patient {@code PatientNumberServiceImpl} precedent verbatim):
  * delegates to the platform number-rule {@code NumberApi} Feign contract (internal-key
  * guarded - {@code FeignInternalKeyConfig} carries the header; direct url {@code
- * lumen.api.system.url}). The kernel hands the rule family token (the accession family
+ * lumen.feign.system.url}). The kernel hands the rule family token (the accession family
  * is issued inside {@code ExamOrderRegistrationService.registerOrder} when the caller
  * did not bring one) - this adapter never picks or re-formats a rule.
  *

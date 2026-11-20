@@ -1,4 +1,4 @@
-package org.birdbro.lumen.api.patient;
+package org.birdbro.lumen.feign.patient;
 
 import java.io.Serializable;
 

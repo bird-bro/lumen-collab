@@ -21,7 +21,7 @@ You are a **Backend Agent**. Your scope: server-side logic, APIs, data access, b
 - `lumen-bom` - dependency versions (single source, only place versions are declared; OPS managed set 1:1)
 - `framework` + `common` - ★ copied **verbatim** from the OPS reference project (packages `org.birdbro.framework` / `org.birdbro.common`); shared base of all Servlet services; only the five recorded adaptations may differ (see coordination doc)
 - `lumen-core` - ★ exam workflow kernel: booking → registration → exam → report state machine (services + extension points, **no controllers**)
-- `lumen-api/{patient-api,integration-api}` - inter-service contracts (OpenFeign interfaces + DTO, add-only)
+- `lumen-feign` - inter-service contracts (OpenFeign interfaces + DTO, add-only; packages `org.birdbro.lumen.feign.{patient,number,integration}`)
 - `lumen-system` - users / roles / departments / permissions / dicts / log query (JWT issuer; renamed from lumen-auth, 2026-11-03) · `lumen-patient` (EMPI) · `lumen-radiology` (v1 ★, radiology) · `lumen-us` / `lumen-endo` (v2) · `lumen-integration` (DICOM MWL/MPPS SCP + HL7v2, routes by department)
 - **No Java gateway** - nginx is the unified API entry (`/api/v1/<service>/**`, port 80/443); Spring Cloud Gateway is a future cloud-form change
 - Packages: copied modules keep `org.birdbro.{framework,common}`; new modules use `org.birdbro.lumen.*`; layering `controller → service → mapper` per service (see `.claude/rules/naming.md`)

@@ -1,4 +1,4 @@
-package org.birdbro.lumen.api.number;
+package org.birdbro.lumen.feign.number;
 
 import java.io.Serializable;
 

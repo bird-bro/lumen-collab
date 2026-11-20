@@ -37,7 +37,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * the real security chain, proven through {@code TestRestTemplate}.</p>
  *
  * <p>The Feign seam stubs (batch 3, design D8 - the patient base precedent): the
- * lumen-api clients this service consumes ({@code PatientApi} / {@code NumberApi}) are
+ * lumen-feign clients this service consumes ({@code PatientApi} / {@code NumberApi}) are
  * {@code @MockBean}'d HERE so EVERY suite shares ONE context - no counterpart service
  * runs in this JVM, and the adapters must never fabricate an identity or a number, so
  * the seam is stubbed with LENIENT unique-band defaults (distinctive {@code us3} bands
@@ -76,10 +76,10 @@ public abstract class UsIntegrationTestBase {
      * inherits - the adapters' counterparties never answer in this JVM.
      */
     @org.springframework.boot.test.mock.mockito.MockBean
-    protected org.birdbro.lumen.api.patient.PatientApi patientApi;
+    protected org.birdbro.lumen.feign.patient.PatientApi patientApi;
 
     @org.springframework.boot.test.mock.mockito.MockBean
-    protected org.birdbro.lumen.api.number.NumberApi numberApi;
+    protected org.birdbro.lumen.feign.number.NumberApi numberApi;
 
     @org.junit.jupiter.api.BeforeEach
     void stubFeignCounterparties() {
@@ -87,10 +87,10 @@ public abstract class UsIntegrationTestBase {
         org.mockito.Mockito.when(patientApi.resolveOrRegister(
                         org.mockito.ArgumentMatchers.any()))
                 .thenAnswer(inv -> org.birdbro.common.core.R.ofSuccess(
-                        org.birdbro.lumen.api.patient.PatientResolveOrRegisterResult.builder()
-                                .result(org.birdbro.lumen.api.patient
+                        org.birdbro.lumen.feign.patient.PatientResolveOrRegisterResult.builder()
+                                .result(org.birdbro.lumen.feign.patient
                                         .PatientResolveOrRegisterResult.RESULT_MATCHED)
-                                .identity(org.birdbro.lumen.api.patient
+                                .identity(org.birdbro.lumen.feign.patient
                                         .PatientIdentityResponse.builder()
                                         .patUid(STUB_UID_BASE + seq.incrementAndGet())
                                         .patId(STUB_ACCESSION_PREFIX + "PAT" + seq.get())
@@ -101,13 +101,13 @@ public abstract class UsIntegrationTestBase {
                                 .build()));
         org.mockito.Mockito.when(patientApi.lookup(org.mockito.ArgumentMatchers.any()))
                 .thenAnswer(inv -> org.birdbro.common.core.R.ofSuccess(
-                        org.birdbro.lumen.api.patient.PatientLookupResult.builder()
-                                .result(org.birdbro.lumen.api.patient
+                        org.birdbro.lumen.feign.patient.PatientLookupResult.builder()
+                                .result(org.birdbro.lumen.feign.patient
                                         .PatientLookupResult.RESULT_NONE)
                                 .build()));
         org.mockito.Mockito.when(numberApi.issue(org.mockito.ArgumentMatchers.any()))
                 .thenAnswer(inv -> org.birdbro.common.core.R.ofSuccess(
-                        org.birdbro.lumen.api.number.NumberIssueResponse.builder()
+                        org.birdbro.lumen.feign.number.NumberIssueResponse.builder()
                                 .number(STUB_ACCESSION_PREFIX + seq.incrementAndGet())
                                 .build()));
     }

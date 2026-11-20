@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * The machine issuance request body (number-rule-unification-sev task 2.2): the OWNER
- * side's local mirror of the {@code NumberApi} contract DTO (lumen-api) — identical
+ * side's local mirror of the {@code NumberApi} contract DTO (lumen-feign) — identical
  * JSON field names, deliberately NOT a shared class: the owning service must not carry
  * the consumer-side Feign machinery on its classpath (the FeignAutoConfiguration
  * classpath trap, hit and fixed during apply). The contract stays single-sourced for

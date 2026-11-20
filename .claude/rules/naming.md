@@ -16,7 +16,7 @@ User decisions 2026-10-29 (see `openspec/coordination/init-project-skeleton.md`)
   - Modules copied from OPS keep name, artifactId, and package:
     `framework` → `org.birdbro.framework`, `common` → `org.birdbro.common`.
   - New lumen modules use `org.birdbro.lumen.<module>`:
-    `org.birdbro.lumen.api.{patient,integration}`, `org.birdbro.lumen.{patient,radiology,us,endo,integration,core}`.
+    `org.birdbro.lumen.feign.{patient,number,integration}`, `org.birdbro.lumen.{patient,radiology,us,endo,integration,core}`.
     EXCEPTION (user action 2026-11-13): the `lumen-system` module's FIRST domain
     rebranded `system` → `manage` (IDEA package rename, user-executed) - the jar hosts
     `org.birdbro.lumen.manage` (系统管理域) + `org.birdbro.lumen.setting` (检查设置域,

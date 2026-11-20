@@ -1,0 +1,17 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+# Phases: proposing -> applying -> verifying -> archived | abandoned (terminal).
+# Copy into each change directory: openspec/changes/<name>/loop-state.yaml.
+phase: verifying
+change: rename-lumen-api-feign
+current_task: null
+tasks_total: 12
+tasks_done: 12
+retry_count: 0
+debt_count: 0
+debug_attempts: 0
+workflow_mode: full
+artifacts_hash: null
+contract_hash: null
+execution_mode: SDD
+batches_completed: 1
+last_updated: 2026-11-20

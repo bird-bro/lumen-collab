@@ -10,12 +10,12 @@
     </parent>
 
     <name>${project.artifactId}</name>
-    <artifactId>lumen-api</artifactId>
+    <artifactId>lumen-feign</artifactId>
     <packaging>jar</packaging>
 
     <dependencies>
 
-        <!-- lumen-api is the INTER-SERVICE CONTRACT home (number-rule-unification-sev
+        <!-- lumen-feign is the INTER-SERVICE CONTRACT home (number-rule-unification-sev
              task 1.1, design D5): OpenFeign interfaces + DTOs, add-only. NON-EXECUTABLE
              shared jar like framework/common/lumen-core (no entry point, no controllers
              with routes - the contract DECLARED endpoints only; the HTTP surface lives

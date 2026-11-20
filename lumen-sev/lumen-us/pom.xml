@@ -68,12 +68,12 @@
             <artifactId>commons-pool2</artifactId>
         </dependency>
 
-        <!-- lumen-api (us-station-registration-sev task 3.1): the PatientApi / NumberApi
+        <!-- lumen-feign (us-station-registration-sev task 3.1): the PatientApi / NumberApi
              Feign contracts the registration adapters delegate to (add-only contracts,
-             direct-url targets lumen.api.patient.url / lumen.api.system.url). -->
+             direct-url targets lumen.feign.patient.url / lumen.feign.system.url). -->
         <dependency>
             <groupId>org.birdbro</groupId>
-            <artifactId>lumen-api</artifactId>
+            <artifactId>lumen-feign</artifactId>
         </dependency>
 
         <!-- lumen-core (us-station-registration-sev task 3.2, D6/D7): the exam-workflow

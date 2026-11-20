@@ -117,7 +117,7 @@ public abstract class PatientIntegrationTestBase {
     // override in their own @BeforeEach, which runs after this base method). The
     // platform MECHANISM is proven system-side (NumberIssuerServiceTests).
     @org.springframework.boot.test.mock.mockito.MockBean
-    protected org.birdbro.lumen.api.number.NumberApi numberApi;
+    protected org.birdbro.lumen.feign.number.NumberApi numberApi;
 
     @org.junit.jupiter.api.BeforeEach
     void stubPlatformIssuance() {
@@ -125,7 +125,7 @@ public abstract class PatientIntegrationTestBase {
                 new java.util.concurrent.atomic.AtomicInteger(26111900);
         org.mockito.Mockito.when(numberApi.issue(org.mockito.ArgumentMatchers.any()))
                 .thenAnswer(inv -> org.birdbro.common.core.R.ofSuccess(
-                        org.birdbro.lumen.api.number.NumberIssueResponse.builder()
+                        org.birdbro.lumen.feign.number.NumberIssueResponse.builder()
                                 .number("PB4" + seq.incrementAndGet()).build()));
     }
 

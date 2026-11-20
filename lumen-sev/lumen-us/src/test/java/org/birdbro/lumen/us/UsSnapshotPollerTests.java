@@ -22,10 +22,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import org.birdbro.common.core.R;
 import org.birdbro.common.exception.BusinessException;
-import org.birdbro.lumen.api.patient.PatientApi;
-import org.birdbro.lumen.api.patient.PatientIdentityResponse;
-import org.birdbro.lumen.api.patient.PatientOutboxEntry;
-import org.birdbro.lumen.api.patient.PatientResolveOrRegisterResult;
+import org.birdbro.lumen.feign.patient.PatientApi;
+import org.birdbro.lumen.feign.patient.PatientIdentityResponse;
+import org.birdbro.lumen.feign.patient.PatientOutboxEntry;
+import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterResult;
 import org.birdbro.lumen.core.service.ExamOrderAggregateService;
 import org.birdbro.lumen.core.mapper.ExamOrderMapper;
 import org.birdbro.lumen.us.poller.PatientSnapshotPoller;

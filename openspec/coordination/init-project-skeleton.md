@@ -168,6 +168,14 @@ those services assign them and update this table.
   `lumen-endo` (DICOM modality ENDO); future departments follow `lumen-<standard abbrev>`
   (e.g. `lumen-ecg`). The trio is "each domain's most recognizable short name", not strict
   modality-code uniformity. - 2026-10-29
+- **Inter-service contract module renamed `lumen-api` → `lumen-feign`** - user decision
+  2026-11-20 (`rename-lumen-api-feign`): the "api" name collided with the project's REST
+  surface semantics (`/api/v1/**` per service, `openspec/specs/api/spec.md`). Module +
+  artifactId renamed; package root `org.birdbro.lumen.api` → `org.birdbro.lumen.feign`
+  (`feign.patient` / `feign.number`); direct-url config keys `lumen.api.*.url` →
+  `lumen.feign.*.url`; contract class names (`PatientApi` / `NumberApi`) unchanged; the
+  `{patient-api,integration-api}` sub-module layout below never landed - the module is a
+  single flat jar. Dated bullets above keep their original names as records. - 2026-11-20
 - **Deployment forms decided (full analysis: `docs/analysis/hospital-deployment-forms.zh.md`)** -
   user decisions 2026-10-29: (a) **hospital form = multi-service processes** (one module =
   one jar = one container; this is what makes per-department release isolation real -

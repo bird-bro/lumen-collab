@@ -10,11 +10,11 @@ import io.swagger.annotations.ApiOperation;
 
 import cn.hutool.core.bean.BeanUtil;
 
-import org.birdbro.lumen.api.patient.PatientIdentityResponse;
-import org.birdbro.lumen.api.patient.PatientLookupResult;
-import org.birdbro.lumen.api.patient.PatientOutboxEntry;
-import org.birdbro.lumen.api.patient.PatientResolveOrRegisterRequest;
-import org.birdbro.lumen.api.patient.PatientResolveOrRegisterResult;
+import org.birdbro.lumen.feign.patient.PatientIdentityResponse;
+import org.birdbro.lumen.feign.patient.PatientLookupResult;
+import org.birdbro.lumen.feign.patient.PatientOutboxEntry;
+import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterRequest;
+import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterResult;
 import org.birdbro.lumen.patient.dto.PatientResolveRequest;
 import org.birdbro.lumen.patient.dto.PatientResolveResult;
 import org.birdbro.lumen.patient.entity.PatientEventOutbox;

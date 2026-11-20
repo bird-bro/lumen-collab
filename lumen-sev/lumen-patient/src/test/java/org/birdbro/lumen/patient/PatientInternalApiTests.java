@@ -30,7 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import org.birdbro.lumen.api.patient.PatientResolveOrRegisterRequest;
+import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterRequest;
 import org.birdbro.lumen.patient.dto.PatientArchiveSaveRequest;
 import org.birdbro.lumen.patient.entity.PatientMaster;
 import org.birdbro.lumen.patient.service.PatientArchiveService;

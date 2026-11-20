@@ -3,8 +3,8 @@ package org.birdbro.lumen.patient.service.impl;
 import org.birdbro.common.core.R;
 import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
-import org.birdbro.lumen.api.number.NumberApi;
-import org.birdbro.lumen.api.number.NumberIssueRequest;
+import org.birdbro.lumen.feign.number.NumberApi;
+import org.birdbro.lumen.feign.number.NumberIssueRequest;
 import org.birdbro.lumen.patient.service.PatientNumberService;
 import org.springframework.stereotype.Service;
 
@@ -37,7 +37,7 @@ public class PatientNumberServiceImpl implements PatientNumberService {
 
     @Override
     public String issue(String ruleType) {
-        R<org.birdbro.lumen.api.number.NumberIssueResponse> response =
+        R<org.birdbro.lumen.feign.number.NumberIssueResponse> response =
                 numberApi.issue(NumberIssueRequest.builder().ruleType(ruleType).build());
         if (response == null || response.getData() == null
                 || response.getData().getNumber() == null) {

@@ -1,4 +1,4 @@
-package org.birdbro.lumen.api.number;
+package org.birdbro.lumen.feign.number;
 
 import org.birdbro.common.core.R;
 
@@ -8,11 +8,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 /**
  * The platform number-rule Feign contract (number-rule-unification-sev task 1.1,
- * design D5; the FIRST inter-service contract - lumen-api materializes with it): the
+ * design D5; the FIRST inter-service contract - lumen-feign materializes with it): the
  * machine issuance endpoint of the system-owned number-rule service. Consumers
  * (lumen-patient today; the department services adapt the kernel's NumberIssuerPort
  * through this) enable it with `@EnableFeignClients` and configure the DIRECT target
- * URL per environment (`lumen.api.system.url` - no discovery, the 2026-11-03
+ * URL per environment (`lumen.feign.system.url` - no discovery, the 2026-11-03
  * local-config ruling).
  *
  * <p>Fail-fast contract: the fallback THROWS (C0001) — a fallback that fabricates a
@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
  *
  * @author birdbro
  */
-@FeignClient(name = "lumen-system-number", url = "${lumen.api.system.url:}",
+@FeignClient(name = "lumen-system-number", url = "${lumen.feign.system.url:}",
         fallback = NumberApiFallback.class)
 public interface NumberApi {
 

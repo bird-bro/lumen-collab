@@ -2,8 +2,8 @@ package org.birdbro.lumen.us.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 
-import org.birdbro.lumen.api.patient.PatientLookupResult;
-import org.birdbro.lumen.api.patient.PatientResolveOrRegisterRequest;
+import org.birdbro.lumen.feign.patient.PatientLookupResult;
+import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterRequest;
 import org.birdbro.lumen.core.entity.ExamOrderStatus;
 import org.birdbro.lumen.us.dto.RegistrationCreateRequest;
 import org.birdbro.lumen.us.dto.RegistrationCreateResult;

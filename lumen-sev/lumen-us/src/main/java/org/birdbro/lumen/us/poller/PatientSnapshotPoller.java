@@ -17,8 +17,8 @@ import org.springframework.stereotype.Component;
 
 import org.birdbro.common.core.R;
 import org.birdbro.common.exception.BusinessException;
-import org.birdbro.lumen.api.patient.PatientApi;
-import org.birdbro.lumen.api.patient.PatientOutboxEntry;
+import org.birdbro.lumen.feign.patient.PatientApi;
+import org.birdbro.lumen.feign.patient.PatientOutboxEntry;
 import org.birdbro.lumen.core.entity.ExamOrder;
 import org.birdbro.lumen.core.entity.ExamOrderStatus;
 import org.birdbro.lumen.core.entity.PatientSnapshot;

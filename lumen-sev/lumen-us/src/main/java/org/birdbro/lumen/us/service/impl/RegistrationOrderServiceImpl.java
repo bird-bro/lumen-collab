@@ -14,8 +14,8 @@ import cn.hutool.core.util.StrUtil;
 
 import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
-import org.birdbro.lumen.api.patient.PatientLookupResult;
-import org.birdbro.lumen.api.patient.PatientResolveOrRegisterRequest;
+import org.birdbro.lumen.feign.patient.PatientLookupResult;
+import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterRequest;
 import org.birdbro.lumen.core.entity.ExamExecution;
 import org.birdbro.lumen.core.entity.ExamOrder;
 import org.birdbro.lumen.core.entity.ExamOrderStatus;

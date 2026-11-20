@@ -91,7 +91,7 @@ logging:
 # local defaults target the locally-running services). The internal key rides the
 # SAME value both counterparties check - gitignored overrides in application-dev.yml
 # / env vars, never a committed real key (fail-closed both sides). The Feign clients
-# themselves arrive with tasks 2.x/3.x (lumen-api PatientApi + NumberApi adapters).
+# themselves arrive with tasks 2.x/3.x (lumen-feign PatientApi + NumberApi adapters).
 feign:
   sentinel:
     enabled: true   # the fail-fast fallbacks resolve through Sentinel from task 3.x

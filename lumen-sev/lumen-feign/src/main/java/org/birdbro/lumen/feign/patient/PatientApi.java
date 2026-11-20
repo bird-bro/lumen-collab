@@ -1,4 +1,4 @@
-package org.birdbro.lumen.api.patient;
+package org.birdbro.lumen.feign.patient;
 
 import java.util.List;
 
@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
  * interceptor (the system {@code /issue} precedent); the consumer's Feign
  * RequestInterceptor adds the key from the same gitignored config the patient side
  * checks. Consumers enable it with {@code @EnableFeignClients} and configure the DIRECT
- * target URL per environment ({@code lumen.api.patient.url} - no discovery, the
+ * target URL per environment ({@code lumen.feign.patient.url} - no discovery, the
  * 2026-11-03 local-config ruling).
  *
  * <p>Composite semantics: the endpoint atomically runs the patient domain's EXISTING
@@ -41,7 +41,7 @@ import org.springframework.web.bind.annotation.RequestParam;
  *
  * @author birdbro
  */
-@FeignClient(name = "lumen-patient-registry", url = "${lumen.api.patient.url:}",
+@FeignClient(name = "lumen-patient-registry", url = "${lumen.feign.patient.url:}",
         fallback = PatientApiFallback.class)
 public interface PatientApi {
 
