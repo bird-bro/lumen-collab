@@ -28,7 +28,7 @@ import { themeConfig } from '@/theme'
  * loaded. The
  * 公共/个人 Segmented threads scope `type` into EVERY call and reloads both
  * panes; the server keeps private rows owner-scoped. Structured-content delta
- * (2026-11-18): the template drawer is DUAL-FORM (类型 select - 简单模板/分节模板;
+ * (2026-11-18): the template drawer is DUAL-FORM (类型 radio (2026-11-20 ex-Select) - 简单模板/分节模板;
  * 2026-11-19 rename+restyle ex-模板形态 radio, fixed 960 width) with section
  * cards serializing content jsonb; edits backfill by the
  * row's content; conversions mapped/refused per D6; table summary per D7).
@@ -129,25 +129,21 @@ function drawerWrapper(): HTMLElement {
   return wrapper
 }
 
-/** The 类型 select's shown value (2026-11-19 restyle, ex-模板形态 radio): the antd
- * selection item inside the dialog. The dropdown options portal beside the
- * trigger and hide on close, so text queries would double-match; the template
- * drawer holds exactly ONE Select. */
+/** The 类型 radio group's shown value (ux-polish follow-up 2026-11-20: the
+ * dropdown returned to a single-select radio per user ruling — the checked
+ * radio's value maps back to its label for the label-style assertions). */
 function shownTemplateType(): string | null {
-  return screen.getByRole('dialog').querySelector('.ant-select-selection-item')?.textContent ?? null
+  const checked = screen.getByRole('dialog').querySelector('input[type=radio]:checked') as
+    | HTMLInputElement
+    | null
+  if (!checked) return null
+  return checked.value === 'structured' ? '分节模板' : '简单模板'
 }
 
-/** Switch the template drawer's 类型 select: open the named combobox, then click
- * the matching option row (orgs-page idiom - `.at(-1)` because antd keeps the
- * previous dropdown in the DOM while it animates closed). */
+/** Switch the template drawer's 类型 radio group: a plain antd Radio click (the
+ * input is directly clickable, unlike Segmented's pointer-events:none input). */
 async function pickTemplateType(user: ReturnType<typeof userEvent.setup>, label: string) {
-  await user.click(within(screen.getByRole('dialog')).getByRole('combobox', { name: '类型' }))
-  const option = await waitFor(() => {
-    const els = Array.from(document.querySelectorAll(`.ant-select-item-option[title="${label}"]`))
-    if (els.length === 0) throw new Error(`template type option ${label} not found`)
-    return els.at(-1) as HTMLElement
-  })
-  await user.click(option)
+  await user.click(within(screen.getByRole('dialog')).getByRole('radio', { name: label }))
 }
 
 /** Switch a measure row's 正常范围类型 select (kind dropdown, user ruling
@@ -396,10 +392,13 @@ describe('report template page - template drawer', () => {
     // Delta (structured content 2026-11-18): the template surface is DUAL-FORM -
     // the 类型 select (简单模板/分节模板; 2026-11-19 rename+restyle) replaces the
     // retired 节点类型 one and defaults to 简单模板 at the FIXED 960 width.
-    expect(within(drawer).getByRole('combobox', { name: '类型' })).toBeTruthy()
+    expect(within(drawer).getByRole('radio', { name: '简单模板' })).toBeTruthy()
+    expect(within(drawer).getByRole('radio', { name: '分节模板' })).toBeTruthy()
     expect(shownTemplateType()).toBe('简单模板')
     expect(drawerWrapper().style.width).toBe('960px')
-    expect(within(drawer).getByText('呼吸系统')).toBeTruthy()
+    // The owning directory rides the TITLE as a tag (ux-polish follow-up:
+    // 编辑模板 [目录：头颅-1] shape — the form's echo row is retired).
+    expect(within(drawer).getByText('目录：呼吸系统')).toBeTruthy()
   })
 
   it('saving a template POSTs flag=1 under the selected directory', async () => {
@@ -497,7 +496,7 @@ describe('report template page - perm gating', () => {
 })
 
 describe('report template page - structured form (dual mode)', () => {
-  it('节名 edits IN PLACE inside the card head (borderless input + 节 N tag; ux-polish ruling)', async () => {
+  it('节名 edits IN PLACE inside the hand-rolled card head (borderless input + 节 N tag)', async () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('呼吸系统')
@@ -510,18 +509,18 @@ describe('report template page - structured form (dual mode)', () => {
     // borderless input carries the example placeholder and the gray 节 1 tag
     // sits beside it for verbal reference.
     const card = within(drawer).getByRole('group', { name: '节卡片 1' })
-    const headTitle = card.querySelector('.ant-card-head-title') as HTMLElement
-    const nameInput = within(headTitle as HTMLElement).getByLabelText('节名') as HTMLInputElement
+    const headRow = card.querySelector('.rep-sec-head') as HTMLElement
+    const nameInput = within(headRow as HTMLElement).getByLabelText('节名') as HTMLInputElement
     expect((nameInput as HTMLInputElement).placeholder).toBe('节名（如：心腔、肝脏）')
-    expect(within(headTitle).getByText('节 1')).toBeTruthy()
+    expect(within(headRow).getByText('节 1')).toBeTruthy()
     // No standalone 节名 input row remains in the card body.
-    expect(within(card).queryByLabelText('节名')).toBe(nameInput)
+    expect(within(card).getAllByLabelText('节名')).toHaveLength(1)
 
     // Typing updates the name (rendered nowhere else — the head IS the field);
     // the positional tag stays.
     await user.type(nameInput, '心腔')
     expect((within(card).getByLabelText('节名') as HTMLInputElement).value).toBe('心腔')
-    expect(within(headTitle).getByText('节 1')).toBeTruthy()
+    expect(within(headRow).getByText('节 1')).toBeTruthy()
   })
 
   it('分节模板 swaps prose fields for section editors at the fixed 960 width', async () => {
@@ -536,7 +535,7 @@ describe('report template page - structured form (dual mode)', () => {
     expect(drawerWrapper().style.width).toBe('960px')
     expect(within(drawer).queryByLabelText('影像学表现')).toBeNull()
     expect(within(drawer).getByLabelText('节名')).toBeTruthy()
-    expect(within(drawer).getByLabelText('影像所见')).toBeTruthy()
+    expect(within(drawer).getByLabelText('所见')).toBeTruthy()
     expect(within(drawer).getByRole('button', { name: '添加测量项' })).toBeTruthy()
     expect(within(drawer).getByRole('button', { name: '添加节' })).toBeTruthy()
     expect(within(drawer).getByRole('button', { name: '删除节' })).toBeTruthy()
@@ -595,7 +594,7 @@ describe('report template page - structured form (dual mode)', () => {
     await pickTemplateType(user, '分节模板')
     const card = within(drawer).getByRole('group', { name: '节卡片 1' })
     await user.type(within(card).getByLabelText('节名'), '心腔')
-    await user.type(within(card).getByLabelText('影像所见'), '左房增大。')
+    await user.type(within(card).getByLabelText('所见'), '左房增大。')
     await user.click(within(card).getByRole('button', { name: '添加测量项' }))
     await user.type(within(card).getByLabelText('名称'), '左房内径')
     await user.type(within(card).getByLabelText('单位'), 'mm')
@@ -677,7 +676,7 @@ describe('report template page - mode conversion (3.3)', () => {
     // Delta: the first section's 节所见 carries the former 表现 text; the 意见
     // stays as the global conclusion. 节名 stays empty for the user to fill
     // (backend @NotBlank is the validation guard).
-    expect((within(drawer).getByLabelText('影像所见') as HTMLTextAreaElement).value).toBe('左肺上叶磨玻璃结节')
+    expect((within(drawer).getByLabelText('所见') as HTMLTextAreaElement).value).toBe('左肺上叶磨玻璃结节')
     expect((within(drawer).getByLabelText('影像意见') as HTMLTextAreaElement).value).toBe('建议三个月随访')
     expect((within(drawer).getByLabelText('节名') as HTMLInputElement).value).toBe('')
   })
@@ -716,7 +715,7 @@ describe('report template page - structured edit backfill (3.4)', () => {
     expect(within(drawer).queryByLabelText('影像学表现')).toBeNull()
     const card1 = within(drawer).getByRole('group', { name: '节卡片 1' })
     expect((within(card1).getByLabelText('节名') as HTMLInputElement).value).toBe('心腔')
-    expect((within(card1).getByLabelText('影像所见') as HTMLTextAreaElement).value).toBe('左房增大。')
+    expect((within(card1).getByLabelText('所见') as HTMLTextAreaElement).value).toBe('左房增大。')
     const card2 = within(drawer).getByRole('group', { name: '节卡片 2' })
     expect((within(card2).getByLabelText('节名') as HTMLInputElement).value).toBe('心功能')
     expect((within(drawer).getByLabelText('影像意见') as HTMLTextAreaElement).value).toBe('先随访后复查。')
@@ -1005,7 +1004,7 @@ describe('report template page - placeholder preview (rep-temp-placeholder-previ
     expect(paras[1].textContent).toBe('两肺纹理增多。')
   })
 
-  it('分节模式 预览弹框 shows the B-form shape: 节名 + mini measure table + 影像所见 paragraphs', async () => {
+  it('分节模式 预览弹框 shows the B-form shape: 节名 + mini measure table + 所见 paragraphs', async () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('呼吸系统')
@@ -1021,7 +1020,7 @@ describe('report template page - placeholder preview (rep-temp-placeholder-previ
     await user.type(within(card).getByLabelText('单位'), 'mm')
     await user.type(within(card).getByLabelText('正常范围最小值'), '19')
     await user.type(within(card).getByLabelText('正常范围最大值'), '40')
-    await user.type(within(card).getByLabelText('影像所见'), '【左|右】房增大。')
+    await user.type(within(card).getByLabelText('所见'), '【左|右】房增大。')
 
     await user.click(within(drawer).getByRole('button', { name: /预 览|预览/ }))
     const preview = await waitFor(() => screen.getByLabelText('报告预览'))

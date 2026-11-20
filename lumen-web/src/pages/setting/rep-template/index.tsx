@@ -1,4 +1,4 @@
-import { Button, Card, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Segmented, Select, Tag, message, theme } from 'antd'
+import { Button, Card, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Radio, Segmented, Select, Tag, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
 import { DeleteOutlined, DownOutlined, FolderOutlined, PlusOutlined, UpOutlined } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -41,15 +41,15 @@ import {
  * 编辑目录 open the DIRECTORY DRAWER (上级 select + 目录名称 only), and the
  * right-pane 添加模板 / right-table 编辑 open the WIDE TEMPLATE DRAWER (目录 echo +
  * 名称/影像学表现/影像意见 - long-form content gets a FIXED-WIDTH 960px drawer,
- * 2026-11-19 ruling - the width never follows the 类型 select) bound to the selected
+ * 2026-11-19 ruling - the width never follows the 类型 radio) bound to the selected
  * directory - 添加模板 warns
  * 请先选择目录 when no directory node is selected. DUAL-FORM templates
- * (structured-content delta 2026-11-18, D6): the drawer carries a 类型 select
+ * (structured-content delta 2026-11-18, D6): the drawer carries a 类型 radio (2026-11-20 follow-up, ex-Select)
  * (简单模板/分节模板; 2026-11-19 rename+restyle, ex-模板形态 radio) -
  * 简单模板 keeps the prose form, 分节模板 swaps in section cards
- * (节名 + measure rows + 影像所见) serializing into `content` jsonb at save (D1 互斥
+ * (节名 + measure rows + 所见) serializing into `content` jsonb at save (D1 互斥
  * nulls the prose columns); edits backfill by the row's content, 简单→分节 maps
- * 表现 → first section's 影像所见, 分节→简单 is refused. The left tree renders
+ * 表现 → first section's 所见, 分节→简单 is refused. The left tree renders
  * DIRECTORIES only (2026-11-20 ruling, rep-temp-tree-dirs-only-web): template
  * leaves (flag=1) never render there - a tree-side template edit would PUT
  * content-blind (tree nodes carry no finding/impression and the backend update
@@ -158,7 +158,7 @@ function PreviewParagraphs({ text, phStyle }: { text: string; phStyle: CSSProper
  * head (borderless input + the gray 节 N tag for verbal reference; the former
  * body row and the title-echo rendering are retired) + measure rows
  * (名称 label / 单位 unit / 正常范围 normal as the v2 UNION editor - per-row
- * Select 区间/文本, null renders 区间 with empty ends + row delete) + 影像所见
+ * Select 区间/文本, null renders 区间 with empty ends + row delete) + 所见
  * TextArea. The 项目 code input is RETIRED (rep-template-ux-polish: the
  * printed B-form never shows the code) — the state keeps `code` as a nullable
  * passthrough so legacy rows survive the full-replace PUT. Card verbs are
@@ -176,43 +176,57 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
     onPatch({ measures: section.measures.map((m, i) => (i === mi ? { ...m, ...patch } : m)) })
   return (
     <div role="group" aria-label={`节卡片 ${index + 1}`}>
-      <Card
-        size="small"
-        title={
-          // The 节名 edits IN PLACE inside the card head (ux-polish ruling
-          // 2026-11-20, replacing the former body row + title echo): a
-          // borderless input styled as the heading, with the gray positional
-          // 节 N tag beside it for verbal reference ("节 2 那张卡"). The save
-          // guard still blocks empty names.
-          <>
-            <Input
-              aria-label="节名"
-              placeholder="节名（如：心腔、肝脏）"
-              variant="borderless"
-              size="small"
-              maxLength={64}
-              value={section.name}
-              onChange={(e) => onPatch({ name: e.target.value })}
-              style={{ fontWeight: 600, paddingInline: 0 }}
-            />
-            <span style={{ color: token.colorTextTertiary, fontSize: token.fontSizeSM, marginLeft: 8, fontWeight: 400 }}>
-              节 {index + 1}
-            </span>
-          </>
-        }
-        extra={
-          <div style={{ display: 'flex', gap: 4 }}>
-            <Button
-              type="text"
-              size="small"
-              aria-label={collapsed ? '展开' : '折叠'}
-              icon={collapsed ? <DownOutlined /> : <UpOutlined />}
-              onClick={() => setCollapsed((c) => !c)}
-            />
-            <Button type="text" size="small" danger aria-label="删除节" icon={<DeleteOutlined />} onClick={onRemove} />
-          </div>
-        }
-      >
+      {/* The head row is HAND-ROLLED (ux-polish follow-up 2026-11-20): putting
+          the editable 节名 inside antd's `.ant-card-head-title` slot breaks
+          editing in real browsers — that slot is an inline-block shrink-to-fit
+          container with overflow/nowrap ellipsis styles, where a percentage
+          width input resolves unreliably (jsdom tests pass, the browser
+          doesn't). A plain flex row with `minWidth: 0` on the input behaves
+          like every other working input row in the app. Chevron (view
+          control) at the disclosure position; trash (destructive) far right;
+          the 节 N tag stays for verbal reference. */}
+      <Card size="small" styles={{ body: { padding: '0 12px 12px' } }}>
+        <div
+          className="rep-sec-head"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            margin: '0 -12px',
+            padding: '8px 12px',
+            borderBottom: `1px solid ${token.colorSplit}`,
+          }}
+        >
+          <Button
+            type="text"
+            size="small"
+            aria-label={collapsed ? '展开' : '折叠'}
+            icon={collapsed ? <DownOutlined /> : <UpOutlined />}
+            onClick={() => setCollapsed((c) => !c)}
+            style={{ color: token.colorTextSecondary }}
+          />
+          <Input
+            aria-label="节名"
+            placeholder="节名（如：心腔、肝脏）"
+            variant="borderless"
+            size="small"
+            maxLength={64}
+            value={section.name}
+            onChange={(e) => onPatch({ name: e.target.value })}
+            style={{ flex: 1, minWidth: 0, fontWeight: 600, paddingInline: 0 }}
+          />
+          <span
+            style={{
+              color: token.colorTextTertiary,
+              fontSize: token.fontSizeSM,
+              fontWeight: 400,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            节 {index + 1}
+          </span>
+          <Button type="text" size="small" danger aria-label="删除节" icon={<DeleteOutlined />} onClick={onRemove} />
+        </div>
         {!collapsed && (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '12px 0' }}>
@@ -330,12 +344,12 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
               </Button>
             </div>
             <div style={{ marginBottom: 4 }}>
-              <span style={{ fontSize: token.fontSizeSM, color: token.colorTextSecondary }}>影像所见</span>
+              <span style={{ fontSize: token.fontSizeSM, color: token.colorTextSecondary }}>所见</span>
             </div>
             <Input.TextArea
-              aria-label="影像所见"
-              placeholder="影像所见"
-              rows={6}
+              aria-label="所见"
+              placeholder="所见"
+              rows={10}
               value={section.finding ?? ''}
               onChange={(e) => onPatch({ finding: e.target.value })}
             />
@@ -625,7 +639,7 @@ export default function RepTemplatePage() {
 
   // Mode select (D6 conversion semantics; 2026-11-19 rename+restyle, ex-模板形态
   // radio): 简单→分节 maps 表现 → the first
-  // section's 影像所见 (auto-created; 节名 left empty for the user - the backend
+  // section's 所见 (auto-created; 节名 left empty for the user - the backend
   // @NotBlank is the guard); the global 意见 form field IS content.impression,
   // so it carries over untouched. 分节→简单 is REFUSED (sections would be
   // dropped) - warn and keep the controlled value on 分节模板.
@@ -1030,11 +1044,22 @@ export default function RepTemplatePage() {
           编辑模板 from the right table's loaded row). WIDE drawer at a FIXED
           960px (2026-11-19 ruling - the 分节模板 section cards' size, bigger
           than the old 640 simple-mode drawer) so the long-form 影像学表现/意见
-          text areas breathe (rows 10/8) and switching the 类型 select never
+          text areas breathe (rows 10/8) and switching the 类型 radio never
           resizes the drawer. House drawer shape: close button top-right,
           maskClosable off. */}
       <Drawer
-        title={editingTpl ? '编辑模板' : '添加模板'}
+        title={
+          // The owning directory rides the TITLE as a tag (ux-polish follow-up
+          // 2026-11-20: the form's 目录 echo row retired — 编辑模板 [目录：头颅-1]
+          // reads at a glance). Both modes carry it: edit shows the row's
+          // stored parent (resolved by name), add shows the guarded parent.
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {editingTpl ? '编辑模板' : '添加模板'}
+            <Tag style={{ marginInlineEnd: 0, fontSize: token.fontSize, fontWeight: 600 }}>
+              目录：{editingTpl ? resolveNodeName(editingTpl.upId) : tplParent ? tplParent.name : '顶层'}
+            </Tag>
+          </span>
+        }
         width={960}
         open={tplDrawerOpen}
         onClose={() => setTplDrawerOpen(false)}
@@ -1057,51 +1082,46 @@ export default function RepTemplatePage() {
         }
       >
         <Form form={tplForm} layout="vertical">
-          {/* 目录 echo + 类型 select share ONE row (2026-11-19 ruling - the two
-              stacked full-width rows read as clutter): the owning directory Tag
-              (add) or the row's stored parent (edit) sits left, the mode select
-              (简单模板/分节模板; ex-模板形态 radio, fixed width - not a Form
-              field, state-driven) sits right - BOTH at the fixed 960 drawer
-              width, so switching never resizes it. The global 影像意见 below
-              is the ONE field shared by both modes (structured saves it into
-              content.impression, D2). */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginBottom: token.marginLG,
-              color: token.colorTextHeading,
-              fontSize: token.fontSize,
-            }}
-          >
-            目录：
-            <Tag
-              style={{ marginInlineEnd: 0, flex: '0 0 auto', fontSize: token.fontSize, fontWeight: 600 }}
+          {/* 名称 + 类型 share ONE row (ux-polish follow-up 2026-11-20: the 目录
+              echo moved UP into the drawer title as a tag — 编辑模板
+              [目录：头颅-1] — and the mode control joins the name field; 名称
+              flexes LARGE, 类型 stays a fixed share on the right — the smaller
+              proportion). The mode control is a RADIO GROUP (user ruling
+              2026-11-20 follow-up — a single-select control reads handier than
+              the dropdown; ex-Select, and the original 模板形态 radio lineage).
+              类型 is not a Form field (state-driven), so it mimics the
+              Form.Item label styling to keep the two column labels aligned.
+              The global 影像意见 below is the ONE field shared by both modes
+              (structured saves it into content.impression, D2). */}
+          <div style={{ display: 'flex', gap: 16, marginBottom: token.marginLG }}>
+            <Form.Item
+              name="name"
+              label="名称"
+              rules={[{ required: true, message: '名称不能为空' }]}
+              style={{ flex: 1, minWidth: 0, marginBottom: 0 }}
             >
-              {editingTpl ? resolveNodeName(editingTpl.upId) : tplParent ? tplParent.name : '顶层'}
-            </Tag>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              类型
-              <Select
-                aria-label="类型"
-                style={{ width: 160 }}
+              <Input maxLength={128} />
+            </Form.Item>
+            <div style={{ flex: '0 0 auto' }}>
+              <div
+                style={{
+                  fontSize: token.fontSize,
+                  color: token.colorText,
+                  marginBottom: 8,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                类型
+              </div>
+              <Radio.Group
                 value={tplStructured ? 'structured' : 'simple'}
-                onChange={(value) => handleTplModeSwitch(value as 'simple' | 'structured')}
-                options={[
-                  { label: '简单模板', value: 'simple' },
-                  { label: '分节模板', value: 'structured' },
-                ]}
-              />
-            </span>
+                onChange={(e) => handleTplModeSwitch(e.target.value as 'simple' | 'structured')}
+              >
+                <Radio value="simple">简单模板</Radio>
+                <Radio value="structured">分节模板</Radio>
+              </Radio.Group>
+            </div>
           </div>
-          <Form.Item
-            name="name"
-            label="名称"
-            rules={[{ required: true, message: '名称不能为空' }]}
-          >
-            <Input maxLength={128} />
-          </Form.Item>
           {!tplStructured && (
             <Form.Item
               name="finding"
