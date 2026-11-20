@@ -980,6 +980,115 @@ describe('report template page - structured save chain (3.6)', () => {
 })
 
 /**
+ * Placeholder convention + live preview (rep-temp-placeholder-preview-web,
+ * ruling 2026-11-20): the 【左|右】 delimited token (user-picked delimiter)
+ * highlights amber (`.rep-ph`) in the drawer's live 报告预览 and the right
+ * table's prose cells; the preview renders paragraphs per line with a 2em
+ * first-line indent (the print shape) and, in 分节模式, the B-form mini
+ * measure table (拍板点 2: B 测值表式起步); 插入占位 inserts the token at the
+ * textarea cursor; save normalizes leading whitespace per line (the indent
+ * belongs to the renderer, never the stored text).
+ */
+describe('report template page - placeholder preview (rep-temp-placeholder-preview-web)', () => {
+  it('简单模式 preview renders paragraphs with 2em indent and amber placeholders', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('呼吸系统')
+
+    await user.click(screen.getByRole('button', { name: /添加模板/ }))
+    const drawer = screen.getByRole('dialog')
+    await user.type(within(drawer).getByLabelText('名称'), '胸腔积液')
+    await user.type(within(drawer).getByLabelText('影像学表现'), '【左|右】侧肺野清晰。\n两肺纹理增多。')
+
+    const preview = await waitFor(() => screen.getByLabelText('报告预览'))
+    await waitFor(() => {
+      expect(preview.querySelectorAll('.rep-ph').length).toBeGreaterThanOrEqual(1)
+      expect(preview.querySelectorAll('.rep-ph')[0].textContent).toBe('【左|右】')
+    })
+    const paras = preview.querySelectorAll('p')
+    expect(paras.length).toBeGreaterThanOrEqual(2)
+    expect(paras[0].style.textIndent).toBe('2em')
+    expect(paras[0].textContent).toBe('【左|右】侧肺野清晰。')
+    expect(paras[1].textContent).toBe('两肺纹理增多。')
+  })
+
+  it('分节模式 preview shows the B-form shape: 节名 + mini measure table + 节所见 paragraphs', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('呼吸系统')
+
+    await user.click(screen.getByRole('button', { name: /添加模板/ }))
+    const drawer = screen.getByRole('dialog')
+    await user.type(within(drawer).getByLabelText('名称'), '心脏超声')
+    await pickTemplateType(user, '分节模板')
+    const card = within(drawer).getByRole('group', { name: '节卡片 1' })
+    await user.type(within(card).getByLabelText('节名'), '心腔')
+    await user.click(within(card).getByRole('button', { name: '添加测量项' }))
+    await user.type(within(card).getByLabelText('项目'), 'LA')
+    await user.type(within(card).getByLabelText('名称'), '左房内径')
+    await user.type(within(card).getByLabelText('单位'), 'mm')
+    await user.type(within(card).getByLabelText('正常范围最小值'), '19')
+    await user.type(within(card).getByLabelText('正常范围最大值'), '40')
+    await user.type(within(card).getByLabelText('节所见'), '【左|右】房增大。')
+
+    const preview = await waitFor(() => screen.getByLabelText('报告预览'))
+    await waitFor(() => {
+      expect(within(preview).getByText('心腔')).toBeTruthy()
+      expect(within(preview).getByText('左房内径')).toBeTruthy()
+      expect(within(preview).getByText('19 ~ 40')).toBeTruthy()
+    })
+    const ph = preview.querySelector('.rep-ph')
+    expect(ph?.textContent).toBe('【左|右】')
+  })
+
+  it('插入占位 inserts 【左|右】 and typing continues at the restored caret', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('呼吸系统')
+
+    await user.click(screen.getByRole('button', { name: /添加模板/ }))
+    const drawer = screen.getByRole('dialog')
+    const area = within(drawer).getByLabelText('影像学表现') as HTMLTextAreaElement
+    await user.click(within(drawer).getByRole('button', { name: '插入占位（影像学表现）' }))
+    await waitFor(() => {
+      expect(area.value).toBe('【左|右】')
+    })
+    // The insert re-anchors the caret after the token (next-frame restore) -
+    // the doctor keeps typing right where the placeholder landed.
+    await user.type(area, '侧肺野清晰。')
+    expect(area.value).toBe('【左|右】侧肺野清晰。')
+  })
+
+  it('right-table prose cells highlight placeholder tokens inline', async () => {
+    mockPageRows([{ ...PUBLIC_TEMP, finding: '【左|右】侧肺野清晰。' }])
+    renderPage()
+    await screen.findByText('肺结节随访')
+
+    const row = screen.getByText('肺结节随访').closest('tr') as HTMLElement
+    const ph = within(row).getByText('【左|右】')
+    expect(ph.classList.contains('rep-ph')).toBe(true)
+  })
+
+  it('save normalizes leading whitespace per line (indent belongs to the renderer)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('呼吸系统')
+
+    await user.click(screen.getByRole('button', { name: /添加模板/ }))
+    const drawer = screen.getByRole('dialog')
+    await user.type(within(drawer).getByLabelText('名称'), '胸腔积液')
+    await user.type(within(drawer).getByLabelText('影像学表现'), '第一段。\n　　第二段。')
+    await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
+
+    await waitFor(() => {
+      expect(tempApi.createRepTemp).toHaveBeenCalledWith(
+        expect.objectContaining({ finding: '第一段。\n第二段。' }),
+      )
+    })
+  })
+})
+
+/**
  * Shell ops chrome (rep-temp-ops-chrome-web 2026-11-20, the exam-method-page
  * "rides the shell ops chrome" idiom): the right table's 操作 column rides the
  * shared ConsoleTable chrome - the 操作 header carries the refresh glyph at its

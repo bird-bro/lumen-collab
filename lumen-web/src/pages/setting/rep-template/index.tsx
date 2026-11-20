@@ -1,7 +1,9 @@
 import { Button, Card, Drawer, Form, Input, InputNumber, Popconfirm, Segmented, Select, Tag, message, theme } from 'antd'
 import type { TableColumnsType } from 'antd'
+import type { TextAreaRef } from 'antd/es/input/TextArea'
 import { FolderOutlined } from '@ant-design/icons'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, RefObject } from 'react'
 import {
   createRepTemp,
   deleteRepTemp,
@@ -12,6 +14,7 @@ import {
 import { ApiError } from '@/api/client'
 import type { Page, RepTemp, RepTempContent, RepTempMeasure, RepTempMeasureNormal, RepTempNode, RepTempSection } from '@/api/types'
 import { dictItemsById, MODALITY_DICT_ID } from '@/utils/dict-items'
+import { PLACEHOLDER_TOKEN, normalizeLines, renderTemplateText } from '@/utils/template-text'
 import type { DictItem } from '@/api/types'
 import { usePerm } from '@/utils/perm'
 import {
@@ -116,6 +119,85 @@ function pruneToDirectories(nodes: RepTempNode[]): RepTempNode[] {
 }
 
 /**
+ * Insert the placeholder token at the textarea's cursor (rep-temp-placeholder-
+ * preview-web): reads the DOM selection off the antd TextAreaRef, splices the
+ * token into the current value and restores focus/selection on the next
+ * frame. No ref/selection → appends (the affordance works caretless too).
+ */
+function insertPlaceholderToken(
+  areaRef: RefObject<TextAreaRef | null>,
+  getValue: () => string,
+  setValue: (next: string) => void,
+) {
+  const el = areaRef.current?.resizableTextArea?.textArea
+  const current = getValue()
+  if (!el) {
+    setValue(current + PLACEHOLDER_TOKEN)
+    return
+  }
+  const start = el.selectionStart ?? current.length
+  const end = el.selectionEnd ?? start
+  setValue(current.slice(0, start) + PLACEHOLDER_TOKEN + current.slice(end))
+  const caret = start + PLACEHOLDER_TOKEN.length
+  requestAnimationFrame(() => {
+    el.focus()
+    el.setSelectionRange(caret, caret)
+  })
+}
+
+/**
+ * The 插入占位 affordance riding Form.Item's `extra` slot (a right-aligned row
+ * BELOW the textarea). The Form.Item label stays PLAIN: nesting a button in
+ * the <label> makes that button the label's second associated control
+ * (HTMLLabelElement.control semantics) — accessible-name resolution then sees
+ * two targets and every getByLabelText('影像学表现') double-hits. The card's
+ * 节所见 keeps the header-row shape instead (its label is a plain span, no
+ * <label> element involved).
+ */
+function PlaceholderExtra({ label, onInsert }: { label: string; onInsert: () => void }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+      <Button type="text" size="small" aria-label={`插入占位（${label}）`} onClick={onInsert}>
+        插入占位
+      </Button>
+    </div>
+  )
+}
+
+/** Reference range for the preview's mini measure table (B 测值表式, 拍板点 2):
+ * `min ~ max`, a blank end is the single-sided open interval, both ends empty
+ * is a placeholder-free `—`. */
+function formatRange(min: number | null, max: number | null): string {
+  if (min == null && max == null) return '—'
+  if (min == null) return `~ ${max}`
+  if (max == null) return `${min} ~`
+  return `${min} ~ ${max}`
+}
+
+/**
+ * One paragraph per line with the 2em first-line indent — the print shape.
+ * The text renders NORMALIZED (leading whitespace stripped per line: the
+ * indent is this CSS, never the stored text); empty lines render as short
+ * spacers. Placeholder tokens ride through `renderTemplateText` (amber).
+ */
+function PreviewParagraphs({ text, phStyle }: { text: string; phStyle: CSSProperties }) {
+  return (
+    <>
+      {normalizeLines(text ?? '')
+        .split('\n')
+        .map((line, i) => (
+          <p
+            key={i}
+            style={{ textIndent: '2em', margin: 0, minHeight: '1.6em', lineHeight: 1.9, fontSize: 13 }}
+          >
+            {line ? renderTemplateText(line, phStyle) : null}
+          </p>
+        ))}
+    </>
+  )
+}
+
+/**
  * One 分节 card of the structured template editor (dual-form delta 2026-11-18,
  * D6). Module-level so the card's 折叠 state survives the page's controlled
  * re-renders - a component defined inside the page function would remount per
@@ -131,6 +213,7 @@ function pruneToDirectories(nodes: RepTempNode[]): RepTempNode[] {
 function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardProps) {
   const [collapsed, setCollapsed] = useState(false)
   const { token } = theme.useToken()
+  const findingAreaRef = useRef<TextAreaRef>(null)
   const patchMeasure = (mi: number, patch: Partial<RepTempMeasure>) =>
     onPatch({ measures: section.measures.map((m, i) => (i === mi ? { ...m, ...patch } : m)) })
   return (
@@ -287,7 +370,26 @@ function TemplateSectionCard({ index, section, onPatch, onRemove }: SectionCardP
                 添加测量项
               </Button>
             </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: token.fontSizeSM, color: token.colorTextSecondary }}>节所见</span>
+              <Button
+                type="text"
+                size="small"
+                aria-label="插入占位（节所见）"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() =>
+                  insertPlaceholderToken(
+                    findingAreaRef,
+                    () => section.finding ?? '',
+                    (next) => onPatch({ finding: next }),
+                  )
+                }
+              >
+                插入占位
+              </Button>
+            </div>
             <Input.TextArea
+              ref={findingAreaRef}
               aria-label="节所见"
               placeholder="节所见"
               rows={3}
@@ -346,6 +448,20 @@ export default function RepTemplatePage() {
   const [tplParent, setTplParent] = useState<RepTempNode | null>(null)
   const [tplSaving, setTplSaving] = useState(false)
   const [tplForm] = Form.useForm<TplFormValues>()
+  // Placeholder/preview (rep-temp-placeholder-preview-web): the 插入占位 caret
+  // anchors plus the live preview's form reads (useWatch re-renders per
+  // keystroke; display-only — the preview never touches the wire).
+  const findingAreaRef = useRef<TextAreaRef>(null)
+  const impressionAreaRef = useRef<TextAreaRef>(null)
+  const findingWatch = Form.useWatch('finding', tplForm) as string | undefined
+  const impressionWatch = Form.useWatch('impression', tplForm) as string | undefined
+  // The placeholder highlight: amber = the warning-class tint (待编辑占位,
+  // the drawer-form-hint semantic); tokens only — no hex.
+  const phStyle: CSSProperties = {
+    background: token.colorWarningBg,
+    borderRadius: 2,
+    padding: '0 2px',
+  }
   // Dual-form mode (D6): false = 简单模板 (prose columns), true = 分节模板
   // (sections serialize into content jsonb). Pure frontend state - the save
   // chain serializes; the drawer width is FIXED at 960 (2026-11-19 ruling) -
@@ -572,7 +688,7 @@ export default function RepTemplatePage() {
   const handleTplModeSwitch = (mode: 'simple' | 'structured') => {
     if (mode === 'structured') {
       if (tplSections.length === 0) {
-        const finding = (tplForm.getFieldValue('finding') as string | undefined)?.trim()
+        const finding = normalizeLines((tplForm.getFieldValue('finding') as string | undefined) ?? '').trim()
         setTplSections([{ name: '', finding: finding || null, measures: [] }])
       }
       setTplStructured(true)
@@ -654,7 +770,7 @@ export default function RepTemplatePage() {
           version: 2,
           sections: tplSections.map((section) => ({
             name: section.name.trim(),
-            finding: section.finding?.trim() || null,
+            finding: normalizeLines(section.finding ?? '').trim() || null,
             measures: section.measures.map((measure) => ({
               code: measure.code.trim(),
               label: measure.label.trim(),
@@ -672,8 +788,8 @@ export default function RepTemplatePage() {
           flag: 1,
           upId: editingTpl.upId,
           name: values.name,
-          finding: content ? null : values.finding ?? null,
-          impression: content ? null : values.impression ?? null,
+          finding: content ? null : normalizeLines(values.finding ?? '') || null,
+          impression: content ? null : normalizeLines(values.impression ?? '') || null,
           content,
         })
         messageApi.success('修改成功')
@@ -686,8 +802,8 @@ export default function RepTemplatePage() {
           flag: 1,
           upId: tplParent?.id ?? null,
           name: values.name,
-          finding: content ? null : values.finding ?? null,
-          impression: content ? null : values.impression ?? null,
+          finding: content ? null : normalizeLines(values.finding ?? '') || null,
+          impression: content ? null : normalizeLines(values.impression ?? '') || null,
           content,
         })
         messageApi.success('添加成功')
@@ -736,7 +852,9 @@ export default function RepTemplatePage() {
             </span>
           )
         }
-        return text ?? '—'
+        // Placeholder tokens highlight inline (rep-temp-placeholder-preview-web):
+        // the stored text is plain, the amber wrap is render-layer only.
+        return text ? renderTemplateText(text, phStyle) : '—'
       },
     },
     {
@@ -745,8 +863,14 @@ export default function RepTemplatePage() {
       key: 'impression',
       ellipsis: true,
       // D7: the structured row's conclusion lives in content.impression (the
-      // impression column is NULL there, D1 互斥); prose rows unchanged.
-      render: (text: string | null, row) => (row.content ? row.content.impression ?? '—' : text ?? '—'),
+      // impression column is NULL there, D1 互斥); placeholder tokens
+      // highlight in both shapes.
+      render: (text: string | null, row) => {
+        if (row.content) {
+          return row.content.impression ? renderTemplateText(row.content.impression, phStyle) : '—'
+        }
+        return text ? renderTemplateText(text, phStyle) : '—'
+      },
     },
   ]
 
@@ -1034,10 +1158,23 @@ export default function RepTemplatePage() {
               name="finding"
               label="影像学表现"
               rules={[{ required: true, message: '影像学表现不能为空' }]}
+              extra={
+                <PlaceholderExtra
+                  label="影像学表现"
+                  onInsert={() =>
+                    insertPlaceholderToken(
+                      findingAreaRef,
+                      () => (tplForm.getFieldValue('finding') as string | undefined) ?? '',
+                      (next) => tplForm.setFieldsValue({ finding: next }),
+                    )
+                  }
+                />
+              }
             >
               {/* Tall text areas (2026-11-18 ruling): the findings/impression
-                  prose is long-form - 10/8 rows in the 640px drawer. */}
-              <Input.TextArea rows={10} />
+                  prose is long-form - 10/8 rows in the 960px drawer. The ref
+                  anchors the 插入占位 caret splice. */}
+              <Input.TextArea ref={findingAreaRef} rows={10} />
             </Form.Item>
           )}
           {tplStructured && (
@@ -1063,10 +1200,133 @@ export default function RepTemplatePage() {
               </Button>
             </div>
           )}
-          <Form.Item name="impression" label="影像学意见">
-            <Input.TextArea rows={8} />
+          <Form.Item
+            name="impression"
+            label="影像学意见"
+            extra={
+              <PlaceholderExtra
+                label="影像学意见"
+                onInsert={() =>
+                  insertPlaceholderToken(
+                    impressionAreaRef,
+                    () => (tplForm.getFieldValue('impression') as string | undefined) ?? '',
+                    (next) => tplForm.setFieldsValue({ impression: next }),
+                  )
+                }
+              />
+            }
+          >
+            <Input.TextArea ref={impressionAreaRef} rows={8} />
           </Form.Item>
         </Form>
+
+        {/* 报告预览 (rep-temp-placeholder-preview-web, ruling 2026-11-20): the
+            live print shape — one paragraph per line with the 2em first-line
+            indent, 【...】 tokens highlighted amber (the warning-class tint:
+            待编辑), and in 分节模式 the B-form mini measure table (拍板点 2:
+            B 测值表式起步; 测值 column stays — the template carries the
+            reference, the report carries the actual). Display-only: reads
+            useWatch / section state, never the wire. */}
+        <div
+          aria-label="报告预览"
+          style={{
+            border: `1px solid ${token.colorBorderSecondary}`,
+            borderRadius: token.borderRadiusLG,
+            background: token.colorFillQuaternary,
+            padding: token.paddingMD,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: token.marginSM }}>
+            <span style={{ fontWeight: 600, color: token.colorTextHeading, fontSize: token.fontSizeSM }}>
+              报告预览
+            </span>
+            <span style={{ fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
+              段落与首行缩进为打印形态；amber 高亮为待编辑占位（【左|右】）
+            </span>
+          </div>
+          {tplStructured
+            ? tplSections.map((section, si) => (
+                <div key={si} style={{ marginBottom: si < tplSections.length - 1 ? token.marginSM : 0 }}>
+                  <div
+                    style={{ fontWeight: 600, fontSize: 13, color: token.colorTextHeading, marginBottom: 4 }}
+                  >
+                    {section.name.trim() || `节 ${si + 1}`}
+                  </div>
+                  {section.measures.length > 0 && (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginBottom: 4 }}>
+                      <thead>
+                        <tr>
+                          {['名称', '单位', '测值', '参考范围'].map((header) => (
+                            <th
+                              key={header}
+                              style={{
+                                textAlign: 'left',
+                                padding: '3px 8px',
+                                borderBottom: `1px solid ${token.colorSplit}`,
+                                color: token.colorTextSecondary,
+                                fontWeight: 500,
+                              }}
+                            >
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {section.measures.map((measure, mi) => (
+                          <tr key={mi}>
+                            <td style={{ padding: '3px 8px', borderBottom: `1px solid ${token.colorSplit}` }}>
+                              {measure.label || '—'}
+                            </td>
+                            <td style={{ padding: '3px 8px', borderBottom: `1px solid ${token.colorSplit}` }}>
+                              {measure.unit || '—'}
+                            </td>
+                            <td
+                              style={{
+                                padding: '3px 8px',
+                                borderBottom: `1px solid ${token.colorSplit}`,
+                                color: token.colorTextTertiary,
+                              }}
+                            >
+                              —
+                            </td>
+                            <td
+                              style={{
+                                padding: '3px 8px',
+                                borderBottom: `1px solid ${token.colorSplit}`,
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            >
+                              {measure.normal?.kind === 'range'
+                                ? formatRange(measure.normal.min, measure.normal.max)
+                                : measure.normal?.kind === 'text'
+                                  ? measure.normal.text || '—'
+                                  : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {section.finding && <PreviewParagraphs text={section.finding} phStyle={phStyle} />}
+                </div>
+              ))
+            : findingWatch && <PreviewParagraphs text={findingWatch} phStyle={phStyle} />}
+          {impressionWatch && (
+            <div
+              style={{
+                marginTop: token.marginSM,
+                paddingTop: token.marginSM,
+                borderTop: `1px dashed ${token.colorBorderSecondary}`,
+              }}
+            >
+              <div style={{ fontWeight: 600, fontSize: 13, color: token.colorTextHeading, marginBottom: 4 }}>
+                影像学意见
+              </div>
+              <PreviewParagraphs text={impressionWatch} phStyle={phStyle} />
+            </div>
+          )}
+        </div>
       </Drawer>
     </ConsolePage>
   )
