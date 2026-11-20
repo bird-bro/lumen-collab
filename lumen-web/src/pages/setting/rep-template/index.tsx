@@ -193,14 +193,14 @@ function PreviewMeasureTable({
               const measure = pair[slot]
               if (!measure) {
                 return [
-                  <td key={`${slot}-l`} style={{ ...td, ...centerRule }} />,
+                  <td key={`${slot}-l`} style={td} />,
                   <td key={`${slot}-v`} style={td} />,
                   <td key={`${slot}-r`} style={td} />,
-                  <td key={`${slot}-u`} style={td} />,
+                  <td key={`${slot}-u`} style={{ ...td, ...centerRule }} />,
                 ]
               }
               return [
-                <td key={`${slot}-l`} style={{ ...td, ...centerRule }}>
+                <td key={`${slot}-l`} style={td}>
                   {measure.label || '—'}
                 </td>,
                 <td key={`${slot}-v`} style={{ ...td, textAlign: 'center', color: token.colorTextTertiary }}>
@@ -209,7 +209,7 @@ function PreviewMeasureTable({
                 <td key={`${slot}-r`} style={{ ...td, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
                   {valueOf(measure)}
                 </td>,
-                <td key={`${slot}-u`} style={{ ...td, textAlign: 'center', color: token.colorTextSecondary }}>
+                <td key={`${slot}-u`} style={{ ...td, ...centerRule, textAlign: 'center', color: token.colorTextSecondary }}>
                   {measure.unit?.trim() || '—'}
                 </td>,
               ]
