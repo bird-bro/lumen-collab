@@ -16,9 +16,15 @@
 - Notes: 51 tests green (core 22 / US 29) across 4 RED rounds; review 2 Minors fixed (assertion message wording; Arrays.asList fixed-size javadoc note); US passthrough zero-code-change proven by reference assignment + e2e
 
 ### Batch 3: web console page + registration form (tasks 3.1-3.2)
-- Status: Complete + Approved (coordinator commit this batch)
+- Status: Complete + Approved (commit fabc64c)
 - Review: Approved - all 8 targeted checks traced (''/NULL sentinel both directions pinned; A0714 verbatim via messageApi.error + drawer open on failure; edit body echo backed by the sev-side double guard; US payload row-derived, no hardcoded US; TEMP PROBE removal = debug garbage; zero foreign changes)
-- Notes: 27/27 across the two touched files + pnpm build green (4 RED concrete failures); 2 review Minors: edit-save wire echo unpinned (backend double-guard, no action) + delta prose dict-name->value-token wording fixed in the change's web-system-console delta before archive sync; user waived the sev real-machine gate 2026-11-23
+- Notes: 27/27 across the two touched files + pnpm build green (4 RED concrete failures); 2 review Minors: edit-save wire echo unpinned (backend double-guard, no action) + delta prose dict-name->value-token wording fixed before archive sync; user waived the sev real-machine gate 2026-11-23
+
+### Batch 4: verify (tasks 4.1-4.2)
+- Status: Complete - verify.md overall PASS (archive-ready)
+- L1: backend reactor compile exit 0; web tsc+vite exit 0
+- L2: 33/33 IMPLEMENTED (independent auditor, cross-domain evidence isolation held, full-chain cross-check coherent)
+- L3: backend full reactor 449/0/0 exit 0; web full suite 462/462 exit 0 (quiet-machine rerun; two loaded-machine runs had 1 nondeterministic antd Popconfirm pollution failure each, both files isolated-green, recorded honestly in verify.md issues note)
 
 ---
 

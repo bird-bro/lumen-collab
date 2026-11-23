@@ -56,7 +56,7 @@
 
 ## 4. Batch: verify (both stacks)
 
-- [ ] 4.1 **L1 build** — sev full reactor `./mvnw test` (JDK 11) exit 0; web `pnpm
+- [x] 4.1 **L1 build** — sev full reactor `./mvnw test` (JDK 11) exit 0; web `pnpm
       build` + full test suite exit 0. Evidence → verify.md.
-- [ ] 4.2 **L2 WHEN/THEN walk** — every delta scenario mapped to a passing test /
+- [x] 4.2 **L2 WHEN/THEN walk** — every delta scenario mapped to a passing test /
       observed behavior; `verify.md` per-capability results.

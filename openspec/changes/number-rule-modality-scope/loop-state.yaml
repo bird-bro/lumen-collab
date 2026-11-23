@@ -1,9 +1,9 @@
 # Per-change workflow state (parallel-safe: each change owns its own file).
-phase: applying
+phase: verifying
 change: number-rule-modality-scope
 execution_mode: SDD
 tasks_total: 8
 tasks_done: 8
 workflow_mode: full
 retry_count: 1
-artifacts_hash: 7fa010a5e4bba81e02284df508f41b090406c3022bf23ab6a7db8c80a9a9b24a
+artifacts_hash: a6baca12f46c7f53ad13d63637530149e71dee3a055f8a6220f495a3b02d6a25
