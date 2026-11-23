@@ -1,5 +1,5 @@
 # Per-change workflow state (parallel-safe: each change owns its own file).
-phase: verifying
+phase: archived
 change: number-rule-modality-scope
 execution_mode: SDD
 tasks_total: 8

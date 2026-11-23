@@ -1056,11 +1056,14 @@ Body preserved for history.*
 
 ### Requirement: Number Rule Page Shell
 
-The 号码规则 page SHALL render a paged rule table (规则类型, 前缀, 后缀, 流水长度,
+<!-- synced from: number-rule-modality-scope 2026-11-23 (适用范围 column: 全局 vs modality token) -->
+The 号码规则 page SHALL render a paged rule table (规则类型, 适用范围, 前缀, 后缀, 流水长度,
 日期戳, 当前流水, 状态) against the SYSTEM service's list endpoint
 (`/api/v1/system/number-rules`) with toolbar affordances gated by the `system:number:*`
 button perms. The page SHALL mount under the 系统管理 subtree per the migrated menu
-seeds (the 患者配置 entry retires) and follow the console page shell patterns:
+seeds (the 患者配置 entry retires) and follow the console page shell patterns. The
+适用范围 column SHALL render 全局 for a NULL-modality rule and the modality token for a
+scoped rule:
 
 #### Scenario: Page loads against the real backend
 
@@ -1073,9 +1076,15 @@ seeds (the 患者配置 entry retires) and follow the console page shell pattern
 - **WHEN** the signed-in user lacks `system:number:create`
 - **THEN** the 新建 affordance is hidden or disabled and no create drawer opens
 
+#### Scenario: Scope column distinguishes global and scoped rows
+
+- **WHEN** the list renders a NULL-modality rule and a `CT`-scoped rule of one family
+- **THEN** the 适用范围 column shows 全局 on the former and the modality token on the latter
+
 ### Requirement: Number Rule Form and Delete
 
-Rule create/edit SHALL use a system-console drawer (`destroyOnHidden`, controls disabled while saving, footer 取消/保存 at the end) with fields 前缀, 后缀, 编号长度, 是否带日期/时间戳, 格式 and a 规则类型 SELECT over the platform families (影像号 pat_id / 检查号 accession / 预约号 booking). When stamping is enabled, the 格式 field SHALL offer live items from the 「编号格式」 dictionary catalog (id 1029) and require a selection; each option value SHALL be the Java date/time pattern submitted in `stamp`. A successful submit SHALL close the drawer and refresh the table. Number-format validation (serial length bounds, prefix charset) SHALL surface on the offending field, and delete SHALL require confirmation:
+<!-- synced from: number-rule-modality-scope 2026-11-23 (适用范围 select: '' sentinel ↔ NULL, id-anchored 1024 load, disabled edit echo, verbatim A0714) -->
+Rule create/edit SHALL use a system-console drawer (`destroyOnHidden`, controls disabled while saving, footer 取消/保存 at the end) with fields 适用范围, 前缀, 后缀, 编号长度, 是否带日期/时间戳, 格式 and a 规则类型 SELECT over the platform families (影像号 / 检查号 / 预约号). The 适用范围 field SHALL be a SELECT defaulting to 全局 whose modality options come from the dict-1024 catalog loaded through the id-anchored items endpoint (rendered by their value token — the dict-1024 single-text model where the token IS the display name — and submitted as that same token, the modality-string storage shape). When stamping is enabled, the 格式 field SHALL offer live items from the 「编号格式」 dictionary catalog (id 1029) and require a selection; each option value SHALL be the Java date/time pattern submitted in `stamp`. A successful submit SHALL close the drawer and refresh the table. Number-format validation (serial length bounds, prefix charset) SHALL surface on the offending field, and delete SHALL require confirmation:
 
 #### Scenario: Create a rule with a dict-backed stamp format
 
@@ -1113,6 +1122,26 @@ Rule create/edit SHALL use a system-console drawer (`destroyOnHidden`, controls 
 
 - **WHEN** the administrator opens the create drawer
 - **THEN** the 规则类型 field offers the platform families (影像号/检查号/预约号) instead of a fixed 影像号 value
+
+#### Scenario: Scope defaults to global and submits the token
+
+- **WHEN** the administrator opens the create drawer
+- **THEN** the 适用范围 Select preselects 全局, and choosing a modality option submits
+  that option's dict-1024 value token in `modality` (choosing 全局 submits NULL)
+
+#### Scenario: Edit echoes the stored scope
+
+- **WHEN** an administrator opens a scoped rule for edit
+- **THEN** the 适用范围 Select preselects the rule's stored modality (rendered as its
+  value token — the dict-1024 single-text model; a token outside the loaded catalog
+  echoes raw)
+
+#### Scenario: Scoped duplicate-active rejection surfaces verbatim
+
+- **WHEN** the administrator activates a rule whose family × scope already has another
+  active rule
+- **THEN** the server's duplicate-active rejection renders verbatim and the drawer
+  stays open
 
 <!-- synced from: number-rule-unification-web 2026-11-19 (the page migrated to the system IA: system:number:* perms, /system/number-rules, platform-family type select; the patient-side surface retired) -->
 <!-- synced from: number-rule-format-dict-web 2026-11-20 (dict-backed 格式 Select over the id-anchored 「编号格式」 catalog 1029; drawer chrome per the system-console conventions; 流水长度 renamed 编号长度) -->
