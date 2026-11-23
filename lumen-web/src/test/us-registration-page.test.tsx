@@ -195,14 +195,39 @@ describe('US workstation registration page (spec: web-us-station)', () => {
         name: '王五',
         phone: '13900000000',
         examItems: [
-          { itemId: 1, itemName: '腹部彩超' },
-          { itemId: 2, itemName: '心脏彩超' },
+          { itemId: 1, itemName: '腹部彩超', modality: 'US' },
+          { itemId: 2, itemName: '心脏彩超', modality: 'US' },
         ],
         emgFlag: 1,
         ext: expect.objectContaining({ pregnancyStatus: '早孕', gestationalWeeks: 12 }),
       }),
     )
     expect(await screen.findByText(/US26000009/)).toBeInTheDocument()
+  })
+
+  it('item modality is row-derived - a catalog row rides its OWN token, never a hardcoded US', async () => {
+    vi.mocked(usOrdersApi.createOrder).mockResolvedValue({ orderId: 10, accessionNo: 'US26000010' } as never)
+    renderPage()
+    await screen.findByLabelText('解析键值')
+    await userEvent.setup().type(await screen.findByLabelText('解析键值'), '888888')
+    await userEvent.setup().click(screen.getByLabelText('解析查询'))
+    const drawer = await waitFor(() => {
+      const el = document.querySelector('.ant-drawer-content') as HTMLElement | null
+      expect(el).toBeTruthy()
+      return el as HTMLElement
+    })
+    const user = userEvent.setup()
+    await user.type(within(drawer).getByLabelText('姓名'), '赵六')
+    await pickOptionIn(drawer, '检查项目', '胸片')
+    await user.click(within(drawer).getByRole('button', { name: /保 存|保存/ }))
+    await waitFor(() => expect(usOrdersApi.createOrder).toHaveBeenCalledTimes(1))
+    // the 胸片 row's catalog modality (CR) rides the ref - a hardcoded 'US'
+    // implementation fails this assertion
+    expect(usOrdersApi.createOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        examItems: [{ itemId: 3, itemName: '胸片', modality: 'CR' }],
+      }),
+    )
   })
 
   it('登记 transitions a BOOKED order and refreshes the list', async () => {

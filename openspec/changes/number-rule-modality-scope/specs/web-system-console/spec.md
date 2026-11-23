@@ -30,7 +30,7 @@ scoped rule:
 
 ### Requirement: Number Rule Form and Delete
 
-Rule create/edit SHALL use a system-console drawer (`destroyOnHidden`, controls disabled while saving, footer 取消/保存 at the end) with fields 适用范围, 前缀, 后缀, 编号长度, 是否带日期/时间戳, 格式 and a 规则类型 SELECT over the platform families (影像号 / 检查号 / 预约号). The 适用范围 field SHALL be a SELECT defaulting to 全局 whose modality options come from the dict-1024 catalog loaded through the id-anchored items endpoint (options rendered by name, submitted as the option's value token — the modality-string storage shape). When stamping is enabled, the 格式 field SHALL offer live items from the 「编号格式」 dictionary catalog (id 1029) and require a selection; each option value SHALL be the Java date/time pattern submitted in `stamp`. A successful submit SHALL close the drawer and refresh the table. Number-format validation (serial length bounds, prefix charset) SHALL surface on the offending field, and delete SHALL require confirmation:
+Rule create/edit SHALL use a system-console drawer (`destroyOnHidden`, controls disabled while saving, footer 取消/保存 at the end) with fields 适用范围, 前缀, 后缀, 编号长度, 是否带日期/时间戳, 格式 and a 规则类型 SELECT over the platform families (影像号 / 检查号 / 预约号). The 适用范围 field SHALL be a SELECT defaulting to 全局 whose modality options come from the dict-1024 catalog loaded through the id-anchored items endpoint (rendered by their value token — the dict-1024 single-text model where the token IS the display name — and submitted as that same token, the modality-string storage shape). When stamping is enabled, the 格式 field SHALL offer live items from the 「编号格式」 dictionary catalog (id 1029) and require a selection; each option value SHALL be the Java date/time pattern submitted in `stamp`. A successful submit SHALL close the drawer and refresh the table. Number-format validation (serial length bounds, prefix charset) SHALL surface on the offending field, and delete SHALL require confirmation:
 
 #### Scenario: Create a rule with a dict-backed stamp format
 
@@ -78,8 +78,9 @@ Rule create/edit SHALL use a system-console drawer (`destroyOnHidden`, controls 
 #### Scenario: Edit echoes the stored scope
 
 - **WHEN** an administrator opens a scoped rule for edit
-- **THEN** the 适用范围 Select preselects the rule's stored modality (rendered by its
-  dict name)
+- **THEN** the 适用范围 Select preselects the rule's stored modality (rendered as its
+  value token — the dict-1024 single-text model; a token outside the loaded catalog
+  echoes raw)
 
 #### Scenario: Scoped duplicate-active rejection surfaces verbatim
 

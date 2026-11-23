@@ -44,13 +44,13 @@
 
 ## 3. Batch: lumen-web — console page + registration form (web, after sev user-verified)
 
-- [ ] 3.1 **号码规则 scope UI** — TDD RED first: `number-rule-page.test.tsx` — 适用范围
+- [x] 3.1 **号码规则 scope UI** — TDD RED first: `number-rule-page.test.tsx` — 适用范围
       column renders 全局 vs token; drawer scope SELECT defaults 全局, options loaded
       through the id-anchored dict items endpoint (1024, options by name, submitted as
       value token); edit echoes stored modality; duplicate-active rejection surfaces
       verbatim. `number-rules.ts` client + `/system/number-rules` page. GREEN (build +
       page tests).
-- [ ] 3.2 **US 登记 item modality** — TDD RED first: the registration form's create
+- [x] 3.2 **US 登记 item modality** — TDD RED first: the registration form's create
       payload carries each picked 项目's modality token from the setting catalog; us
       orders client passes it through. `/us/registration` form + `us-orders.ts`. GREEN.
 

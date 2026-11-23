@@ -183,7 +183,10 @@ export default function UsRegistrationPage() {
         ...demographics,
         examItems: (values.itemIds ?? []).map((id) => {
           const item = items.find((candidate) => candidate.id === id)
-          return { itemId: id, itemName: item?.exam ?? '' }
+          // the catalog row's dict-1024 token rides the ref so the issuer
+          // resolves the modality-scoped rule (number-rule-modality-scope) -
+          // row-derived, never a hardcoded 'US' string
+          return { itemId: id, itemName: item?.exam ?? '', modality: item?.modality ?? null }
         }),
         emgFlag: values.emgFlag ? 1 : 0,
         ext: {

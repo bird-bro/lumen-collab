@@ -23,12 +23,14 @@ vi.mock('@/api/number-rules')
 vi.mock('@/utils/dict-items', () => ({
   NUMBER_TYPE_DICT_ID: 1028,
   NUMBER_STAMP_FORMAT_DICT_ID: 1029,
+  MODALITY_DICT_ID: 1024,
   dictItemsById: vi.fn(),
 }))
 
 function rule(partial: Partial<NumberRule> & { id: number }): NumberRule {
   return {
     ruleType: '影像号',
+    modality: null,
     prefix: null,
     suffix: null,
     serialLength: 4,
@@ -85,6 +87,34 @@ async function selectRuleType(label: string): Promise<void> {
   fireEvent.click(option)
 }
 
+/** Scope-option picking follows the same rules: SUBSTRING over the rendered
+ * option node's textContent (rc-select internals pollute title/exact matches),
+ * then the plain fireEvent click (non-search select). */
+async function selectScopeOption(label: string): Promise<void> {
+  await userEvent.setup().click(screen.getByLabelText('适用范围'))
+  const option = await waitFor(() => {
+    const match = Array.from(document.querySelectorAll('.ant-select-item-option')).find(
+      (node) => node.textContent?.includes(label),
+    )
+    expect(match).toBeTruthy()
+    return match as HTMLElement
+  })
+  fireEvent.click(option)
+}
+
+/** The 适用范围 Select's currently displayed label (the selection-item text). */
+function displayedScope(): string | undefined {
+  const select = (screen.getByLabelText('适用范围') as HTMLElement).closest('.ant-select')
+  return select?.querySelector('.ant-select-selection-item')?.textContent ?? undefined
+}
+
+/** The scope select renders DISABLED in the edit drawer (the scope is the rule
+ * pool's identity - design D2). */
+function expectScopeDisabled(): void {
+  const select = (screen.getByLabelText('适用范围') as HTMLElement).closest('.ant-select')
+  expect(select?.className).toContain('ant-select-disabled')
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   useAuthStore.getState().setSession({
@@ -94,14 +124,23 @@ beforeEach(() => {
   vi.mocked(numberRulesApi.createNumberRule).mockResolvedValue(132)
   vi.mocked(numberRulesApi.updateNumberRule).mockResolvedValue(true)
   vi.mocked(numberRulesApi.deleteNumberRule).mockResolvedValue(true)
-  // the dict seam dispatches by catalog ID - 编号类型 1028 tokens (rule_type) vs
-  // 编号格式 1029 (stamp patterns), each independently degradable
+  // the dict seam dispatches by catalog ID - 编号类型 1028 tokens (rule_type),
+  // the modality scope 1024 tokens (DR/CT/MR/US per the V27 seed), 编号格式 1029
+  // (stamp patterns), each independently degradable
   vi.mocked(dictItemsById).mockImplementation(async (catalId: number) => {
     if (catalId === 1028) {
       return [
         { code: 1, value: '影像号' },
         { code: 2, value: '登记号' },
         { code: 3, value: '预约号' },
+      ]
+    }
+    if (catalId === 1024) {
+      return [
+        { code: 1, value: 'DR' },
+        { code: 2, value: 'CT' },
+        { code: 3, value: 'MR' },
+        { code: 4, value: 'US' },
       ]
     }
     return [
@@ -239,11 +278,7 @@ describe('number rule page - create/edit round-trips', () => {
 
     await user.click(screen.getByRole('button', { name: /新建规则/ }))
     await user.click(await screen.findByLabelText('规则类型'))
-    // TEMP PROBE
-    const opts = Array.from(document.querySelectorAll('.ant-select-item-option'))
-    console.log('PROBE-OPTS:', JSON.stringify(opts.map((o) => ({ t: o.textContent, title: o.getAttribute('title'), cls: o.className.slice(0, 70) }))))
     await selectRuleType('预约号')
-    // END TEMP PROBE
 
     await user.type(await screen.findByLabelText('前缀'), 'AC')
     const serialInput = screen.getByLabelText('编号长度')
@@ -305,6 +340,115 @@ describe('number rule page - create/edit round-trips', () => {
     // activating the dormant 登记号 row while its sibling is live
     await user.click(screen.getByRole('switch', { name: '启用 登记号' }))
     await screen.findByText(/同类型仅允许一条启用规则/)
+  })
+})
+
+describe('number rule page - modality scope (number-rule-modality-scope)', () => {
+  it('renders the 适用范围 column right after 规则类型 - 全局 for NULL, the token otherwise', async () => {
+    vi.mocked(numberRulesApi.pageNumberRules).mockResolvedValue(
+      pageFixture([
+        ACTIVE_RULE,
+        rule({ id: 132, ruleType: '影像号', modality: 'CT', serialCur: 3, active: 0 }),
+      ]),
+    )
+    renderPage()
+    await screen.findByText('IM')
+
+    const headers = Array.from(document.querySelectorAll('thead th')).map((th) => th.textContent)
+    expect(headers.slice(0, 3)).toEqual(['类型', '适用范围', '状态'])
+    const globalRow = screen.getByText('IM').closest('tr') as HTMLElement
+    expect(within(globalRow).getByText('全局')).toBeTruthy()
+    const scoped = screen.getByText('0003').closest('tr') as HTMLElement
+    expect(within(scoped).getByText('CT')).toBeTruthy()
+  })
+
+  it('create defaults the scope to 全局 and a modality choice rides the dict-1024 token', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('IM')
+
+    await user.click(screen.getByRole('button', { name: /新建规则/ }))
+    await screen.findByLabelText('适用范围')
+    expect(displayedScope()).toBe('全局')
+    await selectScopeOption('CT')
+    expect(displayedScope()).toBe('CT')
+    await selectStampFormat('yyMMdd')
+    await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
+
+    await waitFor(() => {
+      expect(numberRulesApi.createNumberRule).toHaveBeenCalledWith(
+        expect.objectContaining({ ruleType: '登记号', modality: 'CT' }),
+      )
+    })
+  })
+
+  it('choosing 全局 submits no modality (NULL on the wire)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('IM')
+
+    await user.click(screen.getByRole('button', { name: /新建规则/ }))
+    await selectScopeOption('CT')
+    await selectScopeOption('全局')
+    await selectStampFormat('yyMMdd')
+    await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
+
+    await waitFor(() => {
+      expect(numberRulesApi.createNumberRule).toHaveBeenCalledWith(
+        expect.objectContaining({ modality: null }),
+      )
+    })
+  })
+
+  it('edit echoes the stored scope on a DISABLED select - raw token when the catalog lacks it', async () => {
+    vi.mocked(numberRulesApi.pageNumberRules).mockResolvedValue(
+      pageFixture([
+        ACTIVE_RULE,
+        rule({ id: 132, ruleType: '影像号', modality: 'CT', prefix: 'CT', serialCur: 3, active: 0 }),
+        rule({ id: 133, ruleType: '影像号', modality: 'DX', prefix: 'DX', serialCur: 5, active: 0 }),
+      ]),
+    )
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('IM')
+
+    // the global rule echoes 全局
+    await user.click(screen.getAllByRole('button', { name: /编辑/ })[0])
+    expect(displayedScope()).toBe('全局')
+    expectScopeDisabled()
+    await user.click(screen.getByRole('button', { name: /取\s*消/ }))
+
+    // the scoped rule echoes its dict-1024 token (CT is among the loaded options)
+    await user.click(screen.getAllByRole('button', { name: /编辑/ })[1])
+    expect(displayedScope()).toBe('CT')
+    expectScopeDisabled()
+    await user.click(screen.getByRole('button', { name: /取\s*消/ }))
+
+    // a token outside the loaded catalog echoes the raw token as the label
+    await user.click(screen.getAllByRole('button', { name: /编辑/ })[2])
+    expect(displayedScope()).toBe('DX')
+    expectScopeDisabled()
+  })
+
+  it('surfaces the scoped duplicate-active rejection verbatim and keeps the drawer open', async () => {
+    const user = userEvent.setup()
+    vi.mocked(numberRulesApi.createNumberRule).mockRejectedValue(
+      new ApiError(
+        'A0714',
+        '号码规则冲突: rule_type=登记号 modality=CT 已存在同范围启用规则（同族同范围仅允许一条启用规则）',
+      ),
+    )
+    renderPage()
+    await screen.findByText('IM')
+
+    await user.click(screen.getByRole('button', { name: /新建规则/ }))
+    await selectScopeOption('CT')
+    await selectStampFormat('yyMMdd')
+    await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
+
+    await screen.findByText(/modality=CT 已存在同范围启用规则/)
+    // the drawer stays open for correction (spec: the drawer stays open)
+    expect(screen.getByLabelText('适用范围')).toBeTruthy()
   })
 })
 

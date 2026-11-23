@@ -15,6 +15,11 @@
 - Review: Approved - F1 ruled in-batch root fix (ACCEPTED): pre-existing MP 3.5.3.1 collection-jsonb limitation (List<LinkedHashMap>) first exposed by the typed element access; new ExamItemRefListJsonbTypeHandler on the complete two-field set, write path untouched, HIS tests as regression RED; independently verified the latency claim (4 consumers, none pre-batch accessed elements)
 - Notes: 51 tests green (core 22 / US 29) across 4 RED rounds; review 2 Minors fixed (assertion message wording; Arrays.asList fixed-size javadoc note); US passthrough zero-code-change proven by reference assignment + e2e
 
+### Batch 3: web console page + registration form (tasks 3.1-3.2)
+- Status: Complete + Approved (coordinator commit this batch)
+- Review: Approved - all 8 targeted checks traced (''/NULL sentinel both directions pinned; A0714 verbatim via messageApi.error + drawer open on failure; edit body echo backed by the sev-side double guard; US payload row-derived, no hardcoded US; TEMP PROBE removal = debug garbage; zero foreign changes)
+- Notes: 27/27 across the two touched files + pnpm build green (4 RED concrete failures); 2 review Minors: edit-save wire echo unpinned (backend double-guard, no action) + delta prose dict-name->value-token wording fixed in the change's web-system-console delta before archive sync; user waived the sev real-machine gate 2026-11-23
+
 ---
 
 ## Change: init-backend-skeleton

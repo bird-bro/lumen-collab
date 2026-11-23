@@ -14,6 +14,9 @@ import { apiRequest } from './client';
 export interface NumberRule {
   id: number;
   ruleType: string;
+  /** The dict-1024 modality scope (number-rule-modality-scope): the value token
+   * when scoped, NULL = 全局 (the rule pool's identity, immutable after create). */
+  modality: string | null;
   prefix: string | null;
   suffix: string | null;
   serialLength: number;
@@ -45,6 +48,9 @@ export interface NumberRulePageQuery {
 /** Create body - `serialCur`/`stampValue` are runtime state, never sent. */
 export interface CreateNumberRuleBody {
   ruleType: string;
+  /** Optional dict-1024 value token (NULL = 全局 scope; the scope is the pool
+   * identity - created once, echoed unchanged by the full-surface update). */
+  modality?: string | null;
   prefix?: string | null;
   suffix?: string | null;
   serialLength: number;

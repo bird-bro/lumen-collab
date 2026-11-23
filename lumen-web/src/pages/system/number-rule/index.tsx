@@ -15,6 +15,7 @@ import type { NumberRule } from '@/api/number-rules'
 import type { DictItem } from '@/api/types'
 import { ApiError } from '@/api/client'
 import {
+  MODALITY_DICT_ID,
   NUMBER_STAMP_FORMAT_DICT_ID,
   NUMBER_TYPE_DICT_ID,
   dictItemsById,
@@ -45,12 +46,18 @@ import {
  * The stamp flag IS data (`stamp` carries the Java date/time pattern); the drawer
  * offers the dict catalog 「编号格式」 (patterns are operator-maintained, including
  * timestamp patterns). A dict miss/failure degrades to an empty Select without
- * blocking the rule table (both catalogs - 编号类型 1028 and 编号格式 1029 -
- * degrade independently; lookups anchor by the catalog ID - ruling 2026-11-19).
+ * blocking the rule table (all three catalogs - 编号类型 1028, 编号格式 1029
+ * and the modality scope 1024 - degrade independently; lookups anchor by the
+ * catalog ID - ruling 2026-11-19). The 适用范围 scope (number-rule-modality-scope)
+ * rides the dict-1024 tokens: NULL = 全局, and the scope is the rule pool's
+ * identity - the edit drawer echoes it DISABLED.
  */
 
 interface NumberRuleFormValues {
   ruleType?: string
+  /** the 适用范围 select's value: the dict-1024 token, '' = 全局 (mapped to
+   * NULL on the wire by the save body) */
+  modality?: string | null
   prefix?: string | null
   suffix?: string | null
   serialLength: number
@@ -104,6 +111,7 @@ export default function NumberRulePage() {
   const [saving, setSaving] = useState(false)
   const [typeItems, setTypeItems] = useState<DictItem[]>([])
   const [stampItems, setStampItems] = useState<DictItem[]>([])
+  const [modalityItems, setModalityItems] = useState<DictItem[]>([])
   const [form] = Form.useForm<NumberRuleFormValues>()
   const isStamp = Form.useWatch('isStamp', form)
   const stamp = Form.useWatch('stamp', form)
@@ -118,6 +126,13 @@ export default function NumberRulePage() {
   const typeOptions = typeItems
     .filter((item): item is DictItem & { value: string } => Boolean(item.value))
     .map((item) => ({ value: item.value, label: item.value }))
+  // the scope vocabulary: the modality catalog 1024 tokens (the dict `value` IS
+  // both the machine token submitted in `modality` and the display text - the
+  // single-text model, the exam-item page precedent); '' = 全局 leads the options
+  const modalityOptions = modalityItems
+    .filter((item): item is DictItem & { value: string } => Boolean(item.value))
+    .map((item) => ({ value: item.value, label: item.value }))
+  const scopeOptions = [{ value: '', label: '全局' }, ...modalityOptions]
   // the create picker refuses families that already hold a live rule (uk_number_rule_active
   // + the backend A0714 stay the hard guards) - the loaded rows are the source
   const activeTypes = new Set(rows.filter((row) => row.active === 1).map((row) => row.ruleType))
@@ -151,15 +166,17 @@ export default function NumberRulePage() {
   useEffect(() => {
     let alive = true
     void (async () => {
-      // both catalogs degrade independently - a missing/failing one yields an
-      // empty Select without blocking the other or the rule table
-      const [types, stamps] = await Promise.allSettled([
+      // the three catalogs degrade independently - a missing/failing one yields
+      // an empty Select without blocking the others or the rule table
+      const [types, stamps, modalities] = await Promise.allSettled([
         dictItemsById(NUMBER_TYPE_DICT_ID),
         dictItemsById(NUMBER_STAMP_FORMAT_DICT_ID),
+        dictItemsById(MODALITY_DICT_ID),
       ])
       if (!alive) return
       setTypeItems(types.status === 'fulfilled' ? types.value : [])
       setStampItems(stamps.status === 'fulfilled' ? stamps.value : [])
+      setModalityItems(modalities.status === 'fulfilled' ? modalities.value : [])
     })()
     return () => {
       alive = false
@@ -173,6 +190,8 @@ export default function NumberRulePage() {
       // the create picker's default: the FIRST family without a live rule (an
       // active family is disabled in the picker - preselecting it would be doomed)
       ruleType: createTypeOptions.find((option) => !option.disabled)?.value,
+      // the scope select's default: 全局 (the '' sentinel maps to NULL on the wire)
+      modality: '',
       serialLength: 4,
       isStamp: true,
       prefix: null,
@@ -186,6 +205,9 @@ export default function NumberRulePage() {
   const openEdit = (row: NumberRule) => {
     setEditing(row)
     form.setFieldsValue({
+      // the scope echoes the stored row (NULL → '' = 全局); the field renders
+      // DISABLED - the scope is the rule pool's identity (design D2)
+      modality: row.modality ?? '',
       prefix: row.prefix,
       suffix: row.suffix,
       serialLength: row.serialLength,
@@ -208,6 +230,9 @@ export default function NumberRulePage() {
         ruleType: editing
           ? editing.ruleType
           : values.ruleType ?? createTypeOptions.find((option) => !option.disabled)?.value ?? '',
+        // '' (全局) maps to NULL; on edit the disabled field echoes the stored
+        // scope unchanged (the full-surface PUT carries the pool identity back)
+        modality: values.modality || null,
         prefix: values.prefix || null,
         suffix: values.suffix || null,
         serialLength: values.serialLength,
@@ -280,6 +305,22 @@ export default function NumberRulePage() {
         // the stored token IS the dict 编号类型 value - the display label renders verbatim
         <Tag style={{ marginInlineEnd: 0, fontSize: token.fontSize }}>{value}</Tag>
       ),
+    },
+    {
+      // the dict-1024 scope (number-rule-modality-scope): 全局 for a NULL
+      // modality, the raw token otherwise (token display only - the dict name
+      // lookup is not needed here)
+      title: '适用范围',
+      dataIndex: 'modality',
+      key: 'modality',
+      align: 'center',
+      width: 110,
+      render: (value: string | null) =>
+        value ? (
+          <Tag style={{ marginInlineEnd: 0, fontSize: token.fontSize }}>{value}</Tag>
+        ) : (
+          <span style={{ color: token.colorTextTertiary }}>全局</span>
+        ),
     },
     {
       title: '状态',
@@ -450,6 +491,15 @@ export default function NumberRulePage() {
               />
             </Form.Item>
           )}
+          {/* 适用范围: the dict-1024 modality scope (number-rule-modality-scope).
+              Create defaults to 全局 (the '' sentinel; the save body maps it to
+              NULL); choosing a modality option submits that option's dict value
+              token. On EDIT the scope is the rule pool's identity (design D2 -
+              immutable after create), so the field renders DISABLED echoing the
+              stored scope; a token outside the loaded catalog still echoes raw. */}
+          <Form.Item name="modality" label="适用范围">
+            <Select disabled={Boolean(editing)} options={scopeOptions} />
+          </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item

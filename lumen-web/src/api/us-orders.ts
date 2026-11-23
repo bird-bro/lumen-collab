@@ -26,6 +26,9 @@ export type UsOrderStatus =
 export interface UsExamItemRef {
   itemId: number;
   itemName: string;
+  /** The dict-1024 token riding to the issuer for scoped rule resolution
+   * (number-rule-modality-scope) - row-derived from the setting catalog. */
+  modality?: string | null;
 }
 
 /** The jsonb patient snapshot the kernel carries on the order (display projection). */
