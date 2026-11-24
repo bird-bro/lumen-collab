@@ -1,11 +1,13 @@
 import {
   Button,
+  Col,
   Dropdown,
   Form,
   Input,
   InputNumber,
   Modal,
   Radio,
+  Row,
   Select,
   Switch,
   Tag,
@@ -537,11 +539,7 @@ export default function UsRegistrationPage() {
     color: active ? (hue === 'green' ? token.colorSuccess : hue === 'blue' ? token.colorPrimary : token.colorText) : token.colorTextSecondary,
     fontWeight: active ? 600 : 400,
   })
-  const fieldLbStyle: React.CSSProperties = {
-    flex: '0 0 72px', width: 72, fontSize: 12.5, color: token.colorTextSecondary,
-    textAlign: 'right', paddingRight: 8, whiteSpace: 'nowrap',
-  }
-  const inputStyle: React.CSSProperties = { height: 28, fontSize: 12.5, borderRadius: 6 }
+  const inputStyle: React.CSSProperties = {}
   const thStyle: React.CSSProperties = {
     textAlign: 'left', fontWeight: 500, color: token.colorTextSecondary, fontSize: 12,
     background: token.colorFillQuaternary, borderBottom: `1px solid ${line}`, padding: '6px 8px', whiteSpace: 'nowrap',
@@ -622,7 +620,7 @@ export default function UsRegistrationPage() {
   return (
     <ConsolePage>
       {contextHolder}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
         {/* ── the rail card: BOTH states live here (compact grid / expanded xtable) ── */}
         <div
           style={{
@@ -632,8 +630,10 @@ export default function UsRegistrationPage() {
             boxShadow: token.boxShadowSecondary,
             overflow: 'visible',
             position: 'relative',
-            flex: mode === 'wide' ? '1 1 0%' : '0 0 392px',
-            width: mode === 'wide' ? 'auto' : 392,
+            flex: mode === 'wide' ? '1 1 0%' : '1 0 30%',
+            width: mode === 'wide' ? 'auto' : undefined,
+            minWidth: mode === 'wide' ? undefined : 340,
+            maxWidth: mode === 'wide' ? undefined : 480,
             display: 'flex',
             flexDirection: 'column',
           }}
@@ -692,9 +692,9 @@ export default function UsRegistrationPage() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                   <span style={{ fontSize: 12, color: token.colorTextSecondary }}>申请时间</span>
-                  <Input aria-label="申请时间起" style={{ ...inputStyle, width: 130 }} value={filters.applyTimeStart} placeholder="YYYY-MM-DD HH:mm:ss" onChange={(e) => setFilters((p) => ({ ...p, applyTimeStart: e.target.value }))} />
+                  <Input aria-label="申请时间起" style={{ ...inputStyle, width: "clamp(110px, 12vw, 160px)" }} value={filters.applyTimeStart} placeholder="YYYY-MM-DD HH:mm:ss" onChange={(e) => setFilters((p) => ({ ...p, applyTimeStart: e.target.value }))} />
                   <span style={{ color: token.colorTextTertiary }}>~</span>
-                  <Input aria-label="申请时间止" style={{ ...inputStyle, width: 130 }} value={filters.applyTimeEnd} placeholder="YYYY-MM-DD HH:mm:ss" onChange={(e) => setFilters((p) => ({ ...p, applyTimeEnd: e.target.value }))} />
+                  <Input aria-label="申请时间止" style={{ ...inputStyle, width: "clamp(110px, 12vw, 160px)" }} value={filters.applyTimeEnd} placeholder="YYYY-MM-DD HH:mm:ss" onChange={(e) => setFilters((p) => ({ ...p, applyTimeEnd: e.target.value }))} />
                 </span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                   <span style={{ fontSize: 12, color: token.colorTextSecondary }}>患者姓名</span>
@@ -726,10 +726,9 @@ export default function UsRegistrationPage() {
                     </span>
                   </>
                 )}
-                <Button type="primary" aria-label="查询" style={{ height: 28 }} onClick={refreshAll}>查询</Button>
+                <Button type="primary" aria-label="查询" onClick={refreshAll}>查询</Button>
                 <Button
                   aria-label="重置条件"
-                  style={{ height: 28 }}
                   onClick={() => {
                     setFilters((prev) => ({ ...prev, accessionNo: '', patientName: '', patientId: '', patientSource: '', cardNo: '', examItemName: '', applyTimeStart: '', applyTimeEnd: '' }))
                   }}
@@ -737,11 +736,11 @@ export default function UsRegistrationPage() {
                   重置
                 </Button>
                 {hasPerm('us:order:list') && (
-                  <Button aria-label="保存条件" style={{ height: 28 }} onClick={() => setSaveDialogOpen(true)}>
+                  <Button aria-label="保存条件" onClick={() => setSaveDialogOpen(true)}>
                     保存条件
                   </Button>
                 )}
-                <Button aria-label="我的查询" style={{ height: 28 }} onClick={() => {
+                <Button aria-label="我的查询" onClick={() => {
                   void (async () => {
                     try {
                       setSavedFilters(await listFilters(PAGE_KEY))
@@ -904,7 +903,7 @@ export default function UsRegistrationPage() {
               />
               <Input
                 aria-label="解析键值"
-                style={{ width: 220, height: 28 }}
+                style={{ width: 220 }}
                 placeholder={lookupField === 'idNo' ? '证件号' : lookupField === 'cardNo' ? '就诊卡号' : '手机号'}
                 value={lookupValue}
                 onChange={(event) => setLookupValue(event.target.value)}
@@ -912,7 +911,7 @@ export default function UsRegistrationPage() {
                 disabled={!hasPerm('us:order:create')}
               />
               {hasPerm('us:order:create') && (
-                <Button type="primary" aria-label="解析查询" style={{ height: 28 }} onClick={() => void runLookup()}>
+                <Button type="primary" aria-label="解析查询" onClick={() => void runLookup()}>
                   查询
                 </Button>
               )}
@@ -930,7 +929,7 @@ export default function UsRegistrationPage() {
                   <span style={{ width: 18, height: 18, borderRadius: '50%', background: token.colorPrimary, color: token.colorBgContainer, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>1</span>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>患者信息</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '9px 14px', marginBottom: 8 }}>
+                <Row gutter={[14, 9]} style={{ marginBottom: 8 }}>
                   <Field label="姓名" required>
                     <Form.Item name="name" noStyle>
                       <Input aria-label="姓名" style={inputStyle} placeholder="急诊单可留空（占位档案）" />
@@ -1001,7 +1000,7 @@ export default function UsRegistrationPage() {
                       </Form.Item>
                     </div>
                   </Field>
-                </div>
+                </Row>
 
                 {/* 2 请检信息 (the 急诊 switch in the section title tail) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', paddingBottom: 6, borderBottom: `1px solid ${line}` }}>
@@ -1016,7 +1015,7 @@ export default function UsRegistrationPage() {
                     </span>
                   </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '9px 14px', marginBottom: 8 }}>
+                <Row gutter={[14, 9]} style={{ marginBottom: 8 }}>
                   <Field label="检查类型">
                     <span style={{ display: 'inline-flex', alignItems: 'center', height: 22, padding: '0 10px', borderRadius: 4, background: token.colorPrimaryBg, color: token.colorPrimary, fontSize: 12, fontWeight: 600, letterSpacing: '0.06em' }}>
                       US 超声
@@ -1044,13 +1043,12 @@ export default function UsRegistrationPage() {
                       </Form.Item>
                     </div>
                   </Field>
-                  <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'flex-start' }}>
-                    <span style={fieldLbStyle}>临床诊断</span>
+                  <Field label="临床诊断" full>
                     <Form.Item name="note" noStyle>
-                      <Input.TextArea aria-label="临床诊断" rows={2} maxLength={255} placeholder="选填（入 ext.note）" style={{ flex: 1, fontSize: 12.5 }} />
+                      <Input.TextArea aria-label="临床诊断" rows={2} maxLength={255} placeholder="选填（入 ext.note）" style={{ width: '100%' }} />
                     </Form.Item>
-                  </div>
-                </div>
+                  </Field>
+                </Row>
 
                 {/* 3 检查信息 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', paddingBottom: 6, borderBottom: `1px solid ${line}` }}>
@@ -1330,20 +1328,25 @@ export default function UsRegistrationPage() {
   )
 }
 
-/** The prototype's `field` row: the 72px right label + the control flexing. */
-function Field({ label, required, children }: {
+/** The prototype's `field` row wrapped in the RESPONSIVE grid cell (xl 三列 /
+ *  md 两列 / xs 单列 - the prototype's own 1180px media collapse, antd-native):
+ *  the 72px right label + the control flexing. `full` spans every breakpoint. */
+function Field({ label, required, full, children }: {
   label: string
   required?: boolean
+  full?: boolean
   children: React.ReactNode
 }) {
   const { token } = theme.useToken()
   return (
-    <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-      <span style={{ flex: '0 0 72px', width: 72, fontSize: 12.5, color: token.colorTextSecondary, textAlign: 'right', paddingRight: 8, whiteSpace: 'nowrap' }}>
-        {label}
-        {required && <i style={{ color: token.colorError, fontStyle: 'normal' }}> *</i>}
-      </span>
-      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
-    </div>
+    <Col xs={24} md={full ? 24 : 12} xl={full ? 24 : 8}>
+      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+        <span style={{ flex: '0 0 72px', width: 72, color: token.colorTextSecondary, textAlign: 'right', paddingRight: 8, whiteSpace: 'nowrap' }}>
+          {label}
+          {required && <i style={{ color: token.colorError, fontStyle: 'normal' }}> *</i>}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+      </div>
+    </Col>
   )
 }
