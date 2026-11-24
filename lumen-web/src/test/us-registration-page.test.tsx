@@ -207,16 +207,16 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
   it('the chips carry the counts and multi-select toggles the IN-filter', async () => {
     renderPage()
     await screen.findByLabelText('日期导航')
-    // the default selection 预登记+已登记 rides the initial query
+    // the default selection 预约+已登记 rides the initial query
     await waitFor(() => {
       const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]
       expect(call?.status?.join(',')).toBe('BOOKED,REGISTERED')
     })
     // the chips render the zero-filled meter
-    expect(screen.getByRole('button', { name: '预登记 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '预约 1' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '已完成 0' })).toBeInTheDocument()
-    // toggling the 预登记 chip drops BOOKED from the IN-filter
-    fireEvent.click(screen.getByRole('button', { name: /预登记/ }))
+    // toggling the 预约 chip drops BOOKED from the IN-filter
+    fireEvent.click(screen.getByRole('button', { name: '预约 1' }))
     await waitFor(() => {
       const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]
       expect(call?.status?.join(',')).toBe('REGISTERED')
@@ -227,7 +227,7 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     renderPage()
     // the BOOKED row carries 登记 (the arrival confirmation)
     const bookedRow = (await screen.findAllByText('张三'))[0].closest('tr') as HTMLElement
-    expect(within(bookedRow).getByText('预登记')).toBeInTheDocument()
+    expect(within(bookedRow).getByText('预约')).toBeInTheDocument()
     expect(within(bookedRow).getByRole('button', { name: /^登记/ })).toBeInTheDocument()
     fireEvent.click(within(bookedRow).getByRole('button', { name: /^登记/ }))
     await waitFor(() => expect(usOrdersApi.registerOrder).toHaveBeenCalledWith(11))
@@ -274,12 +274,12 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     expect(screen.queryByLabelText('急诊占位')).not.toBeInTheDocument()
   })
 
-  it('section 2 hosts the 急诊 switch, 预登记时间 picker, and 临床诊断', async () => {
+  it('section 2 hosts the 急诊 switch, 预约时间 picker, and 临床诊断', async () => {
     renderPage()
     await screen.findByText('请检信息')
     expect(screen.getByLabelText('急诊')).toBeInTheDocument()
-    expect(screen.getByLabelText('预登记日期')).toBeInTheDocument()
-    expect(screen.getByLabelText('预登记时段')).toBeInTheDocument()
+    expect(screen.getByLabelText('预约日期')).toBeInTheDocument()
+    expect(screen.getByLabelText('预约时段')).toBeInTheDocument()
     expect(screen.getByLabelText('临床诊断')).toBeInTheDocument()
   })
 
@@ -334,8 +334,8 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     await screen.findByText('请检信息')
     fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '钱七' } })
     fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
-    fireEvent.change(screen.getByLabelText('预登记日期'), { target: { value: '2026-11-25' } })
-    fireEvent.change(screen.getByLabelText('预登记时段'), { target: { value: '09:17' } })
+    fireEvent.change(screen.getByLabelText('预约日期'), { target: { value: '2026-11-25' } })
+    fireEvent.change(screen.getByLabelText('预约时段'), { target: { value: '09:17' } })
     fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
     await waitFor(() => expect(usOrdersApi.createOrder).toHaveBeenCalled())
     const body = vi.mocked(usOrdersApi.createOrder).mock.calls[0][0]

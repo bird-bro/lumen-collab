@@ -151,7 +151,7 @@ export default function SlotConfigPage() {
   const remove = async (row: SlotConfigView) => {
     try {
       await deleteSlotConfig(row.id)
-      messageApi.success('已删除（该模态预登记即刻 fail-closed）')
+      messageApi.success('已删除（该模态预约即刻 fail-closed）')
       await load()
     } catch (error) {
       messageApi.error(error instanceof ApiError ? error.msg : '删除失败')
@@ -187,7 +187,7 @@ export default function SlotConfigPage() {
       render: (_: unknown, row) => {
         const pairs = row.openWindows ?? []
         if (pairs.length === 0) {
-          return <span style={{ color: token.colorTextTertiary }}>未开台（预登记拒绝）</span>
+          return <span style={{ color: token.colorTextTertiary }}>未开台（预约拒绝）</span>
         }
         return (
           <span>
@@ -212,7 +212,7 @@ export default function SlotConfigPage() {
           }
         >
           <span style={{ color: token.colorTextSecondary }}>
-            每模态一条预登记策略：时段粒度 / 每时段容量 / 开台时间窗；未配置的模态拒绝预登记
+            每模态一条预约策略：时段粒度 / 每时段容量 / 开台时间窗；未配置的模态拒绝预约
           </span>
         </ConsoleToolRow>
         <ConsoleTable<SlotConfigView>
@@ -231,7 +231,7 @@ export default function SlotConfigPage() {
                 {hasPerm('setting:slot:delete') && (
                   <Popconfirm
                     title={`删除 ${row.modality} 的预约设置？`}
-                    description="删除后该模态预登记即刻拒绝（fail-closed）"
+                    description="删除后该模态预约即刻拒绝（fail-closed）"
                     onConfirm={() => void remove(row)}
                   >
                     <ConsoleAction label="删除" icon="remove" danger onClick={() => {}} />
@@ -325,7 +325,7 @@ export default function SlotConfigPage() {
             ))}
           </div>
           <ConsoleFormHint>
-            空窗口 = 未开台：该模态预登记即刻拒绝（fail-closed）。模态创建后不可变更（时段池身份）。
+            空窗口 = 未开台：该模态预约即刻拒绝（fail-closed）。模态创建后不可变更（时段池身份）。
           </ConsoleFormHint>
         </Form>
       </Drawer>

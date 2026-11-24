@@ -57,7 +57,7 @@ import { ConsolePage } from '@/pages/system/console-shell'
  */
 const ALL_STATUSES: UsOrderStatus[] = ['BOOKED', 'REGISTERED', 'IN_PROGRESS', 'COMPLETED', 'BOOKING_CANCELLED', 'CANCELLED']
 const STATUS_LABELS: Record<UsOrderStatus, string> = {
-  BOOKED: '预登记',
+  BOOKED: '预约',
   REGISTERED: '已登记',
   IN_PROGRESS: '处理中',
   COMPLETED: '已完成',
@@ -457,7 +457,7 @@ export default function UsRegistrationPage() {
       const created = await createOrder(body)
       messageApi.success(
         created.status === 'BOOKED'
-          ? `预登记成功，检查号 ${created.accessionNo}`
+          ? `预约成功，检查号 ${created.accessionNo}`
           : `登记成功，检查号 ${created.accessionNo}`,
       )
       resetWorkbench()
@@ -612,7 +612,7 @@ export default function UsRegistrationPage() {
         {rowPregnancy(row) && <span style={{ color: token.colorInfo }}> · {rowPregnancy(row)}</span>}
       </div>
       <div style={{ fontSize: 11, color: token.colorTextTertiary, marginTop: 1, fontFamily: 'monospace' }}>
-        {row.accessionNo} · {row.bookingTime ? `预登记 ${row.bookingTime.slice(11, 16)}` : (row.createTime ?? '').slice(11, 16)}
+        {row.accessionNo} · {row.bookingTime ? `预约 ${row.bookingTime.slice(11, 16)}` : (row.createTime ?? '').slice(11, 16)}
       </div>
     </div>
   )
@@ -859,7 +859,7 @@ export default function UsRegistrationPage() {
                       </td>
                       {!hiddenColumns.items && <td style={{ ...tdStyle, fontSize: 11.5, color: token.colorTextSecondary }}>
                         {rowItemsText(row)}
-                        {row.bookingTime && <span style={{ color: token.colorInfo }}> · 预登记 {row.bookingTime.slice(11, 16)}</span>}
+                        {row.bookingTime && <span style={{ color: token.colorInfo }}> · 预约 {row.bookingTime.slice(11, 16)}</span>}
                       </td>}
                       {!hiddenColumns.status && <td style={tdStyle}>{statusChip(row)}</td>}
                       {!hiddenColumns.emg && <td style={tdStyle}>{row.emgFlag === 1 ? emgTag : null}</td>}
@@ -1037,13 +1037,13 @@ export default function UsRegistrationPage() {
                       </div>
                     </Field>
                   )}
-                  <Field label="预登记时间">
+                  <Field label="预约时间">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
                       <Form.Item name="bookingDate" noStyle>
-                        <Input aria-label="预登记日期" style={{ width: 110, height: 28 }} placeholder="YYYY-MM-DD" />
+                        <Input aria-label="预约日期" style={{ width: 110, height: 28 }} placeholder="YYYY-MM-DD" />
                       </Form.Item>
                       <Form.Item name="bookingSlot" noStyle>
-                        <Input aria-label="预登记时段" style={{ ...inputStyle, flex: 1 }} placeholder="HH:mm（如 08:00）" />
+                        <Input aria-label="预约时段" style={{ ...inputStyle, flex: 1 }} placeholder="HH:mm（如 08:00）" />
                       </Form.Item>
                     </div>
                   </Field>
@@ -1123,7 +1123,7 @@ export default function UsRegistrationPage() {
             {/* the bench foot: the hint + 重置/提交登记 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '9px 14px', borderTop: `1px solid ${line}`, background: headBg }}>
               <span style={{ fontSize: 11.5, color: token.colorTextTertiary }}>
-                急诊单姓名可留空——留空即无名氏占位档，检查号照发 · 提交即登记：现场单直接落 已登记；选未来时段即 预登记（BOOKED），患者到检后在列表点 登记 确认
+                急诊单姓名可留空——留空即无名氏占位档，检查号照发 · 提交即登记：现场单直接落 已登记；选未来时段即 预约（BOOKED），患者到检后在列表点 登记 确认
               </span>
               <span style={{ display: 'flex', gap: 8 }}>
                 {hasPerm('us:order:create') && (
