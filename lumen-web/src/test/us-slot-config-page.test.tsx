@@ -71,12 +71,12 @@ describe('预约设置 page (spec: web-system-console)', () => {
     renderPage()
     expect(await screen.findByText('US')).toBeInTheDocument()
     expect(screen.getByText('CT')).toBeInTheDocument()
-    expect(screen.getAllByText('30 分钟').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('容量 4').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('30').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('4').length).toBeGreaterThan(0)
     // the windows decode as the structured pair list
     expect(screen.getByText('08:00–12:00')).toBeInTheDocument()
     expect(screen.getByText('14:00–17:00')).toBeInTheDocument()
-    expect(screen.getByText(/未开台/)).toBeInTheDocument() // the CT row's empty windows
+    expect(screen.getByText(/未放号/)).toBeInTheDocument() // the CT row's empty windows
   })
 
   it('affordances hide without the matching setting:slot perm', async () => {
@@ -92,16 +92,24 @@ describe('预约设置 page (spec: web-system-console)', () => {
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: /新\s*建/ }))
     // the modality dict-1024 SELECT (the house combobox pattern)
-    await user.click(await screen.findByRole('combobox', { name: '模态' }))
+    await user.click(await screen.findByRole('combobox', { name: '检查类型' }))
     await user.click((await screen.findAllByText('CT')).at(-1) as HTMLElement)
-    const granularity = screen.getByLabelText('时段粒度')
+    const granularity = screen.getByLabelText('时段时长')
     fireEvent.change(granularity, { target: { value: '45' } })
-    const capacity = screen.getByLabelText('时段容量')
+    const capacity = screen.getByLabelText('号源数量')
     fireEvent.change(capacity, { target: { value: '6' } })
-    const windowStart = screen.getByLabelText('窗口开始')
-    fireEvent.change(windowStart, { target: { value: '09:00' } })
-    const windowEnd = screen.getByLabelText('窗口结束')
-    fireEvent.change(windowEnd, { target: { value: '12:00' } })
+    // the window bounds are TimePickers: drive the INPUT itself (open panel →
+    // type → Enter). Portal panel clicks are unsafe in jsdom — the previous
+    // picker's leaving dropdown never finishes its exit motion, so a fresh
+    // `.ant-picker-dropdown:not(-hidden)` query resolves to the stale panel.
+    const pickTime = async (label: string, text: string) => {
+      const input = screen.getByLabelText(label)
+      await user.click(input) // opens the panel
+      fireEvent.change(input, { target: { value: text } })
+      fireEvent.keyDown(input, { key: 'Enter' })
+    }
+    await pickTime('窗口开始', '09:00')
+    await pickTime('窗口结束', '12:00')
     fireEvent.click(screen.getByRole('button', { name: /^保\s*存$/ }))
     await waitFor(() => expect(slotConfigApi.createSlotConfig).toHaveBeenCalled())
     const body = vi.mocked(slotConfigApi.createSlotConfig).mock.calls[0][0]
@@ -115,7 +123,7 @@ describe('预约设置 page (spec: web-system-console)', () => {
     renderPage()
     fireEvent.click((await screen.findAllByRole('button', { name: /编\s*辑/ }))[0])
     await waitFor(() => {
-      expect(screen.getByRole('combobox', { name: '模态' })).toBeDisabled()
+      expect(screen.getByRole('combobox', { name: '检查类型' })).toBeDisabled()
     })
     // the stored token echoes in the drawer
     expect(screen.getAllByText('US').length).toBeGreaterThan(0)
@@ -130,12 +138,62 @@ describe('预约设置 page (spec: web-system-console)', () => {
     const user = userEvent.setup()
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: /新\s*建/ }))
-    await user.click(await screen.findByRole('combobox', { name: '模态' }))
+    await user.click(await screen.findByRole('combobox', { name: '检查类型' }))
     await user.click((await screen.findAllByText('CT')).at(-1) as HTMLElement)
     fireEvent.click(screen.getByRole('button', { name: /^保\s*存$/ }))
     expect(await screen.findByText('该模态已存在预约设置: US')).toBeInTheDocument()
     // the drawer stays open (the form fields survive)
-    expect(screen.getByLabelText('时段容量')).toBeInTheDocument()
+    expect(screen.getByLabelText('号源数量')).toBeInTheDocument()
+  })
+
+  it('the drawer keeps the family chrome (vertical form) and pins the fail-closed hint above the footer (user rulings 2026-11-24)', async () => {
+    renderPage()
+    // the tool-row hint text is deleted (not needed)
+    expect(screen.queryByText(/每模态一条预约策略/)).not.toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: /新\s*建/ }))
+    // the dict-1024 dev placeholder is gone from the modality select
+    expect(screen.queryByText('dict-1024 模态')).not.toBeInTheDocument()
+    // the hint band pins just above the drawer footer: sticky wrapper seating
+    // the ConsoleFormHint at the body bottom (flex body + margin-top auto) —
+    // kept as a deliberate exception when the drawer was unified to the
+    // family vertical form
+    const hint = screen.getByText(/时段列表留空/)
+    const stickyWrapper = hint.closest('div')!.parentElement as HTMLElement
+    expect(stickyWrapper.style.position).toBe('sticky')
+    expect(stickyWrapper.style.marginTop).toBe('auto')
+    // the form is family-vertical: labels render above controls (no labelCol row)
+    const drawerBody = hint.closest('.ant-drawer-body') as HTMLElement
+    expect(drawerBody).not.toBeNull()
+    expect(drawerBody.querySelector('.ant-form-vertical')).not.toBeNull()
+    expect(drawerBody.querySelector('.ant-form-horizontal')).toBeNull()
+    // the create form pre-seats the granularity at 60 分钟 (user ruling 2026-11-24)
+    expect(screen.getByLabelText('时段时长')).toHaveValue('60')
+    // the row-add button is the rep-template 添加节 idiom (user ruling
+    // 2026-11-24, supersedes the same-day icon-only ruling): dashed block with
+    // visible text; the per-row remove stays icon-only
+    const addBtn = screen.getByRole('button', { name: '添加时段' })
+    expect(addBtn).toBeInTheDocument()
+    expect(addBtn.className).toContain('ant-btn-variant-dashed')
+    expect(addBtn.className).toContain('ant-btn-block')
+    expect(screen.queryByText('移除')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '移除时段' })).toBeInTheDocument()
+  })
+
+  it('the 检查类型 filter narrows the list in memory without a refetch (us-slot-list-filter)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    expect(await screen.findByText('08:00–12:00')).toBeInTheDocument()
+    expect(slotConfigApi.listSlotConfigs).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('combobox', { name: '检查类型过滤' }))
+    await user.click((await screen.findAllByText('CT')).at(-1) as HTMLElement)
+    // only the CT policy row remains - the US row's window tags are gone
+    expect(screen.getByText('未放号（预约拒绝）')).toBeInTheDocument()
+    expect(screen.queryByText('08:00–12:00')).not.toBeInTheDocument()
+    // the narrowing rides the MOUNT-TIME payload (no additional list request)
+    expect(slotConfigApi.listSlotConfigs).toHaveBeenCalledTimes(1)
+    // clearing the filter restores the full list
+    await user.click(document.querySelector('.ant-select-clear') as HTMLElement)
+    expect(screen.getByText('08:00–12:00')).toBeInTheDocument()
   })
 
   it('delete soft-deletes with confirmation', async () => {

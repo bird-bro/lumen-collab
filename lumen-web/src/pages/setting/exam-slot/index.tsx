@@ -1,9 +1,9 @@
 import {
   Button,
-  Input,
   InputNumber,
   Popconfirm,
   Select,
+  TimePicker,
   Drawer,
   Form,
   Tag,
@@ -11,7 +11,9 @@ import {
   theme,
 } from 'antd'
 import type { TableColumnsType } from 'antd'
-import { useCallback, useEffect, useState } from 'react'
+import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import dayjs from 'dayjs'
 import {
   createSlotConfig,
   deleteSlotConfig,
@@ -62,7 +64,16 @@ export default function SlotConfigPage() {
   const [editing, setEditing] = useState<SlotConfigView | null>(null)
   const [saving, setSaving] = useState(false)
   const [windows, setWindows] = useState<SlotWindow[]>([])
+  const [typeFilter, setTypeFilter] = useState<string | null>(null)
   const [form] = Form.useForm<SlotFormValues>()
+
+  // The 检查类型 filter narrows IN MEMORY (us-slot-list-filter): the endpoint
+  // returns one policy per 检查类型 - a catalog-bounded list - so the client-side
+  // narrowing rides the mount-time payload and issues no additional request.
+  const visibleRows = useMemo(
+    () => (typeFilter ? rows.filter((row) => row.modality === typeFilter) : rows),
+    [rows, typeFilter],
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -94,7 +105,7 @@ export default function SlotConfigPage() {
   const openCreate = () => {
     setEditing(null)
     form.resetFields()
-    form.setFieldsValue({ granularityMinutes: 30, slotCapacity: 4 })
+    form.setFieldsValue({ granularityMinutes: 60, slotCapacity: 4 })
     setWindows([{ start: '', end: '' }]) // one empty pair ready to fill
     setDrawerOpen(true)
   }
@@ -117,12 +128,12 @@ export default function SlotConfigPage() {
       setSaving(true)
       const modality = (values.modality ?? '').trim()
       if (!modality) {
-        messageApi.warning('请选择模态')
+        messageApi.warning('请选择检查类型')
         return
       }
       const body = {
         modality,
-        granularityMinutes: values.granularityMinutes ?? 30,
+        granularityMinutes: values.granularityMinutes ?? 60,
         slotCapacity: values.slotCapacity ?? 4,
         openWindows: windows.filter((w) => w.start && w.end),
       }
@@ -151,7 +162,7 @@ export default function SlotConfigPage() {
   const remove = async (row: SlotConfigView) => {
     try {
       await deleteSlotConfig(row.id)
-      messageApi.success('已删除（该模态预约即刻 fail-closed）')
+      messageApi.success('已删除（该检查类型即刻不开放预约）')
       await load()
     } catch (error) {
       messageApi.error(error instanceof ApiError ? error.msg : '删除失败')
@@ -160,39 +171,43 @@ export default function SlotConfigPage() {
 
   const columns: TableColumnsType<SlotConfigView> = [
     {
-      title: '模态',
+      title: '检查类型',
       dataIndex: 'modality',
       key: 'modality',
       width: 100,
+      align: 'center',
       render: (value: string) => <span className="mono">{value}</span>,
     },
     {
-      title: '开台时段粒度',
+      title: '时段时长(分钟)',
       dataIndex: 'granularityMinutes',
       key: 'granularityMinutes',
       width: 130,
-      render: (value: number) => `${value} 分钟`,
+      align: 'center',
     },
     {
-      title: '每时段容量',
+      title: '号源数量',
       dataIndex: 'slotCapacity',
       key: 'slotCapacity',
       width: 120,
-      render: (value: number) => `容量 ${value}`,
+      align: 'center',
     },
     {
-      title: '开台时间窗',
+      title: '放号时段',
       dataIndex: 'openWindows',
       key: 'openWindows',
+      width: 280,
       render: (_: unknown, row) => {
         const pairs = row.openWindows ?? []
         if (pairs.length === 0) {
-          return <span style={{ color: token.colorTextTertiary }}>未开台（预约拒绝）</span>
+          return <span style={{ color: token.colorTextTertiary }}>未放号（预约拒绝）</span>
         }
         return (
           <span>
             {pairs.map((pair, index) => (
-              <Tag key={index}>{`${pair.start}–${pair.end}`}</Tag>
+              // Tag chrome defaults to 12px — bumped to the table's 14px so the
+              // window tags read the same size as the neighboring cells
+              <Tag key={index} style={{ fontSize: token.fontSize }}>{`${pair.start}–${pair.end}`}</Tag>
             ))}
           </span>
         )
@@ -211,15 +226,21 @@ export default function SlotConfigPage() {
             )
           }
         >
-          <span style={{ color: token.colorTextSecondary }}>
-            每模态一条预约策略：时段粒度 / 每时段容量 / 开台时间窗；未配置的模态拒绝预约
-          </span>
+          <Select
+            aria-label="检查类型过滤"
+            allowClear
+            placeholder="检查类型"
+            style={{ width: 160 }}
+            value={typeFilter}
+            options={dictItems.map((item) => ({ value: item.value ?? '', label: item.value ?? '' }))}
+            onChange={(next) => setTypeFilter(next ?? null)}
+          />
         </ConsoleToolRow>
         <ConsoleTable<SlotConfigView>
           rowKey={(row) => row.id}
           loading={loading}
           columns={columns}
-          dataSource={rows}
+          dataSource={visibleRows}
           onRefresh={() => void load()}
           actions={{
             width: 120,
@@ -231,7 +252,7 @@ export default function SlotConfigPage() {
                 {hasPerm('setting:slot:delete') && (
                   <Popconfirm
                     title={`删除 ${row.modality} 的预约设置？`}
-                    description="删除后该模态预约即刻拒绝（fail-closed）"
+                    description="删除后该检查类型即刻不开放预约，患者将无法预约该检查"
                     onConfirm={() => void remove(row)}
                   >
                     <ConsoleAction label="删除" icon="remove" danger onClick={() => {}} />
@@ -245,13 +266,13 @@ export default function SlotConfigPage() {
 
       <Drawer
         title={editing ? `编辑预约设置 ${editing.modality}` : '新建预约设置'}
-        aria-label="预约设置抽屉"
         width={480}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         closable={{ placement: 'end' }}
         maskClosable={false}
         destroyOnHidden
+        styles={{ body: { display: 'flex', flexDirection: 'column' } }}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
@@ -261,73 +282,87 @@ export default function SlotConfigPage() {
           </div>
         }
       >
-        <Form form={form} layout="horizontal" labelCol={{ style: { width: 88 } }} disabled={saving}>
-          <Form.Item name="modality" label="模态" rules={[{ required: true, message: '请选择模态' }]}>
+        <Form form={form} layout="vertical" disabled={saving}>
+          <Form.Item name="modality" label="检查类型" rules={[{ required: true, message: '请选择检查类型' }]}>
             <Select
-              aria-label="模态"
+              aria-label="检查类型"
               disabled={editing != null}
-              placeholder={editing ? undefined : 'dict-1024 模态'}
               options={dictItems.map((item) => ({ value: item.value ?? '', label: item.value ?? '' }))}
             />
           </Form.Item>
-          <Form.Item name="granularityMinutes" label="时段粒度">
-            <InputNumber aria-label="时段粒度" style={{ width: '100%' }} min={5} max={240} />
+          <Form.Item name="granularityMinutes" label="时段时长">
+            <InputNumber aria-label="时段时长" style={{ width: '100%' }} min={5} max={240} addonAfter="分钟" />
           </Form.Item>
-          <Form.Item name="slotCapacity" label="时段容量">
-            <InputNumber aria-label="时段容量" style={{ width: '100%' }} min={1} max={99} />
+          <Form.Item name="slotCapacity" label="号源数量">
+            <InputNumber aria-label="号源数量" style={{ width: '100%' }} min={1} max={99} />
           </Form.Item>
-          <div style={{ marginBottom: token.marginSM }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span>开台时间窗</span>
-              <Button
-                size="small"
-                onClick={() => setWindows((prev) => [...prev, { start: '', end: '' }])}
-              >
-                添加窗口
-              </Button>
-            </div>
+          <Form.Item label="放号时段">
             {windows.map((pair, index) => (
               <div key={index} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-                <Input
+                <TimePicker
                   aria-label="窗口开始"
-                  placeholder="HH:mm"
-                  style={{ width: 110 }}
-                  value={pair.start}
-                  onChange={(event) =>
+                  format="HH:mm"
+                  placeholder="开始"
+                  needConfirm={false}
+                  style={{ flex: 1, minWidth: 0 }}
+                  value={pair.start ? dayjs(pair.start, 'HH:mm') : null}
+                  onChange={(t) =>
                     setWindows((prev) =>
                       prev.map((item, i) =>
-                        i === index ? { ...item, start: event.target.value } : item,
+                        i === index ? { ...item, start: t ? t.format('HH:mm') : '' } : item,
                       ),
                     )
                   }
                 />
-                <Input
+                <span aria-hidden="true" style={{ color: token.colorTextTertiary }}>–</span>
+                <TimePicker
                   aria-label="窗口结束"
-                  placeholder="HH:mm"
-                  style={{ width: 110 }}
-                  value={pair.end}
-                  onChange={(event) =>
+                  format="HH:mm"
+                  placeholder="结束"
+                  needConfirm={false}
+                  style={{ flex: 1, minWidth: 0 }}
+                  value={pair.end ? dayjs(pair.end, 'HH:mm') : null}
+                  onChange={(t) =>
                     setWindows((prev) =>
                       prev.map((item, i) =>
-                        i === index ? { ...item, end: event.target.value } : item,
+                        i === index ? { ...item, end: t ? t.format('HH:mm') : '' } : item,
                       ),
                     )
                   }
                 />
                 <Button
+                  type="text"
                   size="small"
                   danger
+                  aria-label="移除时段"
+                  icon={<DeleteOutlined />}
                   onClick={() => setWindows((prev) => prev.filter((_, i) => i !== index))}
-                >
-                  移除
-                </Button>
+                />
               </div>
             ))}
-          </div>
-          <ConsoleFormHint>
-            空窗口 = 未开台：该模态预约即刻拒绝（fail-closed）。模态创建后不可变更（时段池身份）。
-          </ConsoleFormHint>
+            {/* the rep-template 添加节 idiom (user ruling 2026-11-24): dashed
+                block button with visible text for dynamic-row adds */}
+            <Button
+              color="primary"
+              variant="dashed"
+              block
+              aria-label="添加时段"
+              icon={<PlusOutlined />}
+              onClick={() => setWindows((prev) => [...prev, { start: '', end: '' }])}
+            >
+              添加时段
+            </Button>
+          </Form.Item>
         </Form>
+        {/* pinned just above the drawer footer (user ruling 2026-11-24, re-affirmed
+            during the drawer-family unification review): the flex body seats the
+            band at the bottom on short content, sticky keeps it visible above the
+            footer while the form scrolls */}
+        <div style={{ marginTop: 'auto', position: 'sticky', bottom: 0 }}>
+          <ConsoleFormHint>
+            时段列表留空表示该检查类型不开放预约，患者将无法预约该检查；检查类型创建后不可修改。
+          </ConsoleFormHint>
+        </div>
       </Drawer>
     </ConsolePage>
   )
