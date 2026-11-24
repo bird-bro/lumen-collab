@@ -996,11 +996,11 @@ export default function UsRegistrationPage() {
                   <Field label="身高体重">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
                       <Form.Item name="height" noStyle>
-                        <InputNumber aria-label="身高" style={{ flex: 1, height: 28 }} min={0} addonAfter="cm" placeholder="cm" />
+                        <InputNumber aria-label="身高" style={{ flex: 1, minWidth: 0 }} min={0} placeholder="身高cm" />
                       </Form.Item>
                       <span style={{ color: token.colorTextTertiary, fontSize: 12 }}>/</span>
                       <Form.Item name="weight" noStyle>
-                        <InputNumber aria-label="体重" style={{ flex: 1, height: 28 }} min={0} addonAfter="kg" placeholder="kg" />
+                        <InputNumber aria-label="体重" style={{ flex: 1, minWidth: 0 }} min={0} placeholder="体重kg" />
                       </Form.Item>
                     </div>
                   </Field>
@@ -1032,7 +1032,7 @@ export default function UsRegistrationPage() {
                           <Select aria-label="妊娠状态" style={{ flex: 1 }} size="small" allowClear placeholder="妊娠状态" options={PREGNANCY_OPTIONS} />
                         </Form.Item>
                         <Form.Item name="gestationalWeeks" noStyle>
-                          <InputNumber aria-label="孕周" style={{ width: 96, height: 28 }} min={1} max={45} placeholder="周" disabled={pregnancyStatus == null || pregnancyStatus === '未孕' || pregnancyStatus === '未知'} addonAfter="周" />
+                          <InputNumber aria-label="孕周" style={{ width: 72, minWidth: 0 }} min={1} max={45} placeholder="周" disabled={pregnancyStatus == null || pregnancyStatus === '未孕' || pregnancyStatus === '未知'} />
                         </Form.Item>
                       </div>
                     </Field>
