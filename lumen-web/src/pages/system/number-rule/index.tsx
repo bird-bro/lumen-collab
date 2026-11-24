@@ -452,6 +452,7 @@ export default function NumberRulePage() {
         closable={{ placement: 'end' }}
         maskClosable={false}
         destroyOnHidden
+        styles={{ body: { display: 'flex', flexDirection: 'column' } }}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
@@ -587,10 +588,14 @@ export default function NumberRulePage() {
           <Form.Item name="remark" label="备注">
             <TextArea rows={2} maxLength={255} showCount placeholder="选填" />
           </Form.Item>
+        </Form>
+        {/* hint band pinned just above the drawer footer (user ruling 2026-11-24,
+            house-wide for drawer hint blocks): sticky wrapper over a flex body */}
+        <div style={{ marginTop: 'auto', position: 'sticky', bottom: 0 }}>
           <ConsoleFormHint>
             {`号码形如 ${composeSample(prefix, stamp, serialLength, suffix, Boolean(isStamp))}（${isStamp ? stamp ?? '待选择格式' : '仅编号'} + ${serialLength ?? 4} 位编号）`}
           </ConsoleFormHint>
-        </Form>
+        </div>
       </Drawer>
     </ConsolePage>
   )

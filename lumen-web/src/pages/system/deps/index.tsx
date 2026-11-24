@@ -484,6 +484,7 @@ export default function DepsPage() {
         closable={{ placement: 'end' }}
         maskClosable={false}
         destroyOnHidden
+        styles={{ body: { display: 'flex', flexDirection: 'column' } }}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={closeDialog}>取消</Button>
@@ -493,9 +494,6 @@ export default function DepsPage() {
           </div>
         }
       >
-        <ConsoleFormHint>
-          {editing ? `科室编码创建后不可修改:${editing.code}` : '科室必须归属一个启用中的院区。'}
-        </ConsoleFormHint>
         <Form<DepFormValues> form={form} layout="vertical" disabled={saving}>
           <Form.Item
             name="orgId"
@@ -539,6 +537,13 @@ export default function DepsPage() {
             </div>
           ) : null}
         </Form>
+        {/* hint band pinned just above the drawer footer (user ruling 2026-11-24,
+            house-wide for drawer hint blocks): sticky wrapper over a flex body */}
+        <div style={{ marginTop: 'auto', position: 'sticky', bottom: 0 }}>
+          <ConsoleFormHint>
+            {editing ? `科室编码创建后不可修改:${editing.code}` : '科室必须归属一个启用中的院区。'}
+          </ConsoleFormHint>
+        </div>
       </Drawer>
     </div>
   )

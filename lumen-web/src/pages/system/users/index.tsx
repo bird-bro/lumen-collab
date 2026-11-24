@@ -753,6 +753,7 @@ export default function UsersPage() {
         closable={{ placement: 'end' }}
         maskClosable={false}
         destroyOnHidden
+        styles={{ body: { display: 'flex', flexDirection: 'column' } }}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={closeReset}>取消</Button>
@@ -762,16 +763,20 @@ export default function UsersPage() {
           </div>
         }
       >
-        {resetTarget ? (
-          <ConsoleFormHint>
-            为用户 <strong>{resetTarget.username}</strong> 设置新密码;重置后该用户首次登录须修改密码。
-          </ConsoleFormHint>
-        ) : null}
         <Form<ResetValues> form={resetForm} layout="vertical" disabled={saving}>
           <Form.Item name="password" label="新密码" rules={[{ required: true, message: '请输入新密码' }]}>
             <Input.Password placeholder="新密码" autoComplete="new-password" />
           </Form.Item>
         </Form>
+        {/* hint band pinned just above the drawer footer (user ruling 2026-11-24,
+            house-wide for drawer hint blocks): sticky wrapper over a flex body */}
+        <div style={{ marginTop: 'auto', position: 'sticky', bottom: 0 }}>
+          {resetTarget ? (
+            <ConsoleFormHint>
+              为用户 <strong>{resetTarget.username}</strong> 设置新密码;重置后该用户首次登录须修改密码。
+            </ConsoleFormHint>
+          ) : null}
+        </div>
       </Drawer>
     </div>
   )
