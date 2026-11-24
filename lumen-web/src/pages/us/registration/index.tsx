@@ -1345,7 +1345,7 @@ function Field({ label, required, full, children }: {
   return (
     <Col xs={24} md={full ? 24 : 12} xl={full ? 24 : 8}>
       <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-        <span style={{ flex: '0 0 72px', width: 72, color: token.colorTextSecondary, textAlign: 'right', paddingRight: 8, whiteSpace: 'nowrap' }}>
+        <span style={{ flex: '0 0 88px', width: 88, color: token.colorTextSecondary, textAlign: 'right', paddingRight: 8, whiteSpace: 'nowrap' }}>
           {label}
           {required && <i style={{ color: token.colorError, fontStyle: 'normal' }}> *</i>}
         </span>
