@@ -107,12 +107,12 @@ describe('US workstation two-state workbench (spec: web-us-station)', () => {
   it('renders the COMPACT state by default — rail + workbench form, NO query row', async () => {
     renderPage()
     // the rail head + the form sections mount before the wide query row
-    expect(await screen.findByText('今日登记单')).toBeInTheDocument()
-    expect(screen.getByText('1患者信息')).toBeInTheDocument()
-    expect(screen.getByText('2请检信息')).toBeInTheDocument()
-    expect(screen.getByText('3检查信息')).toBeInTheDocument()
+    expect(await screen.findByLabelText('日期导航')).toBeInTheDocument()
+    expect(screen.getByText('患者信息')).toBeInTheDocument()
+    expect(screen.getByText('请检信息')).toBeInTheDocument()
+    expect(screen.getByText('检查信息')).toBeInTheDocument()
     // the compact state carries NO query row (拍板: the vertical space belongs to the list)
-    expect(screen.queryByText('更多条件')).not.toBeInTheDocument()
+    expect(screen.queryByText(/更多条件/)).not.toBeInTheDocument()
     expect(screen.queryByLabelText('检查号条件')).not.toBeInTheDocument()
     // the datenav shows in the compact head
     expect(screen.getByLabelText('日期导航')).toBeInTheDocument()
@@ -120,25 +120,25 @@ describe('US workstation two-state workbench (spec: web-us-station)', () => {
 
   it('the edge toggle swaps to the WIDE state — query row + table, datenav hidden', async () => {
     renderPage()
-    await screen.findByText('今日登记单')
-    fireEvent.click(screen.getAllByRole('radio', { name: '宽表查询' }).at(-1) as HTMLElement)
+    await screen.findByLabelText('日期导航')
+    fireEvent.click(screen.getByLabelText('工作台切换'))
     // the wide state exposes the query row (the RCP∪EIS union, 更多条件 collapse)
-    expect(await screen.findByText('更多条件')).toBeInTheDocument()
+    expect(await screen.findByText(/更多条件/)).toBeInTheDocument()
     expect(screen.getByLabelText('检查号条件')).toBeInTheDocument()
     // the datenav hides in the wide state (time owned by the apply-time range)
     expect(screen.queryByLabelText('日期导航')).not.toBeInTheDocument()
     // the wide table renders the shared list data
     expect(screen.getAllByText('US26000001').length).toBeGreaterThan(0)
     // toggling back restores the compact state
-    fireEvent.click(screen.getAllByRole('radio', { name: '工作台' }).at(-1) as HTMLElement)
-    expect(await screen.findByText('今日登记单')).toBeInTheDocument()
-    expect(screen.queryByText('更多条件')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('工作台切换'))
+    expect(await screen.findByLabelText('日期导航')).toBeInTheDocument()
+    expect(screen.queryByText(/更多条件/)).not.toBeInTheDocument()
   })
 
   it('the submit affordance gates on us:order:create', async () => {
     useAuthStore.getState().setSession({ perms: ['us:order:list'] })
     renderPage()
-    await screen.findByText('今日登记单')
+    await screen.findByLabelText('日期导航')
     expect(screen.queryByLabelText('提交登记')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('解析查询')).not.toBeInTheDocument()
   })
@@ -146,13 +146,13 @@ describe('US workstation two-state workbench (spec: web-us-station)', () => {
   it('both states render the shared list data against the real seam', async () => {
     renderPage()
     // the rail rows ride the shared fetch (the wide table re-renders the same rows)
-    expect((await screen.findAllByText('US26000001')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText(/US26000001/)).length).toBeGreaterThan(0)
     await waitFor(() => {
       expect(usOrdersApi.pageOrders).toHaveBeenCalled()
       expect(usOrdersApi.statusCounts).toHaveBeenCalled()
     })
-    fireEvent.click(screen.getAllByRole('radio', { name: '工作台' }).at(-1) as HTMLElement)
-    expect(screen.getAllByText('US26000001').length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByLabelText('工作台切换'))
+    expect(screen.getAllByText(/US26000001/).length).toBeGreaterThan(0)
   })
 })
 
@@ -206,7 +206,7 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
 
   it('the chips carry the counts and multi-select toggles the IN-filter', async () => {
     renderPage()
-    await screen.findByText('今日登记单')
+    await screen.findByLabelText('日期导航')
     // the default selection 预登记+已登记 rides the initial query
     await waitFor(() => {
       const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]
@@ -226,10 +226,10 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
   it('the rail renders dense rows with the arrival/cancel actions', async () => {
     renderPage()
     // the BOOKED row carries 登记 (the arrival confirmation)
-    const bookedRow = (await screen.findAllByText('张三'))[0].closest('[data-rail-row]') as HTMLElement
+    const bookedRow = (await screen.findAllByText('张三'))[0].closest('tr') as HTMLElement
     expect(within(bookedRow).getByText('预登记')).toBeInTheDocument()
-    expect(within(bookedRow).getByRole('button', { name: '登记' })).toBeInTheDocument()
-    fireEvent.click(within(bookedRow).getByRole('button', { name: '登记' }))
+    expect(within(bookedRow).getByRole('button', { name: /^登记/ })).toBeInTheDocument()
+    fireEvent.click(within(bookedRow).getByRole('button', { name: /^登记/ }))
     await waitFor(() => expect(usOrdersApi.registerOrder).toHaveBeenCalledWith(11))
   })
 
@@ -260,7 +260,8 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     fireEvent.click(screen.getByRole('button', { name: '解析查询' }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('李四')).toBeInTheDocument()
-    fireEvent.click(within(dialog).getByText('李四'))
+    fireEvent.click(within(dialog).getByText('李四')) // the pcard select
+    fireEvent.click(within(dialog).getByRole('button', { name: '是' })) // the RCP confirm pair
     await waitFor(() => {
       expect((screen.getByLabelText('姓名') as HTMLInputElement).value).toBe('李四')
     })
@@ -275,23 +276,21 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
 
   it('section 2 hosts the 急诊 switch, 预登记时间 picker, and 临床诊断', async () => {
     renderPage()
-    await screen.findByText('2请检信息')
+    await screen.findByText('请检信息')
     expect(screen.getByLabelText('急诊')).toBeInTheDocument()
-    expect(screen.getByLabelText('预登记时间')).toBeInTheDocument()
+    expect(screen.getByLabelText('预登记日期')).toBeInTheDocument()
+    expect(screen.getByLabelText('预登记时段')).toBeInTheDocument()
     expect(screen.getByLabelText('临床诊断')).toBeInTheDocument()
   })
 
   it('the pregnancy cell is gender-conditional (female only, weeks disabled when 未孕/未知)', async () => {
     renderPage()
-    await screen.findByText('2请检信息')
+    await screen.findByText('请检信息')
     // default gender unset: the pregnancy cell stays hidden
     expect(screen.queryByLabelText('妊娠状态')).not.toBeInTheDocument()
-    // female: the cell appears (the house combobox pattern: userEvent opens, the
-    // .ant-select-item-option[title] node clicks - antd keeps closing dropdowns in
-    // the DOM, so .at(-1))
+    // female: the cell appears (the prototype's gender radio dots)
     const user = userEvent.setup()
-    await user.click(screen.getByRole('combobox', { name: '性别' }))
-    await user.click(await pickOption('女'))
+    await user.click(screen.getByRole('radio', { name: '女' }))
     expect((await screen.findAllByLabelText('妊娠状态')).length).toBeGreaterThan(0)
     // 未孕 disables the weeks input
     await user.click(screen.getAllByRole('combobox', { name: '妊娠状态' })[0])
@@ -301,7 +300,7 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
 
   it('section 3 renders common chips + the picked list + the add dialog', async () => {
     renderPage()
-    await screen.findByText('3检查信息')
+    await screen.findByText('检查信息')
     // the common-item chips render the isCommon catalog rows
     expect(screen.getByRole('button', { name: '腹部彩超' })).toBeInTheDocument()
     // picking a chip adds to the picked list
@@ -311,7 +310,7 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     fireEvent.click(screen.getByRole('button', { name: '添加项目' }))
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getAllByText('心脏彩超')[0])
-    fireEvent.click(within(dialog).getByRole('button', { name: /^确\s*定$/ }))
+    fireEvent.click(within(dialog).getByRole('button', { name: '确认添加' }))
     await waitFor(() => {
       expect(screen.getAllByText('心脏彩超').length).toBeGreaterThan(0)
     })
@@ -319,7 +318,7 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
 
   it('submit registers a walk-in (no bookingTime) and refreshes', async () => {
     renderPage()
-    await screen.findByText('今日登记单')
+    await screen.findByLabelText('日期导航')
     fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '赵六' } })
     fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
     fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
@@ -332,12 +331,11 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
 
   it('submit posts bookingTime for pre-registration', async () => {
     renderPage()
-    await screen.findByText('2请检信息')
+    await screen.findByText('请检信息')
     fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '钱七' } })
     fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
-    const picker = screen.getByLabelText('预登记时间')
-    fireEvent.change(picker, { target: { value: '2026-11-25 09:17:00' } })
-    fireEvent.keyDown(picker, { key: 'Enter' })
+    fireEvent.change(screen.getByLabelText('预登记日期'), { target: { value: '2026-11-25' } })
+    fireEvent.change(screen.getByLabelText('预登记时段'), { target: { value: '09:17' } })
     fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
     await waitFor(() => expect(usOrdersApi.createOrder).toHaveBeenCalled())
     const body = vi.mocked(usOrdersApi.createOrder).mock.calls[0][0]
@@ -349,7 +347,7 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
       new ApiError('A0400', '该时段已满，请选择其他时段'),
     )
     renderPage()
-    await screen.findByText('2请检信息')
+    await screen.findByText('请检信息')
     fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '孙八' } })
     fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
     fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
@@ -399,17 +397,17 @@ describe('wide state + saved searches (us-registration-redesign batches 3-4)', (
 
   async function openWide() {
     renderPage()
-    await screen.findAllByText('今日登记单')
-    fireEvent.click(screen.getAllByRole('radio', { name: '宽表查询' }).at(-1) as HTMLElement)
-    await screen.findByText('更多条件')
+    await screen.findAllByLabelText('日期导航')
+    fireEvent.click(screen.getByLabelText('工作台切换'))
+    await screen.findByText(/更多条件/)
   }
 
   it('the wide conditions compose into the page query (primary + collapsed extras)', async () => {
     await openWide()
     fireEvent.change(screen.getByLabelText('检查号条件'), { target: { value: 'US2600' } })
     fireEvent.change(screen.getByLabelText('患者姓名条件'), { target: { value: '张' } })
-    fireEvent.click(screen.getByRole('button', { name: '更多条件' }))
-    fireEvent.change(screen.getByLabelText('患者影像号条件'), { target: { value: 'P00000100' } })
+    fireEvent.click(screen.getByRole('button', { name: '更多条件' }) ?? screen.getByLabelText('更多条件'))
+    fireEvent.change(screen.getByLabelText('患者编号条件'), { target: { value: 'P00000100' } })
     fireEvent.change(screen.getByLabelText('就诊卡号条件'), { target: { value: 'CARD-9' } })
     fireEvent.change(screen.getByLabelText('项目名称条件'), { target: { value: '胆囊' } })
     fireEvent.click(screen.getByRole('button', { name: '查询' }))
@@ -425,7 +423,7 @@ describe('wide state + saved searches (us-registration-redesign batches 3-4)', (
 
   it('the apply-time range rides the wide row and the shared date state feeds it by default', async () => {
     await openWide()
-    fireEvent.click(screen.getByRole('button', { name: '更多条件' }))
+    fireEvent.click(screen.getByRole('button', { name: '更多条件' }) ?? screen.getByLabelText('更多条件'))
     await waitFor(() => {
       const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]
       expect(call?.applyTimeStart).toMatch(/^\d{4}-\d{2}-\d{2} 00:00:00$/)
@@ -451,14 +449,13 @@ describe('wide state + saved searches (us-registration-redesign batches 3-4)', (
         updateTime: '2026-11-23 10:00:00',
       },
     ])
-    renderPage()
-    await screen.findAllByText('今日登记单')
+    await openWide()
+    // the default search auto-applied: the list query carries its conditions
     await waitFor(() => {
       const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]
       expect(call?.accessionNo).toBe('US2600')
       expect(call?.patientName).toBe('张三')
     })
-    await openWide()
     fireEvent.click(screen.getByRole('button', { name: '保存条件' }))
     const nameInput = await screen.findByLabelText('筛选项名称')
     fireEvent.change(nameInput, { target: { value: 'us3新筛选项' } })

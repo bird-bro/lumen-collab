@@ -38,6 +38,7 @@ export interface UsPatientSnapshot {
   gender?: number | null;
   phone?: string | null;
   age?: string | null;
+  patientSource?: string | null;
   [key: string]: unknown;
 }
 
