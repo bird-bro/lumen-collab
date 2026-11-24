@@ -62,6 +62,14 @@ export default defineConfig(({ mode }) => {
         target: env.VITE_PATIENT_ENTRY_URL ?? 'http://localhost:8082',
         changeOrigin: true,
       },
+      // us-station 2026-11-24: /api/v1/us/** belongs to lumen-us (port-table row
+      // 8083) - same no-local-nginx direct-service routing as the patient rule
+      // above, now that this machine runs a third backend service.
+      // VITE_US_ENTRY_URL overrides.
+      '/api/v1/us': {
+        target: env.VITE_US_ENTRY_URL ?? 'http://localhost:8083',
+        changeOrigin: true,
+      },
       // Unified API entry (design D3): /api/v1 goes to the nginx entry on port 80
       // per openspec/coordination/init-project-skeleton.md's port table - there is
       // no Java gateway. Override the target with VITE_API_ENTRY_URL; no service
