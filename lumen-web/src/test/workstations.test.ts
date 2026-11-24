@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { sidebarMenus } from '@/config/workstations'
+import { activeStationForPath, sidebarMenus } from '@/config/workstations'
 import { useAuthStore } from '@/stores/auth'
 import type { MenuNode } from '@/api/types'
 
@@ -63,7 +63,39 @@ describe('workstation derivation + promotion filter (task 1.1)', () => {
   })
 })
 
-describe('auth store activeWorkstation lifecycle (task 1.2)', () => {
+describe('activeStationForPath - the URL owns the station context (user report 2026-11-24)', () => {
+  // The REAL current shape: 放射 childless (no pages yet), 超声 carries the
+  // promoted 登记 page - the refresh/landing desync scenario tree.
+  const US_TREE: MenuNode[] = [
+    menu({
+      mid: 1, title: '系统管理', upId: 0, type: 'M', path: '/system',
+      children: [menu({ mid: 2, title: '用户管理', upId: 1, type: 'C', path: '/system/users' })],
+    }),
+    menu({ mid: 30, title: '放射工作站', upId: 0, type: 'W', path: '/radiology' }),
+    menu({
+      mid: 40, title: '超声工作站', upId: 0, type: 'W', path: '/us',
+      children: [menu({ mid: 41, title: '登记', upId: 40, type: 'C', path: '/us/registration' })],
+    }),
+  ]
+
+  it('the station whose subtree resolves the route wins: /us/registration -> 超声 W node', () => {
+    expect(activeStationForPath(US_TREE, '/us/registration')?.mid).toBe(40)
+  })
+
+  it('console routes own no station (store context stands)', () => {
+    expect(activeStationForPath(US_TREE, '/system/users')).toBeNull()
+  })
+
+  it('segment-safe: /users is not swallowed by the /us station prefix', () => {
+    expect(activeStationForPath(US_TREE, '/users')).toBeNull()
+  })
+
+  it('a childless station still owns its own prefix route (placeholder page context)', () => {
+    expect(activeStationForPath(US_TREE, '/radiology')?.mid).toBe(30)
+  })
+})
+
+describe('auth store activeWorkstation lifecycle (task 1.2; resume contract 2026-11-24)', () => {
   it('defaults to the FIRST granted W node at session landing', () => {
     useAuthStore.getState().setSession({ token: 't', menus: TREE, perms: [] })
     expect(useAuthStore.getState().activeWorkstation).toBe(30) // first W node's mid
@@ -74,12 +106,27 @@ describe('auth store activeWorkstation lifecycle (task 1.2)', () => {
     expect(useAuthStore.getState().activeWorkstation).toBeNull()
   })
 
-  it('switches via setActiveWorkstation and re-login resets to the first W', () => {
+  it('a /me resume keeps a still-granted station (refresh ≠ landing, user report 2026-11-24)', () => {
     useAuthStore.getState().setSession({ token: 't', menus: TREE, perms: [] })
     useAuthStore.getState().setActiveWorkstation(40)
+    // the boot-refresh path (SessionBoot): a partial setSession with no rederive
+    // opt-in must NOT clobber the station the user was actually working in
+    useAuthStore.getState().setSession({ token: 't', menus: TREE, perms: [] })
     expect(useAuthStore.getState().activeWorkstation).toBe(40)
-    useAuthStore.getState().setSession({ token: 't2', menus: TREE, perms: [] })
-    expect(useAuthStore.getState().activeWorkstation).toBe(30) // re-login → first W
+  })
+
+  it('re-login re-derives the first W via the { rederiveStation: true } opt-in (landing rule)', () => {
+    useAuthStore.getState().setSession({ token: 't', menus: TREE, perms: [] })
+    useAuthStore.getState().setActiveWorkstation(40)
+    useAuthStore.getState().setSession({ token: 't2', menus: TREE, perms: [] }, { rederiveStation: true })
+    expect(useAuthStore.getState().activeWorkstation).toBe(30) // first granted W
+  })
+
+  it('a no-longer-granted station falls back on resume (first W, null when none)', () => {
+    useAuthStore.getState().setSession({ token: 't', menus: TREE, perms: [] })
+    useAuthStore.getState().setActiveWorkstation(40)
+    useAuthStore.getState().setSession({ token: 't', menus: [TREE[0]], perms: [] }) // 超声 revoked
+    expect(useAuthStore.getState().activeWorkstation).toBeNull() // tree carries no W anymore
   })
 
   it('a session with no W nodes keeps activeWorkstation null across switches', () => {

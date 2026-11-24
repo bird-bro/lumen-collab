@@ -103,15 +103,15 @@ function seedAdminSession() {
   })
 }
 
-/** The admin tree PLUS a radiology L1 (V21 marker) - the multi-station session shape. */
+/** The admin tree PLUS a radiology station (V22 seed shape: RELATIVE W paths) - the multi-station session shape. */
 function multiStationMenus(): MenuNode[] {
   return [
     ...adminMenus(),
     menuNode({
-      mid: 30, title: '放射工作站', upId: 0, type: 'W', path: '/radiology',
+      mid: 30, title: '放射工作站', upId: 0, type: 'W', path: 'radiology',
       children: [menuNode({ mid: 31, title: '登记预约', upId: 30, type: 'C', path: '/radiology/register' })],
     }),
-    menuNode({ mid: 40, title: '超声工作站', upId: 0, type: 'W', path: '/us' }),
+    menuNode({ mid: 40, title: '超声工作站', upId: 0, type: 'W', path: 'us' }),
   ]
 }
 
@@ -122,6 +122,22 @@ function seedMultiStationSession() {
     menus: multiStationMenus(),
     perms: ['system:user:list'],
   })
+}
+
+/**
+ * The REAL current station shape (V22 seed verbatim: RELATIVE W paths
+ * radiology/us/endo; user report 2026-11-24): 放射 childless (no pages yet),
+ * 超声 carries the promoted 登记 C page (component-keyed route).
+ */
+function usStationMenus(): MenuNode[] {
+  return [
+    ...adminMenus(),
+    menuNode({ mid: 30, title: '放射工作站', upId: 0, type: 'W', path: 'radiology' }),
+    menuNode({
+      mid: 40, title: '超声工作站', upId: 0, type: 'W', path: 'us',
+      children: [menuNode({ mid: 41, title: '登记预约', upId: 40, type: 'C', path: 'registration', component: 'us/registration/index' })],
+    }),
+  ]
 }
 
 function renderShell(initialPath: string) {
@@ -135,6 +151,10 @@ function renderShell(initialPath: string) {
             <Route path="/radiology" element={<div>RADIOLOGY_MARKER</div>} />
             <Route path="/radiology/register" element={<div>REGISTER_MARKER</div>} />
             <Route path="/radiology/register" element={<div>REGISTER_MARKER</div>} />
+            <Route path="/us/registration" element={<div>US_REG_MARKER</div>} />
+            {/* station HOME placeholders (design D8, mirrored from the real router) */}
+            <Route path="/ultrasound" element={<div>ULTRASOUND_MARKER</div>} />
+            <Route path="/endoscopy" element={<div>ENDOSCOPY_MARKER</div>} />
           </Route>
           <Route path="/login" element={<div>LOGIN_MARKER</div>} />
         </Routes>
@@ -401,5 +421,87 @@ describe('workstation chip + append sidebar (workstation-context-web 3.1/3.2)', 
     const rail = container.querySelector<HTMLElement>('.lumen-rail')!
     expect(within(rail).getAllByText('系统管理').length).toBeGreaterThan(0)
     expect(within(rail).getAllByText('登记预约').length).toBeGreaterThan(0)
+  })
+
+  it('switching to a childless station lands on the first permitted RESIDENT page (user ruling 2026-11-24)', async () => {
+    const user = userEvent.setup()
+    useAuthStore.getState().setSession({
+      token: 't-shell', profile: ADMIN_PROFILE, menus: usStationMenus(), perms: ['system:user:list'],
+    })
+    const { container } = renderShell('/us/registration')
+    expect(await screen.findByText('US_REG_MARKER')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /工作站切换/ }))
+    await user.click(await screen.findByRole('menuitem', { name: /放射工作站/ }))
+
+    // 放射 has NO page: the switch must leave the US page and land on the first
+    // page the user is still permitted to use (the resident 系统管理 leaf) - the
+    // menu bar keeps 系统管理/设置 usable and the chip shows the chosen station
+    expect(await screen.findByText('ORGS_MARKER')).toBeInTheDocument()
+    expect(screen.queryByText('US_REG_MARKER')).not.toBeInTheDocument()
+    expect(useAuthStore.getState().activeWorkstation).toBe(30)
+    const chip = container.querySelector('[aria-label="工作站切换"]')!
+    expect(chip.textContent).toContain('放射工作站')
+    expect(chip.textContent).not.toContain('超声工作站')
+  })
+
+  it('a childless station with NO resident pages falls back to the station HOME placeholder', async () => {
+    const user = userEvent.setup()
+    // station-only grant: no 系统管理/设置 in the tree at all
+    useAuthStore.getState().setSession({
+      token: 't-shell', profile: ADMIN_PROFILE, perms: ['us:order:list'],
+      menus: [
+        menuNode({ mid: 30, title: '放射工作站', upId: 0, type: 'W', path: 'radiology' }),
+        menuNode({
+          mid: 40, title: '超声工作站', upId: 0, type: 'W', path: 'us',
+          children: [menuNode({ mid: 41, title: '登记预约', upId: 40, type: 'C', path: 'registration', component: 'us/registration/index' })],
+        }),
+      ],
+    })
+    renderShell('/us/registration')
+    expect(await screen.findByText('US_REG_MARKER')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /工作站切换/ }))
+    await user.click(await screen.findByRole('menuitem', { name: /放射工作站/ }))
+
+    // nothing resident to land on: the department placeholder is the last resort
+    expect(await screen.findByText('RADIOLOGY_MARKER')).toBeInTheDocument()
+  })
+
+  it('switching back to a station WITH a leaf navigates to its page', async () => {
+    const user = userEvent.setup()
+    useAuthStore.getState().setSession({
+      token: 't-shell', profile: ADMIN_PROFILE, menus: usStationMenus(), perms: ['system:user:list'],
+    })
+    const { container } = renderShell('/radiology')
+    expect(await screen.findByText('RADIOLOGY_MARKER')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /工作站切换/ }))
+    await user.click(await screen.findByRole('menuitem', { name: /超声工作站/ }))
+
+    expect(await screen.findByText('US_REG_MARKER')).toBeInTheDocument()
+    expect(useAuthStore.getState().activeWorkstation).toBe(40)
+    const chip = container.querySelector('[aria-label="工作站切换"]')!
+    expect(chip.textContent).toContain('超声工作站')
+  })
+
+  it('on a station page the chip follows the URL owner, not the stale store value (user report 2026-11-24)', () => {
+    useAuthStore.getState().setSession({
+      token: 't-shell', profile: ADMIN_PROFILE, menus: usStationMenus(), perms: ['system:user:list'],
+    })
+    // the desync state (the old first-W clobber / the login-landing shape):
+    // store says 放射 while the ROUTE serves the 超声 station page
+    useAuthStore.setState({ activeWorkstation: 30 })
+    const { container } = renderShell('/us/registration')
+
+    expect(screen.getByText('US_REG_MARKER')).toBeInTheDocument() // content IS the US page
+    const chip = container.querySelector('[aria-label="工作站切换"]')!
+    expect(chip.textContent).toContain('超声工作站')
+    expect(chip.textContent).not.toContain('放射工作站')
+    // the promoted bar follows the URL owner too: the 超声 station's 登记 leads
+    const rail = container.querySelector<HTMLElement>('.lumen-rail')!
+    expect(within(rail).getAllByText('登记预约').length).toBeGreaterThan(0)
+    // full-width leaf-L1 layout (ruling 2026-11-20): the C page renders WITHOUT the sider
+    expect(container.querySelector('.lumen-side')).toBeNull()
   })
 })

@@ -44,6 +44,39 @@ const CONSOLE_ROUTE_BY_COMPONENT: Record<string, string> = {
 };
 
 /**
+ * Station HOME routes for the type-W L1 nodes (user report 2026-11-24): a
+ * childless station (no navigable page of its own yet) still needs a URL to
+ * land on when picked - its department placeholder route, never the page of
+ * another station. Keys mirror the V22 seed's RELATIVE path column verbatim
+ * (radiology / us / endo), the same fixture-verbatim mapping discipline as
+ * CONSOLE_ROUTE_BY_COMPONENT; the router's department placeholders (design D8)
+ * spell ultrasound/endoscopy.
+ */
+const STATION_HOME_BY_PATH: Record<string, string> = {
+  radiology: '/radiology',
+  us: '/ultrasound',
+  endo: '/endoscopy',
+};
+
+/** The placeholder HOME route of a type-W station node (null when unmapped). */
+export function stationHomeRoute(node: MenuNode): string | null {
+  return STATION_HOME_BY_PATH[node.path ?? ''] ?? null;
+}
+
+/**
+ * The first granted page OUTSIDE any station (the resident M-type L1s only) -
+ * the landing for a childless-station switch (user ruling 2026-11-24): the
+ * station's own space is empty, but the user's 系统管理/设置 pages remain
+ * usable, so the switch lands there instead of dead-ending on the station
+ * placeholder. Station-owned pages are excluded by the W filter - landing on
+ * ANOTHER station's page under the new station's chip would recreate the
+ * context/content desync.
+ */
+export function firstResidentRoute(menus: MenuNode[]): string | null {
+  return firstGrantedRoute(menus.filter((m) => m.type !== 'W'));
+}
+
+/**
  * The route a single node navigates to, or null when the node is not a
  * navigable leaf (directories and buttons are shell structure, never links;
  * console pages resolve through the component map above, department pages

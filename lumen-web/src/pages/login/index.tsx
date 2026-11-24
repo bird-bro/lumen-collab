@@ -86,12 +86,17 @@ export default function LoginPage() {
       // built - the typed value never reaches the wire. The key arrives from the
       // anonymous /auth-key endpoint (cached module-level in the util).
       const data = await authLogin({ ...values, password: await encryptPassword(values.password) })
-      useAuthStore.getState().setSession({
-        token: data.token,
-        profile: data.profile,
-        menus: data.menus,
-        perms: data.perms,
-      })
+      useAuthStore.getState().setSession(
+        {
+          token: data.token,
+          profile: data.profile,
+          menus: data.menus,
+          perms: data.perms,
+        },
+        // session LANDING: re-derive the active station (the first granted W node
+        // per the display rule), never inheriting the previous session's choice
+        { rederiveStation: true },
+      )
       navigate(firstGrantedRoute(data.menus) ?? '/', { replace: true })
     } catch (err) {
       // The OPS login shows the failure INLINE (.error-info), msg verbatim. An A0400

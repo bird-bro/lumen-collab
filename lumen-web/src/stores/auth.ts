@@ -31,8 +31,16 @@ export interface AuthSession {
 }
 
 interface AuthState extends AuthSession {
-  /** Writes the given session fields wholesale and persists them; a session LANDING re-derives activeWorkstation (the FIRST granted W node, null when none). */
-  setSession: (partial: Partial<AuthSession>) => void;
+  /**
+   * Writes the given session fields wholesale and persists them. Station
+   * re-derivation is OPT-IN: the session LANDING (login) passes
+   * `{ rederiveStation: true }` (the first granted W node, null when none); a
+   * `/me` resume (SessionBoot) omits it and KEEPS a still-granted station — the
+   * old unconditional re-derive treated every refresh as a landing and flipped
+   * the context off the page the user was on (user report 2026-11-24). A
+   * no-longer-granted station always falls back to the first granted W.
+   */
+  setSession: (partial: Partial<AuthSession>, opts?: { rederiveStation?: boolean }) => void;
   /** Session-scoped station switch (re-login re-lands on the first W). */
   setActiveWorkstation: (wsMid: number | null) => void;
   /** Empties all session fields and persists the cleared session. */
@@ -47,13 +55,19 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       ...EMPTY_SESSION,
-      setSession: (partial) => {
+      setSession: (partial, opts) => {
         set(partial);
-        // a session LANDING re-derives the active station: the FIRST granted W node
-        // (user display rule: 默认展示第一个); switching is session-scoped via
-        // setActiveWorkstation
-        const firstW = (partial.menus ?? get().menus).find((m) => m.type === 'W');
-        set({ activeWorkstation: firstW ? firstW.mid : null });
+        // Station context: landing re-derives (login's opt-in); resume keeps a
+        // still-granted station; a revoked station falls back to the first W.
+        // On station routes the URL owns the display regardless (activeStationForPath).
+        const menus = partial.menus ?? get().menus;
+        const keep =
+          !opts?.rederiveStation &&
+          menus.some((m) => m.type === 'W' && m.mid === get().activeWorkstation);
+        if (!keep) {
+          const firstW = menus.find((m) => m.type === 'W');
+          set({ activeWorkstation: firstW ? firstW.mid : null });
+        }
       },
       // a switch to a mid with no granted W node is ignored (nothing to activate)
       setActiveWorkstation: (wsMid) => {

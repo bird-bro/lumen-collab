@@ -5,6 +5,12 @@
  * W node's MID (auth store) and reroutes to the station's first leaf route.
  * Session-scoped: re-login re-derives the active station (the first granted W node).
  * Absent when the granted tree carries no W node (console-only users).
+ * URL-ownership (user report 2026-11-24): the shell passes the URL-derived
+ * effective station (`active` override) so chip display and the page being served
+ * can never diverge; switching stores the MID and navigates to the station's
+ * landing - its first leaf page, or for a childless station the first permitted
+ * resident page (station HOME placeholder as the last resort). A context-only
+ * switch would resurface invisibly on console pages.
  */
 import { Dropdown, theme } from 'antd'
 import type { MenuProps } from 'antd'
@@ -12,15 +18,19 @@ import { CheckOutlined, CaretDownOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
 import { stationNodes } from '@/config/workstations'
-import { firstLeafRouteOf } from '@/routes/menu-paths'
+import { firstLeafRouteOf, firstResidentRoute, stationHomeRoute } from '@/routes/menu-paths'
 import { MenuIcon } from './BasicLayout'
 
-export function WorkstationChip() {
+export function WorkstationChip({ active: activeOverride }: { active?: number | null } = {}) {
   const navigate = useNavigate()
   const { token } = theme.useToken()
   const menus = useAuthStore((state) => state.menus)
-  const active = useAuthStore((state) => state.activeWorkstation)
+  const storeActive = useAuthStore((state) => state.activeWorkstation)
   const setActive = useAuthStore((state) => state.setActiveWorkstation)
+  // URL-ownership (user report 2026-11-24): the shell passes the URL-derived
+  // effective station so the chip can never disagree with the page being served;
+  // a `null` override means "console view, no station" and wins over the store.
+  const active = activeOverride !== undefined ? activeOverride : storeActive
 
   const stations = stationNodes(menus)
   if (stations.length === 0) return null
@@ -61,10 +71,16 @@ export function WorkstationChip() {
           if (mid === active) return
           const node = stations.find((m) => m.mid === mid)
           setActive(mid)
-          // a station without any leaf page (e.g. a freshly seeded W node) switches
-          // the context WITHOUT navigating - navigating to '/' would blank the page
+          // The switch must always be VISIBLE (user report 2026-11-24): a station
+          // with a leaf page navigates to it; a CHILDLESS station lands on the
+          // first permitted RESIDENT page (系统管理/设置 stay usable - user ruling
+          // 2026-11-24), falling back to the station HOME placeholder only when
+          // the tree carries no resident page. It must never leave the previous
+          // station's page on screen - a context-only switch would resurface
+          // later as an "automatic" chip change on console pages.
           if (node) {
-            const landing = firstLeafRouteOf(node)
+            const landing =
+              firstLeafRouteOf(node) ?? firstResidentRoute(menus) ?? stationHomeRoute(node)
             if (landing) navigate(landing)
           }
         },

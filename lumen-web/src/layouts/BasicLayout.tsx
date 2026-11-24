@@ -29,7 +29,7 @@ import {
 import headLogo from '@/assets/head.png'
 import { useAuthStore } from '@/stores/auth'
 import { WorkstationChip } from './WorkstationChip'
-import { sidebarMenus } from '@/config/workstations'
+import { activeStationForPath, sidebarMenus } from '@/config/workstations'
 import { themeConfig } from '@/theme'
 import './basic-layout.css'
 
@@ -193,7 +193,14 @@ export function BasicLayout() {
   // two L2 buttons lit at once read as a bug).
   const [openSectionKey, setOpenSectionKey] = useState<string | null>(null)
 
-  const sidebarTree = useMemo(() => sidebarMenus(menus, activeWorkstation), [menus, activeWorkstation])
+  // URL-ownership (user report 2026-11-24): on a station page the displayed
+  // station context follows the ROUTE - the chip and the promoted bar may never
+  // disagree with the page being served, however the store value got there
+  // (a refresh resume or a login landing at a non-first station). The store
+  // value only governs console views, where no station owns the route.
+  const urlStation = useMemo(() => activeStationForPath(menus, pathname), [menus, pathname])
+  const activeWsMid = urlStation?.mid ?? activeWorkstation
+  const sidebarTree = useMemo(() => sidebarMenus(menus, activeWsMid), [menus, activeWsMid])
   const activeL1 = useMemo(() => activeTopLevelNode(sidebarTree, pathname), [sidebarTree, pathname])
 
   const logout = () => {
@@ -367,7 +374,7 @@ export function BasicLayout() {
           }}
         >
           <span className="lumen-header-title">LumenCollab</span>
-          <WorkstationChip />
+          <WorkstationChip active={activeWsMid} />
           <div style={{ marginLeft: 'auto' }}>
             <Popover trigger="click" placement="bottomRight" content={userPopContent}>
               <button type="button" className="lumen-header-user" title="用户区">

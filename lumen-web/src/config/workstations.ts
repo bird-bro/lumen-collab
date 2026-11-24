@@ -14,6 +14,7 @@
  * station.
  */
 import type { MenuNode } from '@/api/types';
+import { activeTopLevelNode } from '@/routes/menu-paths';
 
 /** The granted workstation nodes: the tree's L1 entries with `type = 'W'`. */
 export function stationNodes(menus: MenuNode[]): MenuNode[] {
@@ -35,4 +36,18 @@ export function sidebarMenus(menus: MenuNode[], activeWsMid: number | null): Men
   // promoted children LEAD (ruling 2026-11-20): the station's pages first, the
   // resident M L1s (系统管理/设置) after
   return station?.children ? [...station.children, ...resident] : resident;
+}
+
+/**
+ * The type-W station node that OWNS the given pathname (its subtree resolves to
+ * it), or null when the route belongs to a resident console menu (or nothing).
+ * URL-ownership rule (user report 2026-11-24): on a station page the displayed
+ * station context ALWAYS follows the route - the chip and the promoted bar may
+ * never disagree with the page being served, however the store value got there
+ * (a refresh resume or a login landing at a non-first station alike). The store
+ * value only governs console views, where no station owns the route.
+ */
+export function activeStationForPath(menus: MenuNode[], pathname: string): MenuNode | null {
+  const owner = activeTopLevelNode(menus, pathname);
+  return owner?.type === 'W' ? owner : null;
 }
