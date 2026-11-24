@@ -620,7 +620,7 @@ export default function UsRegistrationPage() {
   return (
     <ConsolePage>
       {contextHolder}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', flex: 1, minHeight: 0 }}>
         {/* ── the rail card: BOTH states live here (compact grid / expanded xtable) ── */}
         <div
           style={{
@@ -764,9 +764,10 @@ export default function UsRegistrationPage() {
             </div>
           )}
 
-          {/* the COMPACT table (3-line composite rows) */}
+          {/* the COMPACT table (3-line composite rows; the list area scrolls, the foot pins) */}
           {mode === 'compact' && (
             <>
+              <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
                 <thead>
                   <tr>
@@ -788,6 +789,7 @@ export default function UsRegistrationPage() {
                   )}
                 </tbody>
               </table>
+              </div>
               <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderTop: `1px solid ${line}`, fontSize: 11.5, color: token.colorTextSecondary, background: headBg }}>
                 <span>{activeDate.format('MM-DD')} · {total} 单</span>
                 <span style={{ display: 'flex', gap: 4 }}>
@@ -801,6 +803,7 @@ export default function UsRegistrationPage() {
 
           {/* the WIDE xtable (the full columns + the 列设置 gear in the ops header) */}
           {mode === 'wide' && (
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
               <thead>
                 <tr>
@@ -873,6 +876,7 @@ export default function UsRegistrationPage() {
                 )}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 
