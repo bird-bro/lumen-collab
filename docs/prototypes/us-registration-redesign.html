@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US 工作站 · 登记页重设计原型 v2（演示数据）</title>
+<!--
+  US 登记页重设计 UI 原型 v2（非权威，供评审）：
+  v1（列表+抽屉，参照 RCP）方向被"布局需要紧凑一些"修正；v2 吸收 EIS 超声工作站
+  登记台（register/check → RadiationRegisterAndAppointment）的形态：
+  全页工作台 = 左侧工作列表 + 右侧紧凑登记表单（label 左置三列、急诊开关嵌节标题、
+  提交登记右下角），RCP 的患者复合列/状态色板/就诊人卡片弹窗保留。
+  lumen 三决策原样保留：解析链四走向（#2）/急诊占位（#3）/孕检扩展（#5）。
+  数据全部为演示数据；拍板点见文末。
+-->
+<style>
+  :root {
+    --page-bg: #f0f2f7;
+    --card: #ffffff;
+    --line: #e5e9f2;
+    --line-strong: #d4dbe8;
+    --ink: #1f2733;
+    --ink-2: #5b6b85;
+    --ink-3: #94a3b8;
+    --primary: #2b5fd9;
+    --primary-deep: #1e49b8;
+    --primary-weak: #eef3ff;
+    --primary-line: #d8e2ff;
+    --green: #15803d;
+    --green-weak: #ecfdf3;
+    --cyan: #0e7490;
+    --cyan-weak: #ecfeff;
+    --orange: #b45309;
+    --orange-weak: #fff7e8;
+    --gray-weak: #f1f5f9;
+    --danger: #dc2626;
+    --danger-weak: #fef2f2;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(15, 33, 82, .05), 0 8px 24px rgba(15, 33, 82, .07);
+    --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    --serif-cn: "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif;
+    --mono: "SF Mono", "Menlo", "Consolas", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background:
+      radial-gradient(1100px 520px at 12% -6%, #fdfefe 0%, transparent 55%),
+      var(--page-bg);
+    padding: 36px 44px 72px;
+  }
+  .page { max-width: 1420px; margin: 0 auto; }
+
+  /* ═══ 编辑层 ═══ */
+  .masthead {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding-bottom: 16px; margin-bottom: 24px;
+    border-bottom: 3px double var(--line-strong);
+  }
+  .masthead h1 { font-size: 23px; letter-spacing: .05em; font-weight: 700; }
+  .masthead h1 em { font-style: normal; color: var(--primary); }
+  .badge {
+    font-size: 12px; letter-spacing: .1em; padding: 3px 11px;
+    border: 1px solid var(--line-strong); border-radius: 999px; color: var(--ink-2);
+    background: #fff;
+  }
+  .badge.hot { border-color: var(--primary-line); background: var(--primary-weak); color: var(--primary); }
+  .masthead .lead { flex-basis: 100%; font-size: 13px; color: var(--ink-2); line-height: 1.85; margin-top: 3px; }
+  .masthead .lead b { color: var(--ink); }
+  .masthead .lead code {
+    font-family: var(--mono); font-size: 11.5px; color: var(--primary-deep);
+    background: var(--primary-weak); padding: 1px 5px; border-radius: 4px;
+  }
+
+  .section-eyebrow {
+    display: flex; align-items: baseline; gap: 14px; margin: 40px 0 6px;
+    font-size: 13px; letter-spacing: .26em; color: var(--ink-3); font-weight: 600;
+    font-family: var(--serif-cn);
+  }
+  .section-eyebrow strong { color: var(--ink); font-size: 16px; letter-spacing: .12em; }
+  .section-eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--line); align-self: center; }
+  .section-sub { font-size: 12.5px; color: var(--ink-2); margin: 0 0 12px 2px; line-height: 1.75; }
+  .section-sub b { color: var(--ink); }
+
+  /* ═══ 工作台容器（整页 mock） ═══ */
+  .workbench { display: flex; gap: 6px; align-items: stretch; }
+  .wb-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+
+  /* ── 左 rail：今日登记单 ── */
+  .rail { flex: 0 0 392px; width: 392px; display: flex; flex-direction: column; }
+  .datenav { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink); }
+  .datenav .nav-b {
+    width: 18px; height: 22px; border-radius: 5px; border: 1px solid var(--line-strong);
+    background: #fff; display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--ink-2); font-size: 11px;
+  }
+  .datenav .nav-b:hover { color: var(--primary); border-color: var(--primary); }
+  .datenav b { font-weight: 600; }
+  .datenav .today { color: var(--ink-3); font-size: 11px; }
+  /* 两态切换：面板右缘中线圆钮（紧凑 » 展开宽表 / 宽表 « 回紧凑） */
+  .rail { position: relative; overflow: visible; }
+  .edge-toggle {
+    position: absolute; top: 50%; right: -13px; transform: translateY(-50%);
+    width: 26px; height: 26px; border-radius: 50%; flex: none;
+    background: #fff; border: 1px solid var(--line-strong);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--ink-2); z-index: 6;
+    box-shadow: 0 1px 4px rgba(15, 33, 82, .14);
+  }
+  .edge-toggle:hover { color: var(--primary); border-color: var(--primary); }
+  .edge-toggle svg { width: 13px; height: 13px; }
+  /* 宽表查询态：rail 接管全宽，表单让位 */
+  .workbench.expanded .rail { flex: 1; width: auto; }
+  .workbench.expanded .bench { display: none; }
+  .workbench.expanded table.rail-grid:not(.xtable) { display: none; }
+  .workbench.expanded table.rail-grid.xtable { display: table; }
+  .workbench.expanded .rail-xhead { display: flex; }
+  /* 窄/宽头部操作分层：窄=按天翻看（datenav 主导）；宽=条件查询（申请时间主导，datenav 隐去避免双时间入口） */
+  .workbench.expanded .datenav { display: none; }
+  .rail-head {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 8px 10px; border-bottom: 1px solid var(--line); background: #fbfcfe;
+  }
+  .schip {
+    display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px;
+    border-radius: 999px; font-size: 12px; border: 1px solid var(--line-strong);
+    background: #fff; color: var(--ink-2); cursor: pointer; user-select: none;
+  }
+  .schip .n { font-family: var(--mono); font-size: 11px; }
+  .schip.on-blue { background: var(--primary-weak); border-color: var(--primary); color: var(--primary); font-weight: 600; }
+  .schip.on-green { background: var(--green-weak); border-color: var(--green); color: var(--green); font-weight: 600; }
+  /* 宽表态查询条件行：常驻精简 + 展开更多（RCP PlusSearch / EIS SearchForm 同构） */
+  .rail-xhead {
+    display: none; flex-direction: column; gap: 8px;
+    padding: 8px 10px; border-bottom: 1px solid var(--line); background: #fbfcfe;
+  }
+  .rail-xhead .xrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .rail-xhead .fld { display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; }
+  .rail-xhead .input, .rail-xhead .mini-sel { flex: none; }
+  .rail-xhead .f-label { font-size: 12px; color: var(--ink-2); flex: none; }
+  .xmore-link { font-size: 12px; color: var(--primary); cursor: pointer; user-select: none; white-space: nowrap; margin-left: auto; }
+  .xmore-link:hover { text-decoration: underline; }
+  /* 我的查询（RCP/EIS 同款：后端按 uid+page 持久，支持设默认） */
+  .myq-wrap { position: relative; flex: none; }
+  .myq {
+    display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px;
+    border: 1px solid var(--line-strong); border-radius: 6px; background: #fff;
+    font-size: 12px; color: var(--ink); cursor: pointer; user-select: none;
+  }
+  .myq:hover { color: var(--primary); border-color: var(--primary); }
+  .myq .star { color: var(--orange); }
+  .pop {
+    position: absolute; top: 30px; left: 0; width: 240px; z-index: 12;
+    background: #fff; border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 8px 28px rgba(15, 33, 82, .16); padding: 6px;
+  }
+  .pop .pi {
+    display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+    border-radius: 6px; font-size: 12.5px; color: var(--ink); cursor: pointer;
+  }
+  .pi:hover { background: var(--primary-weak); }
+  .pi .pname { flex: 1; }
+  .pi .def { font-size: 10.5px; color: var(--orange); flex: none; }
+  .pi .act { font-size: 11px; color: var(--ink-3); flex: none; cursor: pointer; }
+  .pi .act:hover { color: var(--primary); }
+  .pi .act.del:hover { color: var(--danger); }
+  .pop .pnew { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 6px; color: var(--primary); }
+  /* 列设置（localStorage 记忆，EIS useHeaderColumn 同款） */
+  .colset { color: var(--ink-3); cursor: pointer; display: inline-flex; }
+  .colset:hover { color: var(--primary); }
+  .colset svg { width: 13px; height: 13px; }
+  .colset-wrap { position: relative; display: inline-flex; }
+  .pop.clist { top: 22px; right: 0; left: auto; width: 172px; }
+  .xnote { font-size: 11.5px; color: var(--ink-3); }
+  table.rail-grid.xtable { display: none; }
+  .rail-head .spacer { flex: 1; }
+  .mini-refresh {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ink-3);
+  }
+  .mini-switch { width: 28px; height: 16px; border-radius: 999px; background: #cbd5e1; position: relative; cursor: pointer; flex: none; }
+  .mini-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .mini-switch.on { background: var(--primary); }
+  .mini-switch.on::after { left: 14px; }
+
+  table.rail-grid { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.rail-grid thead th {
+    text-align: left; font-weight: 500; color: var(--ink-2); font-size: 12px;
+    background: #fafbfd; border-bottom: 1px solid var(--line); padding: 6px 8px; white-space: nowrap;
+  }
+  table.rail-grid tbody td { border-bottom: 1px solid #f0f3f8; padding: 7px 8px; vertical-align: middle; }
+  table.rail-grid tbody tr:last-child td { border-bottom: none; }
+  table.rail-grid tbody tr:hover td { background: #f7f9fd; }
+  table.rail-grid tbody tr.cur td { background: var(--primary-weak); }
+  .rp-line1 { display: flex; align-items: center; gap: 5px; }
+  .rp-name { font-size: 13px; font-weight: 600; }
+  .rp-tag {
+    font-size: 10.5px; padding: 0 5px; line-height: 16px; border-radius: 3px;
+    background: var(--gray-weak); color: var(--ink-2); flex: none;
+  }
+  .rp-tag.emg { background: var(--orange-weak); color: var(--orange); font-weight: 600; }
+  .rp-tag.inp { border: 1px dashed var(--line-strong); color: var(--ink-3); background: #fff; }
+  .rp-line2 { font-size: 11.5px; color: var(--ink-2); margin-top: 2px; }
+  .rp-line3 { font-size: 11px; color: var(--ink-3); margin-top: 1px; font-family: var(--mono); }
+  .rchip {
+    display: inline-flex; align-items: center; height: 19px; padding: 0 8px;
+    font-size: 11px; border-radius: 999px; white-space: nowrap; font-weight: 500;
+  }
+  .st-booked { background: var(--primary-weak); color: var(--primary); }
+  .st-registered { background: var(--green-weak); color: var(--green); }
+  .st-done, .st-cancel { background: var(--gray-weak); color: #64748b; }
+  .st-cancel { color: var(--ink-3); }
+  .reason-tip { border-bottom: 1px dotted var(--ink-3); cursor: help; }
+  .rops { display: flex; align-items: center; gap: 2px; }
+  .ract {
+    width: 22px; height: 22px; border-radius: 5px; border: none; background: transparent;
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--primary);
+  }
+  .ract:hover { background: var(--primary-weak); }
+  .ract.danger { color: var(--danger); }
+  .ract.danger:hover { background: var(--danger-weak); }
+  .ract svg { width: 13px; height: 13px; }
+  .rail-foot {
+    margin-top: auto; display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 10px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--ink-2); background: #fbfcfe;
+  }
+  .pgroup { display: flex; gap: 4px; }
+  .pg {
+    min-width: 20px; height: 20px; padding: 0 5px; border-radius: 5px; border: 1px solid var(--line-strong);
+    display: inline-flex; align-items: center; justify-content: center; background: #fff; font-size: 11.5px;
+  }
+  .pg.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+  /* ── 右：登记工作台 ── */
+  .bench { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .bench-top {
+    display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+    border-bottom: 1px solid var(--line); background: #fbfcfe; flex-wrap: wrap;
+  }
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
+  .seg span {
+    padding: 0 11px; height: 28px; display: inline-flex; align-items: center;
+    font-size: 12.5px; color: var(--ink-2); background: #fff; cursor: pointer; user-select: none;
+  }
+  .seg span + span { border-left: 1px solid var(--line); }
+  .seg span.on { background: var(--primary); color: #fff; font-weight: 600; }
+  .input {
+    display: inline-flex; align-items: center; height: 28px; padding: 0 10px;
+    font-size: 12.5px; background: #fff; border: 1px solid var(--line-strong);
+    border-radius: 6px; color: var(--ink);
+  }
+  .input .ph { color: var(--ink-3); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 13px;
+    font-size: 12.5px; border-radius: 6px; border: 1px solid var(--line-strong);
+    background: #fff; color: var(--ink); cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--primary); color: var(--primary); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn.primary:hover { background: var(--primary-deep); color: #fff; }
+  .btn.danger-plain { border-color: #f3c6c6; color: var(--danger); background: #fff; }
+  .btn.danger-plain:hover { background: var(--danger-weak); }
+  .btn .ic { width: 12px; height: 12px; }
+  .matched-chip {
+    display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px;
+    border-radius: 999px; background: var(--green-weak); color: var(--green); font-size: 12px;
+  }
+
+  .bench-body { padding: 10px 16px 4px; overflow: auto; }
+  .sec-head {
+    display: flex; align-items: center; gap: 8px; margin: 2px 0 10px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--line);
+  }
+  .sec-no {
+    width: 18px; height: 18px; border-radius: 50%; flex: none;
+    background: var(--primary); color: #fff; font-size: 11px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .sec-head .t { font-size: 13px; font-weight: 600; letter-spacing: .03em; }
+  .sec-head .tail { margin-left: auto; display: inline-flex; align-items: center; gap: 14px; }
+  .sw-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+  .sw { width: 30px; height: 17px; border-radius: 999px; background: #cbd5e1; position: relative; cursor: pointer; transition: background .15s; flex: none; }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .15s; }
+  .sw.on { background: var(--primary); }
+  .sw.on::after { left: 15px; }
+
+  /* 紧凑表单网格：label 左置，三列 */
+  .fgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px 14px; margin-bottom: 8px; }
+  .field { display: flex; align-items: center; min-width: 0; }
+  .field .lb {
+    flex: 0 0 72px; width: 72px; font-size: 12.5px; color: var(--ink-2);
+    text-align: right; padding-right: 8px; white-space: nowrap;
+  }
+  .field .lb i { color: var(--danger); font-style: normal; }
+  .field .ctl { flex: 1; min-width: 0; }
+  .field .input { width: 100%; }
+  .field .input.disabled { background: var(--gray-weak); color: var(--ink-3); }
+  .radios { display: flex; gap: 14px; height: 28px; align-items: center; }
+  .radio { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
+  .radio .rdot { width: 13px; height: 13px; border-radius: 50%; border: 1px solid var(--line-strong); display: inline-flex; align-items: center; justify-content: center; background: #fff; flex: none; }
+  .radio.on { color: var(--ink); }
+  .radio.on .rdot { border-color: var(--primary); }
+  .radio.on .rdot::after { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--primary); }
+  /* 证件格：类型小下拉 + 号码输入 */
+  .mini-sel {
+    flex: 0 0 78px; height: 28px; padding: 0 8px; display: inline-flex;
+    align-items: center; justify-content: space-between; gap: 4px;
+    font-size: 12.5px; color: var(--ink); background: #fff;
+    border: 1px solid var(--line-strong); border-radius: 6px; cursor: pointer;
+  }
+  .modality-fixed {
+    display: inline-flex; align-items: center; height: 22px; padding: 0 10px;
+    border-radius: 4px; background: var(--primary-weak); color: var(--primary);
+    font-size: 12px; font-weight: 600; letter-spacing: .06em;
+  }
+  .age3 { display: flex; gap: 6px; }
+  .age3 .input { flex: 1; text-align: center; }
+  /* 身高体重合体格：一格双输入带单位尾标 */
+  .hw-row { display: flex; align-items: center; gap: 6px; }
+  .hw-row .input { flex: 1; min-width: 0; justify-content: space-between; }
+  .hw-unit { font-size: 10.5px; color: var(--ink-3); margin-left: 4px; }
+  .hw-sep { color: var(--ink-3); font-size: 12px; }
+
+  /* 检查信息 */
+  .common-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
+  .cchip {
+    display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px;
+    border: 1px dashed var(--primary-line); border-radius: 999px; background: #fbfcff;
+    font-size: 12px; color: var(--primary); cursor: pointer; user-select: none;
+  }
+  .cchip:hover { background: var(--primary-weak); border-style: solid; }
+  .cchip.used { opacity: .45; cursor: default; border-style: solid; background: var(--gray-weak); color: var(--ink-3); }
+  .add-item-btn { margin-left: auto; }
+  .total-band {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--green-weak); border-radius: 5px; padding: 5px 12px; margin-bottom: 6px;
+    font-size: 12.5px; font-weight: 600; color: var(--ink);
+  }
+  .total-band .num { color: var(--primary); font-size: 14px; margin: 0 3px; }
+  table.picked { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.picked th {
+    text-align: left; font-weight: 500; color: var(--ink-3); background: #fafbfd;
+    padding: 5px 9px; border-bottom: 1px solid var(--line); font-size: 11.5px;
+  }
+  table.picked td { padding: 5px 9px; border-bottom: 1px solid #f0f3f8; }
+  table.picked tr:last-child td { border-bottom: none; }
+  table.picked .price { text-align: right; font-family: var(--mono); font-size: 11.5px; }
+  table.picked .del { color: var(--danger); cursor: pointer; font-size: 11.5px; }
+  table.picked .del:hover { text-decoration: underline; }
+
+  .bench-foot {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 9px 14px; border-top: 1px solid var(--line); background: #fbfcfe;
+  }
+  .bench-foot .fh { font-size: 11.5px; color: var(--ink-3); }
+  .bench-foot .fa { display: flex; gap: 8px; }
+
+  /* ═══ 弹窗 mock ═══ */
+  .dialog-zone { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .dialog {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 12px 44px rgba(15, 33, 82, .16); overflow: hidden;
+  }
+  .dg-head { padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 13.5px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; background: #fbfcfe; }
+  .dg-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 9px; max-height: 320px; overflow: auto; }
+  .dg-foot { padding: 9px 14px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; background: #fbfcfe; }
+  .pcard {
+    position: relative; border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 13px; background: #f8faff; cursor: pointer; transition: all .12s;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .pcard:hover { border-color: var(--primary-line); }
+  .pcard.checked { background: var(--primary-weak); border-color: var(--primary); }
+  .pcard .pname { font-size: 16px; font-weight: 700; }
+  .pcard .pmeta { font-size: 12px; color: var(--ink-2); line-height: 1.75; }
+  .pcard .pmeta .k { color: var(--ink-3); margin-right: 2px; }
+  .pcard .check {
+    margin-left: auto; width: 18px; height: 18px; border-radius: 50%; flex: none;
+    background: #fff; color: var(--primary); display: none; align-items: center; justify-content: center; font-size: 12px;
+  }
+  .pcard.checked .check { display: inline-flex; }
+
+  /* 添加项目弹窗表格 */
+  table.dgrid { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.dgrid thead th {
+    text-align: left; font-weight: 500; color: var(--ink-3); background: #fafbfd;
+    padding: 5px 9px; border-bottom: 1px solid var(--line); font-size: 11.5px;
+  }
+  table.dgrid td { padding: 5px 9px; border-bottom: 1px solid #f0f3f8; }
+  table.dgrid .price { text-align: right; font-family: var(--mono); }
+  .cbx {
+    width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line-strong);
+    display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 10px;
+    background: #fff; cursor: pointer;
+  }
+  .cbx.on { background: var(--primary); border-color: var(--primary); }
+  .dsearch { display: flex; gap: 8px; margin-bottom: 9px; }
+  .dsearch .input { flex: 1; }
+
+  /* ═══ 对照 & 拍板点 ═══ */
+  .notes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 16px; }
+  .note {
+    background: #fff; border: 1px solid var(--line); border-radius: 8px;
+    padding: 11px 14px; font-size: 12.5px; color: var(--ink-2); line-height: 1.75;
+  }
+  .note b { color: var(--ink); }
+  .note .from { color: var(--ink-3); text-decoration: line-through; text-decoration-color: rgba(148,163,184,.6); }
+  .note .to { color: var(--primary); font-weight: 600; }
+  .note.dim { background: #fbfcfe; }
+
+  .decisions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .decision {
+    background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px;
+    box-shadow: var(--shadow);
+  }
+  .d-no { font-size: 11px; letter-spacing: .18em; color: var(--ink-3); font-weight: 700; }
+  .decision h3 { font-size: 14px; margin: 4px 0 7px; }
+  .decision p { font-size: 12.5px; color: var(--ink-2); line-height: 1.8; }
+  .opt {
+    display: inline-flex; align-items: center; height: 24px; padding: 0 11px; margin: 2px 8px 5px 0;
+    border: 1px solid var(--line-strong); border-radius: 999px; font-size: 12px; color: var(--ink-2); background: #fff;
+  }
+  .opt.picked { background: var(--primary-weak); border-color: var(--primary); color: var(--primary); font-weight: 600; }
+  .rec { display: block; font-size: 12px; color: var(--green); font-weight: 600; margin-top: 5px; }
+  .endnote { margin-top: 40px; font-size: 12px; color: var(--ink-3); text-align: center; line-height: 1.8; }
+
+  @media (max-width: 1180px) {
+    .workbench { flex-direction: column; }
+    .rail { width: 100%; flex: none; }
+    .dialog-zone { grid-template-columns: 1fr; }
+    .notes { grid-template-columns: 1fr; }
+    .fgrid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══ 页头 ═══ -->
+  <div class="masthead">
+    <h1>US 工作站 · <em>登记页重设计</em> 原型 <span style="font-size:14px;color:var(--ink-3);font-weight:500">v2</span></h1>
+    <span class="badge hot">紧凑工作台版</span>
+    <span class="badge">参照 EIS 超声登记台 + RCP 登记页</span>
+    <span class="badge">演示数据 · 非权威</span>
+    <div class="lead">
+      v1（列表+抽屉，全按 RCP）被<b>「布局需要紧凑一些」</b>修正。v2 改按 <b>EIS 超声登记台（register/check）</b>的形态：
+      登记不是弹层，是<b>常驻工作台</b>——左侧今日登记单（紧凑 rail），右侧登记表单三列铺开（label 左置、
+      急诊开关嵌节标题行（占位随急诊：姓名留空即无名氏档）、重置+提交登记落右下角），一次视线完成「看今天的单子 → 建档提交」。
+      RCP 的患者复合列、状态色板、就诊人卡片弹窗保留；lumen 三决策（解析链四走向 / 急诊占位——随急诊留空触发 / 孕检扩展）原样保留。
+      EIS 的 号池时段面板 / 条码打印 / HIS 开单查询 三件 v1 无对应模型，不搬（见范围外注记）。
+    </div>
+  </div>
+
+  <!-- ═══ 壹 · 整页工作台 ═══ -->
+  <div class="section-eyebrow"><strong>壹 · 整页工作台全景</strong>左 rail 登记单 + 右登记表单（EIS register/check 形态）</div>
+  <p class="section-sub">左 rail = <b>今日登记单</b>（状态 chips 带计数 + 自动刷新 mini 开关 + 紧凑行：患者复合两行 + 状态 + 行操作）；右 = <b>登记工作台</b>（顶部单行解析条 → 1患者信息 → 2请检信息（急诊开关在标题行，占位=急诊单姓名留空）→ 3检查信息 → 重置/提交登记）。表单密度对齐 EIS：label 72px 右对齐、三列、行距 9px。</p>
+
+  <div class="workbench">
+
+    <!-- 左 rail -->
+    <div class="wb-card rail">
+      <!-- 面板右缘中线圆钮：紧凑 » 展开宽表 / 宽表 « 回紧凑 -->
+      <span class="edge-toggle" id="edgeToggle" title="展开完整列表（查询态）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 17 5-5-5-5m7 10 5-5-5-5"/></svg></span>
+      <div class="rail-head">
+        <span class="datenav"><span class="nav-b">‹</span><span><b>11-20</b> <span class="today">今天</span></span><span class="nav-b">›</span></span>
+        <span class="schip on-blue">预登记 <span class="n">2</span></span>
+        <span class="schip on-green">已登记 <span class="n">2</span></span>
+        <span class="schip">已完成 <span class="n">1</span></span>
+        <span class="schip">已取消 <span class="n">1</span></span>
+        <span class="spacer"></span>
+        <span class="mini-refresh">自动刷新<span class="mini-switch on" id="miniSw"></span></span>
+      </div>
+      <div class="rail-xhead">
+        <div class="xrow">
+          <span class="fld"><span class="f-label">申请时间</span>
+            <div class="input" style="width:150px">11-20 ~ 11-20<span class="caret">▾</span></div>
+          </span>
+          <span class="fld"><span class="f-label">患者姓名</span>
+            <div class="input" style="width:150px"><span class="ph">请输入</span></div>
+          </span>
+          <span class="fld"><span class="f-label">检查号</span>
+            <div class="input mono" style="width:150px"><span class="ph">US…</span></div>
+          </span>
+          <span id="xmoreFields" style="display:contents">
+            <span class="fld"><span class="f-label">患者编号</span>
+              <div class="input mono" style="width:150px"><span class="ph">P…</span></div>
+            </span>
+            <span class="fld"><span class="f-label">患者类型</span>
+              <div class="mini-sel" style="width:150px"><span class="ph">全部</span><span class="caret">▾</span></div>
+            </span>
+            <span class="fld"><span class="f-label">检查项目</span>
+              <div class="input" style="width:150px"><span class="ph">模糊匹配</span></div>
+            </span>
+            <span class="fld"><span class="f-label">就诊卡号</span>
+              <div class="input mono" style="width:150px"><span class="ph">M…</span></div>
+            </span>
+          </span>
+          <span class="btn primary">查询</span>
+          <span class="btn">重置</span>
+          <span class="myq-wrap">
+            <span class="myq" id="myqBtn"><span class="star">★</span>我的查询 ▾</span>
+            <div class="pop" id="myqPop" style="display:none">
+              <div class="pi" data-apply="今日急诊"><span class="pname">今日急诊</span><span class="def">默认</span><span class="act">设默认</span><span class="act del">删除</span></div>
+              <div class="pi" data-apply="产科常规"><span class="pname">产科常规</span><span class="act">设默认</span><span class="act del">删除</span></div>
+              <div class="pi pnew"><span class="pname">＋ 保存当前条件</span></div>
+            </div>
+          </span>
+          <span class="xmore-link" id="xmoreLink">收起更多 ▴</span>
+        </div>
+      </div>
+      <table class="rail-grid">
+        <thead><tr><th>患者 / 项目</th><th style="width:62px">状态</th><th style="width:52px">操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="rp-line1"><span class="rp-name">张晓雯</span><span class="rp-tag">门诊</span></div>
+              <div class="rp-line2">产科超声（常规）、胎儿生物物理评分 <span style="color:var(--cyan)">· 中晚孕28周</span></div>
+              <div class="rp-line3">US2511200007 · 08:41</div>
+            </td>
+            <td><span class="rchip st-registered">已登记</span></td>
+            <td><div class="rops">
+              <span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span>
+            </div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="rp-line1"><span class="rp-name">李慕青</span><span class="rp-tag">住院</span></div>
+              <div class="rp-line2">妇科超声（常规）</div>
+              <div class="rp-line3">US2511200006 · 预登记 09:00–09:30</div>
+            </td>
+            <td><span class="rchip st-registered">已登记</span></td>
+            <td><div class="rops">
+              <span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span>
+            </div></td>
+          </tr>
+          <tr class="cur">
+            <td>
+              <div class="rp-line1"><span class="rp-name">王振海</span><span class="rp-tag">急诊</span><span class="rp-tag emg">急</span></div>
+              <div class="rp-line2">泌尿系超声（急诊床旁）</div>
+              <div class="rp-line3">US2511200005 · 08:12</div>
+            </td>
+            <td><span class="rchip st-booked">预登记</span></td>
+            <td><div class="rops">
+              <span class="ract" title="登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span>
+              <span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span>
+            </div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="rp-line1"><span class="rp-name" style="color:var(--ink-3)">无名氏</span><span class="rp-tag inp">占位</span><span class="rp-tag emg">急</span></div>
+              <div class="rp-line2">腹部超声（急诊）</div>
+              <div class="rp-line3">US2511200004 · 07:58</div>
+            </td>
+            <td><span class="rchip st-booked">预登记</span></td>
+            <td><div class="rops">
+              <span class="ract" title="登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span>
+              <span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span>
+            </div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="rp-line1"><span class="rp-name">陈思远</span><span class="rp-tag">门诊</span></div>
+              <div class="rp-line2">甲状腺超声</div>
+              <div class="rp-line3">US2511190021 · 昨天 15:07</div>
+            </td>
+            <td><span class="rchip st-done">已完成</span></td>
+            <td><div class="rops"><span style="color:var(--ink-3)">—</span></div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="rp-line1"><span class="rp-name">刘雨桐</span><span class="rp-tag">门诊</span></div>
+              <div class="rp-line2">产科超声（常规） <span style="color:var(--cyan)">· 早孕8周</span></div>
+              <div class="rp-line3">US2511190018 · 昨天 10:33</div>
+            </td>
+            <td><span class="rchip st-cancel reason-tip" title="取消原因：患者改期至明日">已取消</span></td>
+            <td><div class="rops"><span style="color:var(--ink-3)">—</span></div></td>
+          </tr>
+        </tbody>
+      </table>
+      <!-- 宽表查询态：全列（同一批演示数据） -->
+      <table class="rail-grid xtable">
+        <thead><tr><th style="min-width:150px">患者</th><th>检查项目</th><th style="width:72px">状态</th><th style="width:48px">急诊</th><th style="width:88px">孕检</th><th style="width:108px">检查号</th><th style="width:118px">创建时间</th><th>临床诊断</th><th style="width:64px"><div style="display:flex;align-items:center;justify-content:space-between">操作<span class="colset-wrap"><span class="colset" id="colsetBtn" title="列设置（显隐/排序，本地记忆）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></span><div class="pop clist" id="colsetPop" style="display:none">
+          <div class="pi"><span class="pname">患者</span><span class="act">✓</span></div>
+          <div class="pi"><span class="pname">检查项目</span><span class="act">✓</span></div>
+          <div class="pi"><span class="pname">状态</span><span class="act">✓</span></div>
+          <div class="pi"><span class="pname">急诊</span><span class="act">✓</span></div>
+          <div class="pi"><span class="pname">孕检</span><span class="act">✓</span></div>
+          <div class="pi"><span class="pname">检查号</span><span class="act">✓</span></div>
+          <div class="pi"><span class="pname">创建时间</span><span class="act">✓</span></div>
+          <div class="pi"><span class="pname">临床诊断</span><span class="act">✓</span></div>
+          <div class="pi" style="color:var(--ink-3);cursor:default"><span class="pname" style="font-size:11px">操作列固定 · 拖拽排序本地记忆</span></div>
+        </div></span></div></th></tr></thead>
+        <tbody>
+          <tr>
+            <td><div class="rp-line1"><span class="rp-name">张晓雯</span><span class="rp-tag">门诊</span></div><div class="rp-line3">P2026030142 · 女 34岁</div></td>
+            <td><div class="rp-line2">产科超声（常规）、胎儿生物物理评分</div></td>
+            <td><span class="rchip st-registered">已登记</span></td><td></td>
+            <td style="font-size:12px;color:var(--ink-2)"><b>中晚孕</b> · 28周</td>
+            <td style="font-family:var(--mono);font-size:11.5px;color:var(--ink-2)">US2511200007</td>
+            <td style="font-size:12px;color:var(--ink-2)">11-20 08:41</td>
+            <td class="xnote" style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">宫内双胎妊娠，重点观察宫颈</td>
+            <td><div class="rops"><span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span></div></td>
+          </tr>
+          <tr>
+            <td><div class="rp-line1"><span class="rp-name">李慕青</span><span class="rp-tag">住院</span></div><div class="rp-line3">P2025092208 · 女 29岁</div></td>
+            <td><div class="rp-line2">妇科超声（常规） <span style="color:var(--cyan)">· 预登记 09:00–09:30</span></div></td>
+            <td><span class="rchip st-registered">已登记</span></td><td></td>
+            <td style="font-size:12px;color:var(--ink-2)"><b>未孕</b></td>
+            <td style="font-family:var(--mono);font-size:11.5px;color:var(--ink-2)">US2511200006</td>
+            <td style="font-size:12px;color:var(--ink-2)">11-20 08:26</td>
+            <td class="xnote">—</td>
+            <td><div class="rops"><span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span></div></td>
+          </tr>
+          <tr>
+            <td><div class="rp-line1"><span class="rp-name">王振海</span><span class="rp-tag">急诊</span><span class="rp-tag emg">急</span></div><div class="rp-line3">P2024081510 · 男 47岁</div></td>
+            <td><div class="rp-line2">泌尿系超声（急诊床旁）</div></td>
+            <td><span class="rchip st-booked">预登记</span></td>
+            <td><span class="rp-tag emg">急</span></td>
+            <td class="xnote">—</td>
+            <td style="font-family:var(--mono);font-size:11.5px;color:var(--ink-2)">US2511200005</td>
+            <td style="font-size:12px;color:var(--ink-2)">11-20 08:12</td>
+            <td class="xnote" style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">肾绞痛待排</td>
+            <td><div class="rops">
+              <span class="ract" title="登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span>
+              <span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span>
+            </div></td>
+          </tr>
+          <tr>
+            <td><div class="rp-line1"><span class="rp-name" style="color:var(--ink-3)">无名氏</span><span class="rp-tag inp">占位</span><span class="rp-tag emg">急</span></div><div class="rp-line3">待补录合并 · 性别未知</div></td>
+            <td><div class="rp-line2">腹部超声（急诊）</div></td>
+            <td><span class="rchip st-booked">预登记</span></td>
+            <td><span class="rp-tag emg">急</span></td>
+            <td class="xnote">—</td>
+            <td style="font-family:var(--mono);font-size:11.5px;color:var(--ink-2)">US2511200004</td>
+            <td style="font-size:12px;color:var(--ink-2)">11-20 07:58</td>
+            <td class="xnote" style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">车祸伤，身份待核</td>
+            <td><div class="rops">
+              <span class="ract" title="登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span>
+              <span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span>
+            </div></td>
+          </tr>
+          <tr>
+            <td><div class="rp-line1"><span class="rp-name">陈思远</span><span class="rp-tag">门诊</span></div><div class="rp-line3">P2026050033 · 男 8岁</div></td>
+            <td><div class="rp-line2">甲状腺超声</div></td>
+            <td><span class="rchip st-done">已完成</span></td><td></td>
+            <td class="xnote">—</td>
+            <td style="font-family:var(--mono);font-size:11.5px;color:var(--ink-2)">US2511190021</td>
+            <td style="font-size:12px;color:var(--ink-2)">11-19 15:07</td>
+            <td class="xnote">—</td>
+            <td><div class="rops"><span style="color:var(--ink-3)">—</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="rp-line1"><span class="rp-name">刘雨桐</span><span class="rp-tag">门诊</span></div><div class="rp-line3">P2026020119 · 女 26岁</div></td>
+            <td><div class="rp-line2">产科超声（常规）</div></td>
+            <td><span class="rchip st-cancel reason-tip" title="取消原因：患者改期至明日">已取消</span></td><td></td>
+            <td style="font-size:12px;color:var(--ink-2)"><b>早孕</b> · 8周</td>
+            <td style="font-family:var(--mono);font-size:11.5px;color:var(--ink-2)">US2511190018</td>
+            <td style="font-size:12px;color:var(--ink-2)">11-19 10:33</td>
+            <td class="xnote">—</td>
+            <td><div class="rops"><span style="color:var(--ink-3)">—</span></div></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="rail-foot">
+        <span>11-20 · 6 单</span>
+        <div class="pgroup"><span class="pg">‹</span><span class="pg on">1</span><span class="pg">›</span></div>
+      </div>
+    </div>
+
+    <!-- 右 登记工作台 -->
+    <div class="wb-card bench">
+      <div class="bench-top">
+        <div class="seg" id="keySeg">
+          <span class="on">证件号</span><span>就诊卡号</span><span>手机号</span>
+        </div>
+        <div class="input" style="width:220px">310101********0028</div>
+        <span class="btn primary"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>查询</span>
+        <span class="matched-chip">✓ 已匹配档案 <span style="font-family:var(--mono)">P2026030142</span>，已回填</span>
+      </div>
+
+      <div class="bench-body">
+        <!-- 1 患者信息 -->
+        <div class="sec-head"><span class="sec-no">1</span><span class="t">患者信息</span></div>
+        <div class="fgrid">
+          <div class="field"><span class="lb">姓名 <i>*</i></span><div class="ctl"><div class="input">张晓雯</div></div></div>
+          <div class="field"><span class="lb">性别</span><div class="ctl">
+            <div class="radios">
+              <span class="radio"><span class="rdot"></span>男</span>
+              <span class="radio on"><span class="rdot"></span>女</span>
+            </div>
+          </div></div>
+          <div class="field"><span class="lb">年龄</span><div class="ctl">
+            <div class="age3"><div class="input">34<span class="hw-unit">岁</span></div><div class="input" style="flex:0 0 44px"><span class="ph">月</span></div><div class="input" style="flex:0 0 44px"><span class="ph">天</span></div></div>
+          </div></div>
+          <div class="field"><span class="lb">就诊卡号</span><div class="ctl"><div class="input">M000123</div></div></div>
+          <div class="field"><span class="lb">证件</span><div class="ctl">
+            <div class="hw-row">
+              <div class="mini-sel">身份证<span class="caret">▾</span></div>
+              <div class="input" style="flex:1">310101********0028</div>
+            </div>
+          </div></div>
+          <div class="field"><span class="lb">手机号</span><div class="ctl"><div class="input">13800126688</div></div></div>
+          <div class="field"><span class="lb">患者来源</span><div class="ctl"><div class="mini-sel" style="width:100%">急诊<span class="caret">▾</span></div></div></div>
+          <div class="field"><span class="lb">住院/床号</span><div class="ctl">
+            <div class="hw-row">
+              <div class="input"><span class="ph">住院患者填写</span></div>
+              <span class="hw-sep">/</span>
+              <div class="input" style="flex:0 0 56px"><span class="ph">床号</span></div>
+            </div>
+          </div></div>
+          <div class="field"><span class="lb">身高体重</span><div class="ctl">
+            <div class="hw-row">
+              <div class="input">163<span class="hw-unit">cm</span></div>
+              <span class="hw-sep">/</span>
+              <div class="input">58<span class="hw-unit">kg</span></div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- 2 请检信息（急诊开关在标题行，占位随急诊留空触发，EIS 式） -->
+        <div class="sec-head">
+          <span class="sec-no">2</span><span class="t">请检信息</span>
+          <span class="tail">
+            <span class="sw-item">急诊<span class="sw on" id="emgSw"></span></span>
+          </span>
+        </div>
+        <div class="fgrid">
+          <div class="field"><span class="lb">检查类型</span><div class="ctl"><span class="modality-fixed">US 超声</span></div></div>
+          <div class="field" id="pregField"><span class="lb">妊娠</span><div class="ctl">
+            <div class="hw-row">
+              <div class="mini-sel" style="flex:1">中晚孕<span class="caret">▾</span></div>
+              <div class="input" style="flex:0 0 64px">28<span class="hw-unit">周</span></div>
+            </div>
+          </div></div>
+          <div class="field"><span class="lb">预登记时间</span><div class="ctl">
+            <div class="hw-row">
+              <div class="input" style="flex:0 0 82px">11-20<span class="hw-unit">今天</span></div>
+              <div class="mini-sel" style="flex:1">08:00–08:30<span class="caret">▾</span></div>
+            </div>
+          </div></div>
+          <div class="field" style="grid-column: 1 / -1"><span class="lb">临床诊断</span><div class="ctl"><div class="input" style="height:44px;align-items:flex-start;padding-top:5px"><span style="font-size:12.5px">宫内双胎妊娠（28周），重点观察宫颈</span></div></div></div>
+        </div>
+
+        <!-- 3 检查信息 -->
+        <div class="sec-head"><span class="sec-no">3</span><span class="t">检查信息</span><span class="tail" style="font-size:11.5px;color:var(--ink-3)">US 模态项目目录（检查设置）</span></div>
+        <div class="common-chips" id="chipRow">
+          <span class="cchip used" data-name="产科超声（常规）" data-body="产前" data-price="220">产科超声（常规）✓</span>
+          <span class="cchip" data-name="妇科超声（常规）" data-body="子宫附件" data-price="160"><b>＋</b>妇科超声（常规）</span>
+          <span class="cchip" data-name="甲状腺超声" data-body="颈部" data-price="140"><b>＋</b>甲状腺超声</span>
+          <span class="cchip" data-name="乳腺超声" data-body="双侧乳腺" data-price="150"><b>＋</b>乳腺超声</span>
+          <span class="cchip" data-name="泌尿系超声" data-body="肾输膀" data-price="160"><b>＋</b>泌尿系超声</span>
+          <span class="cchip" data-name="胎儿生物物理评分" data-body="胎儿" data-price="80"><b>＋</b>胎儿生物物理评分</span>
+          <span class="btn add-item-btn" style="height:24px;padding:0 10px;font-size:12px">添加项目</span>
+        </div>
+        <div class="total-band">
+          <span>已选择<span class="num" id="cnt">2</span>个检查项目</span>
+          <span>合计：¥<span id="sum">300.00</span></span>
+        </div>
+        <table class="picked" id="pickTable">
+          <thead><tr><th>检查项目</th><th style="width:120px">检查部位</th><th style="width:88px;text-align:right">单价(元)</th><th style="width:48px">操作</th></tr></thead>
+          <tbody>
+            <tr data-price="220" data-name="产科超声（常规）"><td>产科超声（常规）</td><td>产前</td><td class="price">220.00</td><td><span class="del">删除</span></td></tr>
+            <tr data-price="80" data-name="胎儿生物物理评分"><td>胎儿生物物理评分</td><td>胎儿</td><td class="price">80.00</td><td><span class="del">删除</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="bench-foot">
+        <span class="fh" id="footHint">急诊单姓名可留空——留空即无名氏占位档，检查号照发 · 提交即登记：现场单直接落 已登记；选未来时段即 预登记（BOOKED），患者到检后在列表点 登记 确认</span>
+        <div class="fa">
+          <span class="btn danger-plain">重置</span>
+          <span class="btn primary">提交登记</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 贰 · 弹窗两态 ═══ -->
+  <div class="section-eyebrow"><strong>贰 · 弹窗两态</strong>就诊人候选（RCP 卡片式） + 添加检查项目（目录表格）</div>
+  <p class="section-sub">软匹配（同名同性）弹出<b>就诊人</b>；点「添加项目」或常用 chips 不够用时弹<b>添加检查项目</b>（勾选确认，与 RCP/EIS 的选窗同构）。</p>
+
+  <div class="dialog-zone">
+    <div class="dialog">
+      <div class="dg-head"><span>就诊人</span><span style="color:var(--ink-3)">✕</span></div>
+      <div class="dg-body">
+        <div class="pcard checked">
+          <span class="check">✓</span>
+          <div>
+            <div style="display:flex;align-items:baseline;gap:8px"><span class="pname">张晓雯</span><span style="font-size:12px;color:var(--ink-2);font-weight:600">女</span><span style="font-size:11px;color:var(--ink-3);font-family:var(--mono)">1992-03-14</span></div>
+            <div class="pmeta"><span class="k">就诊号</span>M000123 · <span class="k">证件号</span>310101********0028</div>
+          </div>
+        </div>
+        <div class="pcard">
+          <span class="check">✓</span>
+          <div>
+            <div style="display:flex;align-items:baseline;gap:8px"><span class="pname">张晓雯</span><span style="font-size:12px;color:var(--ink-2);font-weight:600">女</span><span style="font-size:11px;color:var(--ink-3);font-family:var(--mono)">1995-08-02</span></div>
+            <div class="pmeta"><span class="k">就诊号</span>M000457 · <span class="k">证件号</span>310101********5678</div>
+          </div>
+        </div>
+      </div>
+      <div class="dg-foot"><span class="btn">否</span><span class="btn primary">是</span></div>
+    </div>
+
+    <div class="dialog">
+      <div class="dg-head"><span>添加检查项目</span><span style="color:var(--ink-3)">✕</span></div>
+      <div class="dg-body" style="gap:8px">
+        <div class="dsearch"><div class="input"><span class="ph">项目名 / 对照编码</span></div><span class="btn">查询</span></div>
+        <table class="dgrid">
+          <thead><tr><th style="width:34px"></th><th>检查项目</th><th style="width:90px">检查部位</th><th style="width:70px;text-align:right">单价(元)</th></tr></thead>
+          <tbody>
+            <tr><td><span class="cbx on">✓</span></td><td>产科超声（常规）</td><td>产前</td><td class="price">220.00</td></tr>
+            <tr><td><span class="cbx"></span></td><td>妇科超声（常规）</td><td>子宫附件</td><td class="price">160.00</td></tr>
+            <tr><td><span class="cbx"></span></td><td>甲状腺超声</td><td>颈部</td><td class="price">140.00</td></tr>
+            <tr><td><span class="cbx"></span></td><td>乳腺超声</td><td>双侧乳腺</td><td class="price">150.00</td></tr>
+            <tr><td><span class="cbx"></span></td><td>泌尿系超声</td><td>肾输膀</td><td class="price">160.00</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="dg-foot"><span class="btn">取消</span><span class="btn primary">确认添加</span></div>
+    </div>
+  </div>
+
+  <!-- ═══ 叁 · v1 → v2 紧凑化对照 ═══ -->
+  <div class="section-eyebrow"><strong>叁 · 紧凑化对照</strong>v1（RCP 列表+抽屉）→ v2（EIS 工作台）</div>
+  <div class="notes">
+    <div class="note">
+      <b>① 结构</b>：<span class="from">整页列表 + 560px 抽屉点开才见表单</span> →
+      <span class="to">常驻工作台：左 rail 今日登记单 + 右表单</span>。EIS register/check 同构；少一次开抽屉，列表与表单同屏互证。
+    </div>
+    <div class="note">
+      <b>② 表单密度</b>：<span class="from">竖排 label、12 字段两列、大间距</span> →
+      <span class="to">label 左置 72px、三列网格、行距 9px、输入高 28</span>（EIS label-width 100 的密度）。
+      解析条从 v1 的三列查询带压成<b>单行</b>（键型 Segmented + 输入 + 查询，EIS 顶部登记号查询行同位）。
+    </div>
+    <div class="note">
+      <b>③ 分段</b>：<span class="from">①患者信息 ②孕检信息 ③检查信息 三段</span> →
+      <span class="to">两段合并：孕检字段并入 2、请检信息</span>（妊娠状态/孕周本来就是请检属性）；
+      <b>急诊开关嵌进节标题行</b>（EIS 急诊开关在标题行的同款手法，也满足 2026-11-19 开关行房规）；
+      <b>占位不再单独设开关</b>——急诊单姓名可留空，留空即无名氏占位档（决策#3 语义不变；实现上服务端本就按
+      <code>name=null</code> 判占位，去掉显式占位字段后契约零变更）。
+    </div>
+    <div class="note">
+      <b>④ 列表压缩</b>：<span class="from">九列表格</span> →
+      <span class="to">rail 三列（患者/项目三行复合 + 状态 + 行操作）</span>，
+      检查号/时间并入患者格第三行；<b>状态筛选改 chips 带计数</b>（EIS ReportStatusCheckbox 同款——
+      多选切换，默认 预约+已登记=今日在册；不放 RCP 式下拉：计数是登记台的工作量仪表，下拉会藏掉它，
+      且窄面板无查询行、状态筛选只能住头部）。
+      取消原因 tooltip、状态色板、占位虚框 tag 照搬 v1。
+    </div>
+    <div class="note">
+      <b>⑤ 动作落位</b>：<span class="from">抽屉 footer「保存」</span> →
+      <span class="to">工作台右下「重置 + 提交登记」</span>（EIS 同位同名）；
+      行操作仍只有 登记 ✓ / 取消（v1 无编辑/打印/影像后端，不预画）。
+    </div>
+    <div class="note">
+      <b>⑨ 预登记并入工作台</b>：所谓预约即<b>预登记</b>（用户 2026-11-23 定义，如产检预登记到某天某时段）——
+      预登记 = <b>日期 + 时间段</b>两个值（默认 今天·即到即检，选未来时段即为预登记单），
+      落点内核 <code>exam_order</code> 新增 <code>booking_time</code>（现表只有 booking_no 预约号列，无预约时间—— Vendored DDL 下一次 V 号补）。
+      rail 加<b>日期切换</b>（‹ 今天 ›），未来时段的单落 BOOKED（预登记态）、到日出现在当日列表；取消预登记复用 取消。
+      EIS 的 登记/预约双页不跟——rail 日期 nav 已是预登记管理雏形；号池时段<b>容量格</b>（预留/满约/冲突）不进 v1，容量只做静态每档上限（拍板 06）。
+    </div>
+    <div class="note">
+      <b>⑩ rail 两态（紧凑登记态 / 宽表查询态）</b>：<b>宽表是需求本体</b>（护士要看更多列 + 更多查询条件），
+      曾被误当手段修剪，恢复；「完全收缩」则确无意义而退役（表单不需全宽，收列表伤互证）。
+      紧凑态 = 登记主场（chips + 日期 nav + 复合行，<b>不铺查询行</b>——整行条件条浪费列表纵向空间，用户 2026-11-23 点名）；宽表态 = 查询主场：
+      rail 接管全宽，查询条件行（我的查询 + 申请时间/姓名/检查号 + 更多条件 + 查询/重置）+
+      全列（患者复合/检查项目/状态/急诊/孕检/检查号/创建时间/临床诊断/操作），
+      行操作照旧（登记/取消），同一组件宽度态切换非第二页面。切换 affordance 一枚：面板右缘中线圆钮 »/«。
+      <b>宽表查询条件 = RCP ∪ EIS 综合</b>，两层结构（两家同款）：常驻行 申请时间范围（默认今天）/ 患者姓名 / 检查号 +
+      <b>更多条件</b>展开行 患者编号 / 患者类型 / 检查项目（模糊）/ 就诊卡号（EIS 登记号的对应物）。
+      不搬：院区/检查机构/检查室（多机构与房间绑定 v1 无）、登记医生/诊断医生/请检医生/请检科室（HIS 单 v1 无）、检查部位（项目内含）、检查类型（US 固定免筛）。
+      患者编号/患者类型/检查项目/就诊卡号/时间范围 需后端查询扩展（拍板 03 一并落）。
+      <b>头部随面板分层</b>：窄态 rail-head = datenav 按天翻看（唯一时间入口）+ chips + 刷新；
+      宽态 rail-head = chips + 刷新，<b>datenav 隐去</b>——时间条件由 xhead 申请时间范围接管，避免双时间入口；
+      两处共享同一日期状态（窄态翻到的日子 = 宽态 range 的默认值）。
+      另保留 RCP 两件：<b>我的查询</b>（行尾动作簇：查询/重置之后——填完条件、保存当前条件、点选即查一个位置闭环，
+      字段行保持纯字段；后端持久见拍板 07）
+      与<b>列设置</b>（表头操作列滑杆图标，列显隐/排序 localStorage 记忆，EIS useHeaderColumn 同款）。
+    </div>
+    <div class="note dim">
+      <b>范围外不搬</b>：EIS 的 <b>号池时段容量格</b>（BookingNumber 的 预留/已约/可约/满约 容量管理——lumen v1 只做静态每档上限校验，
+      号格实体/预留/锁定等真预约体系见拍板点 06）、<b>条码打印开关</b>（本地打印驱动）、<b>HIS 开单查询</b>（请检科室/请检医生/申请单号字段——v1 无 HIS 单）。
+      RCP 的 1200px 抽屉形态随 v1 一起退役。
+    </div>
+    <div class="note">
+      <b>⑥ 小屏保障</b>：不再设「完全收缩」形态——表单三列在 ~900px 即舒展，收起列表反而失去登记时同屏看单的互证；
+      &lt;1180px 极窄屏由响应式上下堆叠兜底（列表在上）；
+      实现直接用壳层现成的 <code>ConsoleWorkArea</code>（360px aside + 主面板，机构/科室页同款两区布局），不新造布局；
+      表单三列在内容区变窄时降两列、极窄时上下堆叠（列表在上）。1366×768 笔记本实测是验收门槛之一。
+    </div>
+    <div class="note">
+      <b>⑦ 年龄三输入（岁/月/天 三个文本框）</b>：值带单位尾标、空格占位即单位，成人只填岁格，儿童填岁+月，<b>新生儿填天格</b>（0岁0月5天）。
+      三格在前端组编为契约 <code>age</code> 单字符串：空/零单位自动裁剪——34岁 / 2月5天 / 5天；
+      0 是合法值（新生儿岁=月=0），列表患者格回显同串。三格是录入 UI，契约不做结构变更。
+    </div>
+    <div class="note">
+      <b>⑧ 妊娠格：条件显示 + 一格录完</b>：<b>性别非女时整格隐藏</b>（不渲染、不提交——实现用
+      <code>Form.useWatch('gender')</code> 条件渲染，demo 里点患者信息的 性别 男/女 可试）；
+      女时一格录完——妊娠状态下拉 + 孕周数字（未孕/未知免填孕周，孕周格禁用）。
+      合并是 UI 编组，契约仍是 <code>ext.pregnancyStatus</code> + <code>ext.gestationalWeeks</code> 两字段。
+    </div>
+  </div>
+
+  <!-- ═══ 肆 · 拍板点 ═══ -->
+  <div class="section-eyebrow"><strong>肆 · 拍板点</strong>逐项定一下，定完我落提案再动页面</div>
+  <div class="decisions">
+    <div class="decision">
+      <span class="d-no">DECISION 01</span>
+      <h3>页面形态：单页工作台 vs 双页拆分</h3>
+      <span class="opt picked">A 单页工作台（左今日单 rail + 右登记表单）</span><span class="opt">B EIS 式双页（登记工作台 / 登记管理两个菜单）</span>
+      <p>A 一个菜单节点装下「看单 + 登记」，菜单种子不动；B 是 EIS 的原始拆法（register/check + register/manage），
+      要加菜单节点、拆两个 spec 场景，v1 登记单量下收益有限。</p>
+      <span class="rec">建议：A（B 在登记量上来后随时可拆，列表 rail 已是管理面的雏形）</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 02</span>
+      <h3>提交语义：提交即登记（1 步）</h3>
+      <span class="opt">A 保持两步</span><span class="opt picked">B 提交即登记（用户裁决 2026-11-23，EIS/RCP 同款）</span>
+      <p><b>B 定案</b>。状态语义随「预约=预登记」重定义：<b>现场单</b>（即到即检）提交 → 单事务内 create+register，
+      直接落 <b>已登记</b>（RCP/EIS 的 commitOrder 同款一呼叫）；<b>预登记单</b>（选未来时段，如产检预登记到某天某时段）
+      → 落 <b>BOOKED（预登记态）</b>，患者到检后在列表点 登记 完成到检确认。BOOKED 的含义从「预约」改为「预登记」。
+      后端实现建议 create 单事务按 booking_time 推导状态（now=即到即检 → 已登记；未来 → 预登记），
+      显式 registerFlag 参数作为备选，随提案定。</p>
+      <span class="rec">已定：B（内核 BOOKED→REGISTERED 状态机不变，只是入口语义升级；「登记」仍是预登记单的到检确认动作）</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 03</span>
+      <h3>宽表查询条件与状态计数</h3>
+      <span class="opt picked">B RCP∪EIS 综合条件集 + 状态计数 chips（后端一个提案）</span><span class="opt">A 现有查询三键，无计数</span>
+      <p>常驻行：申请时间范围（默认今天）/ 患者姓名 / 检查号；更多条件展开行：患者编号 / 患者类型 / 检查项目（模糊）/ 就诊卡号。
+      现有查询只有 状态/检查号/患者姓名——其余键是 jsonb 快照 where + 时间范围/状态多选 + 状态计数端点，
+      全部落进一个后端轻量提案（mapper 一处 where 级别）。紧凑态不设查询行，查数一律进宽表态（RCP 同构）。</p>
+      <span class="rec">建议：B（登记台以「今天」为工作面，宽表是查数主场，条件一次配齐）</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 04</span>
+      <h3>检查项目选择器</h3>
+      <span class="opt picked">A 常用项目 chips + 已选列表（含单价合计）+ 添加弹窗</span><span class="opt">B 保持 Select 多选</span>
+      <p>与 v1 判断一致：chips 一键上单是登记台高频收益；弹窗补目录浏览（项目名/对照编码搜）。
+      目录取自检查设置（<code>isCommon</code> + US 模态过滤），合计随选随算。</p>
+      <span class="rec">建议：A（v1 目录无组套概念，chips 够用；组套来了再演进）</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 05</span>
+      <h3>临床信息字段边界</h3>
+      <span class="opt picked">A 妊娠状态/孕周/临床诊断（临床诊断由 ext.note 承载，契约零变更）</span><span class="opt">B ext 再扩主诉/病史摘要</span>
+      <p>EIS 临床信息 tab 的 临床诊断/检查目的/病史摘要/患者体征 是放射大申请单场景；
+      US 登记台临床语境核心是孕检，原「备注」字段已按用户裁决 2026-11-20 改为「临床诊断」标签（底层仍是 ext.note）。
+      B 要动 <code>us_registration_ext</code> 与 create 契约，属后端提案。</p>
+      <span class="rec">建议：A 起步（真缺主诉/病史时随第一个真实需求提案扩 ext）</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 06</span>
+      <h3>预登记承载形态 + 时段容量</h3>
+      <span class="opt picked">A 单页内预登记（booking_time + rail 日期切换）</span><span class="opt">B EIS 双页：登记台/预约台分菜单</span><span class="opt">C v1 不做预登记</span>
+      <p>B 随拍板 01 失去必要性；C 让现场失去「产检预登记到明天/下午」的能力。<b>时段容量（已定：最小静态容量，内核级通用）</b>：
+      时段粒度（默认 30 分钟）、每时段上限（默认 4 人）、开台时间窗（如 08:00–12:00 / 14:00–17:00）——
+      配置实体与容量校验服务放 <b>lumen-core</b>（科室中立，radiology/endo 建工作站时 vendor 复用，用户 2026-11-23 指认其他科室也需要），
+      预登记提交按 booking_time 档位 count 校验，满员时段下拉<b>标灰禁选</b>（"08:00–08:30 已满 4/4"）+ 提交拦截双保险。
+      不做号格实体/预留/锁定/跨日排班——EIS 号池（BookingNumber）的 v2 提案范畴。</p>
+      <span class="rec">已定：A + 最小静态容量；容量机制随 <b>booking_time 独立成内核预登记提案</b>（科室中立），US/前端提案消费之</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 07</span>
+      <h3>我的查询 + 列设置的持久化落点</h3>
+      <span class="opt picked">A RCP/EIS 同款：我的查询后端持久，列设置 localStorage</span><span class="opt">B 全 localStorage（零后端，换机丢配置）</span>
+      <p><b>我的查询</b>（保存当前条件集、命名、设默认、点选即查）RCP 与 EIS 都是后端表持久（FilterApi：
+      uid+page 维度 add/update/get/setDefault/delete）——护士轮换工位是医院常态，换机不丢配置是硬价值。
+      lumen 落点：system 域通用 search_filter 表（uid + page_key + name + query jsonb + default 标记）
+      + 通用 REST，一次立项所有工作台列表可复用。<b>列设置</b>（列显隐/排序）EIS useHeaderColumn 是
+      localStorage（localKey），纯前端零后端。</p>
+      <span class="rec">建议：A（我的查询进后端提案账单，与拍板 03 同批；列设置随前端走，localStorage 记忆）</span>
+    </div>
+  </div>
+
+  <p class="endnote">
+    自动刷新（默认开 · EIS 同款）/ 患者复合列 / 状态色板 / 取消原因 tooltip / 占位虚框 tag 已随稿吸收不再设问 ·
+    本页数据全部为演示数据 · 拍板 01-07 全部定案（2026-11-20~23）· 定稿后三案串行：
+    ① 后端「预登记与时段容量」内核提案（booking_time + 时段配置/校验服务 + 状态推导，科室中立）
+    ② 后端「US 登记台扩展」（vendored DDL + 契约/查询扩展/计数 + search_filter 表）
+    ③ 前端 <b>web-us-station</b> delta + 检查设置时段配置页 —— coordination doc 串联，kernel 先行
+  </p>
+</div>
+
+<script>
+  // ── 常用项目 chips ↔ 已选列表（演示交互） ──
+  const fmt = (n) => n.toFixed(2)
+  const recalc = () => {
+    const rows = document.querySelectorAll('#pickTable tbody tr')
+    let sum = 0
+    rows.forEach((r) => { sum += parseFloat(r.dataset.price || 0) })
+    document.getElementById('cnt').textContent = rows.length
+    document.getElementById('sum').textContent = fmt(sum)
+    document.querySelectorAll('#chipRow .cchip').forEach((c) => {
+      const used = [...rows].some((r) => r.dataset.name === c.dataset.name)
+      c.classList.toggle('used', used)
+      c.innerHTML = used ? c.dataset.name + ' ✓' : '<b>＋</b>' + c.dataset.name
+    })
+  }
+  document.querySelectorAll('#chipRow .cchip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      if (chip.classList.contains('used')) return
+      const tr = document.createElement('tr')
+      tr.dataset.price = chip.dataset.price
+      tr.dataset.name = chip.dataset.name
+      tr.innerHTML = '<td>' + chip.dataset.name + '</td><td>' + chip.dataset.body +
+        '</td><td class="price">' + fmt(parseFloat(chip.dataset.price)) +
+        '</td><td><span class="del">删除</span></td>'
+      document.querySelector('#pickTable tbody').appendChild(tr)
+      recalc()
+    })
+  })
+  document.getElementById('pickTable').addEventListener('click', (e) => {
+    if (!e.target.classList.contains('del')) return
+    e.target.closest('tr').remove()
+    recalc()
+  })
+
+  // ── 性别联动妊娠格（演示：非女整格隐藏） ──
+  const genderBtns = document.querySelectorAll('.radios .radio')
+  const pregField = document.getElementById('pregField')
+  genderBtns.forEach((b) => b.addEventListener('click', () => {
+    genderBtns.forEach((x) => x.classList.remove('on'))
+    b.classList.add('on')
+    pregField.style.display = b.textContent.includes('女') ? '' : 'none'
+  }))
+
+  // ── 我的查询 / 列设置 弹出层（演示） ──
+  const myqBtn = document.getElementById('myqBtn')
+  const myqPop = document.getElementById('myqPop')
+  myqBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    myqPop.style.display = myqPop.style.display === 'none' ? 'block' : 'none'
+  })
+  myqPop.querySelectorAll('.pi[data-apply]').forEach((item) => {
+    item.addEventListener('click', () => {
+      const range = document.querySelector('.rail-xhead .input')
+      range.innerHTML = item.dataset.apply === '今日急诊'
+        ? '11-20 ~ 11-20<span class="caret">▾</span>'
+        : '11-01 ~ 11-20<span class="caret">▾</span>'
+      myqPop.style.display = 'none'
+    })
+  })
+  const colsetBtn = document.getElementById('colsetBtn')
+  const colsetPop = document.getElementById('colsetPop')
+  colsetBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    colsetPop.style.display = colsetPop.style.display === 'none' ? 'block' : 'none'
+  })
+  colsetPop.querySelectorAll('.pi .act').forEach((cb) => {
+    cb.addEventListener('click', () => { cb.textContent = cb.textContent === '✓' ? '—' : '✓' })
+  })
+  document.addEventListener('click', () => {
+    myqPop.style.display = 'none'
+    colsetPop.style.display = 'none'
+  })
+
+  // ── 宽表「更多条件」流式显隐（第一行放满自动换行，RCP PlusSearch 同款） ──
+  const xmoreLink = document.getElementById('xmoreLink')
+  const xmoreFields = document.getElementById('xmoreFields')
+  xmoreLink.addEventListener('click', () => {
+    const shown = xmoreFields.style.display === 'contents'
+    xmoreFields.style.display = shown ? 'none' : 'contents'
+    xmoreLink.textContent = shown ? '更多条件 ▾' : '收起更多 ▴'
+  })
+
+  // ── rail 两态：缘上中线圆钮（紧凑 » 宽表查询 / 宽表 « 回登记） ──
+  const wb = document.querySelector('.workbench')
+  const edgeToggle = document.getElementById('edgeToggle')
+  const W_R = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 17 5-5-5-5m7 10 5-5-5-5"/></svg>'
+  const W_L = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m11 17-5-5 5-5m7 10-5-5 5-5"/></svg>'
+  edgeToggle.addEventListener('click', () => {
+    const expanded = wb.classList.toggle('expanded')
+    edgeToggle.innerHTML = expanded ? W_L : W_R
+    edgeToggle.title = expanded ? '返回紧凑登记台' : '展开完整列表（查询态）'
+  })
+
+  // ── 开关与键型 Segmented（演示） ──
+  const emgSw = document.getElementById('emgSw')
+  const footHint = document.getElementById('footHint')
+  emgSw.addEventListener('click', () => {
+    emgSw.classList.toggle('on')
+    const on = emgSw.classList.contains('on')
+    footHint.textContent = (on ? '急诊单姓名可留空——留空即无名氏占位档，检查号照发 · ' : '') +
+      '提交即登记：现场单直接落 已登记；选未来时段即 预登记（BOOKED），患者到检后在列表点 登记 确认'
+  })
+  const miniSw = document.getElementById('miniSw')
+  miniSw.addEventListener('click', () => miniSw.classList.toggle('on'))
+  document.querySelectorAll('#keySeg span').forEach((s) => {
+    s.addEventListener('click', () => {
+      document.querySelectorAll('#keySeg span').forEach((x) => x.classList.remove('on'))
+      s.classList.add('on')
+    })
+  })
+</script>
+</body>
+</html>

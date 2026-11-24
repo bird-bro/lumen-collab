@@ -48,7 +48,10 @@ export interface UsRegistrationExtBody {
   note?: string | null;
 }
 
-/** The demographics-or-identity create body (the server resolves-or-registers). */
+/** The demographics-or-identity create body (the server resolves-or-registers).
+ * `bookingTime` (us-registration-redesign-api 拍板 02-B): the pre-registration slot
+ * anchor - null/absent = 现场单 (submit registers), a future `yyyy-MM-dd HH:mm:ss`
+ * = 预登记 (capacity-validated server-side; the four A0400 refusals surface verbatim). */
 export interface UsOrderCreateBody {
   idType?: string | null;
   idNo?: string | null;
@@ -62,6 +65,7 @@ export interface UsOrderCreateBody {
   bedNumber?: string | null;
   height?: number | null;
   weight?: number | null;
+  bookingTime?: string | null;
   examItems: UsExamItemRef[];
   emgFlag: number;
   ext?: UsRegistrationExtBody | null;
@@ -77,9 +81,26 @@ export interface UsOrderView {
   emgFlag: number;
   cancelReason: string | null;
   createTime: string;
+  /** 预登记时段锚点 (null = 现场单/无预约; 拍板 02-B). */
+  bookingTime: string | null;
   pregnancyStatus: string | null;
   gestationalWeeks: number | null;
   note: string | null;
+}
+
+/** The wide-table query (us-registration-redesign-api 拍板 03-B, the RCP∪EIS union).
+ * `status` rides as the comma-joined IN string (the Spring list binder); the apply-time
+ * range bounds create_time (the registration moment). */
+export interface UsOrderPageQuery {
+  status?: UsOrderStatus[];
+  accessionNo?: string | null;
+  patientName?: string | null;
+  patientId?: string | null;
+  patientSource?: string | null;
+  cardNo?: string | null;
+  examItemName?: string | null;
+  applyTimeStart?: string | null;
+  applyTimeEnd?: string | null;
 }
 
 /** The resolve passthrough outcome (patient decision #2 chain, no side effect). */
@@ -124,12 +145,58 @@ export function resolvePatients(query: UsLookupQuery): Promise<UsLookupResult> {
   return apiRequest<UsLookupResult>('/us/patients/resolve', { method: 'POST', body: query });
 }
 
-export function createOrder(body: UsOrderCreateBody): Promise<{ orderId: number; accessionNo: string }> {
-  return apiRequest<{ orderId: number; accessionNo: string }>('/us/orders', { method: 'POST', body });
+export function createOrder(
+  body: UsOrderCreateBody,
+): Promise<{ orderId: number; accessionNo: string; status: UsOrderStatus; bookingTime: string | null }> {
+  return apiRequest<{ orderId: number; accessionNo: string; status: UsOrderStatus; bookingTime: string | null }>(
+    '/us/orders',
+    { method: 'POST', body },
+  );
 }
 
-export function pageOrders(query: { pageNum: number; pageSize: number }): Promise<UsOrderPage> {
-  return apiRequest<UsOrderPage>('/us/orders', { query });
+export function pageOrders(
+  query: { pageNum: number; pageSize: number } & UsOrderPageQuery,
+): Promise<UsOrderPage> {
+  return apiRequest<UsOrderPage>('/us/orders', { query: serializeOrderQuery(query) });
+}
+
+/** The status-chip meter (EIS ReportStatusCheckbox semantics): the SAME filter set
+ * minus status, zero-filled across all six states server-side. */
+export function statusCounts(query: UsOrderPageQuery): Promise<Record<UsOrderStatus, number>> {
+  const { pageNum: _p, pageSize: _s, ...filters } = query as typeof query & {
+    pageNum?: number;
+    pageSize?: number;
+  };
+  return apiRequest<Record<UsOrderStatus, number>>('/us/orders/status-counts', {
+    query: serializeOrderQuery(filters),
+  });
+}
+
+/** The query serializer: the status array joins into the comma-separated IN string
+ * (the client's query record carries no arrays - the Spring list binder reads the
+ * joined value), blanks drop out. */
+function serializeOrderQuery(
+  query: { pageNum?: number; pageSize?: number } & UsOrderPageQuery,
+): Record<string, string | number | boolean> {
+  const params: Record<string, string | number | boolean> = {};
+  if (query.pageNum != null) params.pageNum = query.pageNum;
+  if (query.pageSize != null) params.pageSize = query.pageSize;
+  if (query.status?.length) params.status = query.status.join(',');
+  const texts: Array<[string, string | null | undefined]> = [
+    ['accessionNo', query.accessionNo],
+    ['patientName', query.patientName],
+    ['patientId', query.patientId],
+    ['patientSource', query.patientSource],
+    ['cardNo', query.cardNo],
+    ['examItemName', query.examItemName],
+    ['applyTimeStart', query.applyTimeStart],
+    ['applyTimeEnd', query.applyTimeEnd],
+  ];
+  for (const [key, value] of texts) {
+    const trimmed = value?.trim();
+    if (trimmed) params[key] = trimmed;
+  }
+  return params;
 }
 
 export function registerOrder(id: number): Promise<boolean> {

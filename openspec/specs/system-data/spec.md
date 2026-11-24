@@ -441,12 +441,14 @@ the new nodes via guarded inserts.
 
 <!-- synced from: menu-settings-root 2026-11-13 -->
 
+<!-- synced from: us-registration-redesign-api 2026-11-24 -->
+
 ### Requirement: Exam Setting Menu Pages
 
 The `system` schema menu tree SHALL carry the exam-setting console group as the L1
 directory 「设置」 — a sibling of the system root (menu 1, titled 「系统」 per the
 same ruling), between it (sort 1) and the workstation W nodes (sort 10+) — with the
-four C pages grouped under two L2 icon-bearing directories 「检查配置」 (icon
+C pages grouped under two L2 icon-bearing directories 「检查配置」 (icon
 `exam`, sort 1) and 「报告配置」 (icon `temp`, sort 2), all seeded in
 the V28 CONTENT-guarded serial-insert discipline (ids are data, perms are the
 contract; the L2 groups are type M with NULL perms). The L1 directory's rail icon
@@ -463,6 +465,9 @@ glyphs (V33, task 1.5 — the rcp-test dict_menu rows for the same console domai
     `setting:body:list`
   - 检查方法 — path `exam-method`, component `setting/exam-method/index`, perms
     `setting:method:list`
+  - 预约设置 — path `exam-slot`, component `setting/exam-slot/index`, perms
+    `setting:slot:list` (us-registration-redesign-api: the per-modality
+    pre-registration capacity policy, 拍板 06-A — additive leaf, no directory rename)
 - 报告配置 — icon `temp`, under the L1 设置 row
   - 报告模板 — path `rep-template`, component `setting/rep-template/index`, perms
     `setting:temp:list`
@@ -471,8 +476,8 @@ glyphs (V33, task 1.5 — the rcp-test dict_menu rows for the same console domai
 
 - **WHEN** the menu migrations run on a fresh database
 - **THEN** the L1 「设置」 directory carries the two L2 groups at their ruled
-  icons, the four pages live under their groups at the ruled paths and perms
-  strings, and the system root is titled 「系统」
+  icons, the five pages live under their groups at the ruled paths and perms
+  strings (预约设置 under 检查配置), and the system root is titled 「系统」
 
 #### Scenario: Migrated database keeps non-admin grants alive
 
@@ -488,18 +493,25 @@ glyphs (V33, task 1.5 — the rcp-test dict_menu rows for the same console domai
 - **THEN** no duplicate live menu rows appear (the soft-deleted L2 row stays dead,
   one live row per L2 group) and the sequences converge past MAX(id)
 
+#### Scenario: The 预约设置 leaf seeds additively
+
+- **WHEN** the slot-config menu migration runs (fresh or already-migrated database)
+- **THEN** the 检查配置 group gains the 预约设置 C page (path `exam-slot`, perms
+  `setting:slot:list`) with the admin role auto-granted, the four existing leaves
+  stay untouched, and the re-run adds no duplicate live rows (CONTENT-guarded)
+
 ### Requirement: Exam Setting Button Perms
 
 Each exam-setting C page SHALL carry F button nodes 新建/编辑/删除 with perms
-`setting:<resource>:{create,update,delete}` (`item` / `body` / `method` / `temp`),
-seeded in the V15 CONTENT-guard discipline keyed by perms, with the admin role
+`setting:<resource>:{create,update,delete}` (`item` / `body` / `method` / `temp` /
+`slot`), seeded in the V15 CONTENT-guard discipline keyed by perms, with the admin role
 auto-granted.
 
 #### Scenario: Admin role receives the button grants
 
 - **WHEN** the button-node migration section completes
-- **THEN** the admin role's menu set includes every exam-setting F node
-
+- **THEN** the admin role's menu set includes every exam-setting F node (the `slot`
+  family 新建/编辑/删除 arriving with the 预约设置 page)
 ### Requirement: Report Template Scope Button Perms
 
 The 报告模板 page (type `C`, perms `setting:temp:list`) SHALL gain four F button
@@ -579,3 +591,28 @@ The system data SHALL seed an enabled stamp-format dictionary catalog (id 1029) 
 - **THEN** existing seeded rows are unchanged and dictionary sequences remain past the deterministic ids
 
 <!-- synced from: number-rule-format-dict-sev 2026-11-20 (V43 seed + V45 rename; consumers anchor by the stable id per the 2026-11-19 id-anchor ruling) -->
+
+<!-- synced from: us-registration-redesign-api 2026-11-24 -->
+
+### Requirement: Search Filter Table
+
+The `system` schema SHALL carry the generic saved-search table `search_filter` (拍板 07-A):
+`uid` (the owning user), `page_key` (the workbench page discriminator), `name`, `query`
+jsonb (the per-page filter shape, passed through verbatim), the default flag, and the house
+audit columns — seeded by the system migration (V50, together with the 预约设置 menu leaf).
+ONE default per (uid, page_key) among live rows. The table is workbench-agnostic — every
+list page may persist filters against it; column settings deliberately stay localStorage
+(frontend-only, the EIS useHeaderColumn pattern).
+
+#### Scenario: The table lands with the house shape
+
+- **WHEN** the system migration runs
+- **THEN** `search_filter` exists in the system schema with the uid/page_key/name/query
+  jsonb/default flag columns and the EntityBase audit column set
+
+#### Scenario: One default per user and page
+
+- **WHEN** a second row is flagged default for the same (uid, page_key)
+- **THEN** the partial unique index refuses the second live default (one default per
+  uid + page_key among live rows; setting a new default goes through the endpoint's
+  full-replace semantics)

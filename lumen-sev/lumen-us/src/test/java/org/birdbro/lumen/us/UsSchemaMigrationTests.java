@@ -46,11 +46,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class UsSchemaMigrationTests extends UsIntegrationTestBase {
 
-    /** The FOUR tables of the vendored kernel registration DDL, in creation order
-     *  (exam_order document / exam_execution + exam_report 1:1 members / the HIS
-     *  two-phase intake cache). */
-    private static final List<String> FOUR_TABLES = Arrays.asList(
-            "exam_order", "exam_execution", "exam_report", "exam_apply_cache");
+    /** The FIVE tables of the vendored kernel DDL family, in ledger order (the V1
+     *  registration aggregate + the V4 pre-registration config — the verbatim vendoring
+     *  of kernel V1+V2). */
+    private static final List<String> FIVE_TABLES = Arrays.asList(
+            "exam_order", "exam_execution", "exam_report", "exam_apply_cache",
+            "exam_slot_config");
 
     /** The EntityBase audit block every table carries (exact columns, same order). */
     private static final List<String> AUDIT_COLUMNS = Arrays.asList(
@@ -72,6 +73,8 @@ class UsSchemaMigrationTests extends UsIntegrationTestBase {
                 "order_id", "status", "completion_source"));
         columns.put("exam_apply_cache", Arrays.asList(
                 "his_id", "apply_no", "status", "source", "target", "patient_hint"));
+        columns.put("exam_slot_config", Arrays.asList(
+                "modality", "granularity_minutes", "slot_capacity", "open_windows"));
         REQUIRED_COLUMNS = Collections.unmodifiableMap(columns);
     }
 
@@ -79,8 +82,8 @@ class UsSchemaMigrationTests extends UsIntegrationTestBase {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void fourKernelTablesExist() {
-        for (String table : FOUR_TABLES) {
+    void kernelTablesExist() {
+        for (String table : FIVE_TABLES) {
             Integer found = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM information_schema.tables "
                     + "WHERE table_schema = 'us' AND table_name = ?",
@@ -91,7 +94,7 @@ class UsSchemaMigrationTests extends UsIntegrationTestBase {
 
     @Test
     void everyTableCarriesBusinessColumnsAndAuditBlockExactly() {
-        for (String table : FOUR_TABLES) {
+        for (String table : FIVE_TABLES) {
             // id first, then the business columns, then the audit block - read in
             // physical order so the head/tail equal the canonical shape exactly.
             List<String> orderedColumns = jdbcTemplate.queryForList(
@@ -103,6 +106,12 @@ class UsSchemaMigrationTests extends UsIntegrationTestBase {
             expected.add("id");
             expected.addAll(REQUIRED_COLUMNS.get(table));
             expected.addAll(AUDIT_COLUMNS);
+            // V4's ALTER TABLE ADD COLUMN appends booking_time at the TABLE END - after
+            // the whole V1 block INCLUDING the audit columns (the verbatim ALTER-appends-
+            // last reality, identical to the kernel core schema's physical order)
+            if ("exam_order".equals(table)) {
+                expected.add("booking_time");
+            }
             assertEquals(expected, orderedColumns,
                     "us." + table + " must carry EXACTLY the canonical kernel columns "
                     + "+ audit block in order (vendored verbatim, no department columns)");
@@ -127,8 +136,27 @@ class UsSchemaMigrationTests extends UsIntegrationTestBase {
     }
 
     @Test
+    void preRegistrationArtifactsLand() {
+        // us-registration-redesign-api task 1.1 (V4 vendors the kernel V2 verbatim):
+        // booking_time rides exam_order, exam_slot_config joins the us schema
+        Integer bookingTime = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.columns "
+                        + "WHERE table_schema = 'us' AND table_name = 'exam_order' "
+                        + "AND column_name = 'booking_time'",
+                Integer.class);
+        assertEquals(1, bookingTime.intValue(),
+                "us.exam_order.booking_time (the V4 vendored slot anchor) must exist");
+        Integer slotConfig = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.tables "
+                        + "WHERE table_schema = 'us' AND table_name = 'exam_slot_config'",
+                Integer.class);
+        assertEquals(1, slotConfig.intValue(),
+                "us.exam_slot_config (the V4 vendored per-modality policy) must exist");
+    }
+
+    @Test
     void kernelTablesCarryNoPhysicalForeignKeys() {
-        for (String table : FOUR_TABLES) {
+        for (String table : FIVE_TABLES) {
             Integer fkCount = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM pg_constraint con "
                     + "JOIN pg_class rel ON rel.oid = con.conrelid "
@@ -144,7 +172,11 @@ class UsSchemaMigrationTests extends UsIntegrationTestBase {
     @Test
     void vendoredDdlReplaysSplitSafeIntoTheSameShape() throws SQLException {
         String scratch = "us_replay_" + UUID.randomUUID().toString().substring(0, 8);
-        List<String> statements = migrationStatements("/db/migration/V1__exam_kernel_registration.sql");
+        // the ledger's kernel-family files replay IN ORDER (V1 creates the tables V4's
+        // ALTER extends) - both must split clean and land the canonical shape
+        List<String> statements = new ArrayList<>(
+                migrationStatements("/db/migration/V1__exam_kernel_registration.sql"));
+        statements.addAll(migrationStatements("/db/migration/V4__exam_kernel_pre_registration.sql"));
         try {
             try (Connection create = openSchemaConnection(null);
                  Statement statement = create.createStatement()) {
@@ -158,7 +190,7 @@ class UsSchemaMigrationTests extends UsIntegrationTestBase {
             }
             // The replayed shape equals the live one: the split was safe (no semicolon
             // inside a comment) and the file re-executes to the canonical four tables.
-            for (String table : FOUR_TABLES) {
+            for (String table : FIVE_TABLES) {
                 try (Connection connection = openSchemaConnection(scratch);
                      Statement statement = connection.createStatement();
                      var found = statement.executeQuery(

@@ -76,11 +76,20 @@ public class RegistrationController {
     }
 
     /** Pages the orders with the US extension fields (specs/us-station "Order List"). */
-    @ApiOperation("登记单分页查询（携 US 扩展字段）")
+    @ApiOperation("登记单分页查询（携 US 扩展字段；拍板 03-B 宽表条件）")
     @PreAuthorize("hasAuthority('us:order:list')")
     @GetMapping("/orders")
     public IPage<RegistrationOrderView> page(RegistrationOrderPageQuery query) {
         return registrationOrderService.page(query);
+    }
+
+    /** The status-chip meter (us-registration-redesign-api design D5 - same filters
+     *  minus status, zero-filled across all six states). */
+    @ApiOperation("状态计数（EIS ReportStatusCheckbox 语义：同一过滤集减状态条件，六态零填充）")
+    @PreAuthorize("hasAuthority('us:order:list')")
+    @GetMapping("/orders/status-counts")
+    public java.util.Map<String, Long> statusCounts(RegistrationOrderPageQuery query) {
+        return registrationOrderService.statusCounts(query);
     }
 
     /** Fires the 登记 transition (specs/us-station "Illegal transition is refused verbatim"). */

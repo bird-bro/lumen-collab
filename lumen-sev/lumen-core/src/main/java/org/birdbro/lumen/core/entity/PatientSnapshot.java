@@ -53,4 +53,13 @@ public class PatientSnapshot {
 
     /** 体重 (kg). */
     private BigDecimal weight;
+
+    /**
+     * 就诊卡号 (us-registration-redesign-api design D7 — the additive jsonb key, the
+     * ExamItemRef.modality precedent): the resolution chain's soft key stored into the
+     * order snapshot so the workbench card-no query condition reads exam_order
+     * directly. Pre-widening rows lack the key and read {@code null} — the mapper
+     * never breaks.
+     */
+    private String cardNo;
 }

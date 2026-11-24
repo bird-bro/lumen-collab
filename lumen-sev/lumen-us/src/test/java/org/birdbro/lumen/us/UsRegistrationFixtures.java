@@ -29,6 +29,13 @@ final class UsRegistrationFixtures {
     private static final List<Integer> ORDER_IDS =
             java.util.Collections.synchronizedList(new ArrayList<>());
 
+    /**
+     * Slot-config row ids the redesign-② suites create (the UR3- modality-token family
+     * below sweeps any crashed-JVM residue too).
+     */
+    private static final List<Integer> SLOT_CONFIG_IDS =
+            java.util.Collections.synchronizedList(new ArrayList<>());
+
     private UsRegistrationFixtures() {
     }
 
@@ -36,6 +43,13 @@ final class UsRegistrationFixtures {
     static void registerOrder(Integer orderId) {
         if (orderId != null) {
             ORDER_IDS.add(orderId);
+        }
+    }
+
+    /** Registers a slot-config row id for the sweep. */
+    static void registerSlotConfig(Integer configId) {
+        if (configId != null) {
+            SLOT_CONFIG_IDS.add(configId);
         }
     }
 
@@ -66,5 +80,15 @@ final class UsRegistrationFixtures {
             jdbcTemplate.update("DELETE FROM exam_order WHERE id = ?", id);
         }
         ORDER_IDS.clear();
+        // the slot-config family: captured ids PLUS the UR3- modality-token marker
+        // (recovers a crashed prior JVM's rows - the shared-server sweep ruling)
+        List<Integer> configIds = new ArrayList<>(SLOT_CONFIG_IDS);
+        jdbcTemplate.queryForList(
+                "SELECT id FROM exam_slot_config WHERE modality LIKE 'UR3%'",
+                Integer.class).forEach(configIds::add);
+        for (Integer id : configIds) {
+            jdbcTemplate.update("DELETE FROM exam_slot_config WHERE id = ?", id);
+        }
+        SLOT_CONFIG_IDS.clear();
     }
 }

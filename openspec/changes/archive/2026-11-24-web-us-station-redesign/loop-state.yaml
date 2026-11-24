@@ -1,0 +1,15 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+# web-us-station-redesign = proposal ③ (frontend leg of us-registration-redesign).
+# Batch Inline, 20 implementation tasks (verify tasks 6.1-6.3 not counted, loopforge
+# precedent). Guard preflight pending DP-3 approval; phase flips at /opsx:apply.
+phase: archived
+change: web-us-station-redesign
+execution_mode: Batch Inline
+tasks_total: 20
+tasks_done: 20
+retry_count: 0
+debt_count: 0
+debug_attempts: 0
+workflow_mode: full
+artifacts_hash: 7857bc7ccdaf021058b784a50392b0cd2a362aa0700bd3d20e2ed06529f53aec
+last_updated: 2026-11-23

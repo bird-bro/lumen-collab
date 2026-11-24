@@ -132,11 +132,13 @@ class UsSnapshotPollerTests extends UsApiTestBase {
         int survivorUid = STUB_UID_BASE + 612;
         int liveId = createOrder(mergedUid, "us3合并活单");
         int cancelledId = createOrder(mergedUid, "us3合并废单");
-        // the cancel branch through the REAL surface: BOOKED -> BOOKING_CANCELLED
+        // the cancel branch through the REAL surface: the walk-in create derives
+        // REGISTERED now (us-registration-redesign-api 拍板 02-B) -> cancel lands
+        // CANCELLED - both cancel states are excluded from the live-set alike
         JsonNode cancelled = parse(exchangeJson(HttpMethod.POST,
                 ORDERS_URL + "/" + cancelledId + "/cancel",
                 "{\"reason\":\"us3合并前取消\"}", fullPermToken()));
-        assertEquals("BOOKING_CANCELLED", cancelled.path("data").asText(),
+        assertEquals("CANCELLED", cancelled.path("data").asText(),
                 "the cancelled order sits in the cancel state before the merge: " + cancelled);
 
         when(patientApi.pullOutbox(anyInt())).thenReturn(R.ofSuccess(Collections.singletonList(

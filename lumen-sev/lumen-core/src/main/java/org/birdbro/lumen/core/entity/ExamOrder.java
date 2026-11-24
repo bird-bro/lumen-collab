@@ -1,5 +1,6 @@
 package org.birdbro.lumen.core.entity;
 
+import java.util.Date;
 import java.util.List;
 
 import com.baomidou.mybatisplus.annotation.IdType;
@@ -46,6 +47,14 @@ public class ExamOrder extends EntityBase {
 
     /** 预约号 (walk-in orders carry none). */
     private String bookingNo;
+
+    /**
+     * 预登记时段锚点 (kernel-pre-registration design D3/D6): nullable timestamp -
+     * walk-in orders carry NULL and occupy no slot; a future value books the order
+     * onto a day + time slot (预登记, the 拍板 02-B semantics). The slot count query
+     * stays the department service's (design D2) - the kernel holds no index on it.
+     */
+    private Date bookingTime;
 
     /** 申请单号 (HIS or manual). */
     private String applyNo;

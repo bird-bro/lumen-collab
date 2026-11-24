@@ -59,6 +59,10 @@ public class RegistrationOrderView {
     @ApiModelProperty("创建时间")
     private Date createTime;
 
+    @ApiModelProperty("预登记时段锚点（null=现场单/无预约）")
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private Date bookingTime;
+
     // ---- the 1:1 US extension ----
 
     @ApiModelProperty("妊娠状态（US 扩展，无行时为 null）")

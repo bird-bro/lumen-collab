@@ -1,7 +1,10 @@
 package org.birdbro.lumen.us.dto;
 
 import java.math.BigDecimal;
+import java.util.Date;
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
@@ -17,8 +20,9 @@ import org.birdbro.lumen.us.entity.UsRegistrationExt;
  * lookup-only passthrough is the separate resolve endpoint), the 检查项目 references
  * (kernel {@link ExamItemRef} shape - the catalog id + the name snapshot taken at order
  * time; the kernel holds references + snapshots, not the catalog), the optional 急诊
- * flag, and the optional US extension block. The entry state is FIXED BOOKED (the
- * booking surface; walk-in/REGISTERED entry belongs to a later flow).
+ * flag, and the optional US extension block. The entry state is DERIVED from the
+ * optional {@code bookingTime} (us-registration-redesign-api, 拍板 02-B): null =
+ * REGISTERED (提交即登记), strictly-future = BOOKED (预登记, capacity-validated).
  *
  * <p>The exam-time demographics (年龄/患者来源/住院号/床号/身高/体重) ride THIS body
  * (patient decision #4: the exam-time snapshot is taken at registration) - the us create
@@ -71,6 +75,10 @@ public class RegistrationCreateRequest {
     private BigDecimal weight;
 
     // ---- order payload ----
+
+    @ApiModelProperty("预登记时段锚点（可选；null=现场单提交即登记，未来时段=预登记并参与容量校验）")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    private Date bookingTime;
 
     @ApiModelProperty("检查项目引用+名称快照（setting 域目录）")
     private List<ExamItemRef> examItems;

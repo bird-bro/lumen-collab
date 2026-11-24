@@ -1,0 +1,21 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+# NOTE: seeded fields corrected 2026-11-23 — the build-contract seeding copied the
+# legacy global slot values (audit-log-unify-api: SDD/12/12) which do not belong to
+# this change. kernel-pre-registration is Batch Inline, 10 implementation tasks
+# (verify tasks 4.1-4.3 are not counted in the guard total, loopforge precedent).
+phase: archived
+change: kernel-pre-registration
+execution_mode: Batch Inline
+tasks_total: 10
+tasks_done: 10
+# task 4.1: first reactor run hit the known shared-server grant-drift hazard family
+# (AuthWorkstationSeedTests detected 2 missing role-1 W grants on the shared system
+# schema; its committed V22 re-execution repaired them - DB verified 3/3 after).
+# Debug protocol: isolated rerun green, root cause outside this change (lumen-core
+# untouched by lumen-system seeds). retry_count recorded per MOD-4 bookkeeping.
+retry_count: 1
+debt_count: 0
+debug_attempts: 0
+workflow_mode: full
+artifacts_hash: c0ec629a44f50b57a33781fd186e37fa205543f88f0d476acb4e16c3cde26689
+last_updated: 2026-11-23

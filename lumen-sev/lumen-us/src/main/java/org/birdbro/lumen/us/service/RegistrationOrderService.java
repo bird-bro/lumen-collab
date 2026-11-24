@@ -66,6 +66,18 @@ public interface RegistrationOrderService {
     IPage<RegistrationOrderView> page(RegistrationOrderPageQuery query);
 
     /**
+     * The per-status counts for the workbench's status chips (us-registration-redesign-api
+     * design D5; EIS ReportStatusCheckbox semantics): the SAME filter set as
+     * {@link #page} MINUS the status condition, counted per document state machine
+     * status and ZERO-FILLED across all six states — the chips always render the full
+     * desk meter.
+     *
+     * @param query the wide filter set (the status field is deliberately ignored here)
+     * @return six entries keyed by state-machine status name, zero-filled
+     */
+    java.util.Map<String, Long> statusCounts(RegistrationOrderPageQuery query);
+
+    /**
      * Fires the 登记 transition (task 3.2; specs/us-station "Illegal transition is
      * refused verbatim"): BOOKED &rarr; REGISTERED through the kernel state machine -
      * the single status writer; any illegal jump refuses with the kernel's own message

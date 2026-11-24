@@ -1,0 +1,15 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+# us-registration-redesign-api = proposal ② of us-registration-redesign (all-backend,
+# user ruling 2026-11-23). Batch Inline, 22 implementation tasks (verify tasks 6.1-6.3
+# not counted in the guard total, loopforge precedent). Guard proposing->applying passed 2026-11-23.
+phase: archived
+change: us-registration-redesign-api
+execution_mode: Batch Inline
+tasks_total: 22
+tasks_done: 22
+retry_count: 0
+debt_count: 0
+debug_attempts: 0
+workflow_mode: full
+artifacts_hash: c9a4eea4981f514d642c8afa1dd6335eaf75f508a32a895a6c79764e7652c983
+last_updated: 2026-11-23
