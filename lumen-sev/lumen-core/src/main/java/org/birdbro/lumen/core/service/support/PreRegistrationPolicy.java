@@ -9,13 +9,16 @@ import org.springframework.stereotype.Component;
 
 /**
  * Derived entry-status policy for pre-registration creates (kernel-pre-registration
- * tasks 2.1/2.2, design D1/D4): a stateless collaborator (service/support, no HTTP
+ * tasks 2.1/2.2, design D1/D4; re-anchored by us-prereg-as-registered 2026-11-24,
+ * user ruling 预约=预登记): a stateless collaborator (service/support, no HTTP
  * surface) the CONSUMING create flow calls BEFORE persisting - {@code registerOrder}
  * keeps its "entry state is the caller's choice" contract untouched (D1). The
- * derivation is pure time math: NULL/now/past → REGISTERED (现场单), strictly-future
- * → BOOKED (预登记态). The now boundary is the DB-SERVER time the caller supplies
- * (design Risks row 2: never an app clock) - this component stays unit-testable
- * without a datasource.
+ * derivation is CONSTANT REGISTERED now - every create path enters 已登记 (a future
+ * slot marks a 预登记 order, not a pending state; the category rides
+ * {@code ExamOrder.registrationType}, stamped by the department branch). The
+ * past-refusal guard below still enforces the strictly-future slot anchor. The now
+ * boundary is the DB-SERVER time the caller supplies (design Risks row 2: never an
+ * app clock) - this component stays unit-testable without a datasource.
  *
  * <p>This class owns the D5 past-refusal token (预登记时间不能早于当前时间): the
  * composed pre-registration flow calls {@link #requireFutureBooking} BEFORE the
@@ -32,20 +35,20 @@ public class PreRegistrationPolicy {
     static final String MSG_PAST = "预登记时间不能早于当前时间";
 
     /**
-     * Derives the create entry status from the booking time (design D1).
+     * Derives the create entry status (design D1; re-anchored 2026-11-24): REGISTERED
+     * for EVERY path - a NULL booking is a 现场单, a strictly-future slot is a 预登记
+     * and both are registered (预约=预登记; the category marker rides
+     * {@code registrationType}, not the status column).
      *
      * @param bookingTime the pre-registration slot anchor; {@code null} = walk-in
      * @param dbNow       the DB-server wall clock ({@code SELECT now()::timestamp});
-     *                    required non-null for a non-null {@code bookingTime}
-     * @return REGISTERED for NULL/at/past bookings, BOOKED for strictly-future ones
+     *                    kept for the signature's stability (the past guard uses it)
+     * @return REGISTERED always
      */
     public ExamOrderStatus deriveEntryStatus(Date bookingTime, Date dbNow) {
-        if (bookingTime == null) {
-            return ExamOrderStatus.REGISTERED;
-        }
-        // future = strictly after the DB-server now (design D4); at-now and past
-        // derive REGISTERED - a booking cannot enter BOOKED in the past
-        return bookingTime.after(dbNow) ? ExamOrderStatus.BOOKED : ExamOrderStatus.REGISTERED;
+        // 预登记=已登记 (user ruling 2026-11-24): the booking_time slot anchor records
+        // the appointment; the status column starts every order at 已登记
+        return ExamOrderStatus.REGISTERED;
     }
 
     /**

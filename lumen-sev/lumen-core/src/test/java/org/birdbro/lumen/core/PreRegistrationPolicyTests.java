@@ -49,10 +49,13 @@ class PreRegistrationPolicyTests {
     }
 
     @Test
-    void futureBookingTimeDerivesBooked() {
+    void futureBookingTimeDerivesRegistered() {
+        // us-prereg-as-registered (预约=预登记): a strictly-future slot enters 已登记
+        // too - the slot anchor records the appointment, the category rides
+        // registrationType (not the status column)
         Date future = new Date(now.getTime() + 60_000L);
-        assertEquals(ExamOrderStatus.BOOKED, policy.deriveEntryStatus(future, now),
-                "a strictly-future booking_time enters BOOKED (预登记)");
+        assertEquals(ExamOrderStatus.REGISTERED, policy.deriveEntryStatus(future, now),
+                "every create path enters REGISTERED (预登记=已登记)");
     }
 
     // ---------- the pre-registration-path future guard (design D4) ----------

@@ -45,7 +45,9 @@ import static org.junit.jupiter.api.Assertions.fail;
  * and past-refusal scenarios; design D1/D2/D4/D7). {@code composedCreate} is the
  * REFERENCE composition proposal ② builds: DB-server now → walk-in derive (NULL) /
  * config row FOR UPDATE → resolveSlotWindow → caller-side live count →
- * validatePreregistration (locked re-check) → derive BOOKED → registerOrder - all
+ * validatePreregistration (locked re-check) → derive REGISTERED + stamp the entry
+ * category → registerOrder - all (re-anchored by us-prereg-as-registered: every
+ * path enters 已登记, 预约=预登记)
  * inside the caller's ONE transaction.
  *
  * <p>Each behavior was RED-first at its component task (1.2 schema, 2.1 policy,
@@ -132,10 +134,14 @@ class PreRegistrationFlowTests extends KernelIntegrationTestBase {
         return config;
     }
 
-    /** The caller's live count (design D2 - the department-side SELECT count(*) stand-in). */
-    private int countBooked(SlotWindowBounds bounds, int patientUid) {
+    /**
+     * The caller's live count (design D2 - the department-side SELECT count(*)
+     * stand-in; re-anchored by us-prereg-as-registered: 未取消即占位 - live
+     * not-cancelled orders in the window occupy, every stage, walk-ins never).
+     */
+    private int countOccupants(SlotWindowBounds bounds, int patientUid) {
         return jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM exam_order WHERE status = 'BOOKED'"
+                "SELECT count(*) FROM exam_order WHERE status NOT IN ('BOOKING_CANCELLED', 'CANCELLED')"
                 + " AND booking_time >= ? AND booking_time < ? AND deleted = 0"
                 + " AND patient_uid = ?",
                 Integer.class, bounds.getWindowStart(), bounds.getWindowEnd(), patientUid);
@@ -159,14 +165,16 @@ class PreRegistrationFlowTests extends KernelIntegrationTestBase {
 
     /**
      * The composed pre-registration create (the reference composition - see class
-     * javadoc): ONE transaction, walk-in derive for NULL, locked config read +
-     * resolve + caller count + validate + derive BOOKED otherwise, then the
+     * javadoc; re-anchored by us-prereg-as-registered 预约=已登记): ONE transaction,
+     * walk-in derive + WALK_IN stamp for NULL, locked config read + resolve + caller
+     * count + validate + REGISTERED derive + PRE_REGISTERED stamp otherwise, then the
      * aggregate registration.
      */
     private Integer composedCreate(String modality, ExamOrder order) {
         Date dbNow = examSlotConfigMapper.selectDbNow();
         if (order.getBookingTime() == null) {
             order.setStatus(policy.deriveEntryStatus(null, dbNow));
+            order.setRegistrationType(org.birdbro.lumen.core.entity.ExamRegistrationType.WALK_IN);
         } else {
             // D4: refuse the past BEFORE the resolve/count dance (the 12:20-past
             // incident: a past time outside the windows would otherwise die on the
@@ -178,9 +186,10 @@ class PreRegistrationFlowTests extends KernelIntegrationTestBase {
                             .last("FOR UPDATE"));
             SlotWindowBounds bounds = capacityService.resolveSlotWindow(config,
                     order.getBookingTime());
-            int occupancy = countBooked(bounds, order.getPatientUid());
+            int occupancy = countOccupants(bounds, order.getPatientUid());
             capacityService.validatePreregistration(modality, order.getBookingTime(), occupancy);
             order.setStatus(policy.deriveEntryStatus(order.getBookingTime(), dbNow));
+            order.setRegistrationType(org.birdbro.lumen.core.entity.ExamRegistrationType.PRE_REGISTERED);
         }
         return registrationService.registerOrder(identity(order.getPatientUid()), order,
                 ExamExecution.builder().build(), ExamReport.builder().build());
@@ -190,7 +199,7 @@ class PreRegistrationFlowTests extends KernelIntegrationTestBase {
 
     @Test
     @Transactional
-    void composedPreRegistrationCreatePersistsBookedAndOccupiesTheSlot() {
+    void composedPreRegistrationCreatePersistsRegisteredAndOccupiesTheSlot() {
         String modality = uniqueModality();
         int patientUid = uniquePatientUid();
         seedConfig(modality, 4);
@@ -200,30 +209,34 @@ class PreRegistrationFlowTests extends KernelIntegrationTestBase {
 
         assertNotNull(orderId, "the composed create persists the aggregate");
         ExamOrder persisted = examOrderMapper.selectById(orderId);
-        assertEquals(ExamOrderStatus.BOOKED, persisted.getStatus(),
-                "a strictly-future booking_time enters BOOKED (预登记态)");
+        assertEquals(ExamOrderStatus.REGISTERED, persisted.getStatus(),
+                "a strictly-future booking_time enters REGISTERED as well (预登记=已登记)");
+        assertEquals(org.birdbro.lumen.core.entity.ExamRegistrationType.PRE_REGISTERED,
+                persisted.getRegistrationType(),
+                "the pre-registration branch stamps the entry category server-side");
         assertEquals(at(9, 17), persisted.getBookingTime(),
                 "the requested slot anchor round-trips (autoResultMap timestamp)");
 
         // "Pre-registration below capacity occupies the slot" - the window count grew by one
         SlotWindowBounds bounds = SlotWindowBounds.builder()
                 .windowStart(expectedBound(9, 0)).windowEnd(expectedBound(9, 30)).build();
-        assertEquals(1, countBooked(bounds, patientUid),
-                "the created BOOKED order occupies the resolved slot window");
+        assertEquals(1, countOccupants(bounds, patientUid),
+                "the created REGISTERED pre-registration occupies the resolved slot window");
     }
 
     @Test
     @Transactional
-    void slotCountingUsesLivePreRegisteredOrdersOnly() {
+    void slotCountingUsesLiveNotCancelledSlotAnchoredOrders() {
         String modality = uniqueModality();
         int patientUid = uniquePatientUid();
         seedConfig(modality, 4);
         Date bookingTime = at(9, 17);
 
-        // seed the slot to capacity-1 with REAL live BOOKED orders, plus the two
-        // shapes that must NOT count: an arrived REGISTERED order carrying the same
-        // booking_time, and a walk-in BOOKED order with NULL booking_time
-        for (int i = 0; i < 3; i++) {
+        // seed the slot to capacity-1 with two live BOOKED orders plus one REGISTERED
+        // pre-registration (未取消即占位: it COUNTS), and the two shapes that must NOT
+        // count: a CANCELLED order carrying the same booking_time (the reservation
+        // releases), and a walk-in BOOKED order with NULL booking_time
+        for (int i = 0; i < 2; i++) {
             ExamOrder booked = draftOrder(patientUid, bookingTime);
             booked.setStatus(ExamOrderStatus.BOOKED);
             booked.setAccessionNo("AC-SEED-" + Long.toUnsignedString(System.nanoTime())
@@ -234,6 +247,10 @@ class PreRegistrationFlowTests extends KernelIntegrationTestBase {
         arrived.setStatus(ExamOrderStatus.REGISTERED);
         arrived.setAccessionNo("AC-SEED-" + Long.toUnsignedString(System.nanoTime()) + "-R");
         examOrderMapper.insert(arrived);
+        ExamOrder cancelled = draftOrder(patientUid, bookingTime);
+        cancelled.setStatus(ExamOrderStatus.CANCELLED);
+        cancelled.setAccessionNo("AC-SEED-" + Long.toUnsignedString(System.nanoTime()) + "-X");
+        examOrderMapper.insert(cancelled);
         ExamOrder walkIn = draftOrder(patientUid, null);
         walkIn.setStatus(ExamOrderStatus.BOOKED);
         walkIn.setAccessionNo("AC-SEED-" + Long.toUnsignedString(System.nanoTime()) + "-W");
@@ -241,14 +258,14 @@ class PreRegistrationFlowTests extends KernelIntegrationTestBase {
 
         SlotWindowBounds bounds = SlotWindowBounds.builder()
                 .windowStart(expectedBound(9, 0)).windowEnd(expectedBound(9, 30)).build();
-        assertEquals(3, countBooked(bounds, patientUid),
-                "only live BOOKED orders with the booking_time in window count - "
-                + "REGISTERED and NULL-booking orders never occupy capacity");
+        assertEquals(3, countOccupants(bounds, patientUid),
+                "live not-cancelled slot-anchored orders count (BOOKED and REGISTERED alike) - "
+                + "cancelled releases the seat and NULL-booking walk-ins never occupy");
 
-        // below capacity: the composed create passes and occupies the last seat
+        // below capacity: the composed create passes and takes the final seat
         Integer orderId = composedCreate(modality, draftOrder(patientUid, bookingTime));
         assertNotNull(orderId);
-        assertEquals(4, countBooked(bounds, patientUid), "the create took the final seat");
+        assertEquals(4, countOccupants(bounds, patientUid), "the create took the final seat");
 
         // "Pre-registration refused when the slot is at capacity" - a further create
         // sees the live count at capacity and is refused with nothing persisted
@@ -257,7 +274,7 @@ class PreRegistrationFlowTests extends KernelIntegrationTestBase {
                 "the slot at capacity refuses further pre-registrations");
         assertEquals("A0400", ex.getCode(), "the house business-refusal code");
         assertTrue(ex.getMsg().contains("该时段已满"), "the D5 capacity token: " + ex.getMsg());
-        assertEquals(4, countBooked(bounds, patientUid), "the refused create left no row");
+        assertEquals(4, countOccupants(bounds, patientUid), "the refused create left no row");
     }
 
     @Test
