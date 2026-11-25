@@ -1,12 +1,15 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ConfigProvider } from 'antd'
+import dayjs from 'dayjs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import UsRegistrationPage from '@/pages/us/registration'
 import * as usOrdersApi from '@/api/us-orders'
 import type { UsOrderStatus, UsOrderView } from '@/api/us-orders'
 import * as examItemApi from '@/api/exam-item'
 import * as searchFiltersApi from '@/api/search-filters'
+import * as dictsApi from '@/api/dicts'
+import { invalidateDictItemsCache } from '@/utils/dict-items'
 import { ApiError } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { themeConfig } from '@/theme'
@@ -27,6 +30,7 @@ vi.mock('@/api/exam-item', async (importOriginal) => ({
   ...(await importOriginal<typeof examItemApi>()),
   pageExamItems: vi.fn(),
 }))
+vi.mock('@/api/dicts')
 
 const FULL_PERMS = ['us:order:list', 'us:order:create', 'us:order:update', 'us:order:cancel']
 
@@ -40,10 +44,17 @@ function orderView(partial: Partial<UsOrderView> & { orderId: number }): UsOrder
     emgFlag: 0,
     cancelReason: null,
     createTime: '2026-11-20 15:00:00',
+    createBy: null,
+    registrationType: null,
     bookingTime: null,
     pregnancyStatus: null,
     gestationalWeeks: null,
     note: null,
+    applyDept: null,
+    applyDoctor: null,
+    applyTime: null,
+    applyDeptId: null,
+    applyDoctorId: null,
     ...partial,
   }
 }
@@ -62,9 +73,13 @@ const ZERO_COUNTS: Record<UsOrderStatus, number> = {
 }
 
 const US_ITEMS = [
-  { id: 1, exam: '腹部彩超', modality: 'US', isCommon: true },
-  { id: 2, exam: '心脏彩超', modality: 'US', isCommon: false },
+  { id: 1, exam: '腹部彩超', modality: 'US', isCommon: true, bodyName: '肝胆胰脾' },
+  { id: 2, exam: '心脏彩超', modality: 'US', isCommon: false, bodyName: '心脏' },
+  { id: 3, exam: '阑尾超声', modality: 'US', isCommon: false, bodyName: '右下腹' },
 ]
+
+/** The booking dialog's D+1 default (us-booking-slot-picker 2026-11-24 redesign). */
+const TOMORROW = dayjs().add(1, 'day').format('YYYY-MM-DD')
 
 function renderPage() {
   return render(
@@ -77,7 +92,52 @@ function renderPage() {
 describe('US workstation two-state workbench (spec: web-us-station)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    invalidateDictItemsCache()
     useAuthStore.getState().setSession({ perms: FULL_PERMS })
+    // The dict transport stub: 1004 性别 / 1006 证件类型 (the V6 seed's stable
+    // rcp ca_id anchors); unknown catalogs resolve empty.
+    // the booking dialog's slot grid stub (us-booking-slot-picker): 09:30 rides
+    // tight (仅剩 1 号) and 10:00 at capacity - the 满员标灰 render asserted
+    vi.mocked(usOrdersApi.listSlotOptions).mockResolvedValue({
+      configured: true,
+      slots: [
+        { start: '09:00', end: '09:30', booked: 0, capacity: 4 },
+        { start: '09:30', end: '10:00', booked: 3, capacity: 4 },
+        { start: '10:00', end: '10:30', booked: 4, capacity: 4 },
+      ],
+    })
+    vi.mocked(dictsApi.fetchDictItemsById).mockImplementation(async (catalId: number) => {
+      if (catalId === 1004) {
+        return [
+          { code: 100401, value: '男' },
+          { code: 100402, value: '女' },
+          { code: 100403, value: '未知' },
+        ]
+      }
+      if (catalId === 1006) {
+        return [
+          { code: 100601, value: '居民身份证' },
+          { code: 100602, value: '护照' },
+        ]
+      }
+      if (catalId === 1023) {
+        return [
+          { code: 1, value: '门诊' },
+          { code: 2, value: '住院' },
+          { code: 3, value: '急诊' },
+          { code: 4, value: '体检' },
+        ]
+      }
+      if (catalId === 1002) {
+        return [
+          { code: 1, value: '未孕' },
+          { code: 2, value: '早孕' },
+          { code: 3, value: '中晚孕' },
+          { code: 4, value: '未知' },
+        ]
+      }
+      return []
+    })
     vi.mocked(examItemApi.pageExamItems).mockResolvedValue({
       records: US_ITEMS,
       total: US_ITEMS.length,
@@ -116,6 +176,31 @@ describe('US workstation two-state workbench (spec: web-us-station)', () => {
     expect(screen.queryByLabelText('检查号条件')).not.toBeInTheDocument()
     // the datenav shows in the compact head
     expect(screen.getByLabelText('日期导航')).toBeInTheDocument()
+  })
+
+  it('the rail foot rides the shared ConsolePagination in both states (共 N 条, no hand-rolled ‹ ›)', async () => {
+    renderPage()
+    // the standard pager (unified with the setting/system pages) replaces the prototype's ‹ 1 › foot
+    expect(await screen.findByText('共 2 条')).toBeInTheDocument()
+    expect(document.querySelector('.ant-pagination')).toBeInTheDocument()
+    expect(screen.queryByText(/· 2 单/)).not.toBeInTheDocument()
+    // the pager survives the wide toggle (the shared list keeps its paging controls)
+    fireEvent.click(screen.getByLabelText('工作台切换'))
+    expect(screen.getByText('共 2 条')).toBeInTheDocument()
+    expect(document.querySelector('.ant-pagination')).toBeInTheDocument()
+  })
+
+  it('the six status chips share one grouped row (head row 1 = datenav + autorefresh)', async () => {
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    // the mocked counts seed the chip labels (ZERO_COUNTS + BOOKED/REGISTERED = 1)
+    const chips = ['预约 1', '已登记 1', '处理中 0', '已完成 0', '已取消 0']
+      .map((label) => screen.getByLabelText(label))
+    // all six live in ONE group container - no chip scattered onto the head row
+    expect(new Set(chips.map((chip) => chip.parentElement)).size).toBe(1)
+    // the group is its own row, not the rail head itself (datenav stays off the chips row)
+    expect(chips[0].parentElement).not.toBe(screen.getByLabelText('日期导航').parentElement)
+    expect(screen.getByLabelText('自动刷新').parentElement!.parentElement).not.toBe(chips[0].parentElement)
   })
 
   it('the edge toggle swaps to the WIDE state — query row + table, datenav hidden', async () => {
@@ -167,10 +252,63 @@ async function pickOption(title: string): Promise<HTMLElement> {
   })
 }
 
+/** The required-demographics fill (ruling 2026-11-24: 姓名/性别/年龄/就诊卡号/患者来源
+ *  mandatory - 患者来源 rides its first-option default, the rest fill here). */
+function fillRequiredDemo() {
+  fireEvent.click(screen.getByRole('radio', { name: '男' }))
+  fireEvent.change(screen.getByLabelText('年龄-岁'), { target: { value: '3' } })
+  fireEvent.change(screen.getByLabelText('卡号'), { target: { value: 'CARD-1' } })
+}
+
 describe('compact workbench behaviors (us-registration-redesign batch 2)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    invalidateDictItemsCache()
     useAuthStore.getState().setSession({ perms: FULL_PERMS })
+    // The dict transport stub: 1004 性别 / 1006 证件类型 (the V6 seed's stable
+    // rcp ca_id anchors); unknown catalogs resolve empty.
+    // the booking dialog's slot grid stub (us-booking-slot-picker): 09:30 rides
+    // tight (仅剩 1 号) and 10:00 at capacity - the 满员标灰 render asserted
+    vi.mocked(usOrdersApi.listSlotOptions).mockResolvedValue({
+      configured: true,
+      slots: [
+        { start: '09:00', end: '09:30', booked: 0, capacity: 4 },
+        { start: '09:30', end: '10:00', booked: 3, capacity: 4 },
+        { start: '10:00', end: '10:30', booked: 4, capacity: 4 },
+      ],
+    })
+    vi.mocked(dictsApi.fetchDictItemsById).mockImplementation(async (catalId: number) => {
+      if (catalId === 1004) {
+        return [
+          { code: 100401, value: '男' },
+          { code: 100402, value: '女' },
+          { code: 100403, value: '未知' },
+        ]
+      }
+      if (catalId === 1006) {
+        return [
+          { code: 100601, value: '居民身份证' },
+          { code: 100602, value: '护照' },
+        ]
+      }
+      if (catalId === 1023) {
+        return [
+          { code: 1, value: '门诊' },
+          { code: 2, value: '住院' },
+          { code: 3, value: '急诊' },
+          { code: 4, value: '体检' },
+        ]
+      }
+      if (catalId === 1002) {
+        return [
+          { code: 1, value: '未孕' },
+          { code: 2, value: '早孕' },
+          { code: 3, value: '中晚孕' },
+          { code: 4, value: '未知' },
+        ]
+      }
+      return []
+    })
     vi.mocked(examItemApi.pageExamItems).mockResolvedValue({
       records: US_ITEMS,
       total: US_ITEMS.length,
@@ -198,39 +336,77 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
       orderId: 99,
       accessionNo: 'US26000099',
       status: 'REGISTERED',
+      registrationType: 'WALK_IN',
       bookingTime: null,
     })
-    vi.mocked(usOrdersApi.registerOrder).mockResolvedValue(true)
     vi.mocked(usOrdersApi.cancelOrder).mockResolvedValue(true)
   })
 
   it('the chips carry the counts and multi-select toggles the IN-filter', async () => {
     renderPage()
     await screen.findByLabelText('日期导航')
-    // the default selection 预约+已登记 rides the initial query
-    await waitFor(() => {
-      const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]
-      expect(call?.status?.join(',')).toBe('BOOKED,REGISTERED')
-    })
-    // the chips render the zero-filled meter
-    expect(screen.getByRole('button', { name: '预约 1' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '已完成 0' })).toBeInTheDocument()
-    // toggling the 预约 chip drops BOOKED from the IN-filter
-    fireEvent.click(screen.getByRole('button', { name: '预约 1' }))
+    // us-prereg-as-registered: the default selection rides 已登记 only (BOOKED never
+    // occurs in the US flow — 预登记=已登记; the chip still renders its zero count)
     await waitFor(() => {
       const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]
       expect(call?.status?.join(',')).toBe('REGISTERED')
     })
+    // the chips render the zero-filled meter
+    expect(screen.getByRole('button', { name: '预约 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '已完成 0' })).toBeInTheDocument()
+    // toggling the 预约 chip adds BOOKED back into the IN-filter (order appended)
+    fireEvent.click(screen.getByRole('button', { name: '预约 1' }))
+    await waitFor(() => {
+      const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]
+      expect(call?.status?.join(',')).toBe('REGISTERED,BOOKED')
+    })
   })
 
-  it('the rail renders dense rows with the arrival/cancel actions', async () => {
+  it('the rail renders dense rows with the cancel action (NO 登记 affordance)', async () => {
     renderPage()
-    // the BOOKED row carries 登记 (the arrival confirmation)
+    // us-prereg-as-registered: the arrival confirmation retires — 预登记 rows enter
+    // 已登记 at creation (预约=预登记), so no row carries a 登记 action; 取消 stays
     const bookedRow = (await screen.findAllByText('张三'))[0].closest('tr') as HTMLElement
     expect(within(bookedRow).getByText('预约')).toBeInTheDocument()
-    expect(within(bookedRow).getByRole('button', { name: /^登记/ })).toBeInTheDocument()
-    fireEvent.click(within(bookedRow).getByRole('button', { name: /^登记/ }))
-    await waitFor(() => expect(usOrdersApi.registerOrder).toHaveBeenCalledWith(11))
+    expect(within(bookedRow).queryByRole('button', { name: /^登记/ })).not.toBeInTheDocument()
+    expect(within(bookedRow).getByRole('button', { name: /^取消/ })).toBeInTheDocument()
+  })
+
+  it('the category tag reads the server-stamped registrationType (现场/预约)', async () => {
+    // us-prereg-as-registered: the category is a business fact from the backend —
+    // row 11 is a PRE_REGISTERED order that has ALREADY entered 已登记 (预约=预登记),
+    // so the only 预约 text in its row is the category tag; row 12 is a walk-in.
+    vi.mocked(usOrdersApi.pageOrders).mockResolvedValue(
+      pageFixture([
+        orderView({
+          orderId: 11,
+          status: 'REGISTERED',
+          registrationType: 'PRE_REGISTERED',
+          bookingTime: '2026-11-25 09:17:00',
+        }),
+        orderView({ orderId: 12, status: 'REGISTERED', registrationType: 'WALK_IN' }),
+      ]) as never,
+    )
+    renderPage()
+    const preRegRow = (await screen.findAllByText('张三'))[0].closest('tr') as HTMLElement
+    expect(within(preRegRow).getByText('预约')).toBeInTheDocument()
+    const walkInRow = (await screen.findAllByText('张三'))[1].closest('tr') as HTMLElement
+    expect(within(walkInRow).getByText('现场')).toBeInTheDocument()
+    // the wide table carries the same tag beside the status chip
+    fireEvent.click(screen.getByLabelText('工作台切换'))
+    const widePreReg = (await screen.findAllByText('张三'))[0].closest('tr') as HTMLElement
+    expect(within(widePreReg).getByText('预约')).toBeInTheDocument()
+  })
+
+  it('the bench foot carries NO arrival-confirmation copy (预约=预登记)', async () => {
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    // us-prereg-as-registered: the pre-registered patient goes straight into the exam —
+    // the retired long hint (到检后在列表点登记确认) stays gone entirely (the 2026-11-24
+    // ruling removed it); only 重置/提交登记 remain
+    expect(screen.getByLabelText('提交登记')).toBeInTheDocument()
+    expect(screen.queryByText(/到检后在列表点/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/登记确认/)).not.toBeInTheDocument()
   })
 
   it('the resolve bar drives the three outcomes (exact fills / candidates dialog / none)', async () => {
@@ -274,13 +450,17 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     expect(screen.queryByLabelText('急诊占位')).not.toBeInTheDocument()
   })
 
-  it('section 2 hosts the 急诊 switch, 预约时间 picker, and 临床诊断', async () => {
+  it('section 2 hosts the 急诊 switch, the booking trigger, and 临床诊断', async () => {
     renderPage()
     await screen.findByText('请检信息')
     expect(screen.getByLabelText('急诊')).toBeInTheDocument()
-    expect(screen.getByLabelText('预约日期')).toBeInTheDocument()
-    expect(screen.getByLabelText('预约时段')).toBeInTheDocument()
     expect(screen.getByLabelText('临床诊断')).toBeInTheDocument()
+    // the booking cell collapses into ONE trigger + dialog (2026-11-24 redesign) -
+    // the raw DatePicker/Select pair is gone; NO resting text until a pick (ruling 2026-11-24)
+    const bookingTrigger = screen.getByRole('button', { name: '选择预约时段' })
+    await waitFor(() => expect(bookingTrigger).toBeEnabled())
+    expect(screen.queryByLabelText('预约日期')).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: '预约时段' })).not.toBeInTheDocument()
   })
 
   it('the pregnancy cell is gender-conditional (female only, weeks disabled when 未孕/未知)', async () => {
@@ -288,9 +468,9 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     await screen.findByText('请检信息')
     // default gender unset: the pregnancy cell stays hidden
     expect(screen.queryByLabelText('妊娠状态')).not.toBeInTheDocument()
-    // female: the cell appears (the prototype's gender radio dots)
+    // female: the cell appears (the gender radio rides the dict 1004 options)
     const user = userEvent.setup()
-    await user.click(screen.getByRole('radio', { name: '女' }))
+    await user.click(await screen.findByRole('radio', { name: '女' }))
     expect((await screen.findAllByLabelText('妊娠状态')).length).toBeGreaterThan(0)
     // 未孕 disables the weeks input
     await user.click(screen.getAllByRole('combobox', { name: '妊娠状态' })[0])
@@ -298,28 +478,99 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     expect(screen.getAllByLabelText('孕周')[0]).toBeDisabled()
   })
 
-  it('section 3 renders common chips + the picked list + the add dialog', async () => {
+  it('性别 and 证件类型 resolve from the dict catalogs (1004/1006, id-anchored)', async () => {
+    renderPage()
+    await screen.findByText('请检信息')
+    // the gender radios carry the dict labels (no hard-coded option set)
+    expect(await screen.findByRole('radio', { name: '男' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '未知' })).toBeInTheDocument()
+    // 患者来源 opens the value-keyed catalog-1023 dropdown (us-vocab-dict-catalogs)
+    await userEvent.setup().click(screen.getByRole('combobox', { name: '患者来源' }))
+    expect(await pickOption('体检')).toBeInTheDocument()
+    // 证件类型 = the compact type segment inside the compound box (ruling
+    // 2026-11-24): defaults to the first dict item, opens the dict menu - the
+    // hard-coded extras are gone
+    const user = userEvent.setup()
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '证件类型' })).toHaveTextContent('居民身份证'))
+    await user.click(screen.getByRole('button', { name: '证件类型' }))
+    expect(screen.queryByText('军官证')).not.toBeInTheDocument()
+  })
+
+  it('section 3 renders the split picker: rail chips + picked table + seek + the dashed add block', async () => {
     renderPage()
     await screen.findByText('检查信息')
-    // the common-item chips render the isCommon catalog rows
-    expect(screen.getByRole('button', { name: '腹部彩超' })).toBeInTheDocument()
-    // picking a chip adds to the picked list
+    // 方案 C (user-approved prototype 2026-11-24): the common-item rail sits RIGHT
+    // of the picked table; chips toggle add/remove instead of graying out
     fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
     expect(screen.getAllByText('腹部彩超').length).toBeGreaterThan(0)
-    // the 添加项目 dialog opens and adds the non-common row
-    fireEvent.click(screen.getByRole('button', { name: '添加项目' }))
-    const dialog = await screen.findByRole('dialog')
-    fireEvent.click(within(dialog).getAllByText('心脏彩超')[0])
-    fireEvent.click(within(dialog).getByRole('button', { name: '确认添加' }))
+    expect(screen.getByRole('button', { name: '腹部彩超（已选，点击移除）' })).toBeInTheDocument()
+    // the picked row deletes via the family trash icon (the ConsoleAction danger verb)
+    fireEvent.click(screen.getByRole('button', { name: '删除 腹部彩超' }))
+    expect(screen.queryByRole('button', { name: '删除 腹部彩超' })).toBeNull()
+    // the picked table's ops header carries the family right-edge refresh glyph
+    // (anchored via the trailing add-row's seek - the empty-state row is gone;
+    // the aria-label lands on BOTH the select root and the inner input - take
+    // the combobox role so the query stays single)
+    const pickedTable = screen.getByRole('combobox', { name: '搜索检查项目' }).closest('table') as HTMLTableElement
+    expect(within(pickedTable).getByLabelText('刷新列表')).toBeInTheDocument()
+    // the header seek adds a NON-common item without opening the dialog.
+    // aria-label lands on BOTH the .ant-select root and the inner input - take
+    // the combobox role so the query stays single. The option label is a custom
+    // node (no title attr) - match by textContent; the userEvent
+    // click-combobox + click-option pairing is the suite-proven jsdom recipe.
+    const seekUser = userEvent.setup()
+    const seek = screen.getByRole('combobox', { name: '搜索检查项目' })
+    await seekUser.click(seek)
+    await seekUser.type(seek, '心脏')
+    const seekOpt = await waitFor(() => {
+      const el = Array.from(document.querySelectorAll('.ant-select-item-option')).find(
+        (o) => o.textContent?.includes('心脏彩超'),
+      )
+      if (!el) throw new Error('seek option 心脏彩超 not rendered')
+      return el
+    })
+    await seekUser.click(seekOpt)
     await waitFor(() => {
       expect(screen.getAllByText('心脏彩超').length).toBeGreaterThan(0)
     })
+    // the dashed-block entry (the 添加测量项 family pattern) opens the dialog;
+    // the picker redesign (2026-11-24): rows toggle via the antd Checkbox
+    // (role=checkbox, the whole row is clickable too) and the footer band
+    // carries the live 已选/合计 summary
+    fireEvent.click(screen.getByRole('button', { name: '添加项目' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: '选择 阑尾超声' }))
+    expect(within(dialog).getByText('已选 2 项', { exact: false })).toBeInTheDocument()
+    // the row itself toggles as well (click anywhere on the row)
+    fireEvent.click(within(dialog).getByText('阑尾超声'))
+    expect(within(dialog).getByText('已选 1 项', { exact: false })).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByText('阑尾超声'))
+    fireEvent.click(within(dialog).getByRole('button', { name: '确认添加' }))
+    await waitFor(() => {
+      expect(screen.getAllByText('阑尾超声').length).toBeGreaterThan(0)
+    })
+  })
+
+  it('the picker dialog filters by 检查部位 client-side', async () => {
+    renderPage()
+    await screen.findByText('检查信息')
+    fireEvent.click(screen.getByRole('button', { name: '添加项目' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('腹部彩超')).toBeInTheDocument()
+    // the 部位 Select narrows the list live (no server round trip)
+    await userEvent.setup().click(within(dialog).getByRole('combobox', { name: '部位条件' }))
+    fireEvent.click(await pickOption('心脏'))
+    expect(within(dialog).getByText('心脏彩超')).toBeInTheDocument()
+    expect(within(dialog).queryByText('腹部彩超')).toBeNull()
+    expect(within(dialog).queryByText('阑尾超声')).toBeNull()
   })
 
   it('submit registers a walk-in (no bookingTime) and refreshes', async () => {
     renderPage()
     await screen.findByLabelText('日期导航')
     fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '赵六' } })
+    fillRequiredDemo()
     fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
     fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
     await waitFor(() => expect(usOrdersApi.createOrder).toHaveBeenCalled())
@@ -327,19 +578,108 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     expect(body.name).toBe('赵六')
     expect(body.bookingTime).toBeNull()
     expect(body.examItems.length).toBeGreaterThan(0)
+    // the untouched HIS-origin trio submits as nulls (us-apply-info: blank = null)
+    expect(body.ext?.applyDept).toBeNull()
+    expect(body.ext?.applyDoctor).toBeNull()
+    expect(body.ext?.applyTime).toBeNull()
   })
 
-  it('submit posts bookingTime for pre-registration', async () => {
+  it('submit posts bookingTime for pre-registration (the dialog date+slot pair)', async () => {
     renderPage()
     await screen.findByText('请检信息')
     fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '钱七' } })
+    fillRequiredDemo()
     fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
-    fireEvent.change(screen.getByLabelText('预约日期'), { target: { value: '2026-11-25' } })
-    fireEvent.change(screen.getByLabelText('预约时段'), { target: { value: '09:17' } })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: '选择预约时段' }))
+    const dialog = await screen.findByRole('dialog')
+    // the D+1 default: the dialog opens with tomorrow pre-selected in the calendar
+    // and its grid pre-queried
+    expect(within(dialog).getByRole('button', { name: TOMORROW })).toBeInTheDocument()
+    expect(
+      vi.mocked(usOrdersApi.listSlotOptions).mock.calls.some(
+        (call) => call[0] === TOMORROW && call[1] === 'US'),
+    ).toBe(true)
+    // pick 09:00 and confirm - the pair rides into the trigger summary
+    await user.click(within(dialog).getByRole('button', { name: '预约时段 09:00–09:30，剩余 4 号' }))
+    await user.click(within(dialog).getByRole('button', { name: /^确\s*定$/ }))
+    expect(screen.getByText('09:00–09:30')).toBeInTheDocument()
+    // the HIS application origin rides the ext block verbatim (us-apply-info)
+    fireEvent.change(screen.getByLabelText('申请科室'), { target: { value: '门诊内科' } })
+    fireEvent.change(screen.getByLabelText('申请医生'), { target: { value: '李临床' } })
+    fireEvent.change(screen.getByLabelText('申请时间'), { target: { value: '2026-11-24 08:30:00' } })
     fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
     await waitFor(() => expect(usOrdersApi.createOrder).toHaveBeenCalled())
     const body = vi.mocked(usOrdersApi.createOrder).mock.calls[0][0]
-    expect(body.bookingTime).toBe('2026-11-25 09:17:00')
+    expect(body.bookingTime).toBe(`${TOMORROW} 09:00:00`)
+    expect(body.ext?.applyDept).toBe('门诊内科')
+    expect(body.ext?.applyDoctor).toBe('李临床')
+    expect(body.ext?.applyTime).toBe('2026-11-24 08:30:00')
+  })
+
+  it('the dialog grays the full slot; the calendar marks day-level 余量 (D+1 floor)', async () => {
+    renderPage()
+    const user = userEvent.setup()
+    const bookingTrigger = screen.getByRole('button', { name: '选择预约时段' })
+    await waitFor(() => expect(bookingTrigger).toBeEnabled())
+    await user.click(bookingTrigger)
+    const dialog = await screen.findByRole('dialog')
+    // the always-visible calendar: today disabled (D+1 floor), tomorrow carries
+    // the client-aggregated day badge (stub: 12 cap - 7 booked = 余 5)
+    expect(within(dialog).getByRole('button', { name: dayjs().format('YYYY-MM-DD') })).toBeDisabled()
+    const tomorrowCell = within(dialog).getByRole('button', { name: TOMORROW })
+    expect(tomorrowCell).toBeEnabled()
+    await waitFor(() => expect(tomorrowCell).toHaveTextContent('余 5'))
+    // the grouped grid carries the remaining counts and the day summary
+    expect(within(dialog).getByText('上午')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: '预约时段 09:30–10:00，剩余 1 号' })).toBeInTheDocument()
+    // the full slot renders disabled and refuses the pick (满员标灰 in the dialog)
+    const fullCard = within(dialog).getByRole('button', { name: '预约时段 10:00–10:30，已满' })
+    expect(fullCard).toHaveAttribute('aria-disabled', 'true')
+    await user.click(fullCard)
+    expect(within(dialog).getByRole('button', { name: /^确\s*定$/ })).toBeDisabled()
+    // clicking a calendar day selects it and re-queries the day grid
+    const monthEnd = dayjs().add(1, 'day').endOf('month').format('YYYY-MM-DD')
+    await user.click(within(dialog).getByRole('button', { name: monthEnd }))
+    await waitFor(() => {
+      expect(vi.mocked(usOrdersApi.listSlotOptions).mock.calls.at(-1)?.[0]).toBe(monthEnd)
+    })
+  })
+
+  it('clearing a picked booking (the trigger ×) returns the walk-in state and null bookingTime', async () => {
+    renderPage()
+    await screen.findByText('请检信息')
+    fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '吴九' } })
+    fillRequiredDemo()
+    fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: '选择预约时段' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: '预约时段 09:00–09:30，剩余 4 号' }))
+    await user.click(within(dialog).getByRole('button', { name: /^确\s*定$/ }))
+    // the summary carries the pair; the trigger's × clears it back to walk-in
+    expect(screen.getByText('09:00–09:30')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '清除预约时段' }))
+    // back to the walk-in resting state: the summary is gone, the trigger stays live
+    await waitFor(() => expect(screen.queryByText('09:00–09:30')).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: '选择预约时段' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
+    await waitFor(() => expect(usOrdersApi.createOrder).toHaveBeenCalled())
+    expect(vi.mocked(usOrdersApi.createOrder).mock.calls[0][0].bookingTime).toBeNull()
+  })
+
+  it('an unconfigured modality disables the trigger (未开通预约) and walk-ins still submit', async () => {
+    vi.mocked(usOrdersApi.listSlotOptions).mockResolvedValue({ configured: false, slots: [] })
+    renderPage()
+    const trigger = await screen.findByRole('button', { name: '选择预约时段' })
+    await waitFor(() => expect(trigger).toBeDisabled())
+    expect(screen.getByText('未开通预约')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '郑十' } })
+    fillRequiredDemo()
+    fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
+    fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
+    await waitFor(() => expect(usOrdersApi.createOrder).toHaveBeenCalled())
+    expect(vi.mocked(usOrdersApi.createOrder).mock.calls[0][0].bookingTime).toBeNull()
   })
 
   it('the slot refusals surface verbatim and keep the form', async () => {
@@ -349,6 +689,7 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     renderPage()
     await screen.findByText('请检信息')
     fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '孙八' } })
+    fillRequiredDemo()
     fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
     fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
     expect(await screen.findByText('该时段已满，请选择其他时段')).toBeInTheDocument()
@@ -361,7 +702,52 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
 describe('wide state + saved searches (us-registration-redesign batches 3-4)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    invalidateDictItemsCache()
     useAuthStore.getState().setSession({ perms: FULL_PERMS })
+    // The dict transport stub: 1004 性别 / 1006 证件类型 (the V6 seed's stable
+    // rcp ca_id anchors); unknown catalogs resolve empty.
+    // the booking dialog's slot grid stub (us-booking-slot-picker): 09:30 rides
+    // tight (仅剩 1 号) and 10:00 at capacity - the 满员标灰 render asserted
+    vi.mocked(usOrdersApi.listSlotOptions).mockResolvedValue({
+      configured: true,
+      slots: [
+        { start: '09:00', end: '09:30', booked: 0, capacity: 4 },
+        { start: '09:30', end: '10:00', booked: 3, capacity: 4 },
+        { start: '10:00', end: '10:30', booked: 4, capacity: 4 },
+      ],
+    })
+    vi.mocked(dictsApi.fetchDictItemsById).mockImplementation(async (catalId: number) => {
+      if (catalId === 1004) {
+        return [
+          { code: 100401, value: '男' },
+          { code: 100402, value: '女' },
+          { code: 100403, value: '未知' },
+        ]
+      }
+      if (catalId === 1006) {
+        return [
+          { code: 100601, value: '居民身份证' },
+          { code: 100602, value: '护照' },
+        ]
+      }
+      if (catalId === 1023) {
+        return [
+          { code: 1, value: '门诊' },
+          { code: 2, value: '住院' },
+          { code: 3, value: '急诊' },
+          { code: 4, value: '体检' },
+        ]
+      }
+      if (catalId === 1002) {
+        return [
+          { code: 1, value: '未孕' },
+          { code: 2, value: '早孕' },
+          { code: 3, value: '中晚孕' },
+          { code: 4, value: '未知' },
+        ]
+      }
+      return []
+    })
     vi.mocked(examItemApi.pageExamItems).mockResolvedValue({
       records: US_ITEMS,
       total: US_ITEMS.length,
@@ -428,8 +814,8 @@ describe('wide state + saved searches (us-registration-redesign batches 3-4)', (
       const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]
       expect(call?.applyTimeStart).toMatch(/^\d{4}-\d{2}-\d{2} 00:00:00$/)
     })
-    fireEvent.change(screen.getByLabelText('申请时间起'), { target: { value: '2026-11-01 00:00:00' } })
-    fireEvent.change(screen.getByLabelText('申请时间止'), { target: { value: '2026-11-30 23:59:59' } })
+    fireEvent.change(screen.getByLabelText('创建时间起'), { target: { value: '2026-11-01 00:00:00' } })
+    fireEvent.change(screen.getByLabelText('创建时间止'), { target: { value: '2026-11-30 23:59:59' } })
     fireEvent.click(screen.getByRole('button', { name: '查询' }))
     await waitFor(() => {
       const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]

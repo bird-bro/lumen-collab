@@ -22,6 +22,11 @@ export type UsOrderStatus =
   | 'BOOKING_CANCELLED'
   | 'CANCELLED';
 
+/** The entry-category marker (us-prereg-as-registered; user ruling 2026-11-24 预约=
+ * 预登记): WALK_IN 现场单 / PRE_REGISTERED 预登记 - a SERVER-stamped business fact,
+ * the queue system's discriminator (never inferred from bookingTime null-ness). */
+export type UsRegistrationType = 'WALK_IN' | 'PRE_REGISTERED';
+
 /** The kernel ExamItemRef shape: catalog id + the name snapshot taken at order time. */
 export interface UsExamItemRef {
   itemId: number;
@@ -47,6 +52,14 @@ export interface UsRegistrationExtBody {
   pregnancyStatus?: string | null;
   gestationalWeeks?: number | null;
   note?: string | null;
+  /** The HIS application origin (us-apply-info): the department / doctor / raw
+   * `yyyy-MM-dd HH:mm:ss` moment that opened the 检查申请单 - free text, blank
+   * allowed. The id anchors are RESERVED contract fields the v1 UI never sends. */
+  applyDept?: string | null;
+  applyDoctor?: string | null;
+  applyTime?: string | null;
+  applyDeptId?: string | null;
+  applyDoctorId?: string | null;
 }
 
 /** The demographics-or-identity create body (the server resolves-or-registers).
@@ -82,11 +95,24 @@ export interface UsOrderView {
   emgFlag: number;
   cancelReason: string | null;
   createTime: string;
+  /** 登记人 = the create operator uid (us-prereg-as-registered: create_by serves
+   * BOTH kinds - the 登记 act happens at creation for walk-ins and pre-registrations
+   * alike). */
+  createBy: number | null;
+  /** The server-stamped entry category (us-prereg-as-registered). */
+  registrationType: UsRegistrationType | null;
   /** 预登记时段锚点 (null = 现场单/无预约; 拍板 02-B). */
   bookingTime: string | null;
   pregnancyStatus: string | null;
   gestationalWeeks: number | null;
   note: string | null;
+  /** The HIS application origin flattened from the ext row (us-apply-info; null
+   * when the order carries no ext row). The id anchors are reserved. */
+  applyDept: string | null;
+  applyDoctor: string | null;
+  applyTime: string | null;
+  applyDeptId: string | null;
+  applyDoctorId: string | null;
 }
 
 /** The wide-table query (us-registration-redesign-api 拍板 03-B, the RCP∪EIS union).
@@ -124,6 +150,33 @@ export interface UsLookupResult {
   candidates: UsPatientIdentity[] | null;
 }
 
+/** One granularity slot of the booking picker's day grid (us-booking-slot-picker):
+ * the HH:mm bounds, the LIVE BOOKED occupancy, and the config's per-slot capacity. */
+export interface SlotOptionView {
+  start: string;
+  end: string;
+  booked: number;
+  capacity: number;
+}
+
+/** The slot-options read (us-booking-slot-picker-sev): configured=false = no live
+ * config for the modality (the picker disables; walk-ins unaffected). */
+export interface SlotOptionsView {
+  configured: boolean;
+  slots: SlotOptionView[];
+}
+
+/** GET /us/orders/slot-options - the booking picker's day grid (the slot dialog's
+ * 满员标灰 render; the 2026-11-24 trigger+dialog redesign - the read contract is
+ * form-agnostic): the config's windows floored onto the granularity grid with the
+ * create path's occupancy predicate. */
+export function listSlotOptions(date: string, modality: string): Promise<SlotOptionsView> {
+  return apiRequest<SlotOptionsView>('/us/orders/slot-options', {
+    method: 'GET',
+    query: { date, modality },
+  });
+}
+
 /** The lookup query: the demographics keys the chain walks (id_no → card_no → soft). */
 export interface UsLookupQuery {
   idType?: string | null;
@@ -148,11 +201,20 @@ export function resolvePatients(query: UsLookupQuery): Promise<UsLookupResult> {
 
 export function createOrder(
   body: UsOrderCreateBody,
-): Promise<{ orderId: number; accessionNo: string; status: UsOrderStatus; bookingTime: string | null }> {
-  return apiRequest<{ orderId: number; accessionNo: string; status: UsOrderStatus; bookingTime: string | null }>(
-    '/us/orders',
-    { method: 'POST', body },
-  );
+): Promise<{
+  orderId: number;
+  accessionNo: string;
+  status: UsOrderStatus;
+  registrationType: UsRegistrationType;
+  bookingTime: string | null;
+}> {
+  return apiRequest<{
+    orderId: number;
+    accessionNo: string;
+    status: UsOrderStatus;
+    registrationType: UsRegistrationType;
+    bookingTime: string | null;
+  }>('/us/orders', { method: 'POST', body });
 }
 
 export function pageOrders(
