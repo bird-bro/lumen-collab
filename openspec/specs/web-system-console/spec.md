@@ -1276,3 +1276,44 @@ render verbatim and keep the drawer open.
 - **WHEN** the user lacks the matching `setting:slot:{create,update,delete}` perm
 - **THEN** the corresponding affordance is hidden and the backend refusal path is never
   reached
+
+### Requirement: 检查类型 List Filter
+
+The 预约设置 list SHALL offer a 检查类型 filter in the tool row, sourced from the
+same dict-1024 items the drawer's select uses. The filter SHALL narrow the table
+client-side (no additional list request); clearing the filter SHALL restore the
+full list.
+
+#### Scenario: Selecting a type narrows the list in memory
+
+- **WHEN** the operator picks a 检查类型 in the filter
+- **THEN** the table shows only that type's policy row
+- **AND** no additional `GET /us/slot-configs` request is issued (the narrowing
+  rides the mount-time payload)
+
+#### Scenario: Clearing the filter restores the full list
+
+- **WHEN** the operator clears the filter (allowClear)
+- **THEN** every configured policy row renders again
+
+### Requirement: Drawer Lifecycle Status Controls
+
+Binary lifecycle status fields in the organization, department, and room drawers SHALL
+use the number-rule drawer pattern: they SHALL NOT use a Select; the create drawer SHALL
+hide status and submit the record enabled; the edit drawer SHALL render status as a
+Switch in the common boolean-switch row. Organization and department switches SHALL save
+through their existing profile update APIs; the room switch SHALL use the existing room
+status endpoint. Dedicated table status switches SHALL remain unchanged.
+
+#### Scenario: Create drawer hides lifecycle status
+
+- **WHEN** an administrator opens an organization, department, or room create drawer
+- **THEN** the drawer renders no status Select or status Switch
+- **AND** submitting creates the record with enabled status
+
+#### Scenario: Edit drawer uses the status Switch
+
+- **WHEN** an administrator opens an organization, department, or room edit drawer
+- **THEN** the drawer renders status as a Switch, not a Select
+- **AND** changing organization or department status persists through the profile update request
+- **AND** changing room status persists through the room status endpoint
