@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 
 import org.birdbro.lumen.core.entity.ExamItemRef;
 import org.birdbro.lumen.core.entity.ExamOrderStatus;
+import org.birdbro.lumen.core.entity.ExamRegistrationType;
 import org.birdbro.lumen.core.entity.PatientSnapshot;
 
 /**
@@ -56,8 +57,14 @@ public class RegistrationOrderView {
     @ApiModelProperty("取消原因（取消分支携带）")
     private String cancelReason;
 
-    @ApiModelProperty("创建时间")
+    @ApiModelProperty("创建时间（=登记时间：两种单据的登记都发生在建单那一刻）")
     private Date createTime;
+
+    @ApiModelProperty("登记人（建单操作人 uid；create_by 即登记人）")
+    private Integer createBy;
+
+    @ApiModelProperty("登记类别（服务端落值：WALK_IN 现场单 / PRE_REGISTERED 预登记）")
+    private ExamRegistrationType registrationType;
 
     @ApiModelProperty("预登记时段锚点（null=现场单/无预约）")
     @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
@@ -73,4 +80,19 @@ public class RegistrationOrderView {
 
     @ApiModelProperty("备注（US 扩展，无行时为 null）")
     private String note;
+
+    @ApiModelProperty("申请科室（HIS 开单科室，US 扩展，无行时为 null）")
+    private String applyDept;
+
+    @ApiModelProperty("申请医生（HIS 开单医生，US 扩展，无行时为 null）")
+    private String applyDoctor;
+
+    @ApiModelProperty("申请时间（HIS 开单时刻原文，US 扩展，无行时为 null）")
+    private String applyTime;
+
+    @ApiModelProperty("申请科室 id（预留锚点，US 扩展，无行时为 null）")
+    private String applyDeptId;
+
+    @ApiModelProperty("申请医生 id（预留锚点，US 扩展，无行时为 null）")
+    private String applyDoctorId;
 }

@@ -47,4 +47,19 @@ public class UsRegistrationExt extends EntityBase {
 
     /** 备注 varchar(255) (optional). */
     private String note;
+
+    /** 申请科室 varchar(64) - the HIS opening department, free text (us-apply-info, optional). */
+    private String applyDept;
+
+    /** 申请医生 varchar(64) - the HIS opening doctor, free text (us-apply-info, optional). */
+    private String applyDoctor;
+
+    /** 申请时间 varchar(19) - the raw {@code yyyy-MM-dd HH:mm:ss} HIS stamp, informational (us-apply-info, optional). */
+    private String applyTime;
+
+    /** 申请科室 id varchar(64) - the reserved id anchor behind {@code applyDept} (us-apply-info, optional; v1 UI does not send it). */
+    private String applyDeptId;
+
+    /** 申请医生 id varchar(64) - the reserved id anchor behind {@code applyDoctor} (us-apply-info, optional; v1 UI does not send it). */
+    private String applyDoctorId;
 }

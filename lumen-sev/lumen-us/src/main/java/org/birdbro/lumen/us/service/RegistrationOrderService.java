@@ -9,6 +9,7 @@ import org.birdbro.lumen.us.dto.RegistrationCreateRequest;
 import org.birdbro.lumen.us.dto.RegistrationCreateResult;
 import org.birdbro.lumen.us.dto.RegistrationOrderPageQuery;
 import org.birdbro.lumen.us.dto.RegistrationOrderView;
+import org.birdbro.lumen.us.dto.SlotOptionsView;
 
 /**
  * The US registration business service (us-station-registration-sev task 3.2, design
@@ -54,6 +55,21 @@ public interface RegistrationOrderService {
      * @return the persisted order id + issued accession + entry status
      */
     RegistrationCreateResult create(RegistrationCreateRequest request);
+
+    /**
+     * The booking slot-options read (us-booking-slot-picker; specs/us-station
+     * "Pre-registration and Slot Capacity"): renders the modality's live slot config
+     * as the DATE's granularity grid with LIVE occupancy (the create path's count
+     * predicate) so the workbench's 预约时段 select offers the configured slots and
+     * grays the full ones (the prototype's 满员标灰). Read-only - no config-row lock
+     * (the create path's FOR UPDATE serialization stays create-side); an unconfigured
+     * modality answers configured=false (fail-closed at create, the picker disables).
+     *
+     * @param date     the booking date (yyyy-MM-dd, required)
+     * @param modality the dict-1024 modality token (required)
+     * @return the configured flag + the day's slot grid with booked/capacity
+     */
+    SlotOptionsView slotOptions(String date, String modality);
 
     /**
      * Pages the orders (task 3.2; specs/us-station "Order List") with the 1:1 US

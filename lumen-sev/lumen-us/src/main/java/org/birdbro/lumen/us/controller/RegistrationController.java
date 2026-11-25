@@ -13,6 +13,7 @@ import org.birdbro.lumen.us.dto.RegistrationCreateRequest;
 import org.birdbro.lumen.us.dto.RegistrationCreateResult;
 import org.birdbro.lumen.us.dto.RegistrationOrderPageQuery;
 import org.birdbro.lumen.us.dto.RegistrationOrderView;
+import org.birdbro.lumen.us.dto.SlotOptionsView;
 import org.birdbro.lumen.us.service.RegistrationOrderService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -90,6 +92,18 @@ public class RegistrationController {
     @GetMapping("/orders/status-counts")
     public java.util.Map<String, Long> statusCounts(RegistrationOrderPageQuery query) {
         return registrationOrderService.statusCounts(query);
+    }
+
+    /** The booking slot-options read (us-booking-slot-picker; specs/us-station
+     *  "Pre-registration and Slot Capacity" - the prototype's slot dropdown with
+     *  the 满员标灰 grid). Gated to the booking actors: the workbench's order
+     *  creators plus the slot-config administrators. */
+    @ApiOperation("预约时段选项（配置档位 × 粒度 + 实时余量，满员档前端禁选）")
+    @PreAuthorize("hasAnyAuthority('us:order:create', 'setting:slot:list')")
+    @GetMapping("/orders/slot-options")
+    public SlotOptionsView slotOptions(@RequestParam String date,
+            @RequestParam String modality) {
+        return registrationOrderService.slotOptions(date, modality);
     }
 
     /** Fires the 登记 transition (specs/us-station "Illegal transition is refused verbatim"). */

@@ -26,6 +26,7 @@ import org.birdbro.lumen.feign.number.NumberIssueRequest;
 import org.birdbro.lumen.feign.number.NumberIssueResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -109,7 +110,9 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}],"
                 + "\"emgFlag\":1,"
                 + "\"ext\":{\"pregnancyStatus\":\"孕12周\",\"gestationalWeeks\":12,"
-                + "\"note\":\"us3 ext 备注\"}}";
+                + "\"note\":\"us3 ext 备注\",\"applyDept\":\"门诊内科\","
+                + "\"applyDoctor\":\"李临床\",\"applyTime\":\"2026-11-24 08:30:00\","
+                + "\"applyDeptId\":\"HIS-DEP-01\",\"applyDoctorId\":\"HIS-DOC-07\"}}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
         assertEquals("200", response.path("code").asText(),
@@ -125,12 +128,17 @@ class UsRegistrationApiTests extends UsApiTestBase {
         assertTrue(response.path("data").path("bookingTime").isNull()
                         || response.path("data").path("bookingTime").isMissingNode(),
                 "the walk-in result echoes bookingTime null");
+        // us-prereg-as-registered: the entry category rides the response and the row -
+        // the walk-in branch stamps WALK_IN (server-owned; the body cannot set it)
+        assertEquals("WALK_IN", response.path("data").path("registrationType").asText(),
+                "the walk-in create echoes registrationType WALK_IN");
         UsRegistrationFixtures.registerOrder(orderId);
 
         // the order document: the port identity linked, the snapshot stored, the
         // exam-item references + emg flag carried
         Map<String, Object> order = jdbcTemplate.queryForMap(
                 "SELECT status, accession_no, patient_uid, emg_flag, "
+                        + "registration_type::text AS reg_type, "
                         + "patient_snapshot->>'name' AS snap_name, "
                         + "patient_snapshot->>'patId' AS snap_pat_id, "
                         + "patient_snapshot->>'age' AS snap_age, "
@@ -138,6 +146,8 @@ class UsRegistrationApiTests extends UsApiTestBase {
                         + "FROM exam_order WHERE id = ?", orderId);
         assertEquals("REGISTERED", order.get("status"),
                 "the order persists with the derived REGISTERED entry");
+        assertEquals("WALK_IN", order.get("reg_type"),
+                "the walk-in row stamps registration_type WALK_IN");
         assertEquals(STUB_ACCESSION_PREFIX + "ACC001", order.get("accession_no"),
                 "the accession_no column carries the issued number");
         assertEquals(stubUid, ((Number) order.get("patient_uid")).intValue(),
@@ -164,12 +174,21 @@ class UsRegistrationApiTests extends UsApiTestBase {
 
         // the ext row: the HOOK persisted it 1:1 inside the registration transaction
         Map<String, Object> ext = jdbcTemplate.queryForMap(
-                "SELECT pregnancy_status, gestational_weeks, note FROM us_registration_ext "
-                        + "WHERE order_id = ?", orderId);
+                "SELECT pregnancy_status, gestational_weeks, note, apply_dept, apply_doctor, apply_time,"
+                + " apply_dept_id, apply_doctor_id FROM us_registration_ext WHERE order_id = ?", orderId);
         assertEquals("孕12周", ext.get("pregnancy_status"), "the ext block persists 1:1");
         assertEquals(12, ((Number) ext.get("gestational_weeks")).intValue(),
                 "the gestational weeks persist");
         assertEquals("us3 ext 备注", ext.get("note"), "the ext note persists");
+        // us-apply-info-sev: the HIS application origin rides the ext block verbatim
+        assertEquals("门诊内科", ext.get("apply_dept"), "the HIS apply department persists");
+        assertEquals("李临床", ext.get("apply_doctor"), "the HIS apply doctor persists");
+        assertEquals("2026-11-24 08:30:00", ext.get("apply_time"),
+                "the raw-text apply-time stamp persists verbatim");
+        assertEquals("HIS-DEP-01", ext.get("apply_dept_id"),
+                "the reserved department id anchor persists");
+        assertEquals("HIS-DOC-07", ext.get("apply_doctor_id"),
+                "the reserved doctor id anchor persists");
 
         // the snapshot carries the body's cardNo (us-registration-redesign-api task 1.4 -
         // the additive jsonb key feeding the card-no workbench query condition)
@@ -186,6 +205,114 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 "SELECT COUNT(*) FROM exam_report WHERE order_id = ?", Integer.class, orderId);
         assertEquals(Integer.valueOf(1), executionRows, "the execution member exists");
         assertEquals(Integer.valueOf(1), reportRows, "the report placeholder member exists");
+    }
+
+    // ---------------- Booking slot options (us-booking-slot-picker: the prototype's
+    // ---------------- 满员标灰 slot dropdown - config grid × live occupancy)
+
+    @Test
+    void slotOptionsExposeTheConfiguredGridWithLiveOccupancy() throws Exception {
+        String modality = uniqueModality();
+        seedSlotConfig(modality, 2); // granularity 30, window 08:00-12:00 → 8 slots
+        // one LIVE BOOKED order in tomorrow's 09:00-09:30 slot (the create path's
+        // count predicate: BOOKED + booking_time in the window + first-item modality)
+        long ts = stamp();
+        int uid = STUB_UID_BASE + 801 + (int) (ts % 5000);
+        jdbcTemplate.update(
+                "INSERT INTO exam_order (accession_no, status, patient_uid, booking_time,"
+                + " exam_items, patient_snapshot) VALUES (?, 'BOOKED', ?, ?::timestamp,"
+                + " ?::jsonb, ?::jsonb)",
+                "US3-SEED-" + ts, uid,
+                java.time.LocalDate.now().plusDays(1).atTime(9, 17) + ":00",
+                "[{\"itemId\":1024,\"itemName\":\"腹部超声\",\"modality\":\"" + modality + "\"}]",
+                "{\"patId\":\"US3-SEED\",\"name\":\"us3slot余量A\"}");
+        String tomorrow = java.time.LocalDate.now().plusDays(1)
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        JsonNode response = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "/slot-options?date=" + tomorrow + "&modality=" + modality,
+                null, fullPermToken()));
+        assertEquals("200", response.path("code").asText(),
+                "the slot-options read must succeed: " + response);
+        assertTrue(response.path("data").path("configured").asBoolean(false),
+                "the configured modality answers configured=true");
+        JsonNode slots = response.path("data").path("slots");
+        assertEquals(8, slots.size(),
+                "the 08:00-12:00 window floors onto the 30-minute grid (8 slots)");
+        assertEquals("08:00", slots.path(0).path("start").asText(), "the grid opens at the window start");
+        assertEquals("09:00", slots.path(2).path("start").asText(), "the third slot starts 09:00");
+        assertEquals("09:30", slots.path(2).path("end").asText(), "the third slot ends 09:30");
+        assertEquals(1, slots.path(2).path("booked").asInt(-1),
+                "the live BOOKED order counts against its slot (the create predicate)");
+        assertEquals(2, slots.path(2).path("capacity").asInt(-1),
+                "the capacity rides the config's slot_capacity");
+        assertEquals(0, slots.path(0).path("booked").asInt(-1),
+                "untouched slots report zero occupancy");
+
+        // an unconfigured modality fails SOFT (configured=false) - the create path
+        // stays the fail-closed half (该检查类型未开通预登记)
+        JsonNode none = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "/slot-options?date=" + tomorrow + "&modality=US3NOPE-" + ts,
+                null, fullPermToken()));
+        assertEquals("200", none.path("code").asText(), "the soft answer is still 200");
+        assertTrue(!none.path("data").path("configured").asBoolean(true),
+                "an unconfigured modality answers configured=false");
+        assertEquals(0, none.path("data").path("slots").size(),
+                "the soft answer carries no slots");
+    }
+
+    // ---------------- Occupancy re-anchor (us-prereg-as-registered: 未取消即占位)
+
+    @Test
+    void registeredPreRegistrationOccupiesTheSlotAndCancelledFreesIt() throws Exception {
+        String modality = uniqueModality();
+        seedSlotConfig(modality, 1); // capacity 1 - a single live row fills the slot
+        long ts = stamp();
+        int uid = STUB_UID_BASE + 802 + (int) (ts % 5000);
+        // a live slot-anchored REGISTERED row in tomorrow's 09:00-09:30 slot - under
+        // the NEW occupancy predicate (未取消即占位) it occupies; the retired
+        // BOOKED-only count ignored it entirely
+        jdbcTemplate.update(
+                "INSERT INTO exam_order (accession_no, status, patient_uid, booking_time,"
+                + " exam_items, patient_snapshot) VALUES (?, 'REGISTERED', ?, ?::timestamp,"
+                + " ?::jsonb, ?::jsonb)",
+                "US3-SEED-" + ts, uid,
+                java.time.LocalDate.now().plusDays(1).atTime(9, 17) + ":00",
+                "[{\"itemId\":1024,\"itemName\":\"腹部超声\",\"modality\":\"" + modality + "\"}]",
+                "{\"patId\":\"US3-SEED\",\"name\":\"us3占位已登记\"}");
+        String tomorrow = java.time.LocalDate.now().plusDays(1)
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        // the picker mirrors the SAME predicate: the REGISTERED row books the 09:00 slot
+        JsonNode slots = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "/slot-options?date=" + tomorrow + "&modality=" + modality,
+                null, fullPermToken())).path("data").path("slots");
+        assertEquals(1, slots.path(2).path("booked").asInt(-1),
+                "the REGISTERED pre-registered row counts against its slot (未取消即占位)");
+
+        // the create refuses the now-full slot
+        stubMatchedIdentity(STUB_UID_BASE + 207, "us3占位受试者");
+        stubNumber();
+        String body = "{\"idType\":\"01\",\"idNo\":\"US3OCC-" + ts + "\","
+                + "\"name\":\"us3占位受试者\",\"gender\":2,"
+                + "\"bookingTime\":\"" + tomorrowAt(9, 17) + "\","
+                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"占位项目\","
+                + "\"modality\":\"" + modality + "\"}]}";
+        JsonNode refused = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
+                fullPermToken()));
+        assertEquals("A0400", refused.path("code").asText(),
+                "the REGISTERED row occupies - the slot is at capacity: " + refused);
+        assertTrue(refused.path("msg").asText().contains("该时段已满"),
+                "the capacity token surfaces verbatim: " + refused);
+
+        // flipping the row to CANCELLED frees the slot - the same create now succeeds
+        jdbcTemplate.update("UPDATE exam_order SET status = 'CANCELLED' WHERE accession_no = ?",
+                "US3-SEED-" + ts);
+        JsonNode freed = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
+                fullPermToken()));
+        assertEquals("200", freed.path("code").asText(),
+                "a cancelled row no longer occupies - the slot frees: " + freed);
+        UsRegistrationFixtures.registerOrder(freed.path("data").path("orderId").asInt(-1));
     }
 
     // ---------------- Modality reaches the issuer port (number-rule-modality-scope 2.3)
@@ -223,26 +350,77 @@ class UsRegistrationApiTests extends UsApiTestBase {
         int orderId = response.path("data").path("orderId").asInt(-1);
         assertTrue(orderId > 0, "the order persists: " + response);
         UsRegistrationFixtures.registerOrder(orderId);
-        assertEquals("BOOKED", response.path("data").path("status").asText(),
-                "a strictly-future booking derives BOOKED (预登记态)");
+        // us-prereg-as-registered (user ruling 2026-11-24 预约=预登记): a future slot
+        // enters REGISTERED as well - the slot anchor records the appointment, not a
+        // pending state; the branch stamps PRE_REGISTERED server-side
+        assertEquals("REGISTERED", response.path("data").path("status").asText(),
+                "a strictly-future booking derives REGISTERED (预登记=已登记)");
+        assertEquals("PRE_REGISTERED", response.path("data").path("registrationType").asText(),
+                "the pre-registration create echoes registrationType PRE_REGISTERED");
         assertEquals(bookingTime, response.path("data").path("bookingTime").asText(),
                 "the result echoes the booking time");
         Map<String, Object> order = jdbcTemplate.queryForMap(
-                "SELECT status, booking_time::text AS bt FROM exam_order WHERE id = ?", orderId);
-        assertEquals("BOOKED", order.get("status"),
-                "the slot anchor persists with the BOOKED entry");
+                "SELECT status, booking_time::text AS bt, registration_type::text AS reg_type"
+                + " FROM exam_order WHERE id = ?", orderId);
+        assertEquals("REGISTERED", order.get("status"),
+                "the slot anchor persists with the REGISTERED (预登记) entry");
+        assertEquals("PRE_REGISTERED", order.get("reg_type"),
+                "the pre-registration row stamps registration_type PRE_REGISTERED");
         assertEquals(bookingTime, order.get("bt"), "the requested booking_time round-trips");
 
-        // the window count grew by one - the same predicate the service counts with
-        // (design D1: first-item modality scope)
+        // the window count grew by one - the NEW occupancy predicate (未取消即占位):
+        // live not-cancelled orders in the window occupy, regardless of live stage
         Integer windowCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM exam_order WHERE status = 'BOOKED' AND deleted = 0"
+                "SELECT COUNT(*) FROM exam_order WHERE deleted = 0"
+                + " AND status NOT IN ('BOOKING_CANCELLED', 'CANCELLED')"
                 + " AND booking_time >= ?::timestamp AND booking_time < ?::timestamp"
                 + " AND exam_items->0->>'modality' = ?",
                 Integer.class, tomorrowAt(9, 0), tomorrowAt(9, 30), modality);
         assertEquals(Integer.valueOf(1), windowCount,
-                "the created BOOKED order occupies the resolved slot window");
+                "the created pre-registered order occupies the resolved slot window");
         assertTrue(stubAccession != null, "the stub number was minted for this run");
+    }
+
+    @Test
+    void createBodyRegistrationTypeIsIgnoredTheStampIsServerOwned() throws Exception {
+        // us-prereg-as-registered task 2.4: the entry category is a SERVER-OWNED stamp -
+        // a client body posting registrationType has no effect (the create DTO carries
+        // no such property; Boot's mapper drops the unknown field silently)
+        String modality = uniqueModality();
+        seedSlotConfig(modality, 4);
+        int stubUid = STUB_UID_BASE + 206;
+        when(patientApi.resolveOrRegister(any())).thenReturn(org.birdbro.common.core.R.ofSuccess(
+                PatientResolveOrRegisterResult.builder()
+                        .result(PatientResolveOrRegisterResult.RESULT_MATCHED)
+                        .identity(PatientIdentityResponse.builder()
+                                .patUid(stubUid)
+                                .patId("US3-FORGE")
+                                .name("us3伪造类别")
+                                .gender(2)
+                                .state("RESOLVED")
+                                .build())
+                        .build()));
+        stubNumber();
+        // a WALK-IN body (no bookingTime) that FORGES the pre-registered category
+        String body = "{\"idType\":\"01\",\"idNo\":\"US3FORGE-" + stamp() + "\","
+                + "\"name\":\"us3伪造类别\",\"gender\":2,"
+                + "\"registrationType\":\"PRE_REGISTERED\","
+                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"伪造类别项目\","
+                + "\"modality\":\"" + modality + "\"}]}";
+        JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
+                fullPermToken()));
+        assertEquals("200", response.path("code").asText(),
+                "the forged-category walk-in create still succeeds: " + response);
+        int orderId = response.path("data").path("orderId").asInt(-1);
+        assertTrue(orderId > 0, "the order persists: " + response);
+        UsRegistrationFixtures.registerOrder(orderId);
+        assertEquals("WALK_IN", response.path("data").path("registrationType").asText(),
+                "the response echoes the SERVER-derived category, not the body's");
+        String regType = jdbcTemplate.queryForObject(
+                "SELECT registration_type::text FROM exam_order WHERE id = ?",
+                String.class, orderId);
+        assertEquals("WALK_IN", regType,
+                "the forged registrationType never reaches the row - the branch stamps WALK_IN");
     }
 
     @Test
@@ -760,6 +938,38 @@ class UsRegistrationApiTests extends UsApiTestBase {
         String registeredReason = jdbcTemplate.queryForObject(
                 "SELECT cancel_reason FROM exam_order WHERE id = ?", String.class, registeredId);
         assertEquals("us3取消原因-在册", registeredReason, "the reason is stored on the branch");
+
+        // the PRE-REGISTERED order (PRE_REGISTERED stamp) cancels -> CANCELLED too - the
+        // US flow no longer produces BOOKED rows, so the machine's BOOKING_CANCELLED
+        // branch is unreachable from the API surface (us-prereg-as-registered; the
+        // BOOKED branch above stays as the raw-seeded machine characterization)
+        String preRegModality = uniqueModality();
+        seedSlotConfig(preRegModality, 4);
+        stubNumber();
+        long cancelTs = stamp();
+        String preRegBody = "{\"idType\":\"01\",\"idNo\":\"US3PREREGCANCEL-" + cancelTs + "\","
+                + "\"name\":\"us3取消预登记" + cancelTs + "\",\"gender\":1,"
+                + "\"bookingTime\":\"" + tomorrowAt(10, 30) + "\","
+                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记取消项目\","
+                + "\"modality\":\"" + preRegModality + "\"}]}";
+        JsonNode preRegCreate = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, preRegBody,
+                fullPermToken()));
+        assertEquals("200", preRegCreate.path("code").asText(),
+                "the pre-registration create must succeed: " + preRegCreate);
+        int preRegId = preRegCreate.path("data").path("orderId").asInt(-1);
+        assertTrue(preRegId > 0, "the pre-registration persists");
+        assertEquals("REGISTERED", preRegCreate.path("data").path("status").asText(),
+                "the pre-registration enters REGISTERED (预登记=已登记)");
+        UsRegistrationFixtures.registerOrder(preRegId);
+        JsonNode preRegCancel = parse(exchangeJson(HttpMethod.POST,
+                ORDERS_URL + "/" + preRegId + "/cancel",
+                "{\"reason\":\"us3取消原因-预登记\"}", fullPermToken()));
+        assertEquals("CANCELLED", preRegCancel.path("data").asText(),
+                "cancelling the pre-registered order lands CANCELLED (no BOOKED in the flow): "
+                        + preRegCancel);
+        String preRegReason = jdbcTemplate.queryForObject(
+                "SELECT cancel_reason FROM exam_order WHERE id = ?", String.class, preRegId);
+        assertEquals("us3取消原因-预登记", preRegReason, "the reason is stored on the branch");
     }
 
     // --------------------------------- ext round-trip through the page query
@@ -799,6 +1009,17 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 "the query path returns the persisted gestational weeks");
         assertEquals("us3 ext 往返", withExt.path("note").asText(),
                 "the query path returns the persisted note");
+        // us-apply-info-sev: the HIS origin trio flattens onto the view like the rest of ext
+        assertEquals("门诊内科", withExt.path("applyDept").asText(),
+                "the query path returns the persisted apply department");
+        assertEquals("李临床", withExt.path("applyDoctor").asText(),
+                "the query path returns the persisted apply doctor");
+        assertEquals("2026-11-24 08:30:00", withExt.path("applyTime").asText(),
+                "the query path returns the raw-text apply-time stamp");
+        assertEquals("HIS-DEP-01", withExt.path("applyDeptId").asText(),
+                "the query path returns the reserved department id anchor");
+        assertEquals("HIS-DOC-07", withExt.path("applyDoctorId").asText(),
+                "the query path returns the reserved doctor id anchor");
         assertEquals("us3ext档案", withExt.path("patientSnapshot").path("name").asText(),
                 "the page carries the patient identity from the jsonb snapshot (the "
                         + "delivered archive fields win)");
@@ -806,12 +1027,23 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 "the snapshot carries the delivered pat_id");
         assertTrue(withExt.path("accessionNo").asText("").startsWith(STUB_ACCESSION_PREFIX),
                 "the page carries the accession");
+        // us-prereg-as-registered: the page rows carry the operator stamps (登记时间/
+        // 登记人 = the create stamps for BOTH kinds) and the server-stamped category
+        assertTrue(withExt.path("createBy").asInt(-1) > 0,
+                "the page row carries createBy (登记人 = the create operator)");
+        assertFalse(withExt.path("createTime").isNull(), "the page row carries createTime");
+        assertEquals("WALK_IN", withExt.path("registrationType").asText(),
+                "the walk-in page row stamps registrationType WALK_IN");
 
         JsonNode withoutExt = findRecordByOrderId(response, withoutExtId);
         assertNotNull(withoutExt, "the ext-less order renders in the page");
         assertTrue(withoutExt.path("pregnancyStatus").isNull(),
                 "an order without an ext row carries null ext fields (the 1:1 table "
                         + "exists only for orders that carry US fields)");
+        assertTrue(withoutExt.path("applyDept").isNull(),
+                "the ext-less order also carries null apply-origin fields");
+        assertEquals("WALK_IN", withoutExt.path("registrationType").asText(),
+                "the category stamp rides the document, ext row or not");
     }
 
     @Test
@@ -1051,7 +1283,10 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 + "\"name\":\"" + name + "\",\"gender\":2,"
                 + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"超声产检\"}],"
                 + "\"ext\":{\"pregnancyStatus\":\"" + pregnancyStatus + "\","
-                + "\"gestationalWeeks\":" + gestationalWeeks + ",\"note\":\"" + note + "\"}}";
+                + "\"gestationalWeeks\":" + gestationalWeeks + ",\"note\":\"" + note + "\","
+                + "\"applyDept\":\"门诊内科\",\"applyDoctor\":\"李临床\","
+                + "\"applyTime\":\"2026-11-24 08:30:00\","
+                + "\"applyDeptId\":\"HIS-DEP-01\",\"applyDoctorId\":\"HIS-DOC-07\"}}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
         assertEquals("200", response.path("code").asText(),

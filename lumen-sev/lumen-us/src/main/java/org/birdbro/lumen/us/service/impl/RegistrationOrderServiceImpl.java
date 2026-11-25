@@ -1,5 +1,8 @@
 package org.birdbro.lumen.us.service.impl;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -21,9 +24,11 @@ import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterRequest;
 import org.birdbro.lumen.core.entity.ExamExecution;
 import org.birdbro.lumen.core.entity.ExamOrder;
 import org.birdbro.lumen.core.entity.ExamOrderStatus;
+import org.birdbro.lumen.core.entity.ExamRegistrationType;
 import org.birdbro.lumen.core.entity.ExamReport;
 import org.birdbro.lumen.core.entity.ExamSlotConfig;
 import org.birdbro.lumen.core.entity.PatientSnapshot;
+import org.birdbro.lumen.core.entity.SlotWindow;
 import org.birdbro.lumen.core.entity.SlotWindowBounds;
 import org.birdbro.lumen.core.mapper.ExamOrderMapper;
 import org.birdbro.lumen.core.mapper.ExamSlotConfigMapper;
@@ -38,6 +43,8 @@ import org.birdbro.lumen.us.dto.RegistrationCreateRequest;
 import org.birdbro.lumen.us.dto.RegistrationCreateResult;
 import org.birdbro.lumen.us.dto.RegistrationOrderPageQuery;
 import org.birdbro.lumen.us.dto.RegistrationOrderView;
+import org.birdbro.lumen.us.dto.SlotOptionsView;
+import org.birdbro.lumen.us.dto.SlotOptionsView.SlotOption;
 import org.birdbro.lumen.us.entity.UsRegistrationExt;
 import org.birdbro.lumen.us.hook.UsRegistrationExtHolder;
 import org.birdbro.lumen.us.mapper.UsRegistrationExtMapper;
@@ -144,12 +151,15 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
         UsRegistrationExtHolder.set(ext);
         try {
             if (request.getBookingTime() == null) {
-                // (3a) the WALK-IN path: 提交即登记 (拍板 02-B) - the policy derives
-                // REGISTERED; no slot-config machinery is touched (an unconfigured
-                // modality never blocks a walk-in)
+                // (3a) the WALK-IN path: 提交即登记 (拍板 02-B) - REGISTERED directly
+                // (us-prereg-as-registered: deriveEntryStatus retires from the us flow,
+                // the kernel support method stays untouched); no slot-config machinery
+                // is touched (an unconfigured modality never blocks a walk-in). The
+                // category stamp is SERVER-OWNED - the request DTO carries no
+                // registrationType property, so the body can never set it.
                 ExamOrder order = newOrder(request, identity);
-                order.setStatus(preRegistrationPolicy.deriveEntryStatus(null,
-                        examSlotConfigMapper.selectDbNow()));
+                order.setStatus(ExamOrderStatus.REGISTERED);
+                order.setRegistrationType(ExamRegistrationType.WALK_IN);
                 Integer orderId = examOrderRegistrationService.registerOrder(
                         identity, order, new ExamExecution(), new ExamReport());
                 return toResult(order, orderId);
@@ -171,6 +181,7 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
                 .orderId(orderId)
                 .accessionNo(order.getAccessionNo())
                 .status(order.getStatus())
+                .registrationType(order.getRegistrationType())
                 .bookingTime(order.getBookingTime())
                 .build();
     }
@@ -204,18 +215,84 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
                         .last("FOR UPDATE"));
         SlotWindowBounds bounds = examSlotCapacityService.resolveSlotWindow(config,
                 request.getBookingTime());
+        // 未取消即占位 (us-prereg-as-registered): the occupancy counts live
+        // not-cancelled orders in the window - the reservation survives every live
+        // stage (the retired predicate counted BOOKED rows only)
         int occupancy = examOrderMapper.selectCount(new LambdaQueryWrapper<ExamOrder>()
-                .eq(ExamOrder::getStatus, ExamOrderStatus.BOOKED)
+                .notIn(ExamOrder::getStatus, ExamOrderStatus.BOOKING_CANCELLED,
+                        ExamOrderStatus.CANCELLED)
                 .ge(ExamOrder::getBookingTime, bounds.getWindowStart())
                 .lt(ExamOrder::getBookingTime, bounds.getWindowEnd())
                 .apply("exam_items->0->>'modality' = {0}", modality))
                 .intValue();
         examSlotCapacityService.validatePreregistration(modality, request.getBookingTime(),
                 occupancy);
-        order.setStatus(preRegistrationPolicy.deriveEntryStatus(request.getBookingTime(), dbNow));
+        // 预登记=已登记 (us-prereg-as-registered, user ruling 2026-11-24): a future slot
+        // enters REGISTERED too - the slot anchor records the appointment, not a pending
+        // state; the category stamp marks the pre-registration branch.
+        order.setStatus(ExamOrderStatus.REGISTERED);
+        order.setRegistrationType(ExamRegistrationType.PRE_REGISTERED);
         Integer orderId = examOrderRegistrationService.registerOrder(
                 identity, order, new ExamExecution(), new ExamReport());
         return toResult(order, orderId);
+    }
+
+    @Override
+    public SlotOptionsView slotOptions(String date, String modality) {
+        // the strict date anchor (A0400 on garbage - the endpoint is a booking aid,
+        // not a general calendar)
+        LocalDate day;
+        try {
+            day = LocalDate.parse(StrUtil.trimToEmpty(date));
+        } catch (RuntimeException parseFailure) {
+            throw new BusinessException(ExceptionEnum.ERROR_A0400,
+                    "预约日期格式无效: " + date + "（应为 yyyy-MM-dd）");
+        }
+        // the modality's LIVE config, read-only (no FOR UPDATE - the serialization
+        // point stays create-side; a stale read only costs a gray/white tint)
+        ExamSlotConfig config = examSlotConfigMapper.selectOne(
+                new LambdaQueryWrapper<ExamSlotConfig>()
+                        .eq(ExamSlotConfig::getModality, modality));
+        if (config == null || CollUtil.isEmpty(config.getOpenWindows())
+                || config.getGranularityMinutes() == null || config.getGranularityMinutes() <= 0) {
+            return SlotOptionsView.builder().configured(false).slots(Collections.emptyList()).build();
+        }
+        int granularity = config.getGranularityMinutes();
+        List<SlotOption> slots = new ArrayList<>();
+        for (SlotWindow window : config.getOpenWindows()) {
+            final LocalTime windowOpen;
+            final LocalTime windowClose;
+            try {
+                windowOpen = LocalTime.parse(window.getStart());
+                windowClose = LocalTime.parse(window.getEnd());
+            } catch (RuntimeException badWindow) {
+                // the create path fails closed on unparseable windows - the read
+                // mirrors it by skipping the broken window (the picker shows the
+                // rest; the create still refuses the same broken booking)
+                continue;
+            }
+            LocalTime cursor = windowOpen;
+            while (!cursor.plusMinutes(granularity).isAfter(windowClose)) {
+                LocalTime slotEnd = cursor.plusMinutes(granularity);
+                Date slotStartTs = java.sql.Timestamp.valueOf(day.atTime(cursor));
+                Date slotEndTs = java.sql.Timestamp.valueOf(day.atTime(slotEnd));
+                int booked = examOrderMapper.selectCount(new LambdaQueryWrapper<ExamOrder>()
+                        .notIn(ExamOrder::getStatus, ExamOrderStatus.BOOKING_CANCELLED,
+                                ExamOrderStatus.CANCELLED)
+                        .ge(ExamOrder::getBookingTime, slotStartTs)
+                        .lt(ExamOrder::getBookingTime, slotEndTs)
+                        .apply("exam_items->0->>'modality' = {0}", modality))
+                        .intValue();
+                slots.add(SlotOption.builder()
+                        .start(cursor.toString())
+                        .end(slotEnd.toString())
+                        .booked(booked)
+                        .capacity(config.getSlotCapacity() == null ? 0 : config.getSlotCapacity())
+                        .build());
+                cursor = slotEnd;
+            }
+        }
+        return SlotOptionsView.builder().configured(true).slots(slots).build();
     }
 
     @Override
@@ -390,12 +467,19 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
                 .emgFlag(order.getEmgFlag())
                 .cancelReason(order.getCancelReason())
                 .createTime(order.getCreateTime())
+                .createBy(order.getCreateBy())
+                .registrationType(order.getRegistrationType())
                 .bookingTime(order.getBookingTime())
                 .build();
         if (ext != null) {
             view.setPregnancyStatus(ext.getPregnancyStatus());
             view.setGestationalWeeks(ext.getGestationalWeeks());
             view.setNote(ext.getNote());
+            view.setApplyDept(ext.getApplyDept());
+            view.setApplyDoctor(ext.getApplyDoctor());
+            view.setApplyTime(ext.getApplyTime());
+            view.setApplyDeptId(ext.getApplyDeptId());
+            view.setApplyDoctorId(ext.getApplyDoctorId());
         }
         return view;
     }

@@ -34,9 +34,14 @@ class UsRegistrationExtTests extends UsIntegrationTestBase {
 
     @Test
     void extTableCarriesRuledColumnsExactly() {
+        // us-apply-info-sev extends the ruling: the HIS application-origin trio + the
+        // reserved id anchors ride AFTER the audit tail (ALTER ADD COLUMN appends -
+        // PostgreSQL puts new columns last, the audit tail keeps its ordinal slot)
         List<String> expected = new java.util.ArrayList<>(Arrays.asList(
                 "order_id", "pregnancy_status", "gestational_weeks", "note"));
         expected.addAll(AUDIT_TAIL);
+        expected.addAll(Arrays.asList(
+                "apply_dept", "apply_doctor", "apply_time", "apply_dept_id", "apply_doctor_id"));
         List<String> orderedColumns = jdbcTemplate.queryForList(
                 "SELECT column_name FROM information_schema.columns "
                 + "WHERE table_schema = 'us' AND table_name = 'us_registration_ext' "
@@ -77,6 +82,28 @@ class UsRegistrationExtTests extends UsIntegrationTestBase {
                 "gestational_weeks is integer (design D2)");
         assertEquals("character varying", columnType("note"),
                 "note is varchar(255) (design D2)");
+        // us-apply-info-sev: the origin trio is varchar text (apply_time is the raw
+        // informational stamp - no timestamp coercion per the coordination ruling)
+        assertEquals("character varying", columnType("apply_dept"),
+                "apply_dept is varchar(64)");
+        assertEquals("character varying", columnType("apply_doctor"),
+                "apply_doctor is varchar(64)");
+        assertEquals("character varying", columnType("apply_time"),
+                "apply_time is varchar(19) (raw-text stamp)");
+        assertEquals("character varying", columnType("apply_dept_id"),
+                "apply_dept_id is varchar(64) (reserved id anchor)");
+        assertEquals("character varying", columnType("apply_doctor_id"),
+                "apply_doctor_id is varchar(64) (reserved id anchor)");
+        Integer applyDeptLength = jdbcTemplate.queryForObject(
+                "SELECT character_maximum_length FROM information_schema.columns "
+                + "WHERE table_schema = 'us' AND table_name = 'us_registration_ext' "
+                + "AND column_name = 'apply_dept'", Integer.class);
+        assertEquals(Integer.valueOf(64), applyDeptLength, "apply_dept is varchar(64)");
+        Integer applyTimeLength = jdbcTemplate.queryForObject(
+                "SELECT character_maximum_length FROM information_schema.columns "
+                + "WHERE table_schema = 'us' AND table_name = 'us_registration_ext' "
+                + "AND column_name = 'apply_time'", Integer.class);
+        assertEquals(Integer.valueOf(19), applyTimeLength, "apply_time is varchar(19)");
         Integer pregnancyLength = jdbcTemplate.queryForObject(
                 "SELECT character_maximum_length FROM information_schema.columns "
                 + "WHERE table_schema = 'us' AND table_name = 'us_registration_ext' "
