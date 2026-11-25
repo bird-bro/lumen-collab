@@ -27,6 +27,10 @@ public class MethodCreateRequest {
     @ApiModelProperty("方法编码 (optional)")
     private String code;
 
+    @ApiModelProperty("设备描述 (optional - the Latin method text for charset-strict "
+            + "devices)")
+    private String deviceDesc;
+
     @ApiModelProperty("排序")
     private Integer sort;
 

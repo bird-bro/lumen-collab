@@ -176,6 +176,46 @@ describe('exam body page - body drawer', () => {
 })
 
 describe('exam body page - name query row', () => {
+  it('maintains the device token/name fields (exam-catalog-device-fields)', async () => {
+    const user = userEvent.setup()
+    const withDevice: BodyTreeNode = {
+      id: 12, modality: 'CT', groupId: 1, upId: null, name: '甲状腺', code: 'JZX',
+      deviceToken: 'THYROID', deviceName: 'Thyroid', sort: 4, enable: 1, remark: null,
+      children: [],
+    }
+    vi.mocked(bodyApi.listExamBodies).mockResolvedValue([
+      { ...BODIES[0], children: [...BODIES[0].children, withDevice] },
+      { ...BODIES[1], remark: '备注-腹' },
+    ])
+    renderPage()
+    await screen.findByText('甲状腺')
+
+    // the table's 设备 column renders the token · Latin name pair
+    const thyroidRow = screen.getByText('甲状腺').closest('tr') as HTMLElement
+    expect(within(thyroidRow).getByText('THYROID')).toBeInTheDocument()
+    // the token and the Latin name share one compact cell - assert the composite
+    expect(thyroidRow.textContent).toContain('· Thyroid')
+    // a blank row shows the em-dash in the 设备 column
+    const plainRow = screen.getByText('腹').closest('tr') as HTMLElement
+    expect(within(plainRow).getByText('—')).toBeInTheDocument()
+
+    // the drawer echoes the fields and the PUT carries the edits
+    await user.click(within(thyroidRow).getByRole('button', { name: '编辑' }))
+    const tokenInput = await screen.findByLabelText('部位token')
+    expect((tokenInput as HTMLInputElement).value).toBe('THYROID')
+    const latinInput = screen.getByLabelText('拉丁名')
+    expect((latinInput as HTMLInputElement).value).toBe('Thyroid')
+    await user.clear(tokenInput)
+    await user.type(tokenInput, 'NECK')
+    await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
+    await waitFor(() => {
+      expect(bodyApi.updateExamBody).toHaveBeenCalledWith(
+        12,
+        expect.objectContaining({ deviceToken: 'NECK', deviceName: 'Thyroid' }),
+      )
+    })
+  })
+
   it('filters the table by 部位名称 and resets the keyword on group switch', async () => {
     const user = userEvent.setup()
     renderPage()

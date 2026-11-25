@@ -141,6 +141,7 @@ public class ExamItemServiceImpl implements ExamItemService {
                 .set(ExamItem::getExam, request.getExam())
                 .set(ExamItem::getCode, request.getCode())
                 .set(ExamItem::getExternalCode, request.getExternalCode())
+                .set(ExamItem::getDeviceDesc, request.getDeviceDesc())
                 .set(ExamItem::getBodyId, request.getBodyId())
                 .set(ExamItem::getPrice, request.getPrice())
                 .set(ExamItem::getRate, request.getRate())

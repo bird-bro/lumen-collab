@@ -35,6 +35,14 @@ public class BodyCreateRequest {
     @ApiModelProperty("部位编码 (optional)")
     private String code;
 
+    @ApiModelProperty("部位 token (optional - the DICOM Body Part Examined defined "
+            + "term, e.g. CHEST/ABDOMEN/LSPINE, the device-recognized token)")
+    private String deviceToken;
+
+    @ApiModelProperty("拉丁名 (optional - the Latin body name for charset-strict "
+            + "devices)")
+    private String deviceName;
+
     @ApiModelProperty("排序")
     private Integer sort;
 

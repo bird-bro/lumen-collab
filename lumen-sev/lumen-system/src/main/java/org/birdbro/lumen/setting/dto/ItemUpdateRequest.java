@@ -36,6 +36,10 @@ public class ItemUpdateRequest {
             + "first, NOT unique, 打包计费 multi-to-one is legal)")
     private String externalCode;
 
+    @ApiModelProperty("设备描述 (optional Latin, absent clears - the MWL SPS "
+            + "Description / Procedure Code Meaning for charset-strict devices)")
+    private String deviceDesc;
+
     @ApiModelProperty("检查部位 (required)")
     @NotNull(message = "bodyId 不能为空")
     private Integer bodyId;

@@ -217,6 +217,51 @@ describe('exam method page - create/edit/delete round-trips', () => {
     })
   })
 
+  it('maintains the 设备描述 field (exam-catalog-device-fields)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(methodApi.pageExamMethods).mockResolvedValue(
+      pageFixture([
+        method({ id: 5, name: '增强', code: 'ZQ', deviceDesc: 'Enhanced' }),
+        method({ id: 3, name: '平扫', code: 'PS', remark: '备注-平扫' }),
+      ]),
+    )
+    renderPage()
+    await screen.findByText('增强')
+
+    // the table renders the Latin text; the blank row shows the em-dash
+    expect(screen.getByText('Enhanced')).toBeInTheDocument()
+    const plainRow = screen.getByText('平扫').closest('tr') as HTMLElement
+    expect(within(plainRow).getByText('—')).toBeInTheDocument()
+
+    // the drawer echoes and the PUT carries the edited value
+    await user.click(screen.getAllByRole('button', { name: /编辑/ })[0])
+    const descInput = await screen.findByLabelText('设备描述')
+    expect((descInput as HTMLInputElement).value).toBe('Enhanced')
+    await user.clear(descInput)
+    await user.type(descInput, 'Enhanced scan')
+    await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
+    await waitFor(() => {
+      expect(methodApi.updateExamMethod).toHaveBeenCalledWith(
+        5,
+        expect.objectContaining({ deviceDesc: 'Enhanced scan' }),
+      )
+    })
+  })
+
+  it('creates with a blank 设备描述 submitting null', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('平扫')
+    await user.click(screen.getByRole('button', { name: /新建方法/ }))
+    await user.type(await screen.findByLabelText('方法名称'), '造影')
+    await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
+    await waitFor(() => {
+      expect(methodApi.createExamMethod).toHaveBeenCalledWith(
+        expect.objectContaining({ name: '造影', deviceDesc: null }),
+      )
+    })
+  })
+
   it('delete confirms, calls the API, and surfaces a refusal message verbatim', async () => {
     const user = userEvent.setup()
     vi.mocked(methodApi.deleteExamMethod).mockRejectedValue(

@@ -35,6 +35,7 @@ import {
 interface MethodFormValues {
   name: string
   code?: string
+  deviceDesc?: string
   sort?: number | null
   remark?: string | null
 }
@@ -112,7 +113,13 @@ export default function ExamMethodPage() {
 
   const openEdit = (row: ExamMethod) => {
     setEditing(row)
-    form.setFieldsValue({ name: row.name, code: row.code ?? undefined, sort: row.sort, remark: row.remark ?? undefined })
+    form.setFieldsValue({
+      name: row.name,
+      code: row.code ?? undefined,
+      deviceDesc: row.deviceDesc ?? undefined,
+      sort: row.sort,
+      remark: row.remark ?? undefined,
+    })
     setDrawerOpen(true)
   }
 
@@ -125,6 +132,7 @@ export default function ExamMethodPage() {
           modality: editing.modality,
           name: values.name,
           code: values.code ?? null,
+          deviceDesc: values.deviceDesc?.trim() || null,
           sort: values.sort ?? null,
           enable: editing.enable,
           remark: values.remark ?? null,
@@ -135,6 +143,7 @@ export default function ExamMethodPage() {
           modality,
           name: values.name,
           code: values.code ?? null,
+          deviceDesc: values.deviceDesc?.trim() || null,
           sort: values.sort ?? null,
           enable: 1,
           remark: values.remark ?? null,
@@ -176,6 +185,15 @@ export default function ExamMethodPage() {
       dataIndex: 'code',
       key: 'code',
       render: (code: string | null) => (code ? <span style={{ color: token.colorTextTertiary }}>{code}</span> : '—'),
+    },
+    {
+      // 设备描述 (exam-catalog-device-fields): the Latin text charset-strict
+      // devices render - blank rows show the em-dash.
+      title: '设备描述',
+      dataIndex: 'deviceDesc',
+      key: 'deviceDesc',
+      ellipsis: true,
+      render: (deviceDesc: string | null) => deviceDesc ?? '—',
     },
     { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true, render: (remark: string | null) => remark ?? '—' },
   ]
@@ -297,6 +315,9 @@ export default function ExamMethodPage() {
           </Form.Item>
           <Form.Item name="code" label="方法编码">
             <Input maxLength={32} />
+          </Form.Item>
+          <Form.Item name="deviceDesc" label="设备描述">
+            <Input maxLength={128} placeholder="拉丁文本（供不支持中文的设备）" />
           </Form.Item>
           <Form.Item name="sort" label="排序">
             <InputNumber min={0} style={{ width: '100%' }} />

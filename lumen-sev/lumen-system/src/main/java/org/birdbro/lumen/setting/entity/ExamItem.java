@@ -46,6 +46,14 @@ public class ExamItem extends EntityBase {
 
     /** 项目编码, unique within the modality among live rows when present. */
     private String code;
+    /**
+     * 设备描述 (varchar 128, optional) - the Latin procedure description the MWL
+     * composer sends as the Scheduled Procedure Step Description / Procedure Code
+     * Meaning (charset-strict devices; the {@code code} serves as the Procedure
+     * Code Value). Read by the item id at send time - the order snapshot never
+     * copies it (us-prereg device-fields D5).
+     */
+    private String deviceDesc;
 
     /**
      * 对照编码 - the external-system mapping anchor (HIS is the first consumer;

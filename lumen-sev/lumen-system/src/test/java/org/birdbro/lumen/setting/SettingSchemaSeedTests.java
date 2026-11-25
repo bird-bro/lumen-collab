@@ -41,11 +41,13 @@ class SettingSchemaSeedTests extends SettingIntegrationTestBase {
     private static final String[] GROUP_COLUMNS = {
             "id", "modality", "name", "sort", "enable", "remark"};
     private static final String[] BODY_COLUMNS = {
-            "id", "modality", "group_id", "up_id", "name", "code", "sort", "enable", "remark"};
+            "id", "modality", "group_id", "up_id", "name", "code", "device_token",
+            "device_name", "sort", "enable", "remark"};
     private static final String[] METHOD_COLUMNS = {
-            "id", "modality", "name", "code", "sort", "enable", "remark"};
+            "id", "modality", "name", "code", "device_desc", "sort", "enable", "remark"};
     private static final String[] ITEM_COLUMNS = {
-            "id", "modality", "exam", "code", "external_code", "body_id", "price", "rate",
+            "id", "modality", "exam", "code", "device_desc", "external_code", "body_id",
+            "price", "rate",
             "tag", "score_rep", "score_aud", "is_common", "sort", "enable", "remark"};
     private static final String[] ITEM_METHOD_COLUMNS = {
             "id", "exam_id", "method_id"};

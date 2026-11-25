@@ -46,6 +46,12 @@ public class ExamMethod extends EntityBase {
 
     /** 启用 (dict 1000 common_status codes). */
     private Integer enable;
+    /**
+     * 设备描述 (varchar 128, optional) - the Latin method text for charset-strict
+     * devices (us-prereg device-fields; the link table exam_item_method carries no
+     * text - the method dictionary owns the wording).
+     */
+    private String deviceDesc;
 
     /** 备注 (V38). */
     private String remark;

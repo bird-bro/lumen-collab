@@ -61,6 +61,7 @@ import {
 interface ItemFormValues {
   code?: string
   externalCode?: string
+  deviceDesc?: string
   exam: string
   groupId?: number
   bodyId?: number
@@ -210,6 +211,7 @@ export default function ExamItemPage() {
       form.setFieldsValue({
         code: detail.code ?? undefined,
         externalCode: detail.externalCode ?? undefined,
+        deviceDesc: detail.deviceDesc ?? undefined,
         exam: detail.exam,
         groupId: currentNode?.groupId,
         bodyId: detail.bodyId,
@@ -256,6 +258,7 @@ export default function ExamItemPage() {
           exam: values.exam,
           code: values.code ?? null,
           externalCode: values.externalCode ?? null,
+          deviceDesc: values.deviceDesc?.trim() || null,
           bodyId: values.bodyId,
           methodIds: values.methodIds ?? [],
           price: values.price ?? null,
@@ -275,6 +278,7 @@ export default function ExamItemPage() {
           exam: values.exam,
           code: values.code ?? null,
           externalCode: values.externalCode ?? null,
+          deviceDesc: values.deviceDesc?.trim() || null,
           bodyId: values.bodyId,
           methodIds: values.methodIds ?? [],
           price: values.price ?? null,
@@ -362,6 +366,16 @@ export default function ExamItemPage() {
       key: 'externalCode',
       render: (externalCode: string | null) =>
         externalCode ? <span style={{ color: token.colorTextTertiary }}>{externalCode}</span> : '—',
+    },
+    {
+      // 设备描述 (exam-catalog-device-fields): the MWL-facing Latin text; blank
+      // rows show the em-dash.
+      title: '设备描述',
+      dataIndex: 'deviceDesc',
+      key: 'deviceDesc',
+      ellipsis: true,
+      render: (deviceDesc: string | null) =>
+        deviceDesc ? <span style={{ color: token.colorTextTertiary }}>{deviceDesc}</span> : '—',
     },
     { title: '部位', dataIndex: 'bodyName', key: 'bodyName', ellipsis: true },
     {
@@ -591,6 +605,11 @@ export default function ExamItemPage() {
               (打包计费 multi-to-one). */}
           <Form.Item name="externalCode" label="对照码">
             <Input maxLength={32} />
+          </Form.Item>
+          {/* 设备描述 (exam-catalog-device-fields): the MWL-facing Latin text for
+              charset-strict devices. */}
+          <Form.Item name="deviceDesc" label="设备描述">
+            <Input maxLength={128} placeholder="拉丁文本（供不支持中文的设备）" />
           </Form.Item>
           {/* 排序 on its own row (2026-11-17 drawer review - it left the numeric
               band); full-width per the group-drawer precedent. */}

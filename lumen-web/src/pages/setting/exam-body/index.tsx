@@ -70,6 +70,8 @@ interface BodyFormValues {
   upId?: number | null
   name: string
   code?: string
+  deviceToken?: string
+  deviceName?: string
   sort?: number | null
   remark?: string
 }
@@ -331,6 +333,8 @@ export default function ExamBodyPage() {
       upId: row.upId,
       name: row.name,
       code: row.code ?? undefined,
+      deviceToken: row.deviceToken ?? undefined,
+      deviceName: row.deviceName ?? undefined,
       sort: row.sort,
       remark: row.remark ?? undefined,
     })
@@ -352,6 +356,8 @@ export default function ExamBodyPage() {
           upId: values.upId ?? null,
           name: values.name,
           code: values.code ?? null,
+          deviceToken: values.deviceToken?.trim() || null,
+          deviceName: values.deviceName?.trim() || null,
           sort: values.sort ?? null,
           enable: editingBody.enable,
           remark: values.remark ?? null,
@@ -363,6 +369,8 @@ export default function ExamBodyPage() {
           groupId: selectedGroupId,
           upId: values.upId ?? null,
           name: values.name,
+          deviceToken: values.deviceToken?.trim() || null,
+          deviceName: values.deviceName?.trim() || null,
           code: values.code ?? null,
           sort: values.sort ?? null,
           enable: 1,
@@ -415,6 +423,27 @@ export default function ExamBodyPage() {
       render: (_, node) =>
         node.code ? (
           <span style={{ color: token.colorTextTertiary }}>{node.code}</span>
+        ) : (
+          '—'
+        ),
+    },
+    {
+      // 设备 token/拉丁名 (exam-catalog-device-fields): the MWL device-facing
+      // pair, one compact column (token over name); blank rows show the em-dash.
+      title: '设备',
+      key: 'device',
+      ellipsis: true,
+      render: (_, node) =>
+        node.deviceToken || node.deviceName ? (
+          <span>
+            {node.deviceToken ? (
+              <span style={{ fontFamily: 'monospace' }}>{node.deviceToken}</span>
+            ) : (
+              '—'
+            )}
+            {node.deviceToken && node.deviceName ? ' · ' : ''}
+            {node.deviceName ?? ''}
+          </span>
         ) : (
           '—'
         ),
@@ -665,6 +694,12 @@ export default function ExamBodyPage() {
           </Form.Item>
           <Form.Item name="code" label="部位编码">
             <Input maxLength={32} />
+          </Form.Item>
+          <Form.Item name="deviceToken" label="部位token">
+            <Input maxLength={32} placeholder="DICOM 标准部位词（如 CHEST/ABDOMEN）" />
+          </Form.Item>
+          <Form.Item name="deviceName" label="拉丁名">
+            <Input maxLength={64} placeholder="拉丁文本（供不支持中文的设备）" />
           </Form.Item>
           <Form.Item name="sort" label="排序">
             <InputNumber min={0} style={{ width: '100%' }} />

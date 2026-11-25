@@ -36,6 +36,11 @@ public class ItemCreateRequest {
             + "NOT unique, 打包计费 multi-to-one is legal)")
     private String externalCode;
 
+    @ApiModelProperty("设备描述 (optional, Latin - the Scheduled Procedure Step "
+            + "Description / Procedure Code Meaning the MWL composer sends; "
+            + "charset-strict devices)")
+    private String deviceDesc;
+
     @ApiModelProperty("检查部位 (required)")
     @NotNull(message = "bodyId 不能为空")
     private Integer bodyId;

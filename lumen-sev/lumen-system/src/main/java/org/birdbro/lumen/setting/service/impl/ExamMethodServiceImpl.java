@@ -98,6 +98,7 @@ public class ExamMethodServiceImpl implements ExamMethodService {
                 .set(ExamMethod::getModality, request.getModality())
                 .set(ExamMethod::getName, request.getName())
                 .set(ExamMethod::getCode, request.getCode())
+                .set(ExamMethod::getDeviceDesc, request.getDeviceDesc())
                 .set(ExamMethod::getSort, request.getSort())
                 .set(ExamMethod::getEnable, request.getEnable())
                 .set(ExamMethod::getRemark, request.getRemark()));

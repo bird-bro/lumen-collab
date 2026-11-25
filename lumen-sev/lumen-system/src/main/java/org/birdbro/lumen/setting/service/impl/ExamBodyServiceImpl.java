@@ -109,6 +109,8 @@ public class ExamBodyServiceImpl implements ExamBodyService {
                 .set(ExamBody::getUpId, request.getUpId())
                 .set(ExamBody::getName, request.getName())
                 .set(ExamBody::getCode, request.getCode())
+                .set(ExamBody::getDeviceToken, request.getDeviceToken())
+                .set(ExamBody::getDeviceName, request.getDeviceName())
                 .set(ExamBody::getSort, request.getSort())
                 .set(ExamBody::getEnable, request.getEnable())
                 .set(ExamBody::getRemark, request.getRemark()));

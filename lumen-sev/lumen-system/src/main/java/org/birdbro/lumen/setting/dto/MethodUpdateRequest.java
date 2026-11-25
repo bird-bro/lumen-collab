@@ -27,6 +27,10 @@ public class MethodUpdateRequest {
     @ApiModelProperty("方法编码 (absent clears)")
     private String code;
 
+    @ApiModelProperty("设备描述 (absent clears - the Latin method text for charset-strict "
+            + "devices)")
+    private String deviceDesc;
+
     @ApiModelProperty("排序 (absent clears)")
     private Integer sort;
 

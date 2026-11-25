@@ -734,6 +734,10 @@ export interface ExamBody {
   upId: number | null;
   name: string;
   code: string | null;
+  /** 部位 token - the DICOM Body Part Examined defined term (MWL device-facing). */
+  deviceToken?: string | null;
+  /** 拉丁名 - the Latin body name for charset-strict devices (MWL device-facing). */
+  deviceName?: string | null;
   sort: number | null;
   enable: number;
   remark: string | null;
@@ -751,6 +755,8 @@ export interface CreateExamBodyBody {
   upId?: number | null;
   name: string;
   code?: string | null;
+  deviceToken?: string | null;
+  deviceName?: string | null;
   sort?: number | null;
   enable: number;
   remark?: string | null;
@@ -765,6 +771,8 @@ export interface ExamMethod {
   modality: string;
   name: string;
   code: string | null;
+  /** 设备描述 - the Latin method text for charset-strict devices (MWL device-facing). */
+  deviceDesc?: string | null;
   sort: number | null;
   enable: number;
   remark: string | null;
@@ -775,6 +783,7 @@ export interface CreateExamMethodBody {
   modality: string;
   name: string;
   code?: string | null;
+  deviceDesc?: string | null;
   sort?: number | null;
   enable: number;
   remark?: string | null;
@@ -802,6 +811,8 @@ export interface ExamItem {
   code: string | null;
   /** 对照编码 - external-system mapping anchor (HIS first; NOT unique, 打包计费 legal). */
   externalCode: string | null;
+  /** 设备描述 - the Latin procedure description the MWL composer sends (charset-strict devices). */
+  deviceDesc?: string | null;
   bodyId: number;
   price: number | null;
   rate: number | null;
@@ -826,6 +837,8 @@ export interface CreateExamItemBody {
   exam: string;
   code?: string | null;
   externalCode?: string | null;
+  /** 设备描述 - the Latin procedure description (MWL device-facing, optional). */
+  deviceDesc?: string | null;
   bodyId: number;
   methodIds?: number[];
   price?: number | null;

@@ -203,6 +203,42 @@ describe('exam item page - filters and display-resolved table', () => {
     expect(plainCells[1]).toBe('—')
   })
 
+  it('maintains the 设备描述 field (exam-catalog-device-fields)', async () => {
+    const user = userEvent.setup()
+    const withDesc = item({
+      id: 24,
+      exam: '头颅CT平扫',
+      code: 'CT-HN-01',
+      deviceDesc: 'CT HEAD PLAIN',
+    })
+    const plain = item({ id: 25, exam: '胸部CT平扫' })
+    vi.mocked(itemApi.pageExamItems).mockResolvedValue(pageFixture([withDesc, plain], 2))
+    vi.mocked(itemApi.getExamItem).mockResolvedValue(withDesc)
+    renderPage()
+    await screen.findByText('头颅CT平扫')
+
+    // the 设备描述 column renders the Latin text; the blank row shows the em-dash
+    expect(screen.getByRole('columnheader', { name: '设备描述' })).toBeTruthy()
+    expect(screen.getByText('CT HEAD PLAIN')).toBeTruthy()
+    const plainRow = screen.getByText('胸部CT平扫').closest('tr') as HTMLElement
+    const plainCells = Array.from(plainRow.querySelectorAll('td')).map((c) => c.textContent)
+    expect(plainCells[2]).toBe('—')
+
+    // the drawer echoes the field and the PUT carries the edit
+    await user.click(screen.getAllByRole('button', { name: /编辑/ })[0])
+    const descInput = await screen.findByLabelText('设备描述')
+    expect((descInput as HTMLInputElement).value).toBe('CT HEAD PLAIN')
+    await user.clear(descInput)
+    await user.type(descInput, 'CT HEAD PLAIN SCAN')
+    await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
+    await waitFor(() => {
+      expect(itemApi.updateExamItem).toHaveBeenCalledWith(
+        24,
+        expect.objectContaining({ deviceDesc: 'CT HEAD PLAIN SCAN' }),
+      )
+    })
+  })
+
   it('renders the 2026-11-17 header polish: renamed headers, centered counts, no 创建时间', async () => {
     renderPage()
     await screen.findByText('胸部CT平扫')

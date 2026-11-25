@@ -48,6 +48,15 @@ public class ExamBody extends EntityBase {
     /** 部位编码 (optional label). */
     private String code;
 
+    /**
+     * 部位 token (varchar 32, optional) - the DICOM Body Part Examined defined term
+     * (CHEST / ABDOMEN / LSPINE ...), the device-recognized token the MWL composer
+     * sends verbatim (us-prereg device-fields; the admin UI is the gatekeeper - no
+     * DB constraint, the same leniency as {@code code}).
+     */
+    private String deviceToken;
+    /** 拉丁名 (varchar 64, optional) - the Latin body name for charset-strict devices. */
+    private String deviceName;
     /** 排序. */
     private Integer sort;
 
