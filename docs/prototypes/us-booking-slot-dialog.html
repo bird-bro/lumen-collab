@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US 登记页 · 预约时段弹框原型（演示数据）</title>
+<!--
+  US 登记页 预约时段选择弹框 UI 原型（非权威，供评审；user request 2026-11-24）：
+  现状 = 预约时间单元格内联 DatePicker(170px)+Select(128px)，Select 下拉只能表达
+  "已满 n/n"，看不到整天的号源分布，三列紧格里也局促。
+  本原型改为：单元格收敛为一个 [预约 icon + 摘要文字] 触发钮，点击弹出
+  "选择预约时段" 弹框 —— 弹框内完成 日期导航 + 分组时段网格（每档号源分段计 + 余量
+  数字，已满灰 / 仅剩 1 号橙），确定后回写表单。
+  契约不变：仍走 GET /orders/slot-options?date&modality（us-booking-slot-picker-sev
+  已落），提交值仍为档位 START HH:mm 拼 bookingTime；清除 = bookingTime null（即到
+  即检 walk-in 语义不变）；configured=false 仍 fail-closed（触发钮禁用）。
+  预约日期域（拍板 2026-11-24）：弹框默认落在明天；今天不进弹框 —— 今天直接在
+  登记页提交登记 = 即到即检，月历上今天灰显注明。
+  若拍板采纳：us-booking-slot-picker-web 的 Select 方案段落改写为本方案（纯 web 改造）。
+  数据全部为演示数据（演示锚定 2026-11-24 = 今天）；拍板点见文末。
+-->
+<style>
+  :root {
+    --page-bg: #f0f2f7;
+    --card: #ffffff;
+    --line: #e5e9f2;
+    --line-strong: #d4dbe8;
+    --ink: #1f2733;
+    --ink-2: #5b6b85;
+    --ink-3: #94a3b8;
+    --primary: #2b5fd9;
+    --primary-deep: #1e49b8;
+    --primary-weak: #eef3ff;
+    --primary-line: #d8e2ff;
+    --green: #15803d;
+    --green-weak: #ecfdf3;
+    --orange: #b45309;
+    --orange-weak: #fff7e8;
+    --orange-line: #f3d19e;
+    --gray-weak: #f1f5f9;
+    --seg-filled: #9db4e8;
+    --seg-filled-full: #c3ccd9;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(15, 33, 82, .05), 0 8px 24px rgba(15, 33, 82, .07);
+    --shadow-pop: 0 12px 44px rgba(15, 33, 82, .22);
+    --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    --serif-cn: "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif;
+    --mono: "SF Mono", "Menlo", "Consolas", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background:
+      radial-gradient(1100px 520px at 12% -6%, #fdfefe 0%, transparent 55%),
+      var(--page-bg);
+    padding: 36px 44px 72px;
+  }
+  .page { max-width: 1080px; margin: 0 auto; }
+
+  /* ═══ 编辑层 ═══ */
+  .masthead {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding-bottom: 16px; margin-bottom: 24px;
+    border-bottom: 3px double var(--line-strong);
+  }
+  .masthead h1 { font-size: 23px; letter-spacing: .05em; font-weight: 700; }
+  .masthead h1 em { font-style: normal; color: var(--primary); }
+  .badge {
+    font-size: 12px; letter-spacing: .1em; padding: 3px 11px;
+    border: 1px solid var(--line-strong); border-radius: 999px; color: var(--ink-2);
+    background: #fff;
+  }
+  .badge.hot { border-color: var(--primary-line); background: var(--primary-weak); color: var(--primary); }
+  .masthead .lead { flex-basis: 100%; font-size: 13px; color: var(--ink-2); line-height: 1.85; margin-top: 3px; }
+  .masthead .lead b { color: var(--ink); }
+  .masthead .lead code {
+    font-family: var(--mono); font-size: 11.5px; color: var(--primary-deep);
+    background: var(--primary-weak); padding: 1px 5px; border-radius: 4px;
+  }
+
+  .section-eyebrow {
+    display: flex; align-items: baseline; gap: 14px; margin: 40px 0 6px;
+    font-size: 13px; letter-spacing: .26em; color: var(--ink-3); font-weight: 600;
+    font-family: var(--serif-cn);
+  }
+  .section-eyebrow strong { color: var(--ink); font-size: 16px; letter-spacing: .12em; }
+  .section-eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--line); align-self: center; }
+  .section-sub { font-size: 12.5px; color: var(--ink-2); margin: 0 0 14px 2px; line-height: 1.75; }
+  .section-sub b { color: var(--ink); }
+  .section-sub code { font-family: var(--mono); font-size: 11.5px; color: var(--primary-deep); background: var(--primary-weak); padding: 1px 5px; border-radius: 4px; }
+
+  /* ═══ 壹 · 表单触发态 ═══ */
+  .tri { display: flex; gap: 14px; flex-wrap: wrap; }
+  .tcard {
+    flex: 1 1 300px; min-width: 300px; background: var(--card);
+    border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px 16px 12px;
+  }
+  .tcard .frow { display: flex; align-items: center; min-width: 0; }
+  .tcard .flabel {
+    flex: 0 0 88px; width: 88px; color: var(--ink-2); text-align: right;
+    padding-right: 8px; white-space: nowrap; font-size: 13px;
+  }
+  .tcard .flabel i { color: #dc2626; font-style: normal; }
+  /* 触发控件：icon 钮 + 摘要文字（antButton 质感） */
+  .tctrl { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+  .ticon {
+    width: 30px; height: 30px; border-radius: 6px; flex: none;
+    border: 1px solid var(--line-strong); background: #fff; color: var(--primary);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: all .15s;
+  }
+  .ticon:hover { border-color: var(--primary); background: var(--primary-weak); }
+  .ticon svg { width: 15px; height: 15px; }
+  .ticon:disabled { color: var(--ink-3); background: var(--gray-weak); cursor: not-allowed; border-color: var(--line); }
+  .ttext { font-size: 13px; min-width: 0; }
+  .ttext.dim { color: var(--ink-3); }
+  .ttext b { font-family: var(--mono); font-weight: 600; font-size: 12.5px; }
+  .ttext .wk { color: var(--ink-2); margin-right: 3px; }
+  .tclear {
+    width: 16px; height: 16px; border-radius: 50%; border: none; flex: none;
+    background: var(--gray-weak); color: var(--ink-3); font-size: 10px; line-height: 16px;
+    text-align: center; cursor: pointer;
+  }
+  .tclear:hover { background: var(--danger-weak, #fef2f2); color: #dc2626; }
+  .tcard .tcap { font-size: 11.5px; color: var(--ink-3); line-height: 1.7; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .tcard .tcap b { color: var(--ink-2); }
+
+  /* ═══ 贰 · 弹框 ═══ */
+  .stage { position: relative; padding: 6px 0 26px; }
+  .stage::before {
+    content: ""; position: absolute; inset: 0 -20px -14px; z-index: 0;
+    background:
+      radial-gradient(720px 300px at 50% -40px, rgba(43, 95, 217, .07), transparent 65%),
+      repeating-linear-gradient(-45deg, transparent 0 11px, rgba(15, 33, 82, .016) 11px 12px);
+    border-radius: 14px;
+  }
+  .modal {
+    position: relative; z-index: 1; width: 820px; margin: 0 auto;
+    background: var(--card); border-radius: 12px; box-shadow: var(--shadow-pop);
+    border: 1px solid var(--line); overflow: hidden;
+    animation: pop-in .32s cubic-bezier(.22, 1.1, .36, 1) both;
+  }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(14px) scale(.965); } to { opacity: 1; transform: none; } }
+  .m-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 18px 12px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #fbfcfe, #f6f8fc);
+  }
+  .m-head .m-title { font-size: 15px; font-weight: 700; letter-spacing: .03em; display: inline-flex; align-items: center; gap: 8px; }
+  .m-head .m-title svg { width: 16px; height: 16px; color: var(--primary); }
+  .m-head .m-mod {
+    font-size: 11px; padding: 2px 9px; border-radius: 999px;
+    background: var(--primary-weak); color: var(--primary); font-weight: 600; letter-spacing: .08em;
+  }
+  .m-close {
+    margin-left: auto; width: 26px; height: 26px; border-radius: 6px; border: none;
+    background: transparent; color: var(--ink-3); font-size: 15px; cursor: pointer;
+  }
+  .m-close:hover { background: var(--gray-weak); color: var(--ink); }
+  /* 双栏：日历居左，汇总 + 时段网格居右（2026-11-24 布局拍板，消两侧大空隙） */
+  .m-body { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px 6px; }
+  .m-right { flex: 1; min-width: 0; }
+
+  /* 常驻迷你月历（2026-11-24 中途拍板：日历直接显示 + 日级余量角标） */
+  .cal {
+    flex: none; width: 250px; margin: 0;
+    background: #fff; border: 1px solid var(--line); border-radius: 9px;
+    box-shadow: var(--shadow); padding: 10px 12px 12px;
+  }
+  .cal .cal-t {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 14px; font-weight: 700; letter-spacing: .05em;
+    padding-bottom: 7px; border-bottom: 1px solid var(--line); margin-bottom: 7px;
+  }
+  .cal-nav {
+    width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line-strong);
+    background: #fff; color: var(--ink-2); cursor: pointer; font-size: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cal-nav:hover { color: var(--primary); border-color: var(--primary); }
+  @keyframes cal-in { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+  .cal .cal-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal .cal-w { font-size: 12px; color: var(--ink-3); text-align: center; padding: 2px 0 4px; }
+  .cal .cal-d {
+    position: relative; height: 40px; border-radius: 6px; border: none; background: transparent;
+    font-family: var(--mono); color: var(--ink); cursor: pointer; padding: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  }
+  .cal .cal-d .dn { font-size: 13px; line-height: 1; }
+  .cal .cal-d .db { font-size: 10px; line-height: 1; color: var(--primary); font-weight: 400; }
+  .cal .cal-d .db.zero { color: var(--ink-3); }
+  .cal .cal-d.on .db { color: #fff; }
+  .cal .cal-d:hover:not(:disabled) { background: var(--primary-weak); }
+  .cal .cal-d:disabled { color: #cbd5e1; cursor: not-allowed; }
+  .cal .cal-d.dim { color: #cbd5e1; }
+  .cal .cal-d.tdy { box-shadow: inset 0 0 0 1px var(--primary-line); font-weight: 700; color: var(--primary-deep); }
+  .cal .cal-d.on { background: var(--primary); color: #fff; font-weight: 700; }
+
+  /* 时段网格 */
+  .slots { padding: 0; }
+  .sgroup + .sgroup { margin-top: 12px; }
+  .sg-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .sg-chip {
+    font-size: 14px; font-weight: 700; letter-spacing: .12em;
+    color: var(--primary-deep); background: var(--primary-weak);
+    padding: 1px 10px; border-radius: 999px;
+  }
+  .sg-chip.pm { color: var(--cyan, #0e7490); background: var(--cyan-weak, #ecfeff); }
+  .sg-range { font-family: var(--mono); font-size: 13.5px; color: var(--ink-3); }
+  .sg-left { margin-left: auto; font-size: 12.5px; color: var(--ink-3); }
+  .sg-left b { font-family: var(--mono); color: var(--ink-2); font-weight: 600; }
+  .sgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .slot {
+    position: relative; border: 1px solid var(--line-strong); border-radius: 8px;
+    background: #fff; padding: 10px 12px 9px; cursor: pointer; user-select: none; min-width: 0;
+    transition: transform .15s, box-shadow .15s, border-color .15s, background .15s;
+    animation: slot-in .3s ease-out both;
+  }
+  @keyframes slot-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .slot:hover:not(.full) { border-color: var(--primary); box-shadow: 0 3px 12px rgba(43, 95, 217, .14); transform: translateY(-1px); }
+  .slot.sel { border-color: var(--primary); background: var(--primary-weak); box-shadow: 0 0 0 1px var(--primary) inset; }
+  .slot.full { background: var(--gray-weak); cursor: not-allowed; }
+  .slot .s-check {
+    position: absolute; top: -7px; right: -6px; width: 17px; height: 17px; border-radius: 50%;
+    background: var(--primary); color: #fff; font-size: 10px; line-height: 17px; text-align: center;
+    box-shadow: 0 1px 4px rgba(43, 95, 217, .4); display: none;
+  }
+  .slot.sel .s-check { display: block; animation: pop-in .18s ease-out both; }
+  .s-time { font-size: 16px; font-weight: 700; font-family: var(--mono); letter-spacing: .01em; }
+  .s-time i { font-style: normal; font-weight: 400; font-size: 13px; color: var(--ink-3); }
+  .slot.full .s-time { color: var(--ink-3); }
+  .slot.sel .s-time { color: var(--primary-deep); }
+  .s-meter { display: flex; gap: 3px; margin-top: 6px; }
+  .seg { width: 13px; height: 9px; border-radius: 2px; border: 1px solid var(--line-strong); background: #fff; }
+  .seg.f { background: var(--seg-filled); border-color: var(--seg-filled); }
+  .slot.full .seg { background: var(--seg-filled-full); border-color: var(--seg-filled-full); }
+  .slot.tight .seg.e { border-color: var(--orange-line); animation: seg-pulse 1.7s ease-in-out infinite; }
+  @keyframes seg-pulse { 0%, 100% { background: #fff; } 50% { background: var(--orange-weak); } }
+  .s-left { font-size: 13.5px; color: var(--ink-2); margin-top: 5px; font-family: var(--mono); }
+  .s-left.tight { color: var(--orange); font-weight: 700; }
+  .s-left .cap { color: var(--ink-3); }
+  .slot.full .s-left { color: var(--ink-3); }
+  .slot.full .s-left::after {
+    content: "已满"; font-family: var(--sans); font-size: 10px; font-weight: 600;
+    background: var(--seg-filled-full); color: #fff; border-radius: 3px;
+    padding: 0 5px; margin-left: 5px; vertical-align: 1px;
+  }
+
+  /* 弹框脚部 */
+  .m-foot {
+    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+    padding: 11px 18px 13px; border-top: 1px solid var(--line); background: #fbfcfe;
+    margin-top: 10px;
+  }
+  .mbtn {
+    height: 30px; padding: 0 14px; border-radius: 6px; font-size: 13px;
+    border: 1px solid var(--line-strong); background: #fff; color: var(--ink); cursor: pointer; flex: none;
+    transition: all .15s;
+  }
+  .mbtn:hover { color: var(--primary); border-color: var(--primary); }
+  .mbtn.primary { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+  .mbtn.primary:hover { background: var(--primary-deep); }
+  .mbtn.primary:disabled { background: var(--seg-filled-full); border-color: var(--seg-filled-full); cursor: not-allowed; }
+
+  /* 回写条 */
+  .writeback {
+    width: 640px; margin: 16px auto 0; display: flex; align-items: center; gap: 9px;
+    background: var(--green-weak); border: 1px solid rgba(21, 128, 61, .25); border-radius: 8px;
+    padding: 8px 13px; font-size: 12px; color: var(--green);
+    animation: cal-in .2s ease-out both;
+  }
+  .writeback .wb-k { font-family: var(--mono); font-weight: 700; }
+  .writeback .wb-v { font-family: var(--mono); font-weight: 600; color: var(--ink); }
+
+  /* ═══ 叁 · 拍板点 ═══ */
+  .rulings { counter-reset: rk; margin-top: 4px; }
+  .ruling {
+    display: flex; gap: 12px; padding: 10px 2px 12px; border-bottom: 1px dashed var(--line);
+    font-size: 13px; line-height: 1.75; color: var(--ink-2);
+  }
+  .ruling:last-child { border-bottom: none; }
+  .ruling::before {
+    counter-increment: rk; content: counter(rk, cjk-ideographic);
+    font-family: var(--serif-cn); font-size: 14px; color: var(--primary); font-weight: 700;
+    flex: none; width: 20px; padding-top: 1px;
+  }
+  .ruling b { color: var(--ink); }
+  .ruling code { font-family: var(--mono); font-size: 11.5px; color: var(--primary-deep); background: var(--primary-weak); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <h1>US 登记页 · <em>预约时段弹框</em>原型</h1>
+    <span class="badge hot">交互演示</span>
+    <span class="badge">演示数据 · 锚定 2026-11-24</span>
+    <p class="lead">
+      现状：预约时间 = 内联 DatePicker + Select 两格，下拉里只有「已满 n/n」，<b>整天号源分布不可见</b>，三列紧格里局促。
+      本案：单元格收敛为 <b>一个预约触发钮</b>，点击弹出 <b>选择预约时段</b> 弹框 —— 日期导航 + 分组时段网格，每档<b>号源分段计 + 余量数字</b>；
+      预约仅约<b>明天起</b>，默认落明天（今天 = 直接登记即到即检，不进弹框）。
+      契约不变：仍走 <code>GET /orders/slot-options?date&amp;modality</code>，提交值仍为档位 START；清除 = <code>bookingTime=null</code>（即到即检）。
+    </p>
+  </header>
+
+  <!-- ═══════════════ 壹 ═══════════════ -->
+  <div class="section-eyebrow">壹<strong>表单触发态</strong></div>
+  <p class="section-sub">
+    预约时间单元格的三种 resting 形态。触发钮 = <b>calendar-check icon</b>（aria-label=选择预约时段）+ 摘要文字；
+    <b>日期与时段成对</b>，已选形态带 hover 清除钮（清除 = 回到即到即检）。label/字号沿用现行 Field 定式（88px 右置）。
+  </p>
+  <div class="tri">
+    <div class="tcard">
+      <div class="frow">
+        <span class="flabel">预约时间</span>
+        <span class="tctrl">
+          <button class="ticon" disabled aria-label="选择预约时段">
+            <svg viewBox="64 64 896 896" fill="currentColor"><path d="M880 184H712v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H384v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H144c-17.7 0-32 14.3-32 32v664c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V216c0-17.7-14.3-32-32-32zm-40 656H184V460h656v380zM184 392V256h128v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h256v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h128v136H184z"/></svg>
+          </button>
+          <span class="ttext dim">未开通预约</span>
+        </span>
+      </div>
+      <div class="tcap"><b>未开通预约</b>：该模态无预约配置（<code>configured=false</code>），触发钮禁用，fail-closed 语义与现行一致；现场 walk-in 不受影响。</div>
+    </div>
+    <div class="tcard">
+      <div class="frow">
+        <span class="flabel">预约时间</span>
+        <span class="tctrl">
+          <button class="ticon" aria-label="选择预约时段">
+            <svg viewBox="64 64 896 896" fill="currentColor"><path d="M880 184H712v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H384v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H144c-17.7 0-32 14.3-32 32v664c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V216c0-17.7-14.3-32-32-32zm-40 656H184V460h656v380zM184 392V256h128v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h256v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h128v136H184z"/></svg>
+          </button>
+          <span class="ttext dim">即到即检<span style="font-size:11px">（点击预约）</span></span>
+        </span>
+      </div>
+      <div class="tcap"><b>即到即检（默认）</b>：已配置但未选时段。点击触发钮打开弹框；不选时段直接提交 = 现场 walk-in，<code>bookingTime=null</code> 不变。</div>
+    </div>
+    <div class="tcard">
+      <div class="frow">
+        <span class="flabel">预约时间</span>
+        <span class="tctrl">
+          <button class="ticon" aria-label="选择预约时段">
+            <svg viewBox="64 64 896 896" fill="currentColor"><path d="M880 184H712v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H384v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H144c-17.7 0-32 14.3-32 32v664c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V216c0-17.7-14.3-32-32-32zm-40 656H184V460h656v380zM184 392V256h128v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h256v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h128v136H184z"/></svg>
+          </button>
+          <span class="ttext"><span class="wk">周二</span><b>11-25</b>&nbsp;<b>09:00–09:30</b></span>
+          <button class="tclear" aria-label="清除预约时段" title="清除（回到即到即检）">×</button>
+        </span>
+      </div>
+      <div class="tcap"><b>已选时段</b>：摘要 = 星期 + 日期 + 档位区间（等宽字体）。再点触发钮可改选；× 清除即回到即到即检。</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ 贰 ═══════════════ -->
+  <div class="section-eyebrow">贰<strong>选择预约时段弹框</strong></div>
+  <p class="section-sub">
+    默认落在<b>明天</b>；今天不可选（今天 = 外页直接提交登记即 即到即检，月历上灰显注明）。
+    全交互演示：<b>‹ ›</b> 翻日 / 点日期条开<b>迷你月历</b> / 点时段格选档（再点取消）。每档卡 = 档位区间 + <b>号源分段计</b>（一格 = 1 个号，实心 = 已约、空心 = 空位）+ 余量数字；
+    <b>灰档已满禁选、橙档仅剩 1 号（空心格呼吸提示）</b>。顶部汇总条给整天的 剩余/总号 一眼数。实现时用 antd Modal + token，原型手写样式仅定形态。
+  </p>
+  <div class="stage">
+    <div class="modal" role="dialog" aria-label="选择预约时段">
+      <div class="m-head">
+        <span class="m-title">
+          <svg viewBox="64 64 896 896" fill="currentColor"><path d="M880 184H712v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H384v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H144c-17.7 0-32 14.3-32 32v664c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V216c0-17.7-14.3-32-32-32zm-40 656H184V460h656v380zM184 392V256h128v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h256v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h128v136H184z"/></svg>
+          选择预约时段
+        </span>
+        <span class="m-mod">超声 US</span>
+        <button class="m-close" aria-label="关闭" title="关闭">×</button>
+      </div>
+
+      <div class="m-body">
+        <div class="cal" id="cal">
+          <div class="cal-t">
+            <button class="cal-nav" id="calPrev" aria-label="上一月">‹</button>
+            <span id="calTitle">2026 年 11 月</span>
+            <button class="cal-nav" id="calNext" aria-label="下一月">›</button>
+          </div>
+          <div class="cal-g" id="calGrid"></div>
+        </div>
+
+        <div class="m-right">
+          <div class="slots" id="slots"><!-- JS 渲染 --></div>
+        </div>
+      </div>
+
+      <div class="m-foot">
+        <button class="mbtn" id="btnCancel">取消</button>
+        <button class="mbtn primary" id="btnOk" disabled>确定</button>
+      </div>
+    </div>
+
+    <div class="writeback" id="writeback" hidden>
+      <span>✓ 已写入表单</span>
+      <span class="wb-k">bookingTime =</span>
+      <span class="wb-v" id="wbVal">null</span>
+      <span id="wbNote" style="font-family:var(--sans)"></span>
+    </div>
+  </div>
+
+  <!-- ═══════════════ 叁 ═══════════════ -->
+  <div class="section-eyebrow">叁<strong>拍板点</strong></div>
+  <p class="section-sub">待拍板后落提案（改写 us-booking-slot-picker-web 的 Select 方案段；后端 us-booking-slot-picker-sev 不动）。</p>
+  <div class="rulings">
+    <div class="ruling"><span><b>触发控件</b>：预约时间两格（DatePicker+Select）收敛为一个 icon+摘要触发钮；label 预约时间保留。已选摘要 = 周X MM-DD HH:mm–HH:mm。</span></div>
+    <div class="ruling"><span><b>预约日期域 = 明天起（D+1，拍板 2026-11-24）</b>：弹框默认落明天；今天不在弹框可选 —— 今天直接在登记页提交登记 = 即到即检；月历上今天灰显 + tooltip 注明，‹ › 下边界 = 明天。</span></div>
+    <div class="ruling"><span><b>弹框内选日</b>：迷你月历<b>常驻显示</b>（‹ › 翻月；2026-11-24 中途拍板，反转原「不做角标」）；每个可选日带日级余量角标（余 N / 满）= 前端对展示月未来各日并行拉 per-date 端点聚合，专用日级 range 端点留作后续优化。</span></div>
+    <div class="ruling"><span><b>号源可视化</b>：每档卡 = 区间 + 分段计（1 格 = 1 号，实心已约/空心空位）+ 余量数字；已满灰禁选、仅剩 1 号橙 + 空心格呼吸。capacity 过大（&gt;10）时退化为进度条。</span></div>
+    <div class="ruling"><span><b>语义不变</b>：日期时段成对提交（选档即用弹框当前日期）；清除/不选 = 即到即检 <code>bookingTime=null</code>；提交值仍为档位 START HH:mm；configured=false 触发钮禁用；A0400 满员后端校验不动。「预约 ≥ 明天」为前端约束，后端是否同规则校验另行提案。</span></div>
+    <div class="ruling"><span><b>范围</b>：过去时段标灰被 D+1 下限自然覆盖（弹框内不存在过去日，DB-clock 增强不再紧迫）；预约设置页（exam-slot）不动；aria 锚点 —— 触发钮 <code>aria-label="选择预约时段"</code>、弹框 <code>role="dialog"</code>、时段格 <code>role="button"</code> + 全量摘要文案（页测子串锚定）。</span></div>
+  </div>
+
+</div>
+<script>
+  /* ── 演示数据（锚定 2026-11-24 = 今天；窗×粒度×capacity 与 exam-slot 配置同构）── */
+  var CAP = 6
+  var AM = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30']  // 窗 08:00–12:00 @30min
+  var PM = ['14:00', '14:30', '15:00', '15:30', '16:00', '16:30']                    // 窗 14:00–17:00 @30min
+  var OCC = {
+    '2026-11-25': { '08:00': 1, '08:30': 0, '09:00': 0, '09:30': 2, '10:00': 0, '10:30': 0, '11:00': 1, '11:30': 0, '14:00': 0, '14:30': 1, '15:00': 0, '15:30': 0, '16:00': 0, '16:30': 0 },
+    '2026-11-27': { '08:00': 3, '08:30': 0, '09:00': 0, '09:30': 0, '10:00': 0, '10:30': 0, '11:00': 0, '11:30': 0, '14:00': 0, '14:30': 4, '15:00': 0, '15:30': 0, '16:00': 0, '16:30': 0 }
+  }
+  var TODAY = '2026-11-24'
+  var RANGE_FROM = '2026-11-25'   /* 预约日期域 = 明天起（拍板 2026-11-24）：今天不进弹框 */
+
+  function endOf(s) {
+    var t = Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5)) + 30
+    var h = Math.floor(t / 60), m = t % 60
+    return (h < 10 ? '0' + h : '' + h) + ':' + (m < 10 ? '0' + m : '' + m)
+  }
+  function slotsFor(date) {
+    var occ = OCC[date] || {}
+    return AM.concat(PM).map(function (s) { return { s: s, e: endOf(s), b: occ[s] || 0, c: CAP } })
+  }
+  var WD = ['日', '一', '二', '三', '四', '五', '六']
+  function meta(d) {
+    var dt = new Date(d + 'T00:00:00')
+    return { wk: '周' + WD[dt.getDay()], cn: Number(d.slice(5, 7)) + '月' + Number(d.slice(8)) + '日' }
+  }
+  var cur = RANGE_FROM, sel = null, wb = null
+  var $ = function (id) { return document.getElementById(id) }
+
+  function render() {
+    var slots = slotsFor(cur)
+
+    var groups = [
+      { name: '上午', pm: false, list: slots.filter(function (x) { return x.s < '12:00' }) },
+      { name: '下午', pm: true, list: slots.filter(function (x) { return x.s >= '12:00' }) }
+    ]
+    var html = ''
+    groups.forEach(function (g) {
+      if (!g.list.length) return
+      var gcap = 0, gbook = 0
+      g.list.forEach(function (x) { gcap += x.c; gbook += x.b })
+      html += '<div class="sgroup"><div class="sg-head">'
+        + '<span class="sg-chip' + (g.pm ? ' pm' : '') + '">' + g.name + '</span>'
+        + '<span class="sg-range">' + g.list[0].s + '–' + g.list[g.list.length - 1].e + '</span>'
+        + '<span class="sg-left">余 <b>' + (gcap - gbook) + '</b>/' + gcap + ' 号</span></div><div class="sgrid">'
+      g.list.forEach(function (x) {
+        var full = x.b >= x.c, left = x.c - x.b, tight = !full && left === 1
+        var cls = 'slot' + (full ? ' full' : '') + (tight ? ' tight' : '') + (sel === x.s ? ' sel' : '')
+        var leftTxt = full ? '' + x.c : (left < 10 ? ' ' + left : '' + left)
+        var aria = full
+          ? '预约时段 ' + x.s + '–' + x.e + '，已满'
+          : '预约时段 ' + x.s + '–' + x.e + '，剩余 ' + left + ' 号'
+        html += '<div class="' + cls + '" role="button" tabindex="0" data-k="' + x.s + '" aria-label="' + aria + '">'
+          + '<span class="s-check">✓</span>'
+          + '<div class="s-time"><b>' + x.s + '</b><i>–' + x.e + '</i></div><div class="s-meter">'
+        for (var i = 0; i < x.c; i++) html += '<i class="seg' + (i < x.b ? ' f' : ' e') + '"></i>'
+        html += '</div><div class="s-left' + (tight ? ' tight' : '') + '">余' + leftTxt + '<span class="cap"> /' + x.c + '</span></div></div>'
+      })
+      html += '</div></div>'
+    })
+    $('slots').innerHTML = html
+    Array.prototype.forEach.call($('slots').querySelectorAll('.slot'), function (el) {
+      el.addEventListener('click', function () { pickSlot(el.dataset.k) })
+      el.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pickSlot(el.dataset.k) } })
+    })
+    $('btnOk').disabled = sel == null
+  }
+
+  function pickSlot(k) {
+    var slots = slotsFor(cur)
+    var hit = slots.filter(function (x) { return x.s === k })[0]
+    if (!hit || hit.b >= hit.c) return
+    sel = (sel === k ? null : k)
+    render()
+  }
+
+  /* ── 常驻迷你月历（周一起始；过去日禁选；日级余量角标 = 演示占位，实现为
+      前端对展示月未来各日并行拉 per-date 端点聚合，专用 range 端点留作后续）── */
+  var calAnchor = '2026-11-01'
+  function monthShift(iso, n) {
+    var dt = new Date(iso + 'T00:00:00')
+    dt.setMonth(dt.getMonth() + n)
+    var y = dt.getFullYear(), m = dt.getMonth() + 1
+    return y + '-' + (m < 10 ? '0' + m : '' + m) + '-01'
+  }
+  function daysInMonth(iso) {
+    var dt = new Date(iso + 'T00:00:00')
+    return new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate()
+  }
+  function leftFor(iso) {
+    var occ = OCC[iso] || {}, booked = 0
+    AM.concat(PM).forEach(function (s) { booked += occ[s] || 0 })
+    return AM.concat(PM).length * CAP - booked
+  }
+  function renderCal() {
+    var mo = Number(calAnchor.slice(5, 7))
+    $('calTitle').textContent = calAnchor.slice(0, 4) + ' 年 ' + (mo < 10 ? '0' + mo : '' + mo) + ' 月'
+    var lead = (new Date(calAnchor + 'T00:00:00').getDay() + 6) % 7   // 周一起始偏移
+    var dimDays = daysInMonth(calAnchor)
+    var html = ''
+    for (var w = 0; w < 7; w++) html += '<span class="cal-w">' + '一二三四五六日'[w] + '</span>'
+    for (var b0 = 0; b0 < lead; b0++) html += '<span></span>'
+    for (var d2 = 1; d2 <= dimDays; d2++) {
+      var iso = calAnchor.slice(0, 8) + (d2 < 10 ? '0' + d2 : '' + d2)
+      var disabled = iso < RANGE_FROM
+      var badge = disabled ? null : leftFor(iso)
+      var cls = 'cal-d' + (iso === TODAY ? ' tdy' : '') + (iso === cur ? ' on' : '')
+      html += '<button class="' + cls + '"' + (disabled ? ' disabled' : '') + ' data-d="' + iso + '" aria-label="' + iso + '"'
+        + (iso === TODAY ? ' title="今天即到即检，不在此预约"' : '') + '>'
+        + '<span class="dn">' + d2 + '</span>'
+        + (badge != null ? '<span class="db' + (badge === 0 ? ' zero' : '') + '">' + (badge === 0 ? '满' : '余 ' + badge) + '</span>' : '')
+        + '</button>'
+    }
+    var trail = lead + dimDays
+    while (trail % 7 !== 0) { html += '<span></span>'; trail++ }
+    $('calGrid').innerHTML = html
+    Array.prototype.forEach.call($('calGrid').querySelectorAll('.cal-d:not([disabled])'), function (el) {
+      el.addEventListener('click', function () {
+        if (el.dataset.d !== cur) { cur = el.dataset.d; sel = null }  // 时段绑定日期：换日即清选
+        renderCal(); render()
+      })
+    })
+  }
+
+  /* ── 弹框动作 ── */
+  $('calPrev').addEventListener('click', function () { calAnchor = monthShift(calAnchor, -1); renderCal() })
+  $('calNext').addEventListener('click', function () { calAnchor = monthShift(calAnchor, 1); renderCal() })
+  $('btnCancel').addEventListener('click', function () { $('writeback').hidden = true })
+  $('btnOk').addEventListener('click', function () {
+    if (sel == null) return
+    wb = { date: cur, slot: sel }
+    $('writeback').hidden = false
+    $('wbVal').textContent = wb.date + ' ' + wb.slot + ':00'
+    $('wbNote').textContent = '（' + meta(wb.date).cn + ' ' + meta(wb.date).wk + '，提交后走后端 A0400 校验）'
+  })
+
+  renderCal()
+  render()
+</script>
+</body>
+</html>
