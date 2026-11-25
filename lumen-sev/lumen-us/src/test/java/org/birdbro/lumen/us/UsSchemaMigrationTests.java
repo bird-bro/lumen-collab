@@ -106,11 +106,14 @@ class UsSchemaMigrationTests extends UsIntegrationTestBase {
             expected.add("id");
             expected.addAll(REQUIRED_COLUMNS.get(table));
             expected.addAll(AUDIT_COLUMNS);
-            // V4's ALTER TABLE ADD COLUMN appends booking_time at the TABLE END - after
-            // the whole V1 block INCLUDING the audit columns (the verbatim ALTER-appends-
-            // last reality, identical to the kernel core schema's physical order)
+            // V4's ALTER TABLE ADD COLUMN appends booking_time at the TABLE END, and V6
+            // (us-prereg-as-registered-sev) appends registration_type after it - both
+            // after the whole V1 block INCLUDING the audit columns (the verbatim
+            // ALTER-appends-last reality, identical to the kernel core schema's physical
+            // order)
             if ("exam_order".equals(table)) {
                 expected.add("booking_time");
+                expected.add("registration_type");
             }
             assertEquals(expected, orderedColumns,
                     "us." + table + " must carry EXACTLY the canonical kernel columns "

@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: us-prereg-as-registered-sev
+execution_mode: Batch Inline
+tasks_total: 12
+tasks_done: 12
+workflow_mode: full
+artifacts_hash: 7e8d432eced9c370f97bb6a565255b8bed9cd00a9e9f53bfaebe1a23d127c105

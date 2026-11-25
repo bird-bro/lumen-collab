@@ -81,16 +81,18 @@ with the ruled merged cells — 证件/身高体重/住院床号/妊娠 merge, �
 (the common-item chips + the picked list + the 添加项目 dialog over the setting catalog).
 The form SHALL collect 检查项目 from the setting catalog (US-modality items), the US
 extension block (妊娠状态/孕周/备注), and the 急诊 flag, then submit the create body and
-surface the returned accession on success — SUBMIT REGISTERS (拍板 02-B): a null 预登记时间
-creates a REGISTERED 现场单 immediately; a picked future time posts `bookingTime`
-(yyyy-MM-dd HH:mm:ss) and the order enters 预登记 (BOOKED), with the backend's four A0400
+surface the returned accession on success — SUBMIT REGISTERS for BOTH kinds (拍板 02-B;
+预约=预登记, user ruling 2026-11-24): a null 预登记时间 creates a REGISTERED 现场单
+immediately; a picked future time posts `bookingTime` (yyyy-MM-dd HH:mm:ss) and the order
+ALSO enters 已登记 (REGISTERED) carrying the 预约 category — there is NO arrival
+confirmation step, the patient goes straight into the exam. The backend's four A0400
 refusals (该时段已满 / 不在开台时间窗内 / 预登记时间不能早于当前时间 / 该检查类型未开通预登记)
-surfacing VERBATIM near the picker. Each selected 项目 SHALL ride its modality token (the
+surface VERBATIM near the picker. Each selected 项目 SHALL ride its modality token (the
 setting catalog's dict-1024 value) in its item reference so the backend resolves the
-modality-scoped number rule. The order list SHALL offer 登记 (the arrival confirmation for
-BOOKED orders) and 取消 actions on live orders — 取消 requires a reason input with
-confirmation — and SHALL surface state-machine refusals from the backend verbatim without
-altering the row.
+modality-scoped number rule. The order list SHALL offer 取消 on live orders — 取消 requires
+a reason input with confirmation — and SHALL surface state-machine refusals from the backend
+verbatim without altering the row; NO 登记 action exists (the arrival confirmation is
+retired with the two-stage model).
 
 #### Scenario: Create posts identity, items, and extension
 
@@ -102,7 +104,8 @@ altering the row.
 #### Scenario: Pre-registration time posts the slot anchor
 
 - **WHEN** the operator picks a future 预登记时间 and submits
-- **THEN** the payload carries `bookingTime` and the refreshed row lands 预登记 (BOOKED)
+- **THEN** the payload carries `bookingTime` and the refreshed row lands 已登记 (REGISTERED)
+  with the 预约 category tag (预登记=已登记)
 - **WHEN** the backend refuses the slot (full / outside windows / past / unconfigured)
 - **THEN** the refusal renders verbatim near the picker and nothing persists
 
@@ -114,9 +117,12 @@ altering the row.
 
 #### Scenario: 登记 transitions the order
 
-- **WHEN** the operator runs 登记 on a BOOKED (预登记) order
-- **THEN** the transition posts and the row's state tag updates to REGISTERED (the arrival
-  confirmation)
+<!-- scenario superseded in place by the 2026-11-24 ruling 预约=预登记: the arrival
+confirmation is retired; the scenario pins its absence -->
+
+- **WHEN** the operator looks for a 登记 (arrival-confirmation) action on any live row
+- **THEN** none exists — 预登记 rows enter 已登记 at creation and need no confirmation
+- **AND** the only row actions on live orders are 取消 (with reason + confirmation)
 
 #### Scenario: Cancel requires a reason and confirmation
 
@@ -135,30 +141,33 @@ The registration workbench SHALL present orders in BOTH states from the real pag
 the COMPACT rail renders the day's 今日登记单 (the prototype's dense rows: patient composite
 two-line, state tag, row actions) under the status chips; the WIDE state renders the full
 paged table (accession 检查号, patient identity name + pat_id, 检查项目 summary, state tags,
-the 急诊 marker, 预登记时间). The status chips (拍板 03-B: not a dropdown — the chips are the
-desk workload meter) SHALL carry the `/orders/status-counts` counts, support
-multi-select-toggle semantics with the default 预登记+已登记, and feed the status IN-filter.
-The wide state SHALL expose the wide query row (拍板 03-B, the RCP∪EIS union: accession/
-patient-name/patient-id/patient-source/card-no/exam-item name/apply-time range, uniform
-150px controls, the 更多条件 toggle; the compact state carries NO query row) and 我的查询
-(拍板 07-A): saved searches persisted through the search-filters REST (create/set-default/
-delete; the default auto-applies on load) with column settings kept in localStorage (the
-EIS useHeaderColumn pattern, frontend-only). The compact rail and the autorefresh mini
-switch follow the prototype's 紧凑化对照.
+the 急诊 marker, the 类别 tag, 预登记时间). The 类别 tag SHALL read 现场 / 预约 from the
+row's `registrationType` (the business fact — the `bookingTime` NULL/NOT NULL inference is
+retired). The status chips (拍板 03-B: not a dropdown — the chips are the desk workload meter)
+SHALL carry the `/orders/status-counts` counts, support multi-select-toggle semantics with the
+default 已登记 (the 预登记 status no longer occurs in the US flow — its chip renders zero),
+and feed the status IN-filter. The wide state SHALL expose the wide query row (拍板 03-B, the
+RCP∪EIS union: accession/patient-name/patient-id/patient-source/card-no/exam-item name/创建时间
+range — the time filter binds `create_time` and is LABELED 创建时间, not 申请时间, so it never
+collides with the form's ext 申请时间 field; uniform 150px controls, the 更多条件 toggle; the
+compact state carries NO query row) and 我的查询 (拍板 07-A): saved searches persisted through
+the search-filters REST (create/set-default/delete; the default auto-applies on load) with
+column settings kept in localStorage (the EIS useHeaderColumn pattern, frontend-only). The
+compact rail and the autorefresh mini switch follow the prototype's 紧凑化对照.
 
 #### Scenario: List renders with state and identity
 
 - **WHEN** the page loads
 - **THEN** the orders render from the real backend — the compact rail beside the form, the
   wide table on toggle — with accession, patient identity, item summary, state tags, the
-  急诊 marker, and the 预登记时间 where set
+  急诊 marker, the 现场/预约 category tag from `registrationType`, and the 预登记时间 where set
 
 #### Scenario: Status chips carry the meter and multi-select
 
 - **WHEN** the workbench loads (or refreshes) in either state
-- **THEN** the chips render the zero-filled per-status counts from the status-counts
-  endpoint, multi-select toggles narrow the list through the status IN-filter, and the
-  default selection is 预登记+已登记
+- **THEN** the chips render the zero-filled per-status counts from the status-counts endpoint,
+  multi-select toggles narrow the list through the status IN-filter, and the default selection
+  is 已登记
 
 #### Scenario: Wide conditions compose through the query row
 

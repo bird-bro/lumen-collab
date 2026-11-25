@@ -56,6 +56,14 @@ public class ExamOrder extends EntityBase {
      */
     private Date bookingTime;
 
+    /**
+     * 登记类别 (us-prereg-as-registered; user ruling 2026-11-24 预约=预登记): the
+     * entry category stamped SERVER-SIDE by the create branch - WALK_IN 现场单 /
+     * PRE_REGISTERED 预登记 - never accepted from a client body. The queue system
+     * (排队叫号) discriminates on this column, not on booking_time null-ness.
+     */
+    private ExamRegistrationType registrationType;
+
     /** 申请单号 (HIS or manual). */
     private String applyNo;
 

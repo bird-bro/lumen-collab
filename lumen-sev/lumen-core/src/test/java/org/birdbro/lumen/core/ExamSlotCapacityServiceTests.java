@@ -45,14 +45,22 @@ class ExamSlotCapacityServiceTests extends KernelIntegrationTestBase {
 
     // ---------- helpers ----------
 
-    /** A fixed-future wall clock: 2026-11-24 (tomorrow at the time of writing). */
+    /**
+     * A wall-clock-independent future day: TOMORROW, fixed once per JVM (a
+     * day-rollover mid-run cannot mix dates). The original hardcoded 2026-11-24 broke
+     * every run after 09:17 local (the past guard refuses the morning window) - the
+     * class-level discovery during us-prereg-as-registered-sev task 1.2.
+     */
+    private static final java.time.LocalDate FUTURE_DAY = java.time.LocalDate.now().plusDays(1);
+
+    /** A strictly-future wall clock: tomorrow at the given time (always future). */
     private static Date at(int hour, int minute) {
-        LocalDateTime booking = LocalDateTime.of(2026, 11, 24, hour, minute);
+        LocalDateTime booking = LocalDateTime.of(FUTURE_DAY, java.time.LocalTime.of(hour, minute));
         return Date.from(booking.atZone(ZoneId.systemDefault()).toInstant());
     }
 
     private static Date expectedBound(int hour, int minute) {
-        LocalDateTime bound = LocalDateTime.of(2026, 11, 24, hour, minute);
+        LocalDateTime bound = LocalDateTime.of(FUTURE_DAY, java.time.LocalTime.of(hour, minute));
         return Date.from(bound.atZone(ZoneId.systemDefault()).toInstant());
     }
 
