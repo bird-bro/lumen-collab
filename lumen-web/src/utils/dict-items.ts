@@ -39,6 +39,42 @@ export const NUMBER_STAMP_FORMAT_DICT_ID = 1029;
 export const MODALITY_DICT_ID = 1024;
 
 /**
+ * The 「性别」 catalog id - the V6 dict seed (stable rcp ca_id anchor). The stored
+ * token is the dict detail's numeric `code` (data-spec ruling: gender 100401 男);
+ * consumers render labels through `resolveDictLabel` with the raw-code fallback.
+ */
+export const GENDER_DICT_ID = 1004;
+
+/**
+ * The 「证件类型」 catalog id - the V6 dict seed (stable rcp ca_id anchor). The
+ * order/archive column is a string, so the stored token is the dict `value`
+ * text itself (the modality catalogs' value-keyed shape).
+ */
+export const ID_TYPE_DICT_ID = 1006;
+
+/**
+ * The female dict detail code - 100402 女 (the V6 seed; the data spec pins the
+ * code as the stored token, e.g. gender 100401 男). Gender-conditioned UI (the
+ * US 妊娠 cell) branches on this code, never on a hard-coded legacy 0/1/2.
+ */
+export const GENDER_FEMALE_CODE = 100402;
+
+/**
+ * The 「患者来源」 catalog id - user ruling 2026-11-24 (us-vocab-dict-catalogs
+ * seed V52, reusing the dissolved 诊室类型 band slot V27 retired unseeded). The
+ * stored token is the dict `value` text (the string patient_source column keeps
+ * the dict text - the modality catalogs' value-keyed shape).
+ */
+export const PATIENT_SOURCE_DICT_ID = 1023;
+
+/**
+ * The 「妊娠状态」 catalog id - user ruling 2026-11-24 (us-vocab-dict-catalogs
+ * seed V52, reusing the mislabeled rcp ORG_TYPE slot V6 excluded). The stored
+ * token is the dict `value` text (ext.pregnancy_status - value-keyed).
+ */
+export const PREGNANCY_STATUS_DICT_ID = 1002;
+
+/**
  * The catalog's enabled items by NAME, session-cached (dedupes concurrent
  * calls, survives route remounts within the session).
  */
