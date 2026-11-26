@@ -927,6 +927,14 @@ export default function UsRegistrationPage() {
     display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
     padding: '10px 10px', borderBottom: `1px solid ${line}`, background: headBg,
   }
+  // the prototype's .rail-chips block (us-diagnosis-workbench): chips + quick-search
+  // on WHITE below the tinted datenav band, each block carrying its own divider -
+  // the query area and the list never share one band
+  const railChipsStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
+    padding: '7px 10px', borderBottom: `1px solid ${line}`,
+    background: token.colorBgContainer,
+  }
   // The status chip = checkbox + label + count (user ruling 2026-11-26: the plain
   // pill's color-only selection was not intuitive enough - the check glyph makes it
   // explicit; the body-size text + breathing room keep 3-digit counts legible). The
@@ -1024,6 +1032,41 @@ export default function UsRegistrationPage() {
     ) : (
       <span style={{ padding: '0 6px', lineHeight: '20px', borderRadius: 3, background: token.colorFillSecondary, color: token.colorTextSecondary }}>现场</span>
     )
+
+  // the rail chips render shared by BOTH states: the compact rail-chips block (white,
+  // under the tinted datenav band) and the wide head row
+  const chipsRow = (
+    <span
+      role="group"
+      aria-label="状态筛选"
+      style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: mode === 'compact' ? '1 1 100%' : 1, minWidth: 0 }}
+    >
+      {RAIL_HEAD_STATUSES.map((status) => {
+        const active = filters.status.includes(status)
+        const hue = statusHue(status)
+        const label = statusLabel(status)
+        return (
+          <span
+            key={status}
+            role="button"
+            aria-pressed={active}
+            data-status-hue={hue}
+            aria-label={`${label} ${counts?.[status] ?? 0}`}
+            style={{ ...schipStyle(active, hue) }}
+            onClick={() => toggleStatus(status)}
+          >
+            <span aria-hidden style={{ ...chipCheckStyle(active, hue) }}>
+              {active && <CheckOutlined />}
+            </span>
+            {label}
+            <span style={{ fontFamily: 'monospace', fontSize: 13, paddingLeft: 1 }}>
+              {counts?.[status] ?? 0}
+            </span>
+          </span>
+        )
+      })}
+    </span>
+  )
 
   return (
     <ConsolePage>
@@ -1128,37 +1171,20 @@ export default function UsRegistrationPage() {
                 <Switch id="us-autorefresh" aria-label="自动刷新" size="small" checked={autoRefresh} onChange={setAutoRefresh} />
               </span>
             )}
-            <span
-              role="group"
-              aria-label="状态筛选"
-              style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: mode === 'compact' ? '1 1 100%' : 1, minWidth: 0 }}
-            >
-              {RAIL_HEAD_STATUSES.map((status) => {
-                const active = filters.status.includes(status)
-                const hue = statusHue(status)
-                const label = statusLabel(status)
-                return (
-                  <span
-                    key={status}
-                    role="button"
-                    aria-pressed={active}
-                    data-status-hue={hue}
-                    aria-label={`${label} ${counts?.[status] ?? 0}`}
-                    style={{ ...schipStyle(active, hue) }}
-                    onClick={() => toggleStatus(status)}
-                  >
-                    <span aria-hidden style={{ ...chipCheckStyle(active, hue) }}>
-                      {active && <CheckOutlined />}
-                    </span>
-                    {label}
-                    <span style={{ fontFamily: 'monospace', fontSize: 13, paddingLeft: 1 }}>
-                      {counts?.[status] ?? 0}
-                    </span>
-                  </span>
-                )
-              })}
-            </span>
-            {mode === 'compact' && (
+            {mode === 'wide' && chipsRow}
+            {mode === 'wide' && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: token.colorTextTertiary, marginLeft: 12 }}>
+                自动刷新
+                <Switch id="us-autorefresh" aria-label="自动刷新" size="small" checked={autoRefresh} onChange={setAutoRefresh} />
+              </span>
+            )}
+          </div>
+
+          {/* the prototype's rail-chips block (compact only): the chips + the quick
+              search on WHITE with its own divider, below the tinted datenav band */}
+          {mode === 'compact' && (
+            <div style={railChipsStyle}>
+              {chipsRow}
               <Input
                 aria-label="快速查询"
                 style={{ flex: '1 1 100%' }}
@@ -1168,14 +1194,8 @@ export default function UsRegistrationPage() {
                 value={railSearch}
                 onChange={(e) => setRailSearch(e.target.value)}
               />
-            )}
-            {mode === 'wide' && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: token.colorTextTertiary, marginLeft: 12 }}>
-                自动刷新
-                <Switch id="us-autorefresh" aria-label="自动刷新" size="small" checked={autoRefresh} onChange={setAutoRefresh} />
-              </span>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* the wide query rows (rail-xhead — wide mode only) */}
           {mode === 'wide' && (
