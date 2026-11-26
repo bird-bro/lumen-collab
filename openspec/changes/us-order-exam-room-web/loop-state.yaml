@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: proposing
+change: us-order-exam-room-web
+execution_mode: Batch Inline
+tasks_total: 12
+tasks_done: 12
+workflow_mode: full
+artifacts_hash: 7b0389cb9a5bcbe12db348132aac40171271c5a17b4927e0b0e3c431a66b8b12

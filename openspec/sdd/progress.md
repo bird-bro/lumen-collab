@@ -1085,3 +1085,13 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
 - 涟漪: UsRegistrationApiTests 19 体 sed 补 roomId:90307 + NOUNID/ambiguous 两处手工(保测试意图); snapshot poller 1 体; 基座默认 stub(有效房 any-id did=307 + 空目录) + station-dept-id=307 property
 - 盲 sed 事故: 未转义 "examItems" 命中 Java 断言 path("examItems") 一处 → 已修复(教训: 替换须匹配转义形态)
 - 全量 us 套件回归后台运行中
+
+### Review (batches 1-4) + stacking resolution
+- Verdict: **Approved** (subagent review, WHEN/THEN 六维) — Important fix landed: UsStationRoomsApiTests 补 @AfterAll 恢复 stationDeptId=307（null 变异测试的共享上下文污染，回归 10/10 绿）
+- 叠放已解: registration-order-status-dict 归档 2ac1a99 显式 co-riding 携带本 change 已应用切片（SystemRoomApi + internal 房间端点 + 创建门禁 + 目录端点 + V57 + 测试涟漪修补都在该 commit 内），剩余任务随本 change 归档落地
+- 上抛（他 change 归属）: rail-quick-search 切片把 RegistrationOrderPageQuery.keyword 字段插错位（注解错绑 keyword、applyTimeStart 丢查询绑定元数据）— 归该 change owner 处理
+
+### Batch 5 (task 5.1) + the keyword hotfix (user-authorized)
+- Reactor 第一次(与归档/并发编辑全程并行) 14+3 红 → 定性"并行套件互删夹具"(行消失形态: 检查单不存在/计数对半/ext 读空) 不可信
+- 树落定后 reactor: core 325 + patient 58 + system 全绿; us 95 仅 1 红 = applyTimeRange — 根因实锤 rail-quick-search 切片把 keyword 字段插进 applyTimeStart 注解与字段之间(注解错绑, @DateTimeFormat 被剥)
+- 用户拍板"我顺手修": 注解移回原位(keyword 保留 javadoc + placement note), UsRegistrationApiTests 34/34 绿; us 模块完整绿证重跑中

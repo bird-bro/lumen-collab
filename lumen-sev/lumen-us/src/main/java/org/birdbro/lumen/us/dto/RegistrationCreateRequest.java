@@ -87,6 +87,9 @@ public class RegistrationCreateRequest {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date bookingTime;
 
+    @ApiModelProperty("检查室（必填；服务端校验存在+启用+属于本站科室，两条创建分支同一盖章）")
+    private Integer roomId;
+
     @ApiModelProperty("检查项目引用+名称快照（setting 域目录）")
     private List<ExamItemRef> examItems;
 

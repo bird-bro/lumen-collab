@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: us-order-exam-room-sev
+execution_mode: SDD
+tasks_total: 12
+tasks_done: 12
+workflow_mode: full
+artifacts_hash: 94eeddf8366aad7faa893aef78ddaf0fae24132fa5412df09c967b05ab889f56

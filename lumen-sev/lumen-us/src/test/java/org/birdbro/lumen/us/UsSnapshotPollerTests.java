@@ -305,7 +305,7 @@ class UsSnapshotPollerTests extends UsApiTestBase {
         String body = "{\"idType\":\"01\",\"idNo\":\"US3POLLORDER-" + stamp() + "\","
                 + "\"name\":\"" + name + "\",\"gender\":1,\"phone\":\"13800000777\","
                 + "\"age\":\"33\",\"patientSource\":\"门诊\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}]}";
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}]}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
         assertEquals("200", response.path("code").asText(),

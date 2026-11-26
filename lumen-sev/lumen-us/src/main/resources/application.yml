@@ -109,3 +109,11 @@ lumen:
     # ops-discoverable; a non-positive limit clamps back to 50 inside the poller.
     snapshot-poll-delay-ms: 10000
     snapshot-poll-limit: 50
+    # The station's department binding (us-order-exam-room-sev task 2.5): WHICH
+    # department this deployment serves - the room directory (GET /api/v1/us/rooms)
+    # and the create-time room validation scope by it (rooms must belong to this
+    # department). NO committed default ON PURPOSE - the deployment declares it
+    # (env var / the gitignored application-dev.yml, the sensitive-config posture);
+    # ABSENT = the directory answers empty AND every create is refused
+    # 检查室不存在或未启用 (fail closed both ways - the station never guesses).
+    # station-dept-id: 0

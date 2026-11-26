@@ -48,16 +48,23 @@ public class RegistrationOrderPageQuery extends PageSizeConfig {
     @ApiModelProperty("检查项目名称模糊过滤（exam_items jsonb 数组逐元素 itemName LIKE contains）")
     private String examItemName;
 
-    @ApiModelProperty("申请时间起（=create_time，含）")
-    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     /**
      * The rail quick-search (user ruling 2026-11-26): ONE text box OR-matching the
      * identity handles - patient name, accession (检查号; the v1 影像号 rides the
      * accession family), snapshot patId/cardNo - AND-composed with the other wide
      * conditions as usual.
+     *
+     * <p>Placement note (2026-11-26, the exam-room session's mechanical fix on the
+     * rail-quick-search slice's behalf): the field originally landed BETWEEN
+     * applyTimeStart's annotations and the field itself, silently re-binding
+     * {@code @DateTimeFormat}/{@code @ApiModelProperty} to {@code keyword} and
+     * stripping {@code applyTimeStart} of its date-binding metadata (the
+     * applyTimeRange test went red). The annotations are back on their field.</p>
      */
     private String keyword;
 
+    @ApiModelProperty("申请时间起（=create_time，含）")
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date applyTimeStart;
 
     @ApiModelProperty("申请时间止（=create_time，含）")
