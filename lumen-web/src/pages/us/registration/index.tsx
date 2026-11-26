@@ -259,6 +259,11 @@ export default function UsRegistrationPage() {
     applyTimeEnd: '',
   })
   const [extrasOpen, setExtrasOpen] = useState(false)
+  // the rail quick-search (us rail-search, user ruling 2026-11-26): ONE box OR-
+  // matching name/accession/patId/cardNo server-side; debounced so typing does not
+  // fire a wire call per keystroke
+  const [railSearch, setRailSearch] = useState('')
+  const [railSearchDebounced, setRailSearchDebounced] = useState('')
   const [savedFilters, setSavedFilters] = useState<SearchFilterView[]>([])
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [saveName, setSaveName] = useState('')
@@ -294,6 +299,7 @@ export default function UsRegistrationPage() {
           patientSource: filters.patientSource,
           cardNo: filters.cardNo,
           examItemName: filters.examItemName,
+          keyword: railSearchDebounced.trim() || undefined,
           applyTimeStart: filters.applyTimeStart || dateDefaults.applyTimeStart,
           applyTimeEnd: filters.applyTimeEnd || dateDefaults.applyTimeEnd,
         })
@@ -305,22 +311,25 @@ export default function UsRegistrationPage() {
         setLoading(false)
       }
     },
-    [filters, activeDate, dateRange, messageApi],
+    [filters, activeDate, dateRange, railSearchDebounced, messageApi],
   )
 
   const loadCounts = useCallback(async () => {
     try {
-      setCounts(await statusCounts({ ...dateRange(activeDate) }))
+      setCounts(await statusCounts({
+        ...dateRange(activeDate),
+        keyword: railSearchDebounced.trim() || undefined,
+      }))
     } catch {
       setCounts(null)
     }
-  }, [activeDate, dateRange])
+  }, [activeDate, dateRange, railSearchDebounced])
 
   useEffect(() => {
     void load({ pageNum, pageSize })
     void loadCounts()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageNum, pageSize, filters, activeDate])
+  }, [pageNum, pageSize, filters, activeDate, railSearchDebounced])
 
   useEffect(() => {
     if (!autoRefresh) return
@@ -330,6 +339,11 @@ export default function UsRegistrationPage() {
     }, 30_000)
     return () => clearInterval(timer)
   }, [autoRefresh, load, loadCounts, pageNum, pageSize])
+
+  useEffect(() => {
+    const timer = setTimeout(() => setRailSearchDebounced(railSearch), 400)
+    return () => clearTimeout(timer)
+  }, [railSearch])
 
   const refreshAll = useCallback(() => {
     void load({ pageNum, pageSize })
@@ -917,24 +931,29 @@ export default function UsRegistrationPage() {
   // pill's color-only selection was not intuitive enough - the check glyph makes it
   // explicit; the body-size text + breathing room keep 3-digit counts legible). The
   // hue still tints the selected state through the design-token map.
+  // The status chip = the prototype's .schip pill (us-diagnosis-workbench rail-chips)
+  // + the checkbox glyph (user ruling 2026-11-26: color-only selection was not
+  // intuitive) + the body-floor 14px text with a roomy monospace count (3-digit
+  // counts must breathe); the hue tints the selected state through the token map.
   const schipStyle = (active: boolean, hue: string | null) => {
     const pair = hueChipColors(hue, token)
     return {
-    display: 'inline-flex', alignItems: 'center', gap: 7, padding: '3px 6px',
-    cursor: 'pointer', userSelect: 'none' as const, fontSize: token.fontSize,
+    display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px',
+    borderRadius: 999, cursor: 'pointer', userSelect: 'none' as const, fontSize: 16,
     lineHeight: 1.2, whiteSpace: 'nowrap' as const,
+    border: `1px solid ${active ? pair.color : token.colorBorder}`,
+    background: active ? pair.background : token.colorBgContainer,
     color: active ? pair.color : token.colorTextSecondary,
-    fontWeight: active ? 600 : 400,
     }
   }
   const chipCheckStyle = (active: boolean, hue: string | null) => {
     const pair = hueChipColors(hue, token)
     return {
-    width: 16, height: 16, flex: '0 0 auto', borderRadius: 4,
+    width: 14, height: 14, flex: '0 0 auto', borderRadius: 3,
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     border: `1px solid ${active ? pair.color : token.colorBorder}`,
     background: active ? pair.color : token.colorBgContainer,
-    color: token.colorBgContainer, fontSize: 11, lineHeight: 1,
+    color: token.colorBgContainer, fontSize: 10, lineHeight: 1,
     }
   }
   const inputStyle: React.CSSProperties = {}
@@ -1132,11 +1151,24 @@ export default function UsRegistrationPage() {
                       {active && <CheckOutlined />}
                     </span>
                     {label}
-                    <span style={{ fontFamily: 'monospace' }}>{counts?.[status] ?? 0}</span>
+                    <span style={{ fontFamily: 'monospace', fontSize: 13, paddingLeft: 1 }}>
+                      {counts?.[status] ?? 0}
+                    </span>
                   </span>
                 )
               })}
             </span>
+            {mode === 'compact' && (
+              <Input
+                aria-label="快速查询"
+                style={{ flex: '1 1 100%' }}
+                placeholder="姓名 / 检查号 / 影像号"
+                prefix={<SearchOutlined style={{ color: token.colorTextTertiary, fontSize: 12 }} />}
+                allowClear
+                value={railSearch}
+                onChange={(e) => setRailSearch(e.target.value)}
+              />
+            )}
             {mode === 'wide' && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: token.colorTextTertiary, marginLeft: 12 }}>
                 自动刷新

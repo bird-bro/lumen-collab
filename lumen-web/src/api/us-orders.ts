@@ -130,6 +130,9 @@ export interface UsOrderPageQuery {
   patientSource?: string | null;
   cardNo?: string | null;
   examItemName?: string | null;
+  /** The rail quick-search (user ruling 2026-11-26): ONE text box OR-matching
+   * name / accession (检查号-影像号 family) / snapshot patId/cardNo server-side. */
+  keyword?: string | null;
   applyTimeStart?: string | null;
   applyTimeEnd?: string | null;
 }

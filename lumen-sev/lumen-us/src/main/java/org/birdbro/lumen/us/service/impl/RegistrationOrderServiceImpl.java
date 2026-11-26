@@ -483,6 +483,15 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
         if (withStatus && CollUtil.isNotEmpty(query.getStatus())) {
             wrapper.in("status", query.getStatus());
         }
+        // the rail quick-search (user ruling 2026-11-26): ONE text box OR-matching the
+        // identity handles - name / accession (检查号; the v1 影像号 rides the accession
+        // family) / snapshot patId / cardNo - AND-composed with the other wide
+        // conditions as usual (the counts ride the same builder, the meter narrows too)
+        wrapper.and(StrUtil.isNotBlank(query.getKeyword()), w -> w
+                .apply("patient_snapshot->>'name' LIKE {0}", "%" + query.getKeyword() + "%")
+                .or().like("accession_no", query.getKeyword())
+                .or().apply("patient_snapshot->>'patId' LIKE {0}", "%" + query.getKeyword() + "%")
+                .or().apply("patient_snapshot->>'cardNo' LIKE {0}", "%" + query.getKeyword() + "%"));
         wrapper.like(StrUtil.isNotBlank(query.getAccessionNo()), "accession_no",
                         query.getAccessionNo())
                 .apply(StrUtil.isNotBlank(query.getPatientName()),

@@ -944,6 +944,40 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 "the seeded exam-stage row counts under the same filter");
     }
 
+    @Test
+    void railQuickSearchOrMatchesTheIdentityHandles() throws Exception {
+        // the rail quick-search (user ruling 2026-11-26): ONE keyword OR-matches
+        // name / accession / snapshot patId / cardNo, AND-composed with the rest -
+        // the counts ride the same condition (the meter narrows with the search)
+        // the snapshot name is the DELIVERED archive name (the pageQueryFiltersByStatusAndPatientName
+        // lesson) - the keyword's name half needs archived-name creates
+        long kwTs = stamp();
+        int byName = createOrderWithArchivedName("us3快搜张三" + kwTs);
+        int byAccession = createOrderWithArchivedName("us3快搜李四" + kwTs);
+
+        JsonNode byNameHit = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "?pageNum=1&pageSize=100&keyword=us3快搜张三" + kwTs,
+                null, fullPermToken()));
+        assertEquals("200", byNameHit.path("code").asText(), "the keyword query must succeed");
+        assertNotNull(findRecordByOrderId(byNameHit, byName), "the name hit matches");
+        assertNull(findRecordByOrderId(byNameHit, byAccession),
+                "the non-matching order stays OUTSIDE the keyword set");
+
+        String accession = jdbcTemplate.queryForObject(
+                "SELECT accession_no FROM exam_order WHERE id = ?", String.class, byAccession);
+        JsonNode byAccHit = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "?pageNum=1&pageSize=100&keyword=" + accession,
+                null, fullPermToken()));
+        assertNotNull(findRecordByOrderId(byAccHit, byAccession),
+                "the accession hit matches (检查号/影像号 ride the accession family)");
+
+        JsonNode counts = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "/status-counts?keyword=us3快搜张三" + kwTs,
+                null, fullPermToken()));
+        assertTrue(counts.path("data").path("REGISTERED").asLong(0) >= 1,
+                "the meter narrows with the keyword: " + counts);
+    }
+
     // ------------------- red-registration stub helpers (us-registration-redesign-api)
 
     /** Stubs the patient seam to a MATCHED archive identity (the per-test default). */

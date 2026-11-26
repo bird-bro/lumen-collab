@@ -402,6 +402,22 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     })
   })
 
+  it('the rail quick-search narrows the list and the meter through the keyword', async () => {
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    const search = screen.getByLabelText('快速查询')
+    fireEvent.change(search, { target: { value: '张三' } })
+    // debounced - both the list query and the meter carry the keyword
+    await waitFor(() => {
+      const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]
+      expect(call?.keyword).toBe('张三')
+    }, { timeout: 1500 })
+    await waitFor(() => {
+      const counts = vi.mocked(usOrdersApi.statusCounts).mock.calls.at(-1)?.[0]
+      expect(counts?.keyword).toBe('张三')
+    }, { timeout: 1500 })
+  })
+
   it('the rail renders the per-order card flow with the cancel action (NO 登记 affordance)', async () => {
     renderPage()
     // us-prereg-as-registered: the arrival confirmation retires — 预登记 rows enter

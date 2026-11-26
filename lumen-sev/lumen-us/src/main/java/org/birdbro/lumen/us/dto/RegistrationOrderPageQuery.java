@@ -50,6 +50,14 @@ public class RegistrationOrderPageQuery extends PageSizeConfig {
 
     @ApiModelProperty("申请时间起（=create_time，含）")
     @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    /**
+     * The rail quick-search (user ruling 2026-11-26): ONE text box OR-matching the
+     * identity handles - patient name, accession (检查号; the v1 影像号 rides the
+     * accession family), snapshot patId/cardNo - AND-composed with the other wide
+     * conditions as usual.
+     */
+    private String keyword;
+
     private Date applyTimeStart;
 
     @ApiModelProperty("申请时间止（=create_time，含）")
