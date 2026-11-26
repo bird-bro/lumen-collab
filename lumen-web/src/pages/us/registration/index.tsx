@@ -19,7 +19,7 @@ import {
   message,
   theme,
 } from 'antd'
-import { CalendarOutlined, CheckOutlined, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, DownOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { BarcodeOutlined, CalendarOutlined, CheckOutlined, ClockCircleOutlined, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, DownOutlined, IdcardOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -27,6 +27,7 @@ import {
   cancelOrder,
   createOrder,
   listSlotOptions,
+  listStationRooms,
   pageOrders,
   resolvePatients,
   statusCounts,
@@ -34,6 +35,7 @@ import {
 import type {
   SlotOptionView,
   SlotOptionsView,
+  StationRoomRow,
   UsOrderCreateBody,
   UsOrderPageQuery,
   UsOrderStatus,
@@ -226,6 +228,13 @@ export default function UsRegistrationPage() {
   const [dlgDate, setDlgDate] = useState<Dayjs>(() => dayjs().add(1, 'day'))
   const [dlgSlot, setDlgSlot] = useState<string | null>(null)
   const [calMonth, setCalMonth] = useState<Dayjs>(() => dayjs().add(1, 'day').startOf('month'))
+  // the exam-room state (us-order-exam-room-web task 2.2): the directory rows +
+  // the picked anchor + the directory failure band (the notFoundContent flip).
+  // The default rides the workstation's last choice (localStorage `us-last-room`,
+  // shared with the booking dialog's picker) when it still exists in the directory.
+  const [stationRooms, setStationRooms] = useState<StationRoomRow[]>([])
+  const [roomId, setRoomId] = useState<number | null>(null)
+  const [roomsFailed, setRoomsFailed] = useState(false)
   // Day-level remaining badges for the ALWAYS-VISIBLE month calendar, aggregated
   // CLIENT-SIDE over the per-date read (user ruling 2026-11-24 mid-apply; a
   // dedicated day-level range endpoint stays a future optimization).
@@ -330,6 +339,37 @@ export default function UsRegistrationPage() {
     void loadCounts()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageNum, pageSize, filters, activeDate, railSearchDebounced])
+
+  // the station room directory load (us-order-exam-room-web design D1): ONCE on
+  // mount; failure = empty list + the failure band (the required rule blocks the
+  // desk independently - the two failures compose honestly)
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const rooms = await listStationRooms()
+        if (cancelled) return
+        const rows = Array.isArray(rooms) ? rooms : []
+        setStationRooms(rows)
+        setRoomsFailed(false)
+        // the last choice pre-selects ONLY when it still exists in the directory
+        // (a stale/deleted room id silently drops - the required rule applies)
+        const remembered = Number(localStorage.getItem('us-last-room'))
+        if (Number.isFinite(remembered) && rows.some((r) => r.id === remembered)) {
+          setRoomId(remembered)
+        }
+      } catch {
+        if (cancelled) return
+        setStationRooms([])
+        setRoomsFailed(true)
+        messageApi.error('检查室目录加载失败')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (!autoRefresh) return
@@ -808,6 +848,13 @@ export default function UsRegistrationPage() {
         messageApi.warning('请选择检查项目')
         return
       }
+      // the exam-room gate (us-order-exam-room-web task 2.2): 检查室必选 - the
+      // CLIENT-SIDE refusal fires before anything posts (the server re-validates
+      // and its refusal surfaces verbatim like every other one)
+      if (roomId == null) {
+        messageApi.error('检查室不能为空')
+        return
+      }
       setSaving(true)
       const ageParts: string[] = []
       if (values.ageYears) ageParts.push(`${values.ageYears}岁`)
@@ -839,6 +886,9 @@ export default function UsRegistrationPage() {
           modality: item.modality ?? null,
         })),
         emgFlag: emg ? 1 : 0,
+        // the exam-room anchor (us-order-exam-room): rides BOTH entry kinds - the
+        // booking dialog's room lands here through the same state on submit
+        roomId,
         ext: {
           pregnancyStatus: values.pregnancyStatus ?? null,
           gestationalWeeks: values.gestationalWeeks ?? null,
@@ -850,6 +900,9 @@ export default function UsRegistrationPage() {
         },
       }
       const created = await createOrder(body)
+      // the last-choice memory (us-order-exam-room-web design D2): written on EVERY
+      // successful submit - the next fresh form pre-selects it (both pickers share it)
+      localStorage.setItem('us-last-room', String(roomId))
       // 预约=预登记 (user ruling 2026-11-24): every create lands REGISTERED - the
       // single success message (the category rides registrationType, not the status)
       messageApi.success(`登记成功，检查号 ${created.accessionNo}`)
@@ -1166,14 +1219,14 @@ export default function UsRegistrationPage() {
               </span>
             )}
             {mode === 'compact' && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: token.colorTextTertiary, marginLeft: 'auto' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: token.colorTextTertiary, marginLeft: 'auto', fontSize: 16 }}>
                 自动刷新
                 <Switch id="us-autorefresh" aria-label="自动刷新" size="small" checked={autoRefresh} onChange={setAutoRefresh} />
               </span>
             )}
             {mode === 'wide' && chipsRow}
             {mode === 'wide' && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: token.colorTextTertiary, marginLeft: 12 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: token.colorTextTertiary, marginLeft: 12, fontSize: 16 }}>
                 自动刷新
                 <Switch id="us-autorefresh" aria-label="自动刷新" size="small" checked={autoRefresh} onChange={setAutoRefresh} />
               </span>
@@ -1279,54 +1332,140 @@ export default function UsRegistrationPage() {
           )}
 
           {/* the COMPACT list (the per-order card flow, user-approved prototype
-              2026-11-26): the rail's narrow band cannot hold columns without shrinking
+              2026-11-26; font rebaseline + category-chip drop, user ruling same day):
+              the rail's narrow band cannot hold columns without shrinking
               fonts or scrolling sideways, so each order is ONE panel stacking the
-              facts vertically — line 1 = name/source/emg + status/category + 取消;
-              line 2 = the items (+ pregnancy); line 3 = 影像号·检查号 (mono);
-              line 4 = the labeled 检查/登记 times (HH:mm; the datenav scopes the day —
-              the wide state keeps the full datetimes). NO horizontal scroll, no
-              squeezed columns; the wide state restores the xtable form (edge toggle). */}
+              facts vertically — line 1 = name/source/emg + status + 取消 (the
+              预约/现场 category chip is dropped from the CARD; the fact still rides
+              registrationType and the wide table keeps the tag);
+              line 2 = the items (+ pregnancy); line 3 = 就诊卡号·检查流水号 (mono,
+              the snapshot cardNo — user ruling 2026-11-26 swaps out 影像号);
+              line 4 = the SINGLE time anchor with FULL 年月日 (variant-A prototype
+              us-rail-card-v2: 检查时间 primary tint, walk-in falls back to 登记时间
+              neutral fill, the right-edge caption names which). 20px name is the head
+              baseline (gender·age and the body lines ride 16px — user trial
+              2026-11-26).
+              NO horizontal scroll, no squeezed columns; the wide state restores
+              the xtable form (edge toggle). */}
           {mode === 'compact' && (
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '9px 10px' }}>
-              {rows.map((row) => (
+              {rows.map((row) => {
+                // the card head's identity pair (user addition 2026-11-26): gender·age
+                // beside the name, the same facts the wide table's patient cell renders
+                // (gender resolves the 1004 dict with the raw-code fallback, age is the
+                // composed 岁月天 string) — hidden when the snapshot carries neither.
+                const snap = row.patientSnapshot
+                const genderAge = [
+                  snap?.gender != null ? resolveDictLabel(genderItems, snap.gender) : '',
+                  snap?.age ?? '',
+                ].filter(Boolean).join(' · ')
+                // the variant-A state stripe (us-rail-card-v2, user pick 2026-11-26):
+                // the dict tag hue rides a 4px left bar so the rail scans as a status
+                // color column; 已取消 gets the diagonal hatch + a dimmed card (it
+                // exits the visual field instead of alarming).
+                const cancelled = row.status === 'CANCELLED'
+                const stripe = cancelled
+                  ? `repeating-linear-gradient(45deg, ${token.colorTextQuaternary} 0 3px, transparent 3px 6px)`
+                  : ({ blue: token.colorPrimary, green: token.colorSuccess, amber: token.colorWarning, red: token.colorError } as Record<string, string>)[statusHue(row.status) ?? ''] ?? 'transparent'
+                // the single 检查时间 anchor (semantic ruling 2026-11-26): ALWAYS the
+                // exam time — 预约单 renders the booked slot datetime; 现场单 renders
+                // the registration moment (当天 + 登记时分, user follow-up same day;
+                // the wide table's 创建时间 column keeps the audit value). Uniform
+                // glyph + tint, no caption.
+                const timeIsBooking = row.bookingTime != null && row.bookingTime !== ''
+                return (
                 <div
                   key={row.orderId}
                   className="us-ocard"
-                  style={{ border: `1px solid ${line}`, borderRadius: 8, background: token.colorBgContainer, padding: '8px 11px 9px' }}
+                  data-stripe={cancelled ? 'hatch' : statusHue(row.status) ?? 'none'}
+                  style={{
+                    position: 'relative', overflow: 'hidden',
+                    border: `1px solid ${line}`, borderRadius: 8, background: token.colorBgContainer,
+                    padding: '9px 12px 11px 14px',
+                    opacity: cancelled ? 0.55 : undefined,
+                  }}
                 >
+                  <span aria-hidden data-stripe style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: stripe }} />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-                      <span style={{ fontSize: 13.5, fontWeight: 600, ...ellipsis }} title={row.patientSnapshot?.name ?? '无名氏'}>
+                      <span style={{ fontSize: 20, fontWeight: 600, ...ellipsis }} title={row.patientSnapshot?.name ?? '无名氏'}>
                         {row.patientSnapshot?.name ?? '无名氏'}
                       </span>
-                      {sourceTag(row.patientSnapshot?.patientSource)}
+                      {genderAge && <span style={{ flex: 'none', fontSize: 16, color: token.colorTextTertiary, whiteSpace: 'nowrap' }}>{genderAge}</span>}
                       {row.emgFlag === 1 && emgTag}
                     </span>
+                    {/* 门诊 rides the tail (user ruling 2026-11-26): identity owns the
+                        lead, the visit kind joins the status cluster on the right */}
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', flex: 'none' }}>
+                      {sourceTag(row.patientSnapshot?.patientSource)}
                       {statusChip(row)}
-                      {categoryTag(row)}
                       {railRowActions(row)}
                     </span>
                   </div>
-                  <div style={{ fontSize: 12.5, color: token.colorTextSecondary, marginTop: 4 }}>
+                  {/* the head/body hairline (user ruling 2026-11-26): the identity+status
+                      band separates from the clinical body */}
+                  <div style={{ height: 1, background: line, marginTop: 7 }} />
+                  <div
+                    style={{
+                      fontSize: 14, color: token.colorTextSecondary, marginTop: 7, lineHeight: 1.5,
+                      display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3,
+                      overflow: 'hidden',
+                    }}
+                  >
                     {rowItemsText(row) || '—'}
                     {rowPregnancy(row) && <span style={{ color: token.colorInfo }}> · {rowPregnancy(row)}</span>}
                   </div>
-                  <div style={{ fontSize: 12, color: token.colorTextTertiary, marginTop: 4, fontFamily: 'monospace' }}>
-                    {row.patientSnapshot?.patId ? `${row.patientSnapshot.patId} · ` : ''}{row.accessionNo}
+                  {/* the retrieval ids (user ruling 2026-11-26): icon-prefixed 就诊卡号
+                      + 检查流水号 — the glyphs teach the two numbers apart at scan
+                      distance; the dot separator is gone (the icons delimit) */}
+                  <div style={{ fontSize: 16, color: token.colorTextTertiary, marginTop: 6, display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'monospace' }}>
+                    {snap?.cardNo ? (
+                      <Tooltip title="就诊卡号">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <IdcardOutlined style={{ fontSize: 14 }} />
+                          {snap.cardNo}
+                        </span>
+                      </Tooltip>
+                    ) : null}
+                    <Tooltip title="检查流水号">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <BarcodeOutlined style={{ fontSize: 14 }} />
+                        {row.accessionNo}
+                      </span>
+                    </Tooltip>
                   </div>
-                  <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <span>
-                      <span style={{ color: token.colorTextTertiary, marginRight: 4 }}>检查</span>
-                      <span style={{ fontFamily: 'monospace' }}>{formatStamp(row.bookingTime)}</span>
+                  {/* the single 检查时间 anchor: uniform primary-tint clock glyph, the
+                      slot datetime for pre-registrations / the bare day for walk-ins */}
+                  <div style={{ fontSize: 16, color: token.colorTextSecondary, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Tooltip title="检查时间">
+                      <span
+                        role="img"
+                        aria-label="检查时间"
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          width: 22, height: 22, borderRadius: 5, flex: 'none',
+                          background: token.colorPrimaryBg, color: token.colorPrimary,
+                        }}
+                      >
+                        <ClockCircleOutlined />
+                      </span>
+                    </Tooltip>
+                    <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>
+                      {formatStamp(timeIsBooking ? row.bookingTime : row.createTime, 'YYYY-MM-DD HH:mm')}
                     </span>
-                    <span>
-                      <span style={{ color: token.colorTextTertiary, marginRight: 4 }}>登记</span>
-                      <span style={{ fontFamily: 'monospace' }}>{formatStamp(row.createTime)}</span>
-                    </span>
+                    {/* the room rides THIS existing meta line (us-order-exam-room-web
+                        task 4.2; the card-flow ruling - no fifth row): WHEN + WHERE
+                        read as one line; a legacy/dangling room renders nothing */}
+                    {row.roomName && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                        <span style={{ color: token.colorTextQuaternary }}>·</span>
+                        <span style={{ ...ellipsis }} title={row.roomName}>{row.roomName}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
               {rows.length === 0 && !loading && (
                 <div style={{ padding: 16, color: token.colorTextTertiary, textAlign: 'center' }}>当日暂无登记单</div>
               )}
@@ -1341,6 +1480,7 @@ export default function UsRegistrationPage() {
                 <tr>
                   <th style={{ ...thStyle, minWidth: 150 }}>患者</th>
                   {!hiddenColumns.items && <th style={thStyle}>检查项目</th>}
+                  {!hiddenColumns.examRoom && <th style={{ ...thStyle, width: 96 }}>检查室</th>}
                   {!hiddenColumns.status && <th style={{ ...thStyle, width: 72 }}>状态</th>}
                   {!hiddenColumns.emg && <th style={{ ...thStyle, width: 48 }}>急诊</th>}
                   {!hiddenColumns.pregnancy && <th style={{ ...thStyle, width: 88 }}>孕检</th>}
@@ -1356,6 +1496,7 @@ export default function UsRegistrationPage() {
                           items: [
                             { key: 'patient', label: '患者' },
                             { key: 'items', label: '检查项目' },
+                            { key: 'examRoom', label: '检查室' },
                             { key: 'status', label: '状态' },
                             { key: 'emg', label: '急诊' },
                             { key: 'pregnancy', label: '孕检' },
@@ -1392,6 +1533,7 @@ export default function UsRegistrationPage() {
                       {!hiddenColumns.items && <td style={{ ...tdStyle, color: token.colorTextSecondary }}>
                         {rowItemsText(row)}
                       </td>}
+                      {!hiddenColumns.examRoom && <td style={{ ...tdStyle, color: token.colorTextSecondary }}><span style={{ display: 'inline-block', maxWidth: 88, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.roomName ?? undefined}>{row.roomName ?? '—'}</span></td>}
                       {!hiddenColumns.status && <td style={tdStyle}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{statusChip(row)}{categoryTag(row)}</span></td>}
                       {!hiddenColumns.emg && <td style={tdStyle}>{row.emgFlag === 1 ? emgTag : null}</td>}
                       {!hiddenColumns.pregnancy && <td style={{ ...tdStyle, color: token.colorTextSecondary }}>{preg ? <span><b>{row.pregnancyStatus}</b>{row.gestationalWeeks ? ` · ${row.gestationalWeeks}周` : ''}</span> : '—'}</td>}
@@ -1782,6 +1924,23 @@ export default function UsRegistrationPage() {
                     <span style={{ writingMode: 'vertical-rl', letterSpacing: 4, marginBottom: -4, fontSize: 13, color: token.colorPrimary, lineHeight: '14px' }}>检查信息</span>
                   </div>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                {/* the exam-room pick (us-order-exam-room-web task 2.2): the section's
+                    FIRST row - 先定在哪个房间做，再挑项目; the standard control height
+                    (no small density, form-control-height-parity). The default rides
+                    the workstation's last choice (us-last-room); the required rule
+                    gates the submit client-side, the server re-validates. */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, color: token.colorTextSecondary }}>检查室</span>
+                  <Select
+                    aria-label="检查室"
+                    style={{ width: 240 }}
+                    placeholder="选择检查室"
+                    value={roomId ?? undefined}
+                    onChange={(v) => setRoomId(v)}
+                    options={stationRooms.map((r) => ({ value: r.id, label: r.name }))}
+                    notFoundContent={roomsFailed ? '检查室目录加载失败' : '暂无可用检查室'}
+                  />
+                </div>
                 <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', flex: 1 }}>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -2159,8 +2318,24 @@ export default function UsRegistrationPage() {
         styles={{ body: { maxHeight: '62vh', overflowY: 'auto' } }}
         footer={
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
+            {/* the exam-room pick (us-order-exam-room-web task 3.2): REQUIRED in the
+                dialog footer - 预登记的检查室在预约时选定 (user ruling 2026-11-26);
+                确定 gates on slot AND room; clearing the booking never clears the
+                room (a per-order decision the walk-in path re-picks anyway) */}
+            <span style={{ marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, color: token.colorTextSecondary }}>检查室</span>
+              <Select
+                aria-label="检查室"
+                style={{ width: 200 }}
+                placeholder="选择检查室"
+                value={roomId ?? undefined}
+                onChange={(v) => setRoomId(v)}
+                options={stationRooms.map((r) => ({ value: r.id, label: r.name }))}
+                notFoundContent={roomsFailed ? '检查室目录加载失败' : '暂无可用检查室'}
+              />
+            </span>
             <Button onClick={() => setSlotDlgOpen(false)}>取消</Button>
-            <Button type="primary" disabled={!dlgSlot} onClick={confirmSlotDialog}>
+            <Button type="primary" disabled={!dlgSlot || roomId == null} onClick={confirmSlotDialog}>
               确定
             </Button>
           </div>

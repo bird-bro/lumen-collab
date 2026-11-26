@@ -18,6 +18,7 @@ import {
   updateDetail,
 } from '@/api/dicts'
 import { listLogs } from '@/api/logs'
+import { listStationRooms } from '@/api/us-orders'
 
 /**
  * Typed per-resource clients (batch 4 of web-foundation-auth-console, task
@@ -739,5 +740,20 @@ describe('multipart upload transport (org-logo-upload-web 1.1)', () => {
     const { init } = lastCall(fetchMock)
     expect(init.body).toBe(JSON.stringify({ name: '改名' }))
     expect(new Headers(init.headers).get('Content-Type')).toBe('application/json')
+  })
+})
+
+describe('us station rooms client (us-order-exam-room-web task 1.1)', () => {
+  it('GETs /api/v1/us/rooms and returns the slim {id, name} rows', async () => {
+    const fetchMock = stubOk([{ id: 1, name: '1 号诊室' }, { id: 2, name: '2 号诊室' }])
+    const rooms = await listStationRooms()
+    const { url, init } = lastCall(fetchMock)
+    expect(url).toContain('/api/v1/us/rooms')
+    expect(init.method).toBe('GET')
+    // station-scoped server-side: NO org/dep ids ever cross the wire (the session
+    // carries none and must never need them)
+    expect(url).not.toContain('orgId')
+    expect(url).not.toContain('depId')
+    expect(rooms).toEqual([{ id: 1, name: '1 号诊室' }, { id: 2, name: '2 号诊室' }])
   })
 })

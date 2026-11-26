@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { ConfigProvider } from 'antd'
 import dayjs from 'dayjs'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import UsRegistrationPage, { diffYmd } from '@/pages/us/registration'
 import * as usOrdersApi from '@/api/us-orders'
 import type { UsOrderStatus, UsOrderView } from '@/api/us-orders'
@@ -47,6 +47,10 @@ function orderView(partial: Partial<UsOrderView> & { orderId: number }): UsOrder
     createBy: null,
     registrationType: null,
     bookingTime: null,
+    // the exam-room pair (us-order-exam-room-web): null band by default - the
+    // room-display tests override per-fixture
+    roomId: null,
+    roomName: null,
     pregnancyStatus: null,
     gestationalWeeks: null,
     note: null,
@@ -94,6 +98,14 @@ describe('US workstation two-state workbench (spec: web-us-station)', () => {
     vi.clearAllMocks()
     invalidateDictItemsCache()
     useAuthStore.getState().setSession({ perms: FULL_PERMS })
+    // the exam-room seam (us-order-exam-room-web): the directory answers two
+    // rooms and the suite seeds the last choice - every submit path carries
+    // roomId (the required gate stays honest in the room-specific describes)
+    vi.mocked(usOrdersApi.listStationRooms).mockResolvedValue([
+      { id: 1, name: '1 号诊室' },
+      { id: 2, name: '2 号诊室' },
+    ])
+    localStorage.setItem('us-last-room', '2')
     // The dict transport stub: 1004 性别 / 1006 证件类型 (the V6 seed's stable
     // rcp ca_id anchors); unknown catalogs resolve empty.
     // the booking dialog's slot grid stub (us-booking-slot-picker): 09:30 rides
@@ -282,6 +294,14 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     vi.clearAllMocks()
     invalidateDictItemsCache()
     useAuthStore.getState().setSession({ perms: FULL_PERMS })
+    // the exam-room seam (us-order-exam-room-web): the directory answers two
+    // rooms and the suite seeds the last choice - every submit path carries
+    // roomId (the required gate stays honest in the room-specific describes)
+    vi.mocked(usOrdersApi.listStationRooms).mockResolvedValue([
+      { id: 1, name: '1 号诊室' },
+      { id: 2, name: '2 号诊室' },
+    ])
+    localStorage.setItem('us-last-room', '2')
     // The dict transport stub: 1004 性别 / 1006 证件类型 (the V6 seed's stable
     // rcp ca_id anchors); unknown catalogs resolve empty.
     // the booking dialog's slot grid stub (us-booking-slot-picker): 09:30 rides
@@ -485,10 +505,72 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     expect(await screen.findByText('状态字典加载失败')).toBeInTheDocument()
   })
 
-  it('the category tag reads the server-stamped registrationType (现场/预约)', async () => {
-    // us-prereg-as-registered: the category is a business fact from the backend —
-    // row 11 is a PRE_REGISTERED order that has ALREADY entered 已登记 (预约=预登记),
-    // so the only 预约 text in its row is the category tag; row 12 is a walk-in.
+  it('the compact card shows gender and age beside the name (wide-table parity)', async () => {
+    // user addition 2026-11-26: the card head lacked the patient identity pair —
+    // the wide table's patient cell already renders gender·age; the card gets the
+    // same facts after the name (gender resolves the 1004 dict, age is the composed
+    // 岁月天 string). gender 100402 = 女 (the V6 seed's female detail code).
+    vi.mocked(usOrdersApi.pageOrders).mockResolvedValue(
+      pageFixture([
+        orderView({
+          orderId: 21,
+          patientSnapshot: { name: '张三', patId: 'P00000100', gender: 100402, age: '34岁', phone: '13800000001' },
+        }),
+      ]) as never,
+    )
+    renderPage()
+    const card = (await screen.findAllByText('张三'))[0].closest('.us-ocard') as HTMLElement
+    expect(within(card).getByText('女 · 34岁')).toBeInTheDocument()
+  })
+
+  it('the card shows ONE uniform 检查时间 anchor and the state stripe', async () => {
+    // variant-A ruling + semantic sync 2026-11-26 (us-rail-card-v2 prototype):
+    // the time anchor is ALWAYS 检查时间 — 预约单 renders the booked slot datetime,
+    // 现场单 renders the registration moment (当天 + 登记时分, user follow-up same
+    // day; the wide table's 创建时间 column keeps the audit value). No caption
+    // span, no tint split. The left stripe rides the dict tag hue (the rail scans
+    // as a status color column).
+    vi.mocked(usOrdersApi.pageOrders).mockResolvedValue(
+      pageFixture([
+        orderView({
+          orderId: 31,
+          patientSnapshot: { name: '张三', patId: 'P00000100', cardNo: 'M0001120001', gender: 1, phone: '13800000001' },
+          createTime: '2026-11-26 09:34:00',
+          bookingTime: '2026-11-26 08:00:00',
+        }),
+        orderView({
+          orderId: 32,
+          patientSnapshot: { name: '李四', patId: 'P00000200', cardNo: 'M0001120002', gender: 2, phone: '13800000002' },
+          createTime: '2026-11-26 09:10:00',
+          bookingTime: null,
+        }),
+      ]) as never,
+    )
+    renderPage()
+    const booked = (await screen.findAllByText('张三'))[0].closest('.us-ocard') as HTMLElement
+    // the ids line (user ruling 2026-11-26): icon-prefixed 就诊卡号 + 检查流水号 —
+    // two glyph-topped groups, the dot separator is gone
+    expect(within(booked).getByText('M0001120001')).toBeInTheDocument()
+    expect(within(booked).getByText('US26000001')).toBeInTheDocument()
+    expect(booked.querySelector('.anticon-idcard')).not.toBeNull()
+    expect(booked.querySelector('.anticon-barcode')).not.toBeNull()
+    expect(within(booked).getByLabelText('检查时间')).toBeInTheDocument()
+    expect(within(booked).queryByLabelText('登记时间')).not.toBeInTheDocument()
+    expect(within(booked).getByText('2026-11-26 08:00')).toBeInTheDocument()
+    expect(within(booked).queryByText('2026-11-26 09:34')).not.toBeInTheDocument()
+    // the caption is gone — the label rides the glyph's aria-label only
+    expect(within(booked).queryByText('检查时间')).not.toBeInTheDocument()
+    expect(booked.querySelector('[data-stripe]')).not.toBeNull()
+    const walkIn = (await screen.findAllByText('李四'))[0].closest('.us-ocard') as HTMLElement
+    expect(within(walkIn).getByLabelText('检查时间')).toBeInTheDocument()
+    // the walk-in anchor carries the registration moment (当天 + 登记时分)
+    expect(within(walkIn).getByText('2026-11-26 09:10')).toBeInTheDocument()
+  })
+
+  it('the compact card drops the category chip; the wide table keeps the tag', async () => {
+    // user ruling 2026-11-26: the 预约/现场 chip is display noise on the card — the
+    // fact still rides the server-stamped registrationType field (us-prereg-as-registered)
+    // and the wide table's 状态 column keeps the tag beside the status chip.
     vi.mocked(usOrdersApi.pageOrders).mockResolvedValue(
       pageFixture([
         orderView({
@@ -502,9 +584,9 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     )
     renderPage()
     const preRegRow = (await screen.findAllByText('张三'))[0].closest('.us-ocard') as HTMLElement
-    expect(within(preRegRow).getByText('预约')).toBeInTheDocument()
+    expect(within(preRegRow).queryByText('预约')).not.toBeInTheDocument()
     const walkInRow = (await screen.findAllByText('张三'))[1].closest('.us-ocard') as HTMLElement
-    expect(within(walkInRow).getByText('现场')).toBeInTheDocument()
+    expect(within(walkInRow).queryByText('现场')).not.toBeInTheDocument()
     // the wide table carries the same tag beside the status chip
     fireEvent.click(screen.getByLabelText('工作台切换'))
     const widePreReg = (await screen.findAllByText('张三'))[0].closest('tr') as HTMLElement
@@ -952,6 +1034,14 @@ describe('wide state + saved searches (us-registration-redesign batches 3-4)', (
     vi.clearAllMocks()
     invalidateDictItemsCache()
     useAuthStore.getState().setSession({ perms: FULL_PERMS })
+    // the exam-room seam (us-order-exam-room-web): the directory answers two
+    // rooms and the suite seeds the last choice - every submit path carries
+    // roomId (the required gate stays honest in the room-specific describes)
+    vi.mocked(usOrdersApi.listStationRooms).mockResolvedValue([
+      { id: 1, name: '1 号诊室' },
+      { id: 2, name: '2 号诊室' },
+    ])
+    localStorage.setItem('us-last-room', '2')
     // The dict transport stub: 1004 性别 / 1006 证件类型 (the V6 seed's stable
     // rcp ca_id anchors); unknown catalogs resolve empty.
     // the booking dialog's slot grid stub (us-booking-slot-picker): 09:30 rides
@@ -1139,5 +1229,292 @@ describe('wide state + saved searches (us-registration-redesign batches 3-4)', (
     expect(JSON.parse(localStorage.getItem('us-registration.columns') ?? '{}')).toMatchObject({
       createTime: true, // the first toggle HIDES the column
     })
+  })
+})
+
+describe('检查室 selection (us-order-exam-room-web task 2.1)', () => {
+  const ROOMS = [
+    { id: 1, name: '1 号诊室' },
+    { id: 2, name: '2 号诊室' },
+  ]
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    invalidateDictItemsCache()
+    useAuthStore.getState().setSession({ perms: FULL_PERMS })
+    // the exam-room seam (us-order-exam-room-web): the directory answers two
+    // rooms and the suite seeds the last choice - every submit path carries
+    // roomId (the required gate stays honest in the room-specific describes)
+    vi.mocked(usOrdersApi.listStationRooms).mockResolvedValue([
+      { id: 1, name: '1 号诊室' },
+      { id: 2, name: '2 号诊室' },
+    ])
+    localStorage.setItem('us-last-room', '2')
+    vi.mocked(usOrdersApi.listSlotOptions).mockResolvedValue({
+      configured: true,
+      slots: [{ start: '09:00', end: '09:30', booked: 0, capacity: 4 }],
+    })
+    vi.mocked(dictsApi.fetchDictItemsById).mockResolvedValue([])
+    vi.mocked(usOrdersApi.listStationRooms).mockResolvedValue(ROOMS)
+    // the suite-proven antd form stubs: the dict-resolved vocabularies answer
+    // minimal sets (性别/患者来源 needed by fillRequiredDemo)
+    vi.mocked(dictsApi.fetchDictItemsById).mockImplementation(async (catalId: number) => {
+      if (catalId === 1004) return [{ code: 100401, value: '男' }, { code: 100402, value: '女' }]
+      if (catalId === 1023) return [{ code: 1, value: '门诊' }]
+      return []
+    })
+    vi.mocked(examItemApi.pageExamItems).mockResolvedValue({
+      records: US_ITEMS,
+      total: US_ITEMS.length,
+      size: 20,
+      current: 1,
+      pages: 1,
+    } as never)
+    vi.mocked(usOrdersApi.pageOrders).mockResolvedValue(pageFixture([]) as never)
+    vi.mocked(usOrdersApi.statusCounts).mockResolvedValue({ ...ZERO_COUNTS } as never)
+    localStorage.setItem('us-last-room', '2')
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+  })
+
+  it('submitting without a room refuses client-side with 检查室不能为空 and nothing posts', async () => {
+    localStorage.removeItem('us-last-room')
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '赵六' } })
+    fillRequiredDemo()
+    fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
+    fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
+    // the refusal is CLIENT-SIDE: no create posts at all
+    await waitFor(() => {
+      expect(screen.getByText('检查室不能为空')).toBeInTheDocument()
+    })
+    expect(usOrdersApi.createOrder).not.toHaveBeenCalled()
+  })
+
+  it('the last choice pre-selects on a fresh form and the submit posts roomId', async () => {
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    // the seeded last choice (us-last-room = 2) pre-selects: the combobox shows it
+    expect(screen.getByRole('combobox', { name: '检查室' })).toBeInTheDocument()
+    expect(screen.getByText('2 号诊室')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '钱七' } })
+    fillRequiredDemo()
+    fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
+    fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
+    await waitFor(() => expect(usOrdersApi.createOrder).toHaveBeenCalled())
+    const body = vi.mocked(usOrdersApi.createOrder).mock.calls[0][0]
+    expect(body.roomId).toBe(2)
+    // the choice is written back (persisted on success)
+    expect(localStorage.getItem('us-last-room')).toBe('2')
+  })
+
+  it('switching the room posts the new id and persists it as the last choice', async () => {
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('combobox', { name: '检查室' }))
+    fireEvent.click(await pickOption('1 号诊室'))
+    fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '孙八' } })
+    fillRequiredDemo()
+    fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
+    fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
+    await waitFor(() => expect(usOrdersApi.createOrder).toHaveBeenCalled())
+    const body = vi.mocked(usOrdersApi.createOrder).mock.calls[0][0]
+    expect(body.roomId).toBe(1)
+    expect(localStorage.getItem('us-last-room')).toBe('1')
+  })
+
+  it('a directory load failure renders the empty select with the failure message', async () => {
+    localStorage.removeItem('us-last-room')
+    vi.mocked(usOrdersApi.listStationRooms).mockRejectedValue(new Error('boom'))
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    await waitFor(() => {
+      expect(screen.getByText('检查室目录加载失败')).toBeInTheDocument()
+    })
+    // the room select renders EMPTY - the required rule still blocks the submit
+    fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '周九' } })
+    fillRequiredDemo()
+    fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
+    fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
+    await waitFor(() => {
+      expect(screen.getByText('检查室不能为空')).toBeInTheDocument()
+    })
+    expect(usOrdersApi.createOrder).not.toHaveBeenCalled()
+  })
+})
+
+describe('预约弹窗检查室 (us-order-exam-room-web task 3.1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    invalidateDictItemsCache()
+    useAuthStore.getState().setSession({ perms: FULL_PERMS })
+    vi.mocked(usOrdersApi.listStationRooms).mockResolvedValue([
+      { id: 1, name: '1 号诊室' },
+      { id: 2, name: '2 号诊室' },
+    ])
+    vi.mocked(usOrdersApi.listSlotOptions).mockResolvedValue({
+      configured: true,
+      slots: [{ start: '09:00', end: '09:30', booked: 0, capacity: 4 }],
+    })
+    vi.mocked(examItemApi.pageExamItems).mockResolvedValue({
+      records: US_ITEMS,
+      total: US_ITEMS.length,
+      size: 20,
+      current: 1,
+      pages: 1,
+    } as never)
+    vi.mocked(usOrdersApi.pageOrders).mockResolvedValue(pageFixture([]) as never)
+    vi.mocked(usOrdersApi.statusCounts).mockResolvedValue({ ...ZERO_COUNTS } as never)
+    vi.mocked(dictsApi.fetchDictItemsById).mockImplementation(async (catalId: number) => {
+      if (catalId === 1004) return [{ code: 100401, value: '男' }, { code: 100402, value: '女' }]
+      if (catalId === 1023) return [{ code: 1, value: '门诊' }]
+      return []
+    })
+    localStorage.setItem('us-last-room', '2')
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+  })
+
+  it('确定 stays disabled until slot AND room are picked', async () => {
+    localStorage.removeItem('us-last-room')
+    renderPage()
+    await screen.findByText('请检信息')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: '选择预约时段' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: '预约时段 09:00–09:30，剩余 4 号' }))
+    // the slot alone is NOT enough (no last-choice default applied): 确定 stays off
+    expect(within(dialog).getByRole('button', { name: /^确\s*定$/ })).toBeDisabled()
+    await user.click(within(dialog).getByRole('combobox', { name: '检查室' }))
+    fireEvent.click(await pickOption('1 号诊室'))
+    expect(within(dialog).getByRole('button', { name: /^确\s*定$/ })).toBeEnabled()
+  })
+
+  it('confirming a slot with the room posts bookingTime together with roomId', async () => {
+    renderPage()
+    await screen.findByText('请检信息')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: '选择预约时段' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: '预约时段 09:00–09:30，剩余 4 号' }))
+    await user.click(within(dialog).getByRole('combobox', { name: '检查室' }))
+    fireEvent.click(await pickOption('1 号诊室'))
+    await user.click(within(dialog).getByRole('button', { name: /^确\s*定$/ }))
+    // the closing animation keeps ghost nodes - the trigger summary is asserted
+    // through the getAllByText band (the house pickOption/ghost idiom)
+    await waitFor(() => {
+      expect(screen.getAllByText('09:00–09:30').length).toBeGreaterThan(0)
+    })
+    fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '吴九' } })
+    fillRequiredDemo()
+    fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
+    fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
+    await waitFor(() => expect(usOrdersApi.createOrder).toHaveBeenCalled())
+    const body = vi.mocked(usOrdersApi.createOrder).mock.calls[0][0]
+    expect(body.bookingTime).toBe(`${TOMORROW} 09:00:00`)
+    expect(body.roomId).toBe(1)
+    // the dialog pick persists as the workstation's last choice
+    expect(localStorage.getItem('us-last-room')).toBe('1')
+  })
+
+  it('clearing the booking keeps the room choice (the room is a per-order decision)', async () => {
+    renderPage()
+    await screen.findByText('请检信息')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: '选择预约时段' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: '预约时段 09:00–09:30，剩余 4 号' }))
+    await user.click(within(dialog).getByRole('button', { name: /^确\s*定$/ }))
+    await user.click(screen.getByRole('button', { name: '清除预约时段' }))
+    // the walk-in resting state: the × affordance is gone (ghost-proof - the text
+    // bands linger through the closing animation, the button does not)
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: '清除预约时段' })).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: '选择预约时段' })).toBeEnabled()
+    // the room choice SURVIVES the clear (the walk-in path still requires its own
+    // room pick in section 3 - the selection item keeps showing it; the closed
+    // dialog keeps its own mounted copy, so the band is getAllByText)
+    expect(screen.getAllByText('2 号诊室').length).toBeGreaterThan(0)
+    fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '郑十' } })
+    fillRequiredDemo()
+    fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
+    fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
+    await waitFor(() => expect(usOrdersApi.createOrder).toHaveBeenCalled())
+    const body = vi.mocked(usOrdersApi.createOrder).mock.calls[0][0]
+    expect(body.bookingTime).toBeNull()
+    expect(body.roomId).toBe(2)
+  })
+})
+
+describe('登记单检查室展示 (us-order-exam-room-web task 4.1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    invalidateDictItemsCache()
+    useAuthStore.getState().setSession({ perms: FULL_PERMS })
+    vi.mocked(usOrdersApi.listStationRooms).mockResolvedValue([
+      { id: 1, name: '1 号诊室' },
+      { id: 2, name: '2 号诊室' },
+    ])
+    vi.mocked(usOrdersApi.listSlotOptions).mockResolvedValue({
+      configured: true,
+      slots: [{ start: '09:00', end: '09:30', booked: 0, capacity: 4 }],
+    })
+    vi.mocked(examItemApi.pageExamItems).mockResolvedValue({
+      records: US_ITEMS,
+      total: US_ITEMS.length,
+      size: 20,
+      current: 1,
+      pages: 1,
+    } as never)
+    // one room-bearing row + one LEGACY row (roomId null) - the '—' band; the
+    // distinct names scope the per-row assertions (multiple '—' cells exist)
+    vi.mocked(usOrdersApi.pageOrders).mockResolvedValue(
+      pageFixture([
+        orderView({ orderId: 11, status: 'REGISTERED', roomId: 1, roomName: '1 号诊室',
+          patientSnapshot: { patId: 'US3R1', name: '房甲', gender: 1 } }),
+        orderView({ orderId: 12, status: 'REGISTERED',
+          patientSnapshot: { patId: 'US3R2', name: '房乙', gender: 2 } }),
+      ]) as never,
+    )
+    vi.mocked(usOrdersApi.statusCounts).mockResolvedValue({ ...ZERO_COUNTS } as never)
+    vi.mocked(dictsApi.fetchDictItemsById).mockResolvedValue([])
+    localStorage.setItem('us-last-room', '2')
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+  })
+
+  it('the compact card shows the room on the existing exam-time meta line', async () => {
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    // the room-bearing card carries the room name (inside the existing meta line -
+    // the card-flow ruling: no fifth row); the legacy card carries none
+    expect(screen.getByText('1 号诊室')).toBeInTheDocument()
+  })
+
+  it('the wide table gains the 检查室 column with — for a null room', async () => {
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    fireEvent.click(screen.getByRole('button', { name: '工作台切换' }))
+    await screen.findByText('检查室')
+    // the room-bearing row shows the name; the legacy row renders the honest '—'
+    // (column-indexed via the header row - several columns render '—' for nulls)
+    const headerRow = screen.getByText('检查室').closest('tr') as HTMLElement
+    const roomCol = Array.from(headerRow.children).findIndex(
+      (th) => th.textContent === '检查室',
+    )
+    expect(roomCol).toBeGreaterThan(-1)
+    const roomyRow = screen.getByText('房甲').closest('tr') as HTMLElement
+    expect((roomyRow.children[roomCol] as HTMLElement).textContent).toBe('1 号诊室')
+    const legacyRow = screen.getByText('房乙').closest('tr') as HTMLElement
+    expect((legacyRow.children[roomCol] as HTMLElement).textContent).toBe('—')
   })
 })

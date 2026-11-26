@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: us-order-exam-room-web
+execution_mode: Batch Inline
+tasks_total: 12
+tasks_done: 12
+workflow_mode: full
+artifacts_hash: 21afb9322f540af4486494aeb088dad545b4469df5f3d2d8b0562fed2f7b27d0

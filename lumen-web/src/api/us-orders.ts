@@ -41,6 +41,10 @@ export interface UsExamItemRef {
 /** The jsonb patient snapshot the kernel carries on the order (display projection). */
 export interface UsPatientSnapshot {
   patId?: string | null;
+  /** 就诊卡号 (M…): the create body's cardNo stamped into the snapshot jsonb
+   * (us-registration-redesign-api design D7's additive key; pre-widening rows
+   * read null) — the workbench 就诊卡号 filter queries this key server-side. */
+  cardNo?: string | null;
   name?: string | null;
   gender?: number | null;
   phone?: string | null;
@@ -87,6 +91,27 @@ export interface UsOrderCreateBody {
   examItems: UsExamItemRef[];
   emgFlag: number;
   ext?: UsRegistrationExtBody | null;
+  /** 检查室 (us-order-exam-room: required at create; the server validates
+   * exists/enabled/station-dept and stamps it on BOTH entry branches). */
+  roomId: number;
+}
+
+/** The station room directory row (us-order-exam-room-web task 1.2): the slim
+ * `{id, name}` projection of the station department's enabled rooms. */
+export interface StationRoomRow {
+  id: number;
+  name: string;
+}
+
+/**
+ * The station's exam-room directory (us-order-exam-room-sev; spec delta us-station
+ * "Station Room Directory"): `GET /api/v1/us/rooms` — station-scoped SERVER-SIDE
+ * (no org/dep ids ever cross the wire; the session carries none). The backend's
+ * degraded band answers the HONEST empty list; the desk stays blocked because the
+ * submit rule independently refuses a roomless body.
+ */
+export async function listStationRooms(): Promise<StationRoomRow[]> {
+  return apiRequest<StationRoomRow[]>('/us/rooms', { method: 'GET' });
 }
 
 export interface UsOrderView {
@@ -107,6 +132,10 @@ export interface UsOrderView {
   registrationType: UsRegistrationType | null;
   /** 预登记时段锚点 (null = 现场单/无预约; 拍板 02-B). */
   bookingTime: string | null;
+  /** The exam-room pair (us-order-exam-room): the stored anchor + the read-time
+   * name join - a legacy row or a dangling id renders the name null (the UI '—'). */
+  roomId: number | null;
+  roomName: string | null;
   pregnancyStatus: string | null;
   gestationalWeeks: number | null;
   note: string | null;
