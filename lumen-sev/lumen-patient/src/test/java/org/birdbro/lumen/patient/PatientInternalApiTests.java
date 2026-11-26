@@ -213,6 +213,66 @@ class PatientInternalApiTests extends PatientIntegrationTestBase {
                 "a card-less archive projects a NULL cardNo - never a fabricated number");
     }
 
+    // ------------- the composite match enrichment (patient-resolve-demographics-enrichment task 1.1)
+
+    @Test
+    void compositeMatchEnrichesTheSparseArchiveNullDemographics() throws Exception {
+        long ts = stamp();
+        String card = "CARDE-" + ts;
+        String sparseName = PatientUsB2Fixtures.NAME_MARKER + "富集" + ts;
+        // the sparse archive: created with name + card only (no id_no/phone/birth)
+        JsonNode created = parse(exchangeJson(HttpMethod.POST, RESOLVE_OR_REGISTER_URL,
+                resolveBody(null, null, card, sparseName, null, null), TEST_INTERNAL_KEY));
+        assertEquals("CREATED", created.path("data").path("result").asText(),
+                "the sparse archive creates first: " + created);
+        int patUid = created.path("data").path("identity").path("patUid").asInt(-1);
+        PatientUsB2Fixtures.registerArchive(patUid);
+
+        // the SECOND composite: the desk typed the full demographics (a DIFFERENT
+        // name proves the no-overwrite band)
+        String idNo = "USB2IDE-" + ts;
+        PatientResolveOrRegisterRequest request = new PatientResolveOrRegisterRequest();
+        request.setIdType("01");
+        request.setIdNo(idNo);
+        request.setCardNo(card);
+        request.setName("usb2改写者" + ts);
+        request.setGender(2);
+        request.setBirthDate(java.sql.Date.valueOf("1990-05-20"));
+        request.setPhone("138" + ts);
+        JsonNode matched = parse(exchangeJson(HttpMethod.POST, RESOLVE_OR_REGISTER_URL,
+                objectMapper.writeValueAsString(request), TEST_INTERNAL_KEY));
+        assertEquals("MATCHED", matched.path("data").path("result").asText(),
+                "the card match resolves the sparse archive: " + matched);
+        JsonNode identity = matched.path("data").path("identity");
+        // the response echoes the ENRICHED archive: null fields fill, the name keeps
+        assertEquals(idNo, identity.path("idNo").asText(null),
+                "the archive's null id_no fills from the request");
+        assertEquals("1990-05-20", identity.path("birthDate").asText(null),
+                "the archive's null birth_date fills (the yyyy-MM-dd projection)");
+        assertEquals("138" + ts, identity.path("phone").asText(null),
+                "the archive's null phone fills");
+        assertEquals(sparseName, identity.path("name").asText(null),
+                "an EXISTING name never overwrites (the minimal-merge band)");
+
+        // the ARCHIVE row enriched
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                "SELECT id_no, birth_date::text AS bd, phone, name FROM patient_master WHERE id = ?", patUid);
+        assertEquals(idNo, row.get("id_no"), "the archive's null id_no persists");
+        assertEquals("1990-05-20", row.get("bd"), "the archive's null birth_date persists");
+        assertEquals("138" + ts, row.get("phone"), "the archive's null phone persists");
+        assertEquals(sparseName, row.get("name"), "the archive's existing name survives");
+
+        // idempotency: the SAME request again - no duplicate card row
+        JsonNode again = parse(exchangeJson(HttpMethod.POST, RESOLVE_OR_REGISTER_URL,
+                objectMapper.writeValueAsString(request), TEST_INTERNAL_KEY));
+        assertEquals("MATCHED", again.path("data").path("result").asText());
+        Integer cardRows = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM patient_identifier WHERE patient_id = ? "
+                + "AND id_type = 'card' AND deleted = 0", Integer.class, patUid);
+        assertEquals(1, cardRows.intValue(),
+                "the card append is idempotent - ONE card row, never a duplicate");
+    }
+
     // ----------------------- scenario 2: register-new (placeholder + A0715)
 
     @Test

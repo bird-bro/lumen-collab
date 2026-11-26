@@ -303,13 +303,74 @@ public class PatientArchiveServiceImpl implements PatientArchiveService {
                 .build();
     }
 
+    /**
+     * The minimal-merge enrichment (patient-resolve-demographics-enrichment task 1.2,
+     * design D2/D3): field by field, the request value fills ONLY a null master field
+     * (name/gender/id_type/id_no/phone/birth_date - never an overwrite); a request
+     * card absent from the archive's live identifiers appends as a new card row (the
+     * accumulation semantics, idempotent). The id_no's conflict safety rides the
+     * chain's own ordering - a claimed id_no resolves to its owner decisively before
+     * any card walk, so the id_no reaching here is unclaimed (design D2).
+     */
+    private void enrichMatchedArchive(PatientMaster master, PatientResolveRequest request) {
+        if (master == null) {
+            return;
+        }
+        boolean changed = false;
+        if (master.getName() == null && StrUtil.isNotBlank(request.getName())) {
+            master.setName(request.getName());
+            changed = true;
+        }
+        if (master.getGender() == null && request.getGender() != null) {
+            master.setGender(request.getGender());
+            changed = true;
+        }
+        if (master.getIdType() == null && StrUtil.isNotBlank(request.getIdType())) {
+            master.setIdType(request.getIdType());
+            changed = true;
+        }
+        if (master.getIdNo() == null && StrUtil.isNotBlank(request.getIdNo())) {
+            master.setIdNo(request.getIdNo());
+            changed = true;
+        }
+        if (master.getPhone() == null && StrUtil.isNotBlank(request.getPhone())) {
+            master.setPhone(request.getPhone());
+            changed = true;
+        }
+        if (master.getBirthDate() == null && request.getBirthDate() != null) {
+            master.setBirthDate(request.getBirthDate());
+            changed = true;
+        }
+        if (changed) {
+            patientMasterMapper.updateById(master);
+        }
+        if (StrUtil.isNotBlank(request.getCardNo())) {
+            Long cardRows = patientIdentifierMapper.selectCount(
+                    new LambdaQueryWrapper<PatientIdentifier>()
+                            .eq(PatientIdentifier::getPatientId, master.getId())
+                            .eq(PatientIdentifier::getIdType, IDENTIFIER_TYPE_CARD)
+                            .eq(PatientIdentifier::getIdNo, request.getCardNo()));
+            if (cardRows == null || cardRows == 0) {
+                insertIdentifier(master.getId(), IDENTIFIER_TYPE_CARD, request.getCardNo());
+            }
+        }
+    }
+
     @Override
     @Transactional
     public PatientResolveResult resolveOrRegister(PatientResolveRequest request) {
         try {
-            // self-invocation: the chain runs within THIS method's one transaction -
-            // the exact/card/soft lookups and the fallback creation stay atomic (D4)
-            return resolve(request);
+            PatientResolveResult result = resolve(request);
+            // the composite's match enrichment (patient-resolve-demographics-enrichment):
+            // a decisive hit fills the archive's NULL demographics from the request
+            // (minimal-merge - never an overwrite) + appends an absent request card, so
+            // the desk's typed information STICKS to the archive (the user ruling
+            // 2026-11-26: card 00114's second registration stayed sparse forever). The
+            // plain lookup path never runs this (the no-side-effect read).
+            if (PatientResolveResult.RESULT_MATCHED.equals(result.getResult())) {
+                enrichMatchedArchive(result.getPatient(), request);
+            }
+            return result;
         } catch (DuplicateKeyException | UncategorizedSQLException e) {
             // the identity race (us-station-registration-sev task 2.2): a concurrent
             // create committed the same identity between the chain's lookups and the

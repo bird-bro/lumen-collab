@@ -1127,3 +1127,14 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
 - Fix: Feign DTO +cardNo(可空); toIdentity 注入 PatientIdentifierMapper 投影最新 live card(id desc LIMIT 1 = 当前就诊卡); 无卡投影 null
 - web 零改动(us 直通层原样转发 Feign 结果; UsPatientIdentity.cardNo 已存在)
 - 全量 reactor 后台运行中
+
+## Change: patient-resolve-demographics-enrichment
+## Execution Mode: Inline
+## Started: 2026-11-26
+
+### Apply: task 1 (TDD)
+- Status: task 1 complete (RED sparse 档案不富集 -> GREEN 11/11 含 A0715 backstop 回归)
+- 根因确认: composite 命中分支从不写回(卡片 00114 第二次提交的手机号只进订单快照, 档案 2244 恒 sparse) - 用户裁决"应该 update 患者信息"
+- Fix: resolveOrRegister 的 MATCHED 分支事务内 enrichMatchedArchive: 最小合并(仅填空字段 name/gender/id_type/id_no/phone/birth_date, 永不覆盖) + absent card 追加标识行(idempotent); lookup 无副作用不动; id_no 冲突安全靠链序(被占用的 id_no 会先决命中其主档)
+- 事故一则: 结构重组时 try/catch 与方法体错位(编译红) - 手工重排收口; selectCount 返回 Long 类型修正
+- 全量 reactor 后台运行中

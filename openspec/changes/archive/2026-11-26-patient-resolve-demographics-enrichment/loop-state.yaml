@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: patient-resolve-demographics-enrichment
+execution_mode: SDD
+tasks_total: 12
+tasks_done: 12
+workflow_mode: full
+artifacts_hash: b9478b6301bdd3c3f51d108f6847e5a310877e26bdce3877bcf1019e0580a0cc
