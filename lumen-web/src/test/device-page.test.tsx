@@ -326,6 +326,9 @@ describe('device page - drawer create (3.2)', () => {
       code: 'DEV-NEW-001',
       name: '新设备',
       did: 11,
+      // the campus anchor rides the chosen department (the room page's derivation
+      // precedent) - the backend's oid @NotNull rejects the body without it
+      oid: 1,
     })
     // The page refreshes after the create (the tree auto-select adds a mount load,
     // so assert GROWTH over the pre-submit count, never an exact total).

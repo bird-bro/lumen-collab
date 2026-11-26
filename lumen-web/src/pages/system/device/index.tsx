@@ -269,6 +269,10 @@ export default function DevicePage() {
       // narrows the Dayjs-to-string converted patch to the wire type.
       const body = {
         ...values,
+        // the campus anchor (the room page's derivation precedent): the form has no
+        // oid item - the backend's oid @NotNull rejected EVERY UI create/update
+        // before this; the chosen department carries the campus
+        oid: deps.find((dep) => dep.id === values.did)?.orgId ?? 0,
         productionDate: values.productionDate ? values.productionDate.format('YYYY-MM-DD') : null,
         purchaseDate: values.purchaseDate ? values.purchaseDate.format('YYYY-MM-DD') : null,
         acceptanceDate: values.acceptanceDate ? values.acceptanceDate.format('YYYY-MM-DD') : null,
