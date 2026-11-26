@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US 工作站 · 诊断页（报告书写）原型 v1（演示数据）</title>
+<!--
+  US 诊断页（报告书写工作台）UI 原型 v1（非权威，供评审）：
+  参照 EIS 超声工作站报告页（eis-web /ultrasonic/report/）的三栏骨架：
+  左 患者列表 / 中 报告纸面+动作条 / 右 模板库+影像采集，tile 动作按钮组、5s 自动保存、
+  状态过期毛玻璃遮罩、双击贴图+编号角标 全部保留。
+  lumen 替换点：① 报告体不是自由文本，是已定稿的分节模板模型（节名+测值表+节所见+意见，
+  B 测值表式——rep-template 2026-11-20 拍板）；② 状态机映射 lumen 单据状态
+  （已登记=待诊断 → 处理中=诊断中 → 已完成），打印是已完成上的子状态；③ 视口锁
+  （2026-11-25 ruling：诊断/报告页整页锁视口，滚动吞进卡内）；④ 已贴图描边用主题蓝——
+  红只留给临床警示（急诊 tag 沿用登记页的橙、危急值/超差值用红）。
+  EIS 不搬（范围外注记见文末）：HP 阴阳性（胃超声专用）/ 电子病历·随访·收藏 tile /
+  条码打印 / 合并报告控件 / 叫号浮窗。
+  数据全部为演示数据；拍板点 5 个见文末。
+-->
+<style>
+  :root {
+    --page-bg: #f0f2f7;
+    --card: #ffffff;
+    --line: #e5e9f2;
+    --line-strong: #d4dbe8;
+    --ink: #1f2733;
+    --ink-2: #5b6b85;
+    --ink-3: #94a3b8;
+    --primary: #2b5fd9;
+    --primary-deep: #1e49b8;
+    --primary-weak: #eef3ff;
+    --primary-line: #d8e2ff;
+    --green: #15803d;
+    --green-weak: #ecfdf3;
+    --cyan: #0e7490;
+    --cyan-weak: #ecfeff;
+    --orange: #b45309;
+    --orange-weak: #fff7e8;
+    --gray-weak: #f1f5f9;
+    --danger: #dc2626;
+    --danger-weak: #fef2f2;
+    --paper-echo: #f7f7f7;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(15, 33, 82, .05), 0 8px 24px rgba(15, 33, 82, .07);
+    --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    --serif-cn: "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif;
+    --mono: "SF Mono", "Menlo", "Consolas", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background:
+      radial-gradient(1100px 520px at 12% -6%, #fdfefe 0%, transparent 55%),
+      var(--page-bg);
+    padding: 36px 44px 72px;
+  }
+  .page { max-width: 1560px; margin: 0 auto; }
+
+  /* ═══ 页头 ═══ */
+  .masthead {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding-bottom: 16px; margin-bottom: 24px;
+    border-bottom: 3px double var(--line-strong);
+  }
+  .masthead h1 { font-size: 23px; letter-spacing: .05em; font-weight: 700; }
+  .masthead h1 em { font-style: normal; color: var(--primary); }
+  .badge {
+    font-size: 12px; letter-spacing: .1em; padding: 3px 11px;
+    border: 1px solid var(--line-strong); border-radius: 999px; color: var(--ink-2);
+    background: #fff;
+  }
+  .badge.hot { border-color: var(--primary-line); background: var(--primary-weak); color: var(--primary); }
+  .masthead .lead { flex-basis: 100%; font-size: 13px; color: var(--ink-2); line-height: 1.85; margin-top: 3px; }
+  .masthead .lead b { color: var(--ink); }
+  .masthead .lead code {
+    font-family: var(--mono); font-size: 11.5px; color: var(--primary-deep);
+    background: var(--primary-weak); padding: 1px 5px; border-radius: 4px;
+  }
+
+  .section-eyebrow {
+    display: flex; align-items: baseline; gap: 14px; margin: 44px 0 6px;
+    font-size: 13px; letter-spacing: .26em; color: var(--ink-3); font-weight: 600;
+    font-family: var(--serif-cn);
+  }
+  .section-eyebrow strong { color: var(--ink); font-size: 16px; letter-spacing: .12em; }
+  .section-eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--line); align-self: center; }
+  .section-sub { font-size: 12.5px; color: var(--ink-2); margin: 0 0 12px 2px; line-height: 1.75; }
+  .section-sub b { color: var(--ink); }
+
+  /* ═══ 工作台容器：整页锁视口（2026-11-25 ruling） ═══ */
+  .workbench {
+    display: flex; gap: 10px; align-items: stretch;
+    height: calc(100vh - 218px); min-height: 680px;
+  }
+  .wb-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+
+  /* ── 左 rail：待诊列表 ── */
+  .rail { flex: 0 0 352px; width: 352px; }
+  .rail-head {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 8px 10px; border-bottom: 1px solid var(--line); background: #fbfcfe;
+  }
+  .datenav { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink); }
+  .datenav .nav-b {
+    width: 18px; height: 22px; border-radius: 5px; border: 1px solid var(--line-strong);
+    background: #fff; display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--ink-2); font-size: 11px;
+  }
+  .datenav .nav-b:hover { color: var(--primary); border-color: var(--primary); }
+  .datenav b { font-weight: 600; }
+  .datenav .today { color: var(--ink-3); font-size: 11px; }
+  .rail-head .spacer { flex: 1; }
+  .mini-refresh { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ink-3); }
+  .mini-switch { width: 28px; height: 16px; border-radius: 999px; background: #cbd5e1; position: relative; cursor: pointer; flex: none; }
+  .mini-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .mini-switch.on { background: var(--primary); }
+  .mini-switch.on::after { left: 14px; }
+
+  .rail-chips {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 7px 10px; border-bottom: 1px solid var(--line);
+  }
+  .schip {
+    display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px;
+    border-radius: 999px; font-size: 12px; border: 1px solid var(--line-strong);
+    background: #fff; color: var(--ink-2); cursor: pointer; user-select: none;
+  }
+  .schip .n { font-family: var(--mono); font-size: 11px; }
+  .schip.on-blue { background: var(--primary-weak); border-color: var(--primary); color: var(--primary); font-weight: 600; }
+  .schip.on-amber { background: var(--orange-weak); border-color: var(--orange); color: var(--orange); font-weight: 600; }
+  .schip.on-green { background: var(--green-weak); border-color: var(--green); color: var(--green); font-weight: 600; }
+  .rail-search { flex-basis: 100%; display: flex; }
+  .input {
+    display: inline-flex; align-items: center; height: 28px; padding: 0 10px;
+    font-size: 12.5px; background: #fff; border: 1px solid var(--line-strong);
+    border-radius: 6px; color: var(--ink);
+  }
+  .input .ph { color: var(--ink-3); }
+  .rail-search .input { flex: 1; height: 26px; font-size: 12px; }
+
+  .rail-cards {
+    flex: 1; overflow-y: auto; min-height: 0;
+    display: flex; flex-direction: column; gap: 8px; padding: 9px 10px;
+  }
+  .ocard {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+    padding: 8px 11px 9px; cursor: pointer; user-select: none; flex: none;
+  }
+  .ocard:hover { background: #f7f9fd; }
+  .ocard.cur { border-color: var(--primary); background: var(--primary-weak); }
+  .ocard-hd { display: flex; align-items: center; gap: 5px; }
+  .ocard-hd .lead { display: flex; align-items: center; gap: 5px; min-width: 0; }
+  .rp-name { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rp-tag {
+    font-size: 10.5px; padding: 0 5px; line-height: 16px; border-radius: 3px;
+    background: var(--gray-weak); color: var(--ink-2); flex: none;
+  }
+  .rp-tag.emg { background: var(--orange-weak); color: var(--orange); font-weight: 600; }
+  .rp-tag.preg { background: var(--cyan-weak); color: var(--cyan); }
+  .ocard-hd .tail { display: flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
+  .ocard-items { font-size: 12.5px; color: var(--ink-2); margin-top: 4px; }
+  .ocard-ids { font-size: 12px; color: var(--ink-3); margin-top: 4px; font-family: var(--mono); }
+  .ocard-times { font-size: 12px; color: var(--ink-2); margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .ocard-times .tl { color: var(--ink-3); margin-right: 4px; }
+  .ocard-times .tv { font-family: var(--mono); }
+  .rchip {
+    display: inline-flex; align-items: center; gap: 4px; height: 19px; padding: 0 8px;
+    font-size: 11px; border-radius: 999px; white-space: nowrap; font-weight: 500;
+  }
+  .st-wait { background: var(--primary-weak); color: var(--primary); }
+  .st-doing { background: var(--orange-weak); color: var(--orange); }
+  .st-done { background: var(--green-weak); color: var(--green); }
+  .rchip.printed { background: var(--gray-weak); color: #64748b; }
+  .rops { display: flex; align-items: center; gap: 2px; }
+  .ract {
+    width: 22px; height: 22px; border-radius: 5px; border: none; background: transparent;
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--primary);
+  }
+  .ract:hover { background: var(--primary-weak); }
+  .ract svg { width: 13px; height: 13px; }
+  .rail-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 10px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--ink-2); background: #fbfcfe;
+  }
+  .pgroup { display: flex; gap: 4px; }
+  .pg {
+    min-width: 20px; height: 20px; padding: 0 5px; border-radius: 5px; border: 1px solid var(--line-strong);
+    display: inline-flex; align-items: center; justify-content: center; background: #fff; font-size: 11.5px;
+  }
+  .pg.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+  /* ── 中 bench：动作条 + 报告纸面 ── */
+  .bench { flex: 1; min-width: 0; }
+  .bench-top {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; border-bottom: 1px solid var(--line); background: #fbfcfe;
+  }
+  /* tile 按钮组（EIS Header 形态：图标在上文字在下，按组分卡片） */
+  .tilegrp {
+    display: flex; gap: 3px; padding: 3px; background: #fff;
+    border: 1px solid var(--line); border-radius: 8px;
+  }
+  .tile {
+    width: 66px; height: 52px; border: none; background: transparent; border-radius: 6px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    font-size: 11.5px; color: var(--primary); cursor: pointer; user-select: none;
+  }
+  .tile:hover { background: var(--primary-weak); }
+  .tile svg { width: 17px; height: 17px; }
+  .tile.warn { color: var(--orange); }
+  .tile.warn:hover { background: var(--orange-weak); }
+  .tile.danger { color: var(--danger); }
+  .tile.danger:hover { background: var(--danger-weak); }
+  .tile.off { color: var(--ink-3); opacity: .55; cursor: default; }
+  .tile.off:hover { background: transparent; }
+  .tile.on-primary { color: #fff; background: var(--primary); }
+  .tile.on-primary:hover { background: var(--primary-deep); }
+  .autosave {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; color: var(--green); background: var(--green-weak);
+    border: 1px solid #cdebd8; border-radius: 999px; padding: 3px 10px;
+  }
+  .autosave .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: apulse 2.4s ease-in-out infinite; }
+  @keyframes apulse { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
+  .autosave .t { font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); }
+
+  .bench-body { flex: 1; min-height: 0; overflow-y: auto; background: #eef1f7; }
+  /* 报告纸面（EIS 800px 纸张形态） */
+  .paper {
+    max-width: 860px; margin: 14px auto 18px; background: var(--card);
+    border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
+    padding: 20px 26px 24px; position: relative;
+  }
+  .paper-title { display: flex; align-items: center; gap: 10px; justify-content: center; position: relative; }
+  .paper-title h2 { font-size: 20px; letter-spacing: .3em; font-weight: 700; text-indent: .3em; }
+  .paper-status {
+    position: absolute; left: 0; top: 1px;
+    display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 10px;
+    border-radius: 999px; font-size: 12px; font-weight: 600;
+  }
+  .paper-status.doing { background: var(--orange-weak); color: var(--orange); }
+  .paper-watermark {
+    position: absolute; right: 2px; top: -4px; font-size: 40px; font-weight: 800;
+    color: rgba(43, 95, 217, .10); letter-spacing: .05em; user-select: none; line-height: 1;
+  }
+  .pstrip {
+    margin-top: 14px; background: var(--paper-echo); border-radius: 8px; padding: 10px 14px;
+    display: flex; flex-direction: column; gap: 7px; position: relative;
+  }
+  .pstrip-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; font-size: 13px; }
+  .pstrip-row .pf { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; }
+  .pstrip-row .pf .k { color: var(--ink-3); font-size: 12px; flex: none; }
+  .pstrip-row .pf .v { color: var(--ink); font-weight: 500; }
+  .pstrip-row .pf .v.mono { font-family: var(--mono); font-size: 12.5px; }
+  .pstrip-row .pf .v.strong { font-size: 15px; font-weight: 700; }
+  .pedit {
+    position: absolute; right: 10px; top: 8px; width: 24px; height: 24px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center; color: var(--ink-3);
+    cursor: pointer; border: none; background: transparent;
+  }
+  .pedit:hover { color: var(--primary); background: #fff; }
+  .pedit svg { width: 14px; height: 14px; }
+
+  /* 贴图区（只放正式贴图；编号=采集顺序，拍板④） */
+  .sec-cap {
+    display: flex; align-items: center; gap: 8px; margin: 16px 0 8px;
+    font-size: 13px; font-weight: 600; color: var(--ink);
+  }
+  .sec-cap::before { content: "▎"; color: var(--primary); font-size: 12px; }
+  .sec-cap .cap-hint { font-weight: 400; font-size: 11.5px; color: var(--ink-3); margin-left: auto; }
+  .pimgs { display: flex; flex-wrap: wrap; gap: 10px; }
+  .pimg {
+    position: relative; width: 118px; height: 88px; border-radius: 6px; overflow: hidden;
+    border: 2px solid var(--primary); box-shadow: 0 2px 8px rgba(43, 95, 217, .18);
+  }
+  .pimg svg { width: 100%; height: 100%; display: block; }
+  .pimg .no {
+    position: absolute; right: 4px; bottom: 4px; min-width: 16px; height: 16px; padding: 0 4px;
+    background: var(--primary); color: #fff; border-radius: 4px; font-size: 10px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center; font-family: var(--mono);
+  }
+  .pimg .unpin {
+    position: absolute; left: 4px; top: 4px; width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(220, 38, 38, .92); color: #fff; font-size: 11px; border: none; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+  }
+  .pimg:hover .unpin { display: inline-flex; }
+  .pimgs-empty {
+    flex: 1; border: 1px dashed var(--line-strong); border-radius: 6px; padding: 12px;
+    font-size: 12px; color: var(--ink-3); text-align: center;
+  }
+
+  /* ── 分节卡片区（lumen 分节模板模型，卡片标题回显节名——rep-template 拍板） ── */
+  .sec-stack { display: flex; flex-direction: column; gap: 10px; }
+  .sec-card { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .sec-card .sc-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 12px; background: #f6f8fa; border-bottom: 1px solid var(--line); font-size: 13px;
+  }
+  .sc-head .sc-title { font-weight: 700; display: flex; align-items: baseline; gap: 8px; }
+  .sc-head .sc-title .no { color: var(--ink-3); font-weight: 400; font-size: 11px; font-family: var(--mono); }
+  .sc-head .sc-ops { display: flex; gap: 12px; font-size: 12px; color: var(--ink-3); }
+  .sc-head .sc-ops .op { cursor: pointer; user-select: none; }
+  .sc-head .sc-ops .op:hover { color: var(--primary); }
+  .sc-head .sc-ops .op.danger:hover { color: var(--danger); }
+  .sc-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+  /* 测值行：名称/单位/测值(输入)/参考范围；超差红字 */
+  .m-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+  .m-cell {
+    border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; background: #fff;
+    white-space: nowrap; color: var(--ink);
+  }
+  .m-cell.w-label { flex: 1; min-width: 96px; }
+  .m-cell.w-unit { width: 46px; text-align: center; color: var(--ink-2); }
+  .m-cell.w-num { width: 64px; font-family: var(--mono); font-size: 12px; text-align: center; outline: none; }
+  .m-cell.w-num:focus { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-weak); }
+  .m-cell.w-num.over { color: var(--danger); font-weight: 700; background: var(--danger-weak); }
+  .m-ref { color: var(--ink-3); font-family: var(--mono); font-size: 11.5px; flex: none; }
+  .m-del { color: var(--ink-3); font-size: 11px; padding: 4px 5px; cursor: pointer; }
+  .m-del:hover { color: var(--danger); }
+  .m-findings {
+    border: 1px solid var(--line); border-radius: 5px; padding: 7px 10px; font-size: 12.5px;
+    color: var(--ink); min-height: 34px; background: #fff; line-height: 1.7;
+  }
+  .m-findings .ph { color: var(--ink-3); }
+  .add-sec {
+    border: 1px dashed var(--line-strong); border-radius: 8px; padding: 9px;
+    text-align: center; font-size: 13px; color: var(--ink-2); cursor: pointer;
+  }
+  .add-sec:hover { color: var(--primary); border-color: var(--primary); background: var(--primary-weak); }
+
+  /* 意见 + 表单区 + 签名条 */
+  .op-box {
+    border: 1px solid var(--line-strong); border-radius: 8px; padding: 10px 12px;
+    min-height: 64px; font-size: 13px; line-height: 1.9; background: #fcfcf9;
+  }
+  .op-box .ph { color: var(--ink-3); }
+  .formrow {
+    display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+    margin-top: 14px; padding: 10px 12px; background: #fbfcfe;
+    border: 1px solid var(--line); border-radius: 8px;
+  }
+  .fitem { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; }
+  .fitem .fl { color: var(--ink-2); flex: none; }
+  .mini-sel {
+    height: 28px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: space-between; gap: 6px;
+    min-width: 128px; font-size: 12.5px; color: var(--ink); background: #fff;
+    border: 1px solid var(--line-strong); border-radius: 6px; cursor: pointer;
+  }
+  .mini-sel .caret { color: var(--ink-3); font-size: 10px; }
+  .radios { display: flex; gap: 12px; align-items: center; }
+  .radio { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink-2); cursor: pointer; user-select: none; }
+  .radio .rdot { width: 13px; height: 13px; border-radius: 50%; border: 1px solid var(--line-strong); display: inline-flex; align-items: center; justify-content: center; background: #fff; flex: none; }
+  .radio.on { color: var(--ink); }
+  .radio.on .rdot { border-color: var(--primary); }
+  .radio.on .rdot::after { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--primary); }
+  .radio.on.alarm { color: var(--danger); font-weight: 600; }
+  .radio.on.alarm .rdot { border-color: var(--danger); }
+  .radio.on.alarm .rdot::after { background: var(--danger); }
+  .crit-chip {
+    display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
+    border-radius: 999px; background: var(--danger-weak); border: 1px solid #f3c6c6;
+    font-size: 11px; color: var(--danger); font-weight: 600;
+  }
+  .echo-txt { color: var(--ink-3); font-size: 12.5px; }
+  .sign-strip {
+    display: flex; justify-content: space-between; gap: 14px; margin-top: 16px; padding-top: 12px;
+    border-top: 1px solid var(--line-strong); font-size: 12.5px; color: var(--ink-2);
+  }
+  .sign-strip .sig-slot .k { color: var(--ink-3); margin-right: 6px; }
+  .sign-strip .sig { color: var(--ink); font-family: var(--serif-cn); font-style: italic; font-size: 15px; }
+  .sign-strip .sig.empty { color: var(--ink-3); font-style: normal; font-size: 12px; }
+  .sign-strip .sig.pending {
+    font-style: normal; font-size: 11.5px; color: var(--ink-3);
+    border: 1px dashed var(--line-strong); border-radius: 999px; padding: 2px 10px;
+  }
+
+  /* ── 右 side：模板库 + 影像 ── */
+  .side { flex: 0 0 316px; width: 316px; }
+  .side-block { display: flex; flex-direction: column; min-height: 0; }
+  .side-block.tpl { flex: 3; border-bottom: 1px solid var(--line); }
+  .side-block.img { flex: 2; }
+  .side-head {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border-bottom: 1px solid var(--line); background: #fbfcfe; flex-wrap: wrap;
+  }
+  .side-head .st { font-size: 12.5px; font-weight: 600; }
+  .stabs { display: inline-flex; gap: 2px; background: var(--gray-weak); border-radius: 6px; padding: 2px; }
+  .stab {
+    height: 22px; padding: 0 10px; border-radius: 5px; font-size: 11.5px;
+    display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); cursor: pointer; user-select: none;
+  }
+  .stab.on { background: #fff; color: var(--primary); font-weight: 600; box-shadow: 0 1px 2px rgba(15,33,82,.08); }
+  .stab .n { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  .stab.on .n { color: var(--primary); }
+  .side-head .hs-btn { margin-left: auto; }
+  .hbtn {
+    height: 24px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--line-strong);
+    background: #fff; font-size: 11.5px; color: var(--ink-2); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px; user-select: none;
+  }
+  .hbtn:hover { color: var(--primary); border-color: var(--primary); }
+  .hbtn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .hbtn.primary:hover { background: var(--primary-deep); color: #fff; }
+  .hbtn svg { width: 11px; height: 11px; }
+
+  .tree-search { padding: 8px 10px 4px; }
+  .tree-search .input { width: 100%; height: 26px; font-size: 12px; }
+  .tree { flex: 1; overflow-y: auto; min-height: 0; padding: 4px 10px 8px; font-size: 12.5px; }
+  .tgrp { display: flex; align-items: center; gap: 5px; padding: 6px 4px; color: var(--ink-2); font-weight: 600; cursor: pointer; }
+  .tgrp .caret { font-size: 9px; color: var(--ink-3); transition: transform .15s; }
+  .tgrp.closed .caret { transform: rotate(-90deg); }
+  .tleaf {
+    display: flex; align-items: center; gap: 6px; padding: 6px 8px 6px 22px;
+    border-radius: 6px; cursor: pointer; position: relative;
+  }
+  .tleaf:hover { background: #f7f9fd; }
+  .tleaf.cur { background: var(--primary-weak); }
+  .tleaf .tname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tleaf.cur .tname { color: var(--primary); font-weight: 600; }
+  .tleaf .tsec { font-size: 10.5px; color: var(--ink-3); font-family: var(--mono); flex: none; }
+  .tleaf .leaf-ops { display: none; gap: 8px; flex: none; font-size: 11.5px; }
+  .tleaf:hover .leaf-ops, .tleaf.cur .leaf-ops { display: inline-flex; }
+  .tleaf .leaf-ops .op { color: var(--primary); cursor: pointer; }
+  .tleaf .leaf-ops .op.ghost { color: var(--ink-3); }
+  .tleaf .leaf-ops .op.ghost:hover { color: var(--primary); }
+  .tpl-foot {
+    padding: 7px 10px; border-top: 1px solid var(--line); background: #fbfcfe;
+    display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--ink-3);
+  }
+  .tpl-foot .link { color: var(--primary); cursor: pointer; }
+
+  /* 影像面板 */
+  .igrid-wrap { flex: 1; overflow-y: auto; min-height: 0; padding: 9px 10px; }
+  .igrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+  .ithumb {
+    position: relative; border-radius: 6px; overflow: hidden; border: 2px solid transparent;
+    cursor: pointer; aspect-ratio: 4 / 3; background: #0a1120;
+  }
+  .ithumb svg { width: 100%; height: 100%; display: block; }
+  .ithumb.pinned { border-color: var(--primary); box-shadow: 0 1px 6px rgba(43, 95, 217, .25); }
+  .ithumb .ino {
+    position: absolute; right: 3px; bottom: 3px; min-width: 15px; height: 15px; padding: 0 3px;
+    background: var(--primary); color: #fff; border-radius: 4px; font-size: 9.5px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center; font-family: var(--mono);
+  }
+  .ithumb .iun {
+    position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%;
+    background: rgba(220, 38, 38, .92); color: #fff; font-size: 10px; border: none; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+  }
+  .ithumb:hover .iun { display: inline-flex; }
+  .ithumb .iun2 {
+    position: absolute; right: 3px; top: 3px; width: 18px; height: 18px; border-radius: 5px;
+    background: rgba(15, 33, 82, .62); color: #fff; font-size: 10px; border: none; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+  }
+  .ithumb:hover .iun2 { display: inline-flex; }
+  .vrow {
+    display: flex; align-items: center; gap: 8px; padding: 6px 7px; border: 1px solid var(--line);
+    border-radius: 7px; margin-top: 7px; cursor: pointer;
+  }
+  .vrow:hover { background: #f7f9fd; }
+  .vthumb { position: relative; width: 58px; height: 38px; border-radius: 5px; overflow: hidden; flex: none; background: #0a1120; }
+  .vthumb svg { width: 100%; height: 100%; display: block; }
+  .vthumb .play {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,.9); font-size: 14px;
+  }
+  .vmeta { flex: 1; min-width: 0; font-size: 11.5px; color: var(--ink-2); }
+  .vmeta .vd { font-family: var(--mono); color: var(--ink-3); font-size: 10.5px; margin-top: 2px; }
+  .img-foot {
+    padding: 6px 10px; border-top: 1px solid var(--line); background: #fbfcfe;
+    font-size: 10.5px; color: var(--ink-3); line-height: 1.6;
+  }
+
+  /* ═══ 贰 · 浮窗 mock ═══ */
+  .mock-zone { display: grid; grid-template-columns: 1.25fr 1fr; gap: 22px; align-items: start; }
+  .mock-tag { display: flex; align-items: center; gap: 9px; font-size: 12.5px; margin-bottom: 9px; }
+  .mock-tag .tag-no {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--ink); color: #f6f8fa;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-family: var(--mono);
+  }
+  .mock-tag b { letter-spacing: .05em; }
+  .mock-tag span { color: var(--ink-2); font-size: 12px; }
+  .fwin {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 14px 44px rgba(15, 33, 82, .18); overflow: hidden;
+  }
+  .fwin-head {
+    display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
+    background: var(--primary); color: #fff; font-size: 12.5px; font-weight: 600;
+  }
+  .fwin-head .who { font-weight: 400; font-size: 11.5px; opacity: .85; margin-left: 6px; }
+  .fwin-head .fops { margin-left: auto; display: inline-flex; gap: 4px; }
+  .fwin-head .fop {
+    width: 22px; height: 22px; border-radius: 5px; border: none; background: rgba(255,255,255,.14);
+    color: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 11px;
+  }
+  .fwin-head .fop:hover { background: rgba(255,255,255,.26); }
+  .cam-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .cam-view { position: relative; border-radius: 8px; overflow: hidden; background: #0a1120; aspect-ratio: 4 / 3; }
+  .cam-view svg { width: 100%; height: 100%; display: block; }
+  .cam-view .scanline {
+    position: absolute; left: 8%; right: 8%; top: 18%; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(143,162,196,.85), transparent);
+    animation: sweep 3.4s ease-in-out infinite alternate;
+  }
+  @keyframes sweep { from { top: 20% } to { top: 74% } }
+  .cam-view .rec {
+    position: absolute; left: 10px; top: 10px; display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(10, 17, 32, .55); color: #fff; border-radius: 999px; padding: 3px 10px; font-size: 11px;
+  }
+  .cam-view .rec .rdot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); animation: blink 1.1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: .25 } }
+  .cam-view .rec .t { font-family: var(--mono); }
+  .cam-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 13px;
+    font-size: 12.5px; border-radius: 6px; border: 1px solid var(--line-strong);
+    background: #fff; color: var(--ink); cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--primary); color: var(--primary); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn.primary:hover { background: var(--primary-deep); color: #fff; }
+  .btn.rec-on { border-color: #f3c6c6; color: var(--danger); background: #fff; }
+  .btn.rec-on:hover { background: var(--danger-weak); color: var(--danger); border-color: #f3c6c6; }
+  .cam-count { font-size: 11.5px; color: var(--ink-3); margin-left: auto; }
+  .cam-strip { display: flex; gap: 7px; }
+  .cam-strip .sthumb { position: relative; width: 74px; height: 54px; border-radius: 5px; overflow: hidden; border: 1.5px solid var(--line-strong); }
+  .cam-strip .sthumb svg { width: 100%; height: 100%; display: block; }
+  .cam-strip .sthumb .sno { position: absolute; right: 2px; bottom: 2px; min-width: 14px; height: 14px; padding: 0 3px; background: var(--primary); color: #fff; border-radius: 3px; font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; font-family: var(--mono); }
+  /* 最小化悬挂小卡 */
+  .hang {
+    width: 200px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line);
+    box-shadow: var(--shadow); background: #fff; margin-top: 14px; display: inline-flex; flex-direction: column;
+  }
+  .hang .hg-head {
+    display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px;
+    background: var(--primary); color: #fff; font-size: 11px; font-weight: 600;
+  }
+  .hang .hg-head .hops { margin-left: auto; display: inline-flex; gap: 3px; }
+  .hang .hg-head .hop { width: 18px; height: 18px; border-radius: 4px; background: rgba(255,255,255,.14); color: #fff; border: none; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+  .hang .hg-body { padding: 6px 9px 7px; font-size: 11px; color: var(--ink-2); line-height: 1.7; }
+  .hang .hg-body b { color: var(--ink); }
+  /* 锁冲突遮罩 mock */
+  .lockmock { position: relative; height: 260px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+  .lockmock .lm-under { filter: blur(7px) saturate(.9); transform: scale(1.01); pointer-events: none; height: 100%; background: #eef1f7; padding: 14px; }
+  .lockmock .lm-under .lm-card { background: #fff; border: 1px solid var(--line); border-radius: 8px; height: 100%; padding: 12px; color: var(--ink-3); font-size: 12px; }
+  .lockmock .lm-under .lm-card .ln { width: 55%; height: 11px; border-radius: 4px; background: #dfe5ef; margin-bottom: 9px; }
+  .lockmask {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    background: rgba(255, 255, 255, .55); backdrop-filter: blur(3px); text-align: center; padding: 0 26px;
+  }
+  .lockmask .lm-msg { font-size: 14px; color: var(--danger); font-weight: 600; line-height: 1.8; }
+  .lockmask .lm-sub { font-size: 12px; color: var(--ink-2); line-height: 1.7; }
+  .lockmask .lm-exit {
+    margin-top: 2px; height: 30px; padding: 0 22px; border-radius: 6px; border: 1px solid var(--primary);
+    background: var(--primary); color: #fff; font-size: 12.5px; cursor: pointer;
+  }
+
+  /* ═══ 叁 · 打印纸 ═══ */
+  .sheet-zone { display: flex; gap: 26px; align-items: flex-start; }
+  .sheet {
+    background: #fff; border: 1px solid var(--line); flex: 0 0 620px;
+    box-shadow: 0 2px 3px rgba(28,39,51,.06), 0 14px 34px rgba(28,39,51,.13);
+    padding: 30px 34px 24px; font-family: var(--serif-cn); position: relative;
+  }
+  .sheet * { font-family: inherit; }
+  .rp-hospital { text-align: center; font-size: 20px; letter-spacing: .34em; font-weight: 700; color: var(--primary-deep); }
+  .rp-sub { text-align: center; font-size: 14px; letter-spacing: .5em; color: var(--ink); margin-top: 6px; font-weight: 600; }
+  .rp-rule { height: 2px; background: var(--ink); margin: 12px 0 0; }
+  .rp-rule.thin { height: 1px; background: var(--line-strong); margin-top: 2px; }
+  .rp-meta {
+    display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between;
+    gap: 4px 18px; padding: 9px 2px 7px; font-size: 12.5px; color: var(--ink);
+  }
+  .rp-meta .k { color: var(--ink-soft, #5b6b7a); margin-right: 4px; }
+  .rp-meta .v { font-family: Georgia, "Times New Roman", serif; letter-spacing: .02em; }
+  .rp-imgs { display: flex; gap: 12px; justify-content: center; margin: 6px 0 4px; }
+  .rp-imgs .rpi {
+    width: 168px; height: 124px; border: 1px solid var(--line-strong); border-radius: 4px; overflow: hidden;
+    position: relative; background: #0a1120;
+  }
+  .rp-imgs .rpi svg { width: 100%; height: 100%; display: block; }
+  .rp-imgs .rpi .rno { position: absolute; right: 4px; bottom: 4px; min-width: 16px; height: 16px; padding: 0 4px; background: rgba(255,255,255,.85); color: var(--ink); border-radius: 3px; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; font-family: var(--mono); }
+  .rp-block-title { font-size: 14px; font-weight: 700; letter-spacing: .2em; margin: 12px 0 6px; display: flex; align-items: center; gap: 8px; }
+  .rp-block-title::before { content: "▎"; color: var(--primary-deep); font-size: 13px; }
+  .rp-prose { font-size: 13px; line-height: 1.95; text-align: justify; color: var(--ink); }
+  .rp-prose .sec-name { font-weight: 700; }
+  .rp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 3px 0 5px; }
+  .rp-table th {
+    border-top: 1.5px solid var(--ink); border-bottom: 1px solid var(--ink);
+    padding: 4px 8px; font-weight: 600; letter-spacing: .14em; font-size: 11.5px; text-align: left;
+  }
+  .rp-table td { border-bottom: 1px solid var(--line); padding: 4.5px 8px; }
+  .rp-table td.num { font-family: "SF Mono", "Menlo", monospace; font-size: 11.5px; }
+  .rp-table tr.over td.num.actual { color: var(--danger); font-weight: 700; }
+  .rp-opinion {
+    margin-top: 10px; border: 1px solid var(--line-strong); padding: 9px 13px;
+    font-size: 13px; line-height: 1.9; background: #fcfcf9;
+  }
+  .rp-sign {
+    display: flex; justify-content: space-between; margin-top: 20px; padding-top: 10px;
+    border-top: 1px solid var(--line-strong); font-size: 12px; color: #5b6b7a;
+  }
+  .rp-sign .sig { color: var(--ink); font-family: Georgia, serif; font-style: italic; font-size: 14px; }
+  .rp-footnote { text-align: center; margin-top: 12px; font-size: 10.5px; letter-spacing: .3em; color: #94a3b3; }
+  .sheet-notes { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0; }
+  .notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .note {
+    background: #fff; border: 1px solid var(--line); border-left: 3px solid var(--primary);
+    border-radius: 8px; padding: 11px 14px; font-size: 12.5px; line-height: 1.8; color: var(--ink-2);
+  }
+  .note b { color: var(--ink); }
+  .note.dim { border-left-color: var(--line-strong); background: #fbfcfe; }
+
+  /* ═══ 肆 · 拍板点 ═══ */
+  .decisions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+  .decision {
+    background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 15px 18px;
+    box-shadow: var(--shadow);
+  }
+  .d-no { font-size: 11px; letter-spacing: .18em; color: var(--ink-3); font-weight: 700; }
+  .decision h3 { font-size: 14px; margin: 4px 0 7px; }
+  .decision p { font-size: 12.5px; color: var(--ink-2); line-height: 1.8; }
+  .opt {
+    display: inline-flex; align-items: center; height: 24px; padding: 0 11px; margin: 3px 8px 5px 0;
+    border: 1px solid var(--line-strong); border-radius: 999px; font-size: 12px; color: var(--ink-2); background: #fff;
+  }
+  .opt.picked { background: var(--primary-weak); border-color: var(--primary); color: var(--primary); font-weight: 600; }
+  .rec { display: block; font-size: 12px; color: var(--green); font-weight: 600; margin-top: 5px; }
+  .range-card {
+    background: #fbfcfe; border: 1px dashed var(--line-strong); border-radius: 10px;
+    padding: 13px 18px; margin-top: 14px; font-size: 12.5px; color: var(--ink-2); line-height: 2;
+  }
+  .range-card b { color: var(--ink); }
+  .range-card .from { text-decoration: line-through; text-decoration-color: rgba(148,163,184,.55); color: var(--ink-3); }
+  .endnote { margin-top: 40px; font-size: 12px; color: var(--ink-3); text-align: center; line-height: 1.8; }
+
+  @media (max-width: 1280px) {
+    .workbench { height: auto; }
+    .rail { flex: none; width: 100%; flex-basis: auto; }
+    .side { display: none; }
+    .mock-zone { grid-template-columns: 1fr; }
+    .sheet-zone { flex-direction: column; }
+    .sheet { flex: none; width: 100%; max-width: 640px; }
+    .decisions { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══ 页头 ═══ -->
+  <div class="masthead">
+    <h1>US 工作站 · <em>诊断页</em>（报告书写）原型 <span style="font-size:14px;color:var(--ink-3);font-weight:500">v1</span></h1>
+    <span class="badge hot">三栏书写工作台</span>
+    <span class="badge">参照 EIS 超声报告页 + lumen 分节模板模型</span>
+    <span class="badge">演示数据 · 非权威</span>
+    <div class="lead">
+      EIS 超声报告页的<b>三栏骨架原样保留</b>：左 待诊列表 / 中 报告纸面 + tile 动作条 / 右 模板库 + 影像采集；
+      5s 自动保存、锁冲突毛玻璃遮罩、双击贴图 + 编号角标也是 EIS 同款。最大的替换点是<b>报告体</b>：
+      EIS 是 所见/意见 两个自由文本框，lumen 按 2026-11-20 已定稿的<b>分节模板模型</b>走——节卡片
+      （节名 + 测值表 + 节所见）+ 总意见，打印即 B 测值表式。状态机映射 lumen 单据状态：
+      已登记=待诊断 → 处理中=诊断中（进页即锁）→ 已完成；已打印是已完成上的子状态（卡片打标）。
+      整页<b>锁视口</b>（2026-11-25 ruling），滚动吞进各卡内。
+    </div>
+  </div>
+
+  <!-- ═══ 壹 · 整页诊断工作台 ═══ -->
+  <div class="section-eyebrow"><strong>壹 · 整页诊断工作台</strong>左 待诊列表 + 中 报告纸面 + 右 模板库/影像（EIS 骨架 · 锁视口）</div>
+
+  <div class="workbench">
+
+    <!-- ── 左 rail ── -->
+    <aside class="rail wb-card">
+      <div class="rail-head">
+        <div class="datenav">
+          <span class="nav-b">‹</span>
+          <b>2026-11-26</b> <span class="today">周四 · 今日</span>
+          <span class="nav-b">›</span>
+        </div>
+        <div class="spacer"></div>
+        <div class="mini-refresh">自动刷新 <span class="mini-switch on"></span></div>
+      </div>
+      <div class="rail-chips" id="chips">
+        <span class="schip on-blue" data-chip>待诊断 <span class="n">5</span></span>
+        <span class="schip" data-chip>诊断中 <span class="n">1</span></span>
+        <span class="schip" data-chip>已完成 <span class="n">12</span></span>
+        <span class="schip" data-chip>已打印 <span class="n">7</span></span>
+        <div class="rail-search"><span class="input"><span class="ph">姓名 / 检查号 / 影像号</span></span></div>
+      </div>
+      <div class="rail-cards" id="ocards">
+
+        <div class="ocard cur">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">张建国</span><span class="rp-tag">男 · 56岁</span></span>
+            <span class="tail">
+              <span class="rchip st-doing">诊断中</span>
+              <span class="rchip" style="background:var(--primary-weak);color:var(--primary)">我 · 锁定</span>
+            </span>
+          </div>
+          <div class="ocard-items">超声心动图（成人常规）</div>
+          <div class="ocard-ids">P0000873 · US20261126003</div>
+          <div class="ocard-times"><span><span class="tl">登记</span><span class="tv">09:58</span></span><span><span class="tl">进入</span><span class="tv">10:02</span></span></div>
+        </div>
+
+        <div class="ocard">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">李强</span><span class="rp-tag">男 · 58岁</span><span class="rp-tag emg">急诊</span></span>
+            <span class="tail"><span class="rchip st-wait">待诊断</span><span class="rops"><button class="ract" title="呼叫"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 2.5h2.6l1.2 3.2-1.7 1.4a10 10 0 0 0 3.8 3.8l1.4-1.7 3.2 1.2V13a1.5 1.5 0 0 1-1.6 1.5A11.5 11.5 0 0 1 1.5 4.1 1.5 1.5 0 0 1 3 2.5Z"/></svg></button></span></span>
+          </div>
+          <div class="ocard-items">肝胆胰脾肾常规</div>
+          <div class="ocard-ids">P0000881 · US20261126005</div>
+          <div class="ocard-times"><span><span class="tl">登记</span><span class="tv">09:41</span></span></div>
+        </div>
+
+        <div class="ocard">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">王秀兰</span><span class="rp-tag">女 · 67岁</span></span>
+            <span class="tail"><span class="rchip st-wait">待诊断</span></span>
+          </div>
+          <div class="ocard-items">甲状腺 · 颈部淋巴结</div>
+          <div class="ocard-ids">P0000879 · US20261126004</div>
+          <div class="ocard-times"><span><span class="tl">登记</span><span class="tv">10:15</span></span></div>
+        </div>
+
+        <div class="ocard">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">刘芳</span><span class="rp-tag">女 · 29岁</span><span class="rp-tag preg">孕12周⁺³</span></span>
+            <span class="tail"><span class="rchip st-wait">待诊断</span></span>
+          </div>
+          <div class="ocard-items">胎儿 NT（孕11-13⁺⁶）</div>
+          <div class="ocard-ids">P0000884 · US20261126006</div>
+          <div class="ocard-times"><span><span class="tl">登记</span><span class="tv">10:28</span></span></div>
+        </div>
+
+        <div class="ocard">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">赵德柱</span><span class="rp-tag">男 · 45岁</span></span>
+            <span class="tail"><span class="rchip st-wait">待诊断</span></span>
+          </div>
+          <div class="ocard-items">泌尿系（双肾 · 膀胱 · 前列腺）</div>
+          <div class="ocard-ids">P0000885 · US20261126007</div>
+          <div class="ocard-times"><span><span class="tl">登记</span><span class="tv">10:33</span></span></div>
+        </div>
+
+        <div class="ocard">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">孙浩然</span><span class="rp-tag">男 · 5月龄</span></span>
+            <span class="tail"><span class="rchip st-wait">待诊断</span></span>
+          </div>
+          <div class="ocard-items">髋关节超声（Graf）</div>
+          <div class="ocard-ids">P0000887 · US20261126008</div>
+          <div class="ocard-times"><span><span class="tl">登记</span><span class="tv">10:40</span></span></div>
+        </div>
+
+        <div class="ocard">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">周文斌</span><span class="rp-tag">男 · 61岁</span></span>
+            <span class="tail"><span class="rchip st-done">已完成</span><span class="rchip printed">已打印</span></span>
+          </div>
+          <div class="ocard-items">腹部常规</div>
+          <div class="ocard-ids">P0000870 · US20261126001</div>
+          <div class="ocard-times"><span><span class="tl">登记</span><span class="tv">08:47</span></span><span><span class="tl">完成</span><span class="tv">09:12</span></span></div>
+        </div>
+
+        <div class="ocard">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">郑爱华</span><span class="rp-tag">女 · 52岁</span></span>
+            <span class="tail"><span class="rchip st-done">已完成</span></span>
+          </div>
+          <div class="ocard-items">乳腺 · 腋窝</div>
+          <div class="ocard-ids">P0000872 · US20261126002</div>
+          <div class="ocard-times"><span><span class="tl">登记</span><span class="tv">09:03</span></span><span><span class="tl">完成</span><span class="tv">09:30</span></span></div>
+        </div>
+
+      </div>
+      <div class="rail-foot">
+        <span>今日 25 例 · 待诊 5</span>
+        <span class="pgroup"><span class="pg">‹</span><span class="pg on">1</span><span class="pg">2</span><span class="pg">3</span><span class="pg">›</span></span>
+      </div>
+    </aside>
+
+    <!-- ── 中 bench ── -->
+    <main class="bench wb-card">
+      <div class="bench-top">
+        <div class="tilegrp">
+          <button class="tile" title="暂存当前编辑（EIS 保存/zc）"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2.5 2.5h8.8l2.2 2.6v8.4H2.5z"/><path d="M5 2.5v3.6h5.4V2.5"/><path d="M4.6 13.5v-4h6.8v4"/></svg>保存草稿</button>
+          <button class="tile on-primary" title="提交报告（提交即完成，审核链见拍板①）"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="6.2"/><path d="M5.2 8.4l2 2 3.6-4.3"/></svg>完成报告</button>
+          <button class="tile off" title="完成后可用（拉取 US-{贴图数} 版式打印）"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4.6 5.6V2.4h6.8v3.2"/><rect x="2.4" y="5.6" width="11.2" height="4.6" rx="1"/><path d="M4.6 9.4h6.8v4.2H4.6z"/></svg>打印</button>
+          <button class="tile danger" title="放弃本次编辑，解锁回待诊断（confirm）"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6"/></svg>放弃</button>
+        </div>
+        <div class="tilegrp">
+          <button class="tile" title="查看 HIS 申请单来源"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 1.8h5.4L13 5.4v8.8H4z"/><path d="M9.2 2v3.5H13"/><path d="M6 8.2h4.4M6 10.6h4.4"/></svg>申请单</button>
+          <button class="tile" title="报告操作记录（时间线，内容可插回）"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="6.1"/><path d="M8 4.6V8l2.5 1.7"/></svg>操作记录</button>
+          <button class="tile" title="把当前节区存为个人模板"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4.4 1.8h7.2v12.4L8 11.6l-3.6 2.6z"/></svg>存为模板</button>
+        </div>
+        <div class="tilegrp">
+          <button class="tile warn" title="退出诊断，回列表"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M6.6 2.5H2.8v11h3.8"/><path d="M9.6 4.8l3 3.2-3 3.2"/><path d="M12.5 8H6.2"/></svg>退出</button>
+        </div>
+        <div class="autosave"><span class="dot"></span>编辑内容已自动保存<span class="t">10:26:05</span></div>
+      </div>
+
+      <div class="bench-body">
+        <div class="paper">
+          <div class="paper-watermark">US</div>
+          <div class="paper-title">
+            <span class="paper-status doing">● 处理中</span>
+            <h2>超声检查报告单</h2>
+          </div>
+          <div class="pstrip">
+            <button class="pedit" title="信息修改（改后写回登记单，EIS ModifyInfoDialog 形态）"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M9.6 2.8l3.6 3.6L6 13.6l-3.9.9.9-3.9z"/></svg></button>
+            <div class="pstrip-row">
+              <span class="pf"><span class="k">姓名</span><span class="v strong">张建国</span></span>
+              <span class="pf"><span class="k">性别 · 年龄</span><span class="v">男 · 56岁</span></span>
+              <span class="pf"><span class="k">影像号</span><span class="v mono">P0000873</span></span>
+              <span class="pf"><span class="k">检查号</span><span class="v mono">US20261126003</span></span>
+            </div>
+            <div class="pstrip-row">
+              <span class="pf"><span class="k">检查项目</span><span class="v">超声心动图（成人常规）</span></span>
+              <span class="pf"><span class="k">申请来源</span><span class="v">门诊心血管内科 · 吴一鸣</span></span>
+              <span class="pf"><span class="k">检查室 · 设备</span><span class="v">超声2室 · 彩超3号机</span></span>
+            </div>
+          </div>
+
+          <div class="sec-cap">报告贴图<span class="cap-hint">右侧影像面板双击贴图 / 取消贴图 · 编号 = 采集顺序（拍板④）</span></div>
+          <div class="pimgs">
+            <div class="pimg"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><ellipse cx="40" cy="31" rx="9" ry="7.5" fill="#0b1526" opacity=".82"/><ellipse cx="58" cy="43" rx="8" ry="6.5" fill="#0e1830" opacity=".9"/><ellipse cx="49" cy="52" rx="6" ry="4.5" fill="#0e1830" opacity=".8"/><path d="M25 29q9 4 19 3" stroke="#8fa2c5" stroke-width=".8" opacity=".45" fill="none"/><text x="5" y="9" font-size="6" fill="#8fa2c5" font-family="monospace">A4C</text><text x="5" y="65" font-size="6" fill="#8fa2c5" font-family="monospace">2.5MHz D18</text></svg><span class="no">1</span><button class="unpin" title="取消贴图">✕</button></div>
+            <div class="pimg"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><ellipse cx="44" cy="36" rx="12" ry="8" fill="#0b1526" opacity=".75"/><ellipse cx="60" cy="30" rx="5" ry="8" fill="#0e1830" opacity=".85"/><path d="M26 26q10 6 24 4M28 48q10 3 20 1" stroke="#8fa2c5" stroke-width=".7" opacity=".4" fill="none"/><text x="5" y="9" font-size="6" fill="#8fa2c5" font-family="monospace">PLAX</text><text x="5" y="65" font-size="6" fill="#8fa2c5" font-family="monospace">2.5MHz D18</text></svg><span class="no">2</span><button class="unpin" title="取消贴图">✕</button></div>
+            <div class="pimg"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><circle cx="48" cy="34" r="15" fill="none" stroke="#101b30" stroke-width="4" opacity=".9"/><circle cx="48" cy="34" r="7" fill="#0b1526" opacity=".8"/><text x="5" y="9" font-size="6" fill="#8fa2c5" font-family="monospace">PSAX</text><text x="5" y="65" font-size="6" fill="#8fa2c5" font-family="monospace">2.5MHz D18</text></svg><span class="no">3</span><button class="unpin" title="取消贴图">✕</button></div>
+          </div>
+
+          <div class="sec-cap">分节所见<span class="cap-hint">节区来自模板「超声心动图（成人常规）」套用 · 超差测值自动标红</span></div>
+          <div class="sec-stack">
+            <div class="sec-card">
+              <div class="sc-head">
+                <span class="sc-title">心腔 <span class="no">节 1</span></span>
+                <span class="sc-ops"><span class="op">清空节</span><span class="op danger">删除节</span></span>
+              </div>
+              <div class="sc-body">
+                <div class="m-row">
+                  <span class="m-cell w-label">左房内径（LA）</span>
+                  <span class="m-cell w-unit">mm</span>
+                  <span class="m-cell w-num over">34</span>
+                  <span class="m-ref">参考 19 ~ 40 · 超差</span>
+                  <span class="m-del">✕</span>
+                </div>
+                <div class="m-row">
+                  <span class="m-cell w-label">主动脉根部内径（AO）</span>
+                  <span class="m-cell w-unit">mm</span>
+                  <span class="m-cell w-num">32</span>
+                  <span class="m-ref">参考 20 ~ 37</span>
+                  <span class="m-del">✕</span>
+                </div>
+                <div class="m-findings">左房增大。二尖瓣回声纤细，开放可，CDFI 未见明显反流。</div>
+              </div>
+            </div>
+            <div class="sec-card">
+              <div class="sc-head">
+                <span class="sc-title">心功能 <span class="no">节 2</span></span>
+                <span class="sc-ops"><span class="op">清空节</span><span class="op danger">删除节</span></span>
+              </div>
+              <div class="sc-body">
+                <div class="m-row">
+                  <span class="m-cell w-label">射血分数（EF）</span>
+                  <span class="m-cell w-unit">%</span>
+                  <span class="m-cell w-num">58</span>
+                  <span class="m-ref">参考 50 ~ 75</span>
+                  <span class="m-del">✕</span>
+                </div>
+                <div class="m-row">
+                  <span class="m-cell w-label">短轴缩短率（FS）</span>
+                  <span class="m-cell w-unit">%</span>
+                  <span class="m-cell w-num">30</span>
+                  <span class="m-ref">参考 25 ~ 45</span>
+                  <span class="m-del">✕</span>
+                </div>
+                <div class="m-row">
+                  <span class="m-cell w-label">每搏输出量（SV）</span>
+                  <span class="m-cell w-unit">ml</span>
+                  <span class="m-cell w-num">68</span>
+                  <span class="m-ref">参考 55 ~ 90</span>
+                  <span class="m-del">✕</span>
+                </div>
+                <div class="m-findings">左室壁运动未见明显异常。</div>
+              </div>
+            </div>
+            <div class="add-sec">＋ 添加节</div>
+          </div>
+
+          <div class="sec-cap">影像学意见</div>
+          <div class="op-box">左房增大；心功能指标未见异常。建议随访复查。</div>
+
+          <div class="formrow">
+            <span class="fitem"><span class="fl">记录医生</span><span class="mini-sel">张医生<span class="caret">▾</span></span></span>
+            <span class="fitem"><span class="fl">危急值</span><span class="radios"><span class="radio on"><span class="rdot"></span>不上报</span><span class="radio"><span class="rdot"></span>上报</span></span></span>
+            <span class="fitem"><span class="fl">诊断医生</span><span class="echo-txt">张医生</span></span>
+            <span class="fitem"><span class="fl">诊断时间</span><span class="echo-txt">完成报告后写入</span></span>
+          </div>
+
+          <div class="sign-strip">
+            <span class="sig-slot"><span class="k">报告医师</span><span class="sig">张医生</span></span>
+            <span class="sig-slot"><span class="k">审核医师</span><span class="sig pending">待拍板① 定去留</span></span>
+            <span class="sig-slot"><span class="k">报告时间</span><span class="sig empty">—</span></span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ── 右 side：模板库 + 影像 ── -->
+    <aside class="side wb-card">
+      <div class="side-block tpl">
+        <div class="side-head">
+          <span class="st">模板库</span>
+          <span class="stabs"><span class="stab on">公共模板</span><span class="stab">个人模板</span></span>
+        </div>
+        <div class="tree-search"><span class="input"><span class="ph">搜索模板名</span></span></div>
+        <div class="tree">
+          <div class="tgrp"><span class="caret">▾</span>心脏</div>
+          <div class="tleaf cur"><span class="tname">超声心动图（成人常规）</span><span class="tsec">2节</span><span class="leaf-ops"><span class="op">套用</span><span class="op ghost">预览</span></span></div>
+          <div class="tleaf"><span class="tname">超声心动图（术前评估）</span><span class="tsec">3节</span><span class="leaf-ops"><span class="op">套用</span><span class="op ghost">预览</span></span></div>
+          <div class="tgrp"><span class="caret">▾</span>腹部</div>
+          <div class="tleaf"><span class="tname">肝胆胰脾肾常规</span><span class="tsec">4节</span><span class="leaf-ops"><span class="op">套用</span><span class="op ghost">预览</span></span></div>
+          <div class="tleaf"><span class="tname">泌尿系</span><span class="tsec">3节</span><span class="leaf-ops"><span class="op">套用</span><span class="op ghost">预览</span></span></div>
+          <div class="tgrp"><span class="caret">▾</span>浅表器官</div>
+          <div class="tleaf"><span class="tname">甲状腺 · 颈部淋巴结</span><span class="tsec">2节</span><span class="leaf-ops"><span class="op">套用</span><span class="op ghost">预览</span></span></div>
+          <div class="tleaf"><span class="tname">乳腺 · 腋窝</span><span class="tsec">2节</span><span class="leaf-ops"><span class="op">套用</span><span class="op ghost">预览</span></span></div>
+          <div class="tgrp closed"><span class="caret">▾</span>妇产</div>
+        </div>
+        <div class="tpl-foot"><span>套用 = 按模板重建节区（覆盖前确认）</span><span class="link">存为个人模板</span></div>
+      </div>
+
+      <div class="side-block img">
+        <div class="side-head">
+          <span class="st">影像</span>
+          <span class="stabs"><span class="stab on">图片 <span class="n">12</span></span><span class="stab">视频 <span class="n">2</span></span></span>
+          <span style="margin-left:auto;display:inline-flex;gap:6px">
+            <span class="hbtn primary"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="4.5" width="12" height="9" rx="1.5"/><circle cx="8" cy="9" r="2.4"/><path d="M5.5 4.5l1-1.8h3l1 1.8"/></svg>采集</span>
+            <span class="hbtn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M8 10.5V2.8M4.8 5.6L8 2.6l3.2 3"/><path d="M2.8 10.5v2.7h10.4v-2.7"/></svg>上传</span>
+          </span>
+        </div>
+        <div class="igrid-wrap">
+          <div class="igrid">
+            <div class="ithumb pinned"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><ellipse cx="40" cy="31" rx="9" ry="7.5" fill="#0b1526" opacity=".82"/><ellipse cx="58" cy="43" rx="8" ry="6.5" fill="#0e1830" opacity=".9"/><text x="5" y="9" font-size="6" fill="#8fa2c5" font-family="monospace">A4C</text></svg><span class="ino">1</span><button class="iun" title="取消贴图">✕</button><button class="iun2" title="删除采集图">🗑</button></div>
+            <div class="ithumb pinned"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><ellipse cx="44" cy="36" rx="12" ry="8" fill="#0b1526" opacity=".75"/><ellipse cx="60" cy="30" rx="5" ry="8" fill="#0e1830" opacity=".85"/><text x="5" y="9" font-size="6" fill="#8fa2c5" font-family="monospace">PLAX</text></svg><span class="ino">2</span><button class="iun" title="取消贴图">✕</button><button class="iun2" title="删除采集图">🗑</button></div>
+            <div class="ithumb pinned"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><circle cx="48" cy="34" r="15" fill="none" stroke="#101b30" stroke-width="4" opacity=".9"/><circle cx="48" cy="34" r="7" fill="#0b1526" opacity=".8"/><text x="5" y="9" font-size="6" fill="#8fa2c5" font-family="monospace">PSAX</text></svg><span class="ino">3</span><button class="iun" title="取消贴图">✕</button><button class="iun2" title="删除采集图">🗑</button></div>
+            <div class="ithumb"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 70 L10 18 A62 62 0 0 1 86 18 Z" fill="url(#usT)"/><ellipse cx="38" cy="34" rx="11" ry="8" fill="#0b1526" opacity=".8"/><ellipse cx="62" cy="28" rx="8" ry="5" fill="#101b30" opacity=".8"/><path d="M22 42q12 5 26 3" stroke="#8fa2c5" stroke-width=".8" opacity=".4" fill="none"/><text x="5" y="9" font-size="6" fill="#8fa2c5" font-family="monospace">肝-胆囊</text></svg><button class="iun" title="贴图">＋</button><button class="iun2" title="删除采集图">🗑</button></div>
+            <div class="ithumb"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 70 L10 18 A62 62 0 0 1 86 18 Z" fill="url(#usT)"/><ellipse cx="48" cy="34" rx="14" ry="10" fill="#101b30" opacity=".85"/><ellipse cx="48" cy="34" rx="7" ry="4.5" fill="#0b1526" opacity=".8"/><text x="5" y="9" font-size="6" fill="#8fa2c5" font-family="monospace">右肾</text></svg><button class="iun" title="贴图">＋</button><button class="iun2" title="删除采集图">🗑</button></div>
+            <div class="ithumb"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><rect x="10" y="14" width="76" height="44" rx="4" fill="url(#usT)"/><ellipse cx="34" cy="34" rx="10" ry="9" fill="#0b1526" opacity=".85"/><ellipse cx="34" cy="34" rx="4" ry="3.5" fill="#101b30"/><path d="M14 22h68M14 46h68" stroke="#8fa2c5" stroke-width=".5" opacity=".3"/><text x="13" y="12" font-size="6" fill="#8fa2c5" font-family="monospace">甲腺右叶</text></svg><button class="iun" title="贴图">＋</button><button class="iun2" title="删除采集图">🗑</button></div>
+            <div class="ithumb"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><rect x="10" y="14" width="76" height="44" rx="4" fill="url(#usT)"/><path d="M22 28q16 10 26 2M22 42q18 6 30 0" stroke="#0e1830" stroke-width="3" opacity=".55" fill="none"/><circle cx="62" cy="30" r="5" fill="#0b1526" opacity=".8"/><text x="13" y="12" font-size="6" fill="#8fa2c5" font-family="monospace">乳腺</text></svg><button class="iun" title="贴图">＋</button><button class="iun2" title="删除采集图">🗑</button></div>
+            <div class="ithumb"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 70 L10 18 A62 62 0 0 1 86 18 Z" fill="url(#usT)"/><ellipse cx="48" cy="38" rx="16" ry="9" fill="#0b1526" opacity=".75"/><path d="M30 30q18 8 36 2" stroke="#8fa2c5" stroke-width=".8" opacity=".4" fill="none"/><text x="5" y="9" font-size="6" fill="#8fa2c5" font-family="monospace">膀胱</text></svg><button class="iun" title="贴图">＋</button><button class="iun2" title="删除采集图">🗑</button></div>
+            <div class="ithumb"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><rect x="10" y="14" width="76" height="44" rx="4" fill="url(#usT)"/><path d="M20 40q14-8 28-4t28-6" stroke="#0e1830" stroke-width="2.4" opacity=".7" fill="none"/><circle cx="40" cy="32" r="4" fill="#0b1526"/><text x="13" y="12" font-size="6" fill="#8fa2c5" font-family="monospace">颈总A</text></svg><button class="iun" title="贴图">＋</button><button class="iun2" title="删除采集图">🗑</button></div>
+          </div>
+          <div class="vrow">
+            <span class="vthumb"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><ellipse cx="44" cy="36" rx="12" ry="8" fill="#0b1526" opacity=".75"/></svg><span class="play">▶</span></span>
+            <span class="vmeta">心尖四腔 · 动态<div class="vd">00:42 · 未上传服务器</div></span>
+          </div>
+          <div class="vrow">
+            <span class="vthumb"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><circle cx="48" cy="34" r="14" fill="none" stroke="#101b30" stroke-width="4" opacity=".9"/></svg><span class="play">▶</span></span>
+            <span class="vmeta">胸骨旁短轴 · 动态<div class="vd">00:31 · 未上传服务器</div></span>
+          </div>
+        </div>
+        <div class="img-foot">单击查看大图（大图内双击 = 贴图） · 双击缩略图 = 贴图/取消 · 已贴图蓝框 + 编号<br>编号 = 采集顺序，打印按编号注入版式（拍板④） · 视频随报告归档不参与打印（EIS 同款）</div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- 超声占位图共用渐变 -->
+  <svg width="0" height="0" style="position:absolute"><defs>
+    <linearGradient id="usT" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#22304a"/><stop offset=".55" stop-color="#3d4f6e"/><stop offset="1" stop-color="#5a6c8c"/>
+    </linearGradient>
+  </defs></svg>
+
+  <div class="notes" style="margin-top:14px">
+    <div class="note"><b>动作条启用矩阵</b>：保存草稿 / 完成报告 / 放弃 = 诊断中（处理中）可用；打印 = 已完成可用（拉取 US-{贴图数} 版式，EIS 提交并打印 的组合动作不单设，完成弹打印预览即可）。申请单 / 操作记录 / 存为模板 全程可用。</div>
+    <div class="note"><b>自动保存挪位</b>：EIS 挂在「超声所见」标题旁——lumen 是分节卡片，没有单一所见块，自动保存指示放<b>动作条右端</b>（绿点 + 时间），节区/意见每次变更 5s 落库，仅诊断中生效（EIS 同款）。</div>
+    <div class="note"><b>危急值</b>：radio 上报态整组亮<b>红</b>并出「危急值 · 已上报」chip——红只给临床警示（急诊 tag 用登记页同款橙）。上报后打印版式加危急值标记行。</div>
+    <div class="note"><b>左列表没有排队列</b>：EIS 列表带 排队状态/呼叫 浮窗（叫号域）；lumen 内核叫号未立，列表保留<b>呼叫图标占位</b>，联动见拍板⑤与范围外注记。已完成卡片上的「已打印」是子状态标。</div>
+  </div>
+
+  <!-- ═══ 贰 · 浮窗 ═══ -->
+  <div class="section-eyebrow"><strong>贰 · 采集浮窗与锁冲突</strong>web 摄像头采集（EIS YmCamera 形态）+ 抢占锁毛玻璃遮罩</div>
+
+  <div class="mock-zone">
+
+    <div>
+      <div class="mock-tag"><span class="tag-no">A</span><b>影像采集浮窗</b><span>可拖拽 · 最大化 600×480（窗口设置存 localStorage，EIS 同款）</span></div>
+      <div class="fwin">
+        <div class="fwin-head">
+          影像采集
+          <span class="who">张建国 · 男 · 56岁 · 超声心动图</span>
+          <span class="fops"><button class="fop" title="窗口设置">⚙</button><button class="fop" title="最小化悬挂">—</button><button class="fop" title="关闭">✕</button></span>
+        </div>
+        <div class="cam-body">
+          <div class="cam-view">
+            <svg viewBox="0 0 96 72" preserveAspectRatio="xMidYMid slice"><rect width="96" height="72" fill="#0a1120"/><path d="M48 68 L12 20 A58 58 0 0 1 84 20 Z" fill="url(#usT)"/><ellipse cx="40" cy="32" rx="10" ry="8" fill="#0b1526" opacity=".82"/><ellipse cx="58" cy="44" rx="9" ry="7" fill="#0e1830" opacity=".9"/><path d="M24 30q10 4 22 3" stroke="#8fa2c5" stroke-width=".8" opacity=".45" fill="none"/><text x="5" y="9" font-size="6" fill="#8fa2c5" font-family="monospace">LIVE · 彩超3号机</text><text x="5" y="67" font-size="6" fill="#8fa2c5" font-family="monospace">2.5MHz D18  2026-11-26 10:26</text></svg>
+            <span class="scanline"></span>
+            <span class="rec"><span class="rdot"></span>录像中 <span class="t">00:12</span></span>
+          </div>
+          <div class="cam-foot">
+            <span class="btn rec-on">■ 停止录像</span>
+            <span class="btn primary">📷 采集影像</span>
+            <span class="btn">窗口设置</span>
+            <span class="cam-count">本次已采 4 张（合计 12 张）</span>
+          </div>
+          <div class="cam-strip">
+            <span class="sthumb"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><ellipse cx="40" cy="31" rx="9" ry="7.5" fill="#0b1526" opacity=".82"/></svg><span class="sno">9</span></span>
+            <span class="sthumb"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><ellipse cx="44" cy="36" rx="12" ry="8" fill="#0b1526" opacity=".75"/></svg><span class="sno">10</span></span>
+            <span class="sthumb"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><circle cx="48" cy="34" r="14" fill="none" stroke="#101b30" stroke-width="4" opacity=".9"/></svg><span class="sno">11</span></span>
+            <span class="sthumb"><svg viewBox="0 0 96 72"><rect width="96" height="72" fill="#0a1120"/><path d="M48 70 L10 18 A62 62 0 0 1 86 18 Z" fill="url(#usT)"/><ellipse cx="38" cy="34" rx="11" ry="8" fill="#0b1526" opacity=".8"/></svg><span class="sno">12</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="hang">
+        <div class="hg-head">影像采集 · 最小化<span class="hops"><button class="hop" title="还原">▢</button><button class="hop" title="关闭（重置预采）">✕</button></span></div>
+        <div class="hg-body"><b>张建国 · 男 · 56岁</b><br>超声心动图 · 已采 4 张</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="mock-tag"><span class="tag-no">B</span><b>锁冲突 / 状态过期遮罩</b><span>EIS 状态过期毛玻璃同款，语义换成抢占锁</span></div>
+      <div class="lockmock">
+        <div class="lm-under">
+          <div class="lm-card">
+            <div class="ln"></div><div class="ln" style="width:78%"></div><div class="ln" style="width:40%"></div><div class="ln" style="width:64%"></div><div class="ln" style="width:52%"></div>
+          </div>
+        </div>
+        <div class="lockmask">
+          <div class="lm-msg">该报告已被 李医生 锁定（10:18 起进入诊断）</div>
+          <div class="lm-sub">进报告页即抢占锁定（状态置「诊断中」），保存 / 完成时仍校验锁归属；<br>报告被他人抢走或状态已变更时整页毛玻璃，回列表另选。管理员可后台强解。</div>
+          <button class="lm-exit">退 出</button>
+        </div>
+      </div>
+      <div class="notes" style="margin-top:12px">
+        <div class="note"><b>采集端 = web 摄像头浮窗</b>（拍板③）：拍照 + webm 录像，采集参数（分辨率/裁剪）走设备字典（EIS 同款）；图像 PNG/JPG 独立存储，与 dcm4chee study 无关联。预采：从列表先开浮窗采图（免锁旁路），进报告页自动合并为已贴图。</div>
+        <div class="note"><b>锁语义</b>：进报告页即锁（已登记 → 处理中，记检查开始时间——EIS「首次进报告页置 1100」同构）；保存/完成校验锁归属；放弃/退出解锁回待诊断。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ 叁 · 打印预览 ═══ -->
+  <div class="section-eyebrow"><strong>叁 · 打印预览</strong>US-{贴图数} 版式 · B 测值表式（本例 3 张贴图 → US-3）</div>
+  <div class="sheet-zone">
+
+    <div class="sheet">
+      <div class="rp-hospital">示例人民医院</div>
+      <div class="rp-sub">超声诊断报告单</div>
+      <div class="rp-rule"></div>
+      <div class="rp-rule thin"></div>
+      <div class="rp-meta">
+        <span><span class="k">姓名</span><span class="v">张建国</span></span>
+        <span><span class="k">性别</span>男</span>
+        <span><span class="k">年龄</span><span class="v">56</span> 岁</span>
+        <span><span class="k">影像号</span><span class="v">P0000873</span></span>
+        <span><span class="k">检查号</span><span class="v">US20261126003</span></span>
+        <span><span class="k">检查类型</span>超声心动图</span>
+        <span><span class="k">仪器</span>彩超3号机</span>
+        <span><span class="k">日期</span><span class="v">2026-11-26</span></span>
+      </div>
+      <div class="rp-imgs">
+        <span class="rpi"><svg viewBox="0 0 96 72" preserveAspectRatio="xMidYMid slice"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><ellipse cx="40" cy="31" rx="9" ry="7.5" fill="#0b1526" opacity=".82"/><ellipse cx="58" cy="43" rx="8" ry="6.5" fill="#0e1830" opacity=".9"/></svg><span class="rno">1</span></span>
+        <span class="rpi"><svg viewBox="0 0 96 72" preserveAspectRatio="xMidYMid slice"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><ellipse cx="44" cy="36" rx="12" ry="8" fill="#0b1526" opacity=".75"/></svg><span class="rno">2</span></span>
+        <span class="rpi"><svg viewBox="0 0 96 72" preserveAspectRatio="xMidYMid slice"><rect width="96" height="72" fill="#0a1120"/><path d="M48 66 L16 22 A52 52 0 0 1 80 22 Z" fill="url(#usT)"/><circle cx="48" cy="34" r="15" fill="none" stroke="#101b30" stroke-width="4" opacity=".9"/></svg><span class="rno">3</span></span>
+      </div>
+
+      <div class="rp-block-title">影像学表现</div>
+      <div class="rp-prose" style="font-weight:700">一、心腔</div>
+      <table class="rp-table">
+        <thead><tr><th style="width:38%">名称</th><th style="width:12%">单位</th><th style="width:16%">测值</th><th>参考范围</th></tr></thead>
+        <tbody>
+          <tr class="over"><td>左房内径（LA）</td><td>mm</td><td class="num actual">34</td><td class="num">19 ~ 40</td></tr>
+          <tr><td>主动脉根部内径（AO）</td><td>mm</td><td class="num">32</td><td class="num">20 ~ 37</td></tr>
+        </tbody>
+      </table>
+      <div class="rp-prose">所见：左房增大。二尖瓣回声纤细，开放可，CDFI 未见明显反流。</div>
+
+      <div class="rp-prose" style="font-weight:700; margin-top:9px">二、心功能</div>
+      <table class="rp-table">
+        <thead><tr><th style="width:38%">名称</th><th style="width:12%">单位</th><th style="width:16%">测值</th><th>参考范围</th></tr></thead>
+        <tbody>
+          <tr><td>射血分数（EF）</td><td>%</td><td class="num">58</td><td class="num">50 ~ 75</td></tr>
+          <tr><td>短轴缩短率（FS）</td><td>%</td><td class="num">30</td><td class="num">25 ~ 45</td></tr>
+          <tr><td>每搏输出量（SV）</td><td>ml</td><td class="num">68</td><td class="num">55 ~ 90</td></tr>
+        </tbody>
+      </table>
+      <div class="rp-prose">所见：左室壁运动未见明显异常。</div>
+
+      <div class="rp-opinion">
+        <div class="rp-block-title">影像学意见</div>
+        左房增大；心功能指标未见异常。建议随访复查。
+      </div>
+
+      <div class="rp-sign">
+        <span>报告医师：<span class="sig">张医生</span></span>
+        <span>审核医师：<span class="sig" style="color:#94a3b3;font-style:normal;font-size:12px">——（拍板①）</span></span>
+        <span>记录医生：张医生</span>
+        <span>报告时间：<span class="v" style="font-family:'SF Mono',monospace;font-style:normal;font-size:11.5px">2026-11-26 10:31</span></span>
+      </div>
+      <div class="rp-footnote">示例人民医院 · 超声科</div>
+    </div>
+
+    <div class="sheet-notes">
+      <div class="note"><b>版式名 = US-{贴图数}</b>：EIS「版式外置」思想保留——打印模板按贴图数选版式（US-0/1/2/3…），贴图按编号注入。机制（PDF 表单 vs bookjs HTML）在打印 spec 立项时定，本页只定<b>信息结构</b>。</div>
+      <div class="note"><b>B 测值表式起步</b>：延续 rep-template 2026-11-20 拍板——每节一张测值表（名称/单位/测值/参考），超差值标红，所见文字跟在表下；节序号 一、二、三 与节卡片顺序一致（节排序暂不做，同拍板）。</div>
+      <div class="note dim"><b>签名区</b>：报告医师 / 报告时间 必有；审核医师 槽位是否保留 = 拍板①；记录医生是否上打印 = 拍板②。危急值上报时在意见块下加危急值标记行（红）。</div>
+      <div class="note dim"><b>不做</b>：云胶片二维码（EIS 登记联动之一，lumen v1 无对应模型）；预览打印/直接打印 双按钮合一（打印 tile = 预览 + 确认出纸）。</div>
+    </div>
+  </div>
+
+  <!-- ═══ 肆 · 拍板点 ═══ -->
+  <div class="section-eyebrow"><strong>肆 · 拍板点</strong>NOTES §5.4 遗留裁决 + 本次新范围裁决，定完落提案</div>
+  <div class="decisions">
+    <div class="decision">
+      <span class="d-no">DECISION 01</span>
+      <h3>报告审核链（NOTES §5.4-①）</h3>
+      <span class="opt picked">A 提交即完成</span><span class="opt">B 内核可配置审核级</span>
+      <p>A：提交 = 完成 = 签发（EIS「提交即审核」形态），按钮/状态/签名区都少一档。B：提交 → 待审核 → 签发，走内核统一审核轴（放射同款），签名区出审核医师、完成后才可打印。</p>
+      <span class="rec">建议：v1 A 起步，内核审核轴留接口（B 是配置开关不是新页面）</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 02</span>
+      <h3>记录医生字段（NOTES §5.4-① 附带）</h3>
+      <span class="opt picked">A 保留</span><span class="opt">B 去掉</span>
+      <p>A：报告纸面保留记录医生下拉（必填，默认登录医生、记住上次——EIS typist 同款，代录入场景有用）。B：报告医师恒等于登录人，纸面/打印各少一字段。</p>
+      <span class="rec">建议：A（台旁协助录入是超声科真实场景，成本一个下拉）</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 03</span>
+      <h3>采集端形态（NOTES §5.4-②）</h3>
+      <span class="opt picked">A v1 web 摄像头浮窗</span><span class="opt">B 外接采集盒客户端</span>
+      <p>A：浏览器 getUserMedia 拍照 + webm 录像（EIS YmCamera 等价物），采集参数挂设备字典；预采免锁旁路一并保留。B：采集卡/采集盒走本机客户端，v2 再议。</p>
+      <span class="rec">建议：A（零部署；B 留设备字典字段不动，后换客户端不破契约）</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 04</span>
+      <h3>贴图排版（NOTES §5.4-③）</h3>
+      <span class="opt picked">A 按采集顺序编号</span><span class="opt">B 报告页拖拽排版</span>
+      <p>A：贴图编号=采集顺序，打印按编号注入版式（EIS 等价，纸面贴图区/影像面板一致）。B：纸面贴图区支持拖拽重排，排版自由但打印链路要带自定义顺序。</p>
+      <span class="rec">建议：A 起步（EIS 实锤缺点在 NOTES §4-#10，真实录入有反馈再加 B）</span>
+    </div>
+    <div class="decision">
+      <span class="d-no">DECISION 05</span>
+      <h3>历史对比范围（本次新裁决）</h3>
+      <span class="opt picked">A v1 不做</span><span class="opt">B v1 就要</span>
+      <p>EIS 左列表下半是 历史检查/同名检查 两 Tab + 勾选对比抽屉（跨报告回看）。v1 缺它也能写报告；要上则报告域需补跨单读取接口。</p>
+      <span class="rec">建议：A（列表下半留白位，提案里不建接口，v2 按使用反馈立项）</span>
+    </div>
+    <div class="range-card" style="margin-top:0">
+      <b>范围外（EIS 有、lumen v1 不搬）</b>：<span class="from">HP 阴阳性</span>（胃超声专用，lumen 无此模型）·
+      <span class="from">电子病历 / 随访 / 收藏 tile</span> ·
+      <span class="from">条码打印</span>（本机打印服务）·
+      <span class="from">合并报告控件</span>（内核报告域已有合并报告，US v1 单报告）·
+      <span class="from">叫号浮窗 + 排队状态列</span>（内核叫号域立项时，提交/放弃联动 finish 一并接——EIS uses.ts 联动点已记 NOTES §2.2）。
+    </div>
+  </div>
+
+  <p class="endnote">
+    报告单骨架 / 打印版式以打印 spec 定稿为准 · EIS 参照 = lumen-reference/code/eis-web <code>ultrasonic/report/</code>（深挖笔记 lumen-reference/NOTES-us-workstation.md）·<br>
+    本页数据全部为演示数据 · 节点交互（chips/卡片选中/树折叠）可点按演示
+  </p>
+</div>
+
+<script>
+  // 状态 chips：组内单选（演示用）
+  document.querySelectorAll('#chips [data-chip]').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      document.querySelectorAll('#chips [data-chip]').forEach(function (c) { c.classList.remove('on-blue', 'on-amber', 'on-green'); });
+      chip.classList.add(chip.textContent.indexOf('诊断中') > -1 ? 'on-amber' : (chip.textContent.indexOf('待诊断') > -1 ? 'on-blue' : 'on-green'));
+    });
+  });
+  // 列表卡片：点选高亮（演示用，不触发跳转）
+  document.querySelectorAll('#ocards .ocard').forEach(function (card) {
+    card.addEventListener('click', function () {
+      document.querySelectorAll('#ocards .ocard').forEach(function (c) { c.classList.remove('cur'); });
+      card.classList.add('cur');
+    });
+  });
+  // 模板树：目录折叠 + 叶子选中（演示用）
+  document.querySelectorAll('.tgrp').forEach(function (grp) {
+    grp.addEventListener('click', function () { grp.classList.toggle('closed'); });
+  });
+  document.querySelectorAll('.tleaf').forEach(function (leaf) {
+    leaf.addEventListener('click', function (e) {
+      if (e.target.classList.contains('op')) return;
+      document.querySelectorAll('.tleaf').forEach(function (l) { l.classList.remove('cur'); });
+      leaf.classList.add('cur');
+    });
+  });
+  // radio 演示（危急值组）
+  document.querySelectorAll('.formrow .radios').forEach(function (group) {
+    group.querySelectorAll('.radio').forEach(function (r) {
+      r.addEventListener('click', function () {
+        group.querySelectorAll('.radio').forEach(function (x) { x.classList.remove('on', 'alarm'); });
+        r.classList.add('on');
+        if (r.textContent.indexOf('上报') > -1 && r.textContent.indexOf('不上报') < 0) r.classList.add('alarm');
+      });
+    });
+  });
+</script>
+</body>
+</html>

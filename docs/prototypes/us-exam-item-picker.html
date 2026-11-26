@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US 登记台 · 检查项目选择区重设计原型（演示数据）</title>
+<!--
+  US 登记台「检查信息」项目选择区 UI 原型（非权威，供评审；user request 2026-11-24）：
+  现状 = 常用项目虚线 pill 一排（换行占高、已选仅灰化+✓ 难辨认）+ 右端小「添加项目」
+  按钮（找非常用项必须开弹窗，无就近搜索）。
+  已拍板、本原型仅演示形态的三条（user 2026-11-24）：
+  ① 已选表「删除」文字 → trash icon（ConsoleAction remove = DeleteOutlined 家族）；
+  ② 操作列表头右缘加刷新 icon，与其他页面的 ConsoleTable 家族统一；
+  ③ 「添加项目」入口 → 全宽虚线 block 定式（exam-item 抽屉「添加测量项」同款，
+     dashed + block + 可见文字 + plus icon）——弹窗本体不动，虚线块只是它的入口。
+  两个收敛方案对比：
+  方案 A「速选条收敛」：chip 去虚线改安静实底、已选态改「实心主色+✓ 可点击移除」
+  （toggle 替代灰化禁点）、虚线块入表格下方。
+  方案 B「搜索前置」= A + 节标题行右端就近搜索框（typeahead：名称/代码模糊、
+  回车/点选即加，非常用项不必再开弹窗）。
+  方案 C「左右分栏」（user request 2026-11-24：把常用放到检查项目列表右侧）：
+  已选列表在左、常用速选竖栏在右（定宽 232px、toggle 已选、超长省略），
+  B 的节标题搜索保留 —— 已拍板采纳（user 2026-11-24：不带价签、保持 toggle）。
+  实机已落 lumen-web/src/pages/us/registration/index.tsx（同日）。
+  数据全部为演示数据（演示锚定 2026-11-24 = 今天）；拍板点见文末。
+-->
+<style>
+  :root {
+    --page-bg: #f0f2f7;
+    --card: #ffffff;
+    --line: #e5e9f2;
+    --line-strong: #d4dbe8;
+    --ink: #1f2733;
+    --ink-2: #5b6b85;
+    --ink-3: #94a3b8;
+    --primary: #3178fc;
+    --primary-deep: #1d64e8;
+    --primary-weak: #f0f8ff;
+    --primary-line: #abd1ff;
+    --primary-mid: #e3eeff;
+    --green: #15803d;
+    --green-weak: #ecfdf3;
+    --red: #ff4d4f;
+    --red-weak: #fff1f0;
+    --gray-weak: #f4f6fa;
+    --amber: #b45309;
+    --amber-weak: #fff7e8;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(15, 33, 82, .05), 0 8px 24px rgba(15, 33, 82, .07);
+    --shadow-pop: 0 12px 44px rgba(15, 33, 82, .22);
+    --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    --mono: "SF Mono", "Menlo", "Consolas", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background:
+      radial-gradient(1100px 520px at 12% -6%, #fdfefe 0%, transparent 55%),
+      var(--page-bg);
+    padding: 36px 44px 72px;
+    font-size: 14px;
+  }
+  .page { max-width: 1080px; margin: 0 auto; }
+
+  /* ---------- masthead ---------- */
+  .masthead { padding: 6px 2px 2px; animation: rise .5s ease both; }
+  .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 700; letter-spacing: .18em; color: var(--ink-3);
+  }
+  .kicker::before { content: ""; width: 22px; height: 2px; background: var(--primary); border-radius: 2px; }
+  h1 { font-size: 26px; font-weight: 800; letter-spacing: .01em; margin: 10px 0 6px; }
+  h1 em { font-style: normal; color: var(--primary); }
+  .meta { color: var(--ink-3); font-size: 12.5px; }
+  .meta b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---------- panels ---------- */
+  .panel {
+    margin-top: 30px; background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); border: 1px solid rgba(213, 222, 238, .6);
+    overflow: hidden; animation: rise .55s ease both;
+  }
+  .panel:nth-of-type(1) { animation-delay: .05s; }
+  .panel:nth-of-type(2) { animation-delay: .15s; }
+  .panel:nth-of-type(3) { animation-delay: .25s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  .panel-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 22px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #fbfcff, #f6f8fc);
+  }
+  .scheme-tag {
+    font-size: 12px; font-weight: 800; letter-spacing: .08em;
+    padding: 3px 10px; border-radius: 999px;
+  }
+  .scheme-tag.now { background: var(--gray-weak); color: var(--ink-3); border: 1px solid var(--line-strong); }
+  .scheme-tag.a { background: var(--primary-weak); color: var(--primary-deep); border: 1px solid var(--primary-line); }
+  .scheme-tag.b { background: var(--primary); color: #fff; box-shadow: 0 3px 10px rgba(49, 120, 252, .35); }
+  .scheme-name { font-size: 15px; font-weight: 700; }
+  .scheme-brief { margin-left: auto; color: var(--ink-3); font-size: 12px; }
+
+  /* ---------- the workbench section mock ---------- */
+  .wb { padding: 18px 22px 20px; }
+  .wb-sec {
+    position: relative; display: flex; align-items: center; gap: 8px; margin: 2px 0 12px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--line);
+  }
+  .wb-sec .dot {
+    width: 18px; height: 18px; border-radius: 50%; background: var(--primary);
+    color: #fff; font-size: 11px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .wb-sec .t { font-weight: 700; }
+  .wb-sec .rule { flex: 1; }
+
+  /* 搜索前置（方案 B） */
+  .seek { position: relative; }
+  .seek input {
+    width: 236px; height: 28px; border: 1px solid var(--line-strong); border-radius: 6px;
+    padding: 0 10px 0 28px; font: inherit; font-size: 13px; color: var(--ink);
+    background: #fff; outline: none; transition: border-color .15s, box-shadow .15s, width .2s;
+  }
+  .seek input::placeholder { color: var(--ink-3); }
+  .seek input:focus { border-color: var(--primary); box-shadow: 0 0 0 2.5px rgba(49, 120, 252, .14); width: 300px; }
+  .seek .sicon { position: absolute; left: 9px; top: 7px; width: 14px; height: 14px; color: var(--ink-3); pointer-events: none; }
+  .typeahead {
+    position: absolute; top: 32px; right: 0; width: 340px; z-index: 40;
+    background: #fff; border: 1px solid var(--line-strong); border-radius: 8px;
+    box-shadow: var(--shadow-pop); overflow: hidden; display: none;
+  }
+  .typeahead.open { display: block; animation: pop .16s ease both; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(.99); } to { opacity: 1; transform: none; } }
+  .ta-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; font-size: 14px;
+  }
+  .ta-row:hover, .ta-row.hl { background: var(--primary-weak); }
+  .ta-row .nm { color: var(--ink); }
+  .ta-row .nm b { color: var(--primary-deep); }
+  .ta-row .cd { color: var(--ink-3); font-family: var(--mono); font-size: 11.5px; }
+  .ta-row .bd { color: var(--ink-3); font-size: 12px; }
+  .ta-row .pr { margin-left: auto; font-family: var(--mono); color: var(--ink-2); font-size: 12.5px; }
+  .ta-row.on { cursor: default; opacity: .55; }
+  .ta-row.on::after { content: "已在单内"; font-size: 11px; color: var(--primary); }
+  .ta-empty { padding: 12px; color: var(--ink-3); font-size: 12.5px; text-align: center; }
+
+  /* chips：现状（虚线） */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
+  .chip-now {
+    display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px;
+    border: 1px dashed var(--primary-line); border-radius: 999px;
+    background: var(--primary-weak); color: var(--primary);
+    cursor: pointer; user-select: none; font-size: 13px;
+  }
+  .chip-now.used {
+    border-style: solid; border-color: var(--line-strong); background: var(--gray-weak);
+    color: var(--ink-3); opacity: .5; cursor: default;
+  }
+  .mini-add {
+    margin-left: auto; height: 24px; padding: 0 10px; font: inherit; font-size: 12.5px;
+    border: 1px solid var(--line-strong); border-radius: 6px; background: #fff; color: var(--ink);
+    cursor: pointer;
+  }
+
+  /* chips：新方案（安静实底 + toggle） */
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 12px;
+    border: 1px solid var(--primary-line); border-radius: 999px;
+    background: var(--primary-weak); color: var(--primary);
+    cursor: pointer; user-select: none; font-size: 13px; font-weight: 500;
+    transition: background .15s, transform .12s, box-shadow .15s, color .15s;
+  }
+  .chip:hover { background: var(--primary-mid); transform: translateY(-1px); box-shadow: 0 3px 8px rgba(49, 120, 252, .18); }
+  .chip:active { transform: translateY(0) scale(.97); }
+  .chip .tick { display: none; font-weight: 800; }
+  .chip.on {
+    background: var(--primary); color: #fff; box-shadow: 0 3px 10px rgba(49, 120, 252, .3);
+  }
+  .chip.on:hover { background: var(--primary-deep); }
+  .chip.on .tick { display: inline; }
+  .chip.pop { animation: pop .18s ease; }
+
+  /* 左右分栏（方案 C） */
+  .split { display: flex; gap: 16px; align-items: stretch; }
+  .split-main { flex: 1; min-width: 0; }
+  .rail { flex: none; width: 260px; border-left: 1px solid var(--line); padding-left: 16px; }
+  .rail-label {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    font-size: 12px; font-weight: 700; color: var(--ink-3); letter-spacing: .08em;
+  }
+  .rail-label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .chips.v { flex-direction: column; align-items: stretch; }
+  .chip.w { height: 30px; border-radius: 7px; padding: 0 11px; }
+  .chip.w .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 汇总条 */
+  .sumbar {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--green-weak); border-radius: 5px; padding: 5px 12px; margin-bottom: 6px; font-weight: 600;
+  }
+  .sumbar .cnt { color: var(--primary); margin: 0 3px; }
+
+  /* 项目表 */
+  table.itbl { width: 100%; border-collapse: collapse; }
+  .itbl th {
+    text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-3);
+    padding: 6px 9px; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  .itbl td { padding: 6px 9px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .itbl .price { text-align: right; font-family: var(--mono); font-size: 12.5px; }
+  .itbl .ops { width: 64px; }
+  .itbl th .ops-wrap { display: inline-flex; align-items: center; gap: 6px; }
+  .itbl th .rfr {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border: none; background: transparent; border-radius: 4px;
+    color: var(--primary); cursor: pointer; transition: background .15s;
+  }
+  .itbl th .rfr:hover { background: var(--primary-weak); }
+  .itbl th .rfr svg { width: 12px; height: 12px; }
+  .itbl th .rfr.spin svg { animation: spin .5s ease; }
+  @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+  .del {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border: none; background: transparent; border-radius: 4px;
+    color: var(--ink-3); cursor: pointer; transition: background .15s, color .15s;
+  }
+  .del:hover { background: var(--red-weak); color: var(--red); }
+  .del svg { width: 13px; height: 13px; }
+  .del-txt { color: var(--red); cursor: pointer; font-size: 13px; }
+  .itbl tbody tr { transition: opacity .16s; }
+  .itbl tbody tr.leaving { opacity: 0; }
+  .itbl tbody tr.enter { animation: rowIn .22s ease both; }
+  @keyframes rowIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+  .itbl tbody tr.flash td { animation: flash .6s ease; }
+  @keyframes flash { 0% { background: var(--primary-weak); } 100% { background: transparent; } }
+  .itbl .empty td { color: var(--ink-3); padding: 8px 9px; }
+
+  /* 虚线 block 添加入口 */
+  .add-block {
+    width: 100%; height: 32px; margin-top: 10px;
+    border: 1px dashed var(--primary-line); border-radius: 6px; background: transparent;
+    color: var(--primary); font: inherit; font-size: 13px; font-weight: 500;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    cursor: pointer; transition: background .15s, border-color .15s;
+  }
+  .add-block:hover { background: var(--primary-weak); border-color: var(--primary); }
+  .add-block svg { width: 13px; height: 13px; }
+
+  /* 注释区 */
+  .notes { padding: 12px 22px 16px; border-top: 1px dashed var(--line); background: #fcfdff; }
+  .note { display: flex; gap: 9px; align-items: baseline; padding: 3px 0; color: var(--ink-2); font-size: 12.5px; line-height: 1.7; }
+  .note .n {
+    flex: none; width: 16px; height: 16px; border-radius: 50%; font-size: 10.5px; font-weight: 800;
+    display: inline-flex; align-items: center; justify-content: center; transform: translateY(2px);
+  }
+  .note.good .n { background: var(--green-weak); color: var(--green); }
+  .note.bad .n { background: var(--red-weak); color: var(--red); }
+  .note.fixed .n { background: var(--primary-weak); color: var(--primary-deep); }
+  .note b { color: var(--ink); }
+
+  /* ---------- catalog dialog（mock，弹窗本体与现网一致，仅演示入口通到它） ---------- */
+  .mask {
+    position: fixed; inset: 0; background: rgba(15, 33, 82, .38); backdrop-filter: blur(2px);
+    display: none; align-items: flex-start; justify-content: center; padding-top: 9vh; z-index: 90;
+  }
+  .mask.open { display: flex; animation: fade .18s ease both; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .dlg {
+    width: 620px; max-height: 74vh; display: flex; flex-direction: column;
+    background: #fff; border-radius: 12px; box-shadow: var(--shadow-pop); overflow: hidden;
+    animation: dlgIn .22s cubic-bezier(.2, .9, .3, 1.2) both;
+  }
+  @keyframes dlgIn { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
+  .dlg-head { display: flex; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .dlg-head .t { font-size: 15px; font-weight: 700; }
+  .dlg-x { margin-left: auto; border: none; background: none; color: var(--ink-3); font-size: 17px; cursor: pointer; line-height: 1; }
+  .dlg-x:hover { color: var(--ink); }
+  .dlg-search { padding: 12px 18px 4px; position: relative; }
+  .dlg-search input {
+    width: 100%; height: 30px; border: 1px solid var(--line-strong); border-radius: 6px;
+    padding: 0 10px 0 30px; font: inherit; font-size: 13px; outline: none;
+  }
+  .dlg-search input:focus { border-color: var(--primary); box-shadow: 0 0 0 2.5px rgba(49, 120, 252, .14); }
+  .dlg-search .sicon { position: absolute; left: 28px; top: 20px; width: 14px; height: 14px; color: var(--ink-3); }
+  .dlg-body { flex: 1; overflow: auto; padding: 10px 18px; }
+  .opt {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 7px; cursor: pointer;
+    border: 1px solid transparent; margin-bottom: 2px;
+  }
+  .opt:hover { background: var(--primary-weak); }
+  .opt .box {
+    flex: none; width: 15px; height: 15px; border: 1px solid var(--line-strong); border-radius: 3.5px;
+    display: inline-flex; align-items: center; justify-content: center; color: #fff; transition: all .12s;
+  }
+  .opt.on .box { background: var(--primary); border-color: var(--primary); }
+  .opt.on { background: var(--primary-weak); border-color: var(--primary-line); }
+  .opt .box svg { width: 9px; height: 9px; opacity: 0; }
+  .opt.on .box svg { opacity: 1; }
+  .opt .nm { font-size: 13px; }
+  .opt .nm b { color: var(--primary-deep); }
+  .opt .cd { color: var(--ink-3); font-family: var(--mono); font-size: 11.5px; }
+  .opt .bd { color: var(--ink-3); font-size: 12px; margin-left: auto; }
+  .opt .pr { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); width: 56px; text-align: right; }
+  .dlg-foot { display: flex; align-items: center; padding: 12px 18px; border-top: 1px solid var(--line); background: #fbfcff; }
+  .dlg-foot .picked-n { color: var(--ink-3); font-size: 12.5px; }
+  .dlg-foot .picked-n b { color: var(--primary); }
+  .dlg-foot .btns { margin-left: auto; display: flex; gap: 8px; }
+  .btn { height: 30px; padding: 0 16px; border-radius: 6px; font: inherit; font-size: 13px; cursor: pointer; }
+  .btn.ghost { border: 1px solid var(--line-strong); background: #fff; color: var(--ink); }
+  .btn.main { border: none; background: var(--primary); color: #fff; font-weight: 600; }
+  .btn.main:hover { background: var(--primary-deep); }
+
+  /* toast */
+  .toast {
+    position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: #fff; font-size: 13px; padding: 9px 18px; border-radius: 8px;
+    box-shadow: var(--shadow-pop); opacity: 0; pointer-events: none; transition: all .22s ease; z-index: 99;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---------- 拍板点 ---------- */
+  .decision {
+    margin-top: 34px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 20px 24px; border: 1px solid rgba(213, 222, 238, .6); animation: rise .55s .35s ease both;
+  }
+  .decision h2 { font-size: 15px; margin-bottom: 10px; }
+  .decision h2::before { content: "◆"; color: var(--primary); margin-right: 8px; font-size: 12px; }
+  .d-item { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 13px; line-height: 1.7; }
+  .d-item:last-child { border-bottom: none; }
+  .d-item .k {
+    flex: none; font-weight: 700; color: var(--primary-deep); background: var(--primary-weak);
+    border-radius: 4px; padding: 0 7px; font-size: 12px; height: 20px;
+    display: inline-flex; align-items: center; transform: translateY(2px);
+  }
+  .d-item .v { color: var(--ink-2); }
+  .d-item .v b { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <span class="kicker">LUMENCOLLAB · US REGISTRATION · UI PROTOTYPE</span>
+    <h1>检查项目选择区重设计<em> · 三方案对比</em></h1>
+    <p class="meta">演示数据锚定 <b>2026-11-24</b>（今天）· 非权威供评审 · 三条已拍板形态（icon 删除 / 操作列刷新 / 虚线块入口）在方案 A/B/C 中均已落 · 拍板点见文末</p>
+  </header>
+
+  <!-- ═══════════ 现状 ═══════════ -->
+  <section class="panel">
+    <div class="panel-head">
+      <span class="scheme-tag now">现状</span>
+      <span class="scheme-name">虚线 pill 铺开 + 右端小按钮</span>
+      <span class="scheme-brief">作为对照基线</span>
+    </div>
+    <div class="wb">
+      <div class="wb-sec"><span class="dot">3</span><span class="t">检查信息</span></div>
+      <div class="chips">
+        <span class="chip-now used">腹部超声（肝胆胰脾）✓</span>
+        <span class="chip-now">＋ 颈部血管超声</span>
+        <span class="chip-now">＋ 乳腺超声（含腋窝）</span>
+        <span class="chip-now">＋ 甲状腺超声（含颈部淋巴结）</span>
+        <span class="chip-now">＋ 超声心动图（常规）</span>
+        <span class="chip-now">＋ 妇科超声（经腹）</span>
+        <span class="chip-now">＋ 泌尿系超声（双肾输尿管膀胱）</span>
+        <button class="mini-add">添加项目</button>
+      </div>
+      <div class="sumbar"><span>已选择<span class="cnt">1</span>个检查项目</span><span>合计：¥120.00</span></div>
+      <table class="itbl">
+        <thead><tr><th>检查项目</th><th style="width:150px">检查部位</th><th style="width:88px;text-align:right">单价(元)</th><th class="ops">操作</th></tr></thead>
+        <tbody>
+          <tr><td>腹部超声（肝胆胰脾）</td><td>肝胆胰脾</td><td class="price">120.00</td><td><span class="del-txt">删除</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="notes">
+      <div class="note bad"><span class="n">①</span><span><b>虚线描边 × 7 连发</b>，一行占满换行两行起，视觉噪声大；「添加项目」小按钮孤悬右端，入口弱。</span></div>
+      <div class="note bad"><span class="n">②</span><span><b>已选态 = 灰化 + ✓</b>，与「禁用」混淆——看不出是"已加入"还是"不可用"，且只能去表格里删。</span></div>
+      <div class="note bad"><span class="n">③</span><span>非常用项目（床旁、经阴道…）<b>只能开弹窗</b>找，选择区没有就近搜索。</span></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 方案 A ═══════════ -->
+  <section class="panel">
+    <div class="panel-head">
+      <span class="scheme-tag a">方案 A</span>
+      <span class="scheme-name">速选条收敛</span>
+      <span class="scheme-brief">纯样式收敛、行为不变：chip 可 toggle，虚线块入表格下方</span>
+    </div>
+    <div class="wb">
+      <div class="wb-sec"><span class="dot">3</span><span class="t">检查信息</span></div>
+      <div class="chips" data-scope="a"></div>
+      <div class="sumbar"><span>已选择<span class="cnt">0</span>个检查项目</span><span>合计：¥0.00</span></div>
+      <table class="itbl" data-scope="a">
+        <thead>
+          <tr>
+            <th>检查项目</th><th style="width:150px">检查部位</th><th style="width:88px;text-align:right">单价(元)</th>
+            <th class="ops"><span class="ops-wrap">操作<button class="rfr" title="刷新（壳层 onRefresh，与各列表页统一）" aria-label="刷新列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button></span></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button class="add-block" data-scope="a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>添加项目</button>
+    </div>
+    <div class="notes">
+      <div class="note good"><span class="n">✓</span><span><b>去虚线改安静实底</b>：速选 chip 弱化为底色 pill，选中后翻转为<b>实心主色 + ✓，点击即移除</b>（toggle 替代灰化禁点，速选条同时兼任快捷摘除）。</span></div>
+      <div class="note fixed"><span class="n">①</span><span>「删除」文字 → trash icon，hover 泛红；「操作」表头右缘加刷新 icon——与 ConsoleTable 家族两条不变量对齐（已拍板）。</span></div>
+      <div class="note fixed"><span class="n">②</span><span>「添加项目」→ 全宽虚线 block（抽屉「添加测量项」同款定式），置于表格下方，打开原有目录弹窗（弹窗本体不动）。</span></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 方案 B ═══════════ -->
+  <section class="panel">
+    <div class="panel-head">
+      <span class="scheme-tag a">方案 B</span>
+      <span class="scheme-name">速选条收敛 + 搜索前置</span>
+      <span class="scheme-brief">A 的全部 + 节标题行就近 typeahead，非常用项不必再开弹窗</span>
+    </div>
+    <div class="wb">
+      <div class="wb-sec">
+        <span class="dot">3</span><span class="t">检查信息</span>
+        <span class="rule"></span>
+        <span class="seek">
+          <svg class="sicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="seek-input" type="text" placeholder="搜项目名/代码，回车添加" aria-label="搜索检查项目" autocomplete="off">
+        </span>
+        <div class="typeahead" id="typeahead"></div>
+      </div>
+      <div class="chips" data-scope="b"></div>
+      <div class="sumbar"><span>已选择<span class="cnt">0</span>个检查项目</span><span>合计：¥0.00</span></div>
+      <table class="itbl" data-scope="b">
+        <thead>
+          <tr>
+            <th>检查项目</th><th style="width:150px">检查部位</th><th style="width:88px;text-align:right">单价(元)</th>
+            <th class="ops"><span class="ops-wrap">操作<button class="rfr" title="刷新（壳层 onRefresh，与各列表页统一）" aria-label="刷新列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button></span></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button class="add-block" data-scope="b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>添加项目</button>
+    </div>
+    <div class="notes">
+      <div class="note good"><span class="n">＋</span><span><b>节标题行右端就近搜索</b>：名称/代码模糊匹配（高亮命中段），↑↓ + 回车或点选即加；已选项在候选里标「已在单内」。日常两秒加完，弹窗只留给浏览比价场景。</span></div>
+      <div class="note good"><span class="n">✓</span><span>继承方案 A 全部收敛：chip toggle、icon 删除、操作列刷新、虚线块入口。</span></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 方案 C ═══════════ -->
+  <section class="panel">
+    <div class="panel-head">
+      <span class="scheme-tag b">方案 C ★ 推荐</span>
+      <span class="scheme-name">左右分栏：已选列表在左 · 常用速选栏在右</span>
+      <span class="scheme-brief">按 2026-11-24 指示新增 = B 的就近搜索 + A 的 toggle + 竖排速选栏</span>
+    </div>
+    <div class="wb">
+      <div class="wb-sec">
+        <span class="dot">3</span><span class="t">检查信息</span>
+        <span class="rule"></span>
+        <span class="seek">
+          <svg class="sicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="seek-input-c" type="text" placeholder="搜项目名/代码，回车添加" aria-label="搜索检查项目" autocomplete="off">
+        </span>
+        <div class="typeahead" id="typeahead-c"></div>
+      </div>
+      <div class="split">
+        <div class="split-main">
+          <div class="sumbar"><span>已选择<span class="cnt">0</span>个检查项目</span><span>合计：¥0.00</span></div>
+          <table class="itbl" data-scope="c">
+            <thead>
+              <tr>
+                <th>检查项目</th><th style="width:150px">检查部位</th><th style="width:88px;text-align:right">单价(元)</th>
+                <th class="ops"><span class="ops-wrap">操作<button class="rfr" title="刷新（壳层 onRefresh，与各列表页统一）" aria-label="刷新列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button></span></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <button class="add-block" data-scope="c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>添加项目</button>
+        </div>
+        <div class="rail">
+          <div class="rail-label">常用项目</div>
+          <div class="chips v" data-scope="c"></div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <div class="note good"><span class="n">⇥</span><span><b>已选列表与常用速选并排</b>：速选竖栏彻底消灭换行占高；加项目的视线水平移动不用上下跳；竖排宽度塞得下<b>价签</b>（横排塞不下）。</span></div>
+      <div class="note good"><span class="n">＋</span><span>节标题行就近 typeahead 保留；右栏竖排 pill 同样 <b>toggle 已选</b>（实心主色 + ✓）；超长项目名省略号 + 悬浮全名。</span></div>
+      <div class="note fixed"><span class="n">①②③</span><span>已拍板三条全落：icon 删除、操作列右缘刷新、虚线块入口（左栏表格下方）；常用项数据源仍是 exam_item.is_common。</span></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ 拍板点 ═══════════ -->
+  <section class="decision">
+    <h2>拍板点</h2>
+    <div class="d-item"><span class="k">已拍板</span><span class="v"><b>方案 C 采纳（2026-11-24）</b>：左右分栏；右栏竖排 pill <b>不带价签</b>；chip 已选态保持 <b>实心主色 + ✓，点击 toggle 移除</b>；已拍板三条（icon 删除/操作列刷新/虚线块）全落。实机已实现并过 24/24 套件 + tsc。</span></div>
+    <div class="d-item"><span class="k">分栏细节</span><span class="v">右栏定宽 232px、超长项目名省略号（悬浮显全名）；常用项继续由 <b>exam_item.is_common</b> 驱动，条数多时右栏内部滚动。</span></div>
+    <div class="d-item"><span class="k">留档对照</span><span class="v">A（纯收敛）/ B（横排 + 搜索前置）保留作设计沿革；现状基线展示重构前形态。</span></div>
+    <div class="d-item"><span class="k">虚线块位置</span><span class="v">表格下方（本原型，抽屉「添加测量项」定式）vs chips 行下方（两个加入口相邻）。只影响视觉顺序，行为一致。</span></div>
+    <div class="d-item"><span class="k">已拍板</span><span class="v">① 删除 → trash icon；② 操作表头右缘刷新（壳层 onRefresh）；③ 添加入口 → 虚线 block。本原型仅演示形态，实机改造落到 us/registration 页。</span></div>
+    <div class="d-item"><span class="k">不动</span><span class="v">绿色汇总条、目录弹窗本体、提交登记流——均维持现状；chip 数据源仍是 <b>exam_item.is_common</b>（isCommon），增减成员改库不改前端。</span></div>
+  </section>
+</div>
+
+<!-- ═══════════ 目录弹窗 mock ═══════════ -->
+<div class="mask" id="mask">
+  <div class="dlg">
+    <div class="dlg-head"><span class="t">选择检查项目</span><button class="dlg-x" id="dlg-x" aria-label="关闭">✕</button></div>
+    <div class="dlg-search">
+      <svg class="sicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="dlg-q" type="text" placeholder="项目名称 / 代码" aria-label="搜索项目" autocomplete="off">
+    </div>
+    <div class="dlg-body" id="dlg-body"></div>
+    <div class="dlg-foot">
+      <span class="picked-n">已勾选 <b id="dlg-n">0</b> 项</span>
+      <span class="btns">
+        <button class="btn ghost" id="dlg-cancel">取 消</button>
+        <button class="btn main" id="dlg-ok">确 定</button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- 演示数据（锚定 2026-11-24，共享测试库直录种子同族） ---------------- */
+const COMMON = [
+  { id: 1,  code: 'US0101', name: '颈部血管超声',               body: '颈部血管',           price: 180 },
+  { id: 2,  code: 'US0102', name: '乳腺超声（含腋窝）',         body: '乳腺+腋窝',          price: 160 },
+  { id: 3,  code: 'US0103', name: '甲状腺超声（含颈部淋巴结）', body: '甲状腺+颈部淋巴结',  price: 150 },
+  { id: 4,  code: 'US0104', name: '超声心动图（常规）',         body: '心脏',               price: 220 },
+  { id: 5,  code: 'US0105', name: '妇科超声（经腹）',           body: '子宫+附件',          price: 140 },
+  { id: 6,  code: 'US0106', name: '泌尿系超声（双肾输尿管膀胱）', body: '双肾+输尿管+膀胱',  price: 150 },
+  { id: 7,  code: 'US0107', name: '腹部超声（肝胆胰脾）',       body: '肝胆胰脾',           price: 120 },
+]
+const EXTRA = [
+  { id: 11, code: 'US0201', name: '浅表肿块超声',               body: '浅表包块',   price: 100 },
+  { id: 12, code: 'US0202', name: '阑尾超声',                   body: '右下腹',     price: 110 },
+  { id: 13, code: 'US0203', name: '涎腺超声',                   body: '腮腺+颌下腺', price: 90 },
+  { id: 14, code: 'US0204', name: '淋巴结超声',                 body: '浅表淋巴结', price: 100 },
+  { id: 15, code: 'US0205', name: '妇科超声（经阴道）',         body: '子宫+附件',  price: 160 },
+  { id: 16, code: 'US0206', name: '产科超声（早孕）',           body: '宫内孕囊',   price: 130 },
+  { id: 17, code: 'US0207', name: '超声心动图（床旁）',         body: '心脏',       price: 260 },
+  { id: 18, code: 'US0208', name: '腹部超声（肝胆胰脾肾）',     body: '肝胆胰脾肾', price: 140 },
+  { id: 19, code: 'US0209', name: '髋关节超声（婴幼儿）',       body: '双侧髋关节', price: 170 },
+  { id: 20, code: 'US0210', name: '胸腔积液超声定位',           body: '胸膜腔',     price: 120 },
+]
+const ALL = COMMON.concat(EXTRA)
+const money = (n) => '¥' + n.toFixed(2)
+
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
+
+/* ---------------- 每个方案区独立一份 picked 状态 ---------------- */
+const scopes = {
+  a: { picked: new Set([7]), root: document.querySelector('[data-scope="a"]').closest('.wb') },
+  b: { picked: new Set([7]), root: document.querySelector('[data-scope="b"]').closest('.wb') },
+  c: { picked: new Set([7]), root: document.querySelector('[data-scope="c"]').closest('.wb') },
+}
+
+function renderChips(scope) {
+  const s = scopes[scope]
+  const wrap = s.root.querySelector('.chips')
+  const vertical = wrap.classList.contains('v')
+  wrap.innerHTML = ''
+  COMMON.forEach((item) => {
+    const on = s.picked.has(item.id)
+    const chip = document.createElement('span')
+    chip.className = 'chip' + (on ? ' on' : '') + (vertical ? ' w' : '')
+    chip.setAttribute('role', 'button')
+    chip.setAttribute('aria-label', item.name + (on ? '（已选，点击移除）' : ''))
+    chip.title = on ? '点击移除' : '点击加入'
+    chip.innerHTML = vertical
+      ? `<span class="tick">✓</span><span class="nm">${item.name}</span>`
+      : `<span class="tick">✓</span>${item.name}`
+    chip.addEventListener('click', () => {
+      if (on) removePick(scope, item.id)
+      else addPick(scope, item.id, { popChip: true })
+    })
+    wrap.appendChild(chip)
+  })
+}
+
+function renderTable(scope) {
+  const s = scopes[scope]
+  const tbody = s.root.querySelector('tbody')
+  const rows = ALL.filter((item) => s.picked.has(item.id))
+  tbody.innerHTML = ''
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr class="empty"><td colspan="4">未选择检查项目</td></tr>'
+  } else {
+    rows.forEach((item) => {
+      const tr = document.createElement('tr')
+      tr.innerHTML = `
+        <td>${item.name}</td>
+        <td>${item.body}</td>
+        <td class="price">${item.price.toFixed(2)}</td>
+        <td><button class="del" title="删除" aria-label="删除 ${item.name}">${ICON_TRASH}</button></td>`
+      tr.querySelector('.del').addEventListener('click', () => removePick(scope, item.id))
+      tbody.appendChild(tr)
+    })
+  }
+  const bar = s.root.querySelector('.sumbar')
+  const [cntCell, totalCell] = bar.children
+  cntCell.innerHTML = `已选择<span class="cnt">${rows.length}</span>个检查项目`
+  totalCell.textContent = '合计：' + money(rows.reduce((sum, i) => sum + i.price, 0))
+}
+
+function addPick(scope, id, opt = {}) {
+  const s = scopes[scope]
+  if (s.picked.has(id)) return
+  s.picked.add(id)
+  renderChips(scope)
+  renderTable(scope)
+  const row = s.root.querySelector(`.del[aria-label^="删除"][aria-label$="${ALL.find((i) => i.id === id).name}"]`)
+  const tr = row && row.closest('tr')
+  if (tr) tr.classList.add('enter')
+  if (opt.popChip) {
+    const chip = [...s.root.querySelectorAll('.chip')].find((c) => c.classList.contains('on') && c.textContent.includes(ALL.find((i) => i.id === id).name))
+    if (chip) chip.classList.add('pop')
+  }
+}
+
+function removePick(scope, id) {
+  const s = scopes[scope]
+  if (!s.picked.has(id)) return
+  const name = ALL.find((i) => i.id === id).name
+  const del = [...s.root.querySelectorAll('.del')].find((b) => b.getAttribute('aria-label') === '删除 ' + name)
+  const tr = del && del.closest('tr')
+  const finish = () => { s.picked.delete(id); renderChips(scope); renderTable(scope) }
+  if (tr) { tr.classList.add('leaving'); setTimeout(finish, 150) } else finish()
+}
+
+/* 虚线块 → 目录弹窗（mock，弹窗本体与现网一致） */
+let dlgScope = null
+const dlgSet = new Set()
+const mask = document.getElementById('mask')
+
+function openDialog(scope) {
+  dlgScope = scope
+  dlgSet.clear()
+  scopes[scope].picked.forEach((id) => dlgSet.add(id))
+  document.getElementById('dlg-q').value = ''
+  renderOptions('')
+  updateDlgN()
+  mask.classList.add('open')
+}
+function closeDialog() { mask.classList.remove('open') }
+
+function renderOptions(kw) {
+  const body = document.getElementById('dlg-body')
+  const list = ALL.filter((i) => !kw || i.name.includes(kw) || i.code.toLowerCase().includes(kw.toLowerCase()))
+  if (list.length === 0) { body.innerHTML = '<div class="ta-empty">无匹配项目</div>'; return }
+  body.innerHTML = ''
+  list.forEach((item) => {
+    const on = dlgSet.has(item.id)
+    const div = document.createElement('div')
+    div.className = 'opt' + (on ? ' on' : '')
+    div.setAttribute('role', 'button')
+    div.setAttribute('aria-label', item.name)
+    div.innerHTML = `<span class="box">${ICON_CHECK}</span><span class="nm">${item.name}</span><span class="cd">${item.code}</span><span class="bd">${item.body}</span><span class="pr">${item.price.toFixed(2)}</span>`
+    div.addEventListener('click', () => {
+      dlgSet.has(item.id) ? dlgSet.delete(item.id) : dlgSet.add(item.id)
+      div.classList.toggle('on')
+      updateDlgN()
+    })
+    body.appendChild(div)
+  })
+}
+function updateDlgN() { document.getElementById('dlg-n').textContent = dlgSet.size }
+
+document.querySelectorAll('.add-block').forEach((btn) => btn.addEventListener('click', () => openDialog(btn.dataset.scope)))
+document.getElementById('dlg-q').addEventListener('input', (e) => renderOptions(e.target.value.trim()))
+document.getElementById('dlg-x').addEventListener('click', closeDialog)
+document.getElementById('dlg-cancel').addEventListener('click', closeDialog)
+mask.addEventListener('click', (e) => { if (e.target === mask) closeDialog() })
+document.getElementById('dlg-ok').addEventListener('click', () => {
+  if (dlgScope) {
+    const before = scopes[dlgScope].picked.size
+    scopes[dlgScope].picked.clear()
+    dlgSet.forEach((id) => scopes[dlgScope].picked.add(id))
+    renderChips(dlgScope)
+    renderTable(dlgScope)
+    const added = scopes[dlgScope].picked.size - before
+    toast(added > 0 ? `已添加 ${added} 个项目（演示）` : '勾选未变化（演示）')
+  }
+  closeDialog()
+})
+
+/* 刷新 icon：转一圈 + 行闪一下（壳层 onRefresh 的演示形态） */
+document.querySelectorAll('.rfr').forEach((btn) => btn.addEventListener('click', () => {
+  btn.classList.remove('spin')
+  void btn.offsetWidth
+  btn.classList.add('spin')
+  const tbody = btn.closest('table').querySelector('tbody')
+  tbody.querySelectorAll('tr').forEach((tr) => { tr.classList.remove('flash'); void tr.offsetWidth; tr.classList.add('flash') })
+}))
+
+/* ---------------- 就近 typeahead（方案 B / C 的节标题搜索框） ---------------- */
+function initSeek(inputSel, taSel, scope) {
+  const input = document.querySelector(inputSel)
+  const ta = document.querySelector(taSel)
+  let taList = [], taIdx = -1
+
+  const renderTa = (kw) => {
+    taList = ALL.filter((i) => kw && (i.name.includes(kw) || i.code.toLowerCase().includes(kw.toLowerCase()))).slice(0, 6)
+    taIdx = -1
+    if (!kw || taList.length === 0) {
+      ta.innerHTML = kw ? '<div class="ta-empty">无匹配项目</div>' : ''
+      ta.classList.toggle('open', !!kw)
+      return
+    }
+    ta.innerHTML = ''
+    taList.forEach((item) => {
+      const on = scopes[scope].picked.has(item.id)
+      const div = document.createElement('div')
+      div.className = 'ta-row' + (on ? ' on' : '')
+      const marked = kw ? item.name.split(kw).join('\u0001' + kw + '\u0001').split('\u0001').map((seg) => seg === kw ? `<b>${seg}</b>` : seg).join('') : item.name
+      div.innerHTML = `<span class="cd">${item.code}</span><span class="nm">${marked}</span><span class="bd">${item.body}</span><span class="pr">${item.price.toFixed(2)}</span>`
+      div.addEventListener('click', () => {
+        if (!on) { addPick(scope, item.id); toast(`已加入 ${item.name}（演示）`) }
+        input.value = ''; ta.classList.remove('open')
+      })
+      ta.appendChild(div)
+    })
+    ta.classList.add('open')
+  }
+
+  input.addEventListener('input', (e) => renderTa(e.target.value.trim()))
+  input.addEventListener('keydown', (e) => {
+    if (!ta.classList.contains('open') || taList.length === 0) return
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      taIdx = (taIdx + (e.key === 'ArrowDown' ? 1 : -1) + taList.length) % taList.length
+      ta.querySelectorAll('.ta-row').forEach((r, i) => r.classList.toggle('hl', i === taIdx))
+    } else if (e.key === 'Enter') {
+      const item = taList[taIdx >= 0 ? taIdx : 0]
+      if (!scopes[scope].picked.has(item.id)) { addPick(scope, item.id); toast(`已加入 ${item.name}（演示）`) }
+      input.value = ''; ta.classList.remove('open')
+    } else if (e.key === 'Escape') {
+      input.value = ''; ta.classList.remove('open')
+    }
+  })
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.seek')) ta.classList.remove('open')
+  })
+}
+initSeek('#seek-input', '#typeahead', 'b')
+initSeek('#seek-input-c', '#typeahead-c', 'c')
+
+/* ---------------- toast ---------------- */
+let toastTimer = null
+function toast(msg) {
+  const el = document.getElementById('toast')
+  el.textContent = msg
+  el.classList.add('show')
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1600)
+}
+
+/* 初始渲染 */
+renderChips('a'); renderTable('a')
+renderChips('b'); renderTable('b')
+renderChips('c'); renderTable('c')
+</script>
+</body>
+</html>
