@@ -734,10 +734,8 @@ export interface ExamBody {
   upId: number | null;
   name: string;
   code: string | null;
-  /** 部位 token - the DICOM Body Part Examined defined term (MWL device-facing). */
-  deviceToken?: string | null;
-  /** 拉丁名 - the Latin body name for charset-strict devices (MWL device-facing). */
-  deviceName?: string | null;
+  /** 部位token - the DICOM Body Part Examined defined term (MWL device-facing). */
+  deviceBodyPart?: string | null;
   sort: number | null;
   enable: number;
   remark: string | null;
@@ -755,8 +753,7 @@ export interface CreateExamBodyBody {
   upId?: number | null;
   name: string;
   code?: string | null;
-  deviceToken?: string | null;
-  deviceName?: string | null;
+  deviceBodyPart?: string | null;
   sort?: number | null;
   enable: number;
   remark?: string | null;

@@ -49,14 +49,14 @@ public class ExamBody extends EntityBase {
     private String code;
 
     /**
-     * 部位 token (varchar 32, optional) - the DICOM Body Part Examined defined term
-     * (CHEST / ABDOMEN / LSPINE ...), the device-recognized token the MWL composer
-     * sends verbatim (us-prereg device-fields; the admin UI is the gatekeeper - no
-     * DB constraint, the same leniency as {@code code}).
+     * 部位token (varchar 32, optional) - the DICOM Body Part Examined defined term
+     * (CHEST / ABDOMEN / LSPINE ...), the device-recognized term the MWL composer
+     * sends verbatim (exam-catalog-device-fields; the admin UI is the gatekeeper -
+     * no DB constraint, the same leniency as {@code code}). V54 renamed it from
+     * {@code device_token} ("token" read as an auth token) and dropped the Latin
+     * {@code device_name} column (no MWL consumer).
      */
-    private String deviceToken;
-    /** 拉丁名 (varchar 64, optional) - the Latin body name for charset-strict devices. */
-    private String deviceName;
+    private String deviceBodyPart;
     /** 排序. */
     private Integer sort;
 

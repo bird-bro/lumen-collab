@@ -1,0 +1,19 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+# Phases: proposing -> applying -> verifying -> archived | abandoned (terminal).
+#   debugging side-path: applying -> debugging (3-strike) -> applying | proposing (rewind)
+# Copy into each change directory: openspec/changes/<name>/loop-state.yaml.
+# The global openspec/loop-state.yaml is the legacy shared default - prefer this file.
+phase: archived
+change: exam-body-device-field-cleanup
+current_task: null
+tasks_total: 5
+tasks_done: 5
+retry_count: 0
+debt_count: 0
+debug_attempts: 0
+workflow_mode: full
+artifacts_hash: 4948b77ac632f6bd5ee742ce5661b8f237098504e45b5b4670d863c03ce11558
+contract_hash: null
+execution_mode: Batch Inline
+batches_completed: 0
+last_updated: null

@@ -274,6 +274,54 @@ class AuthExamBodyApiTests extends SettingIntegrationTestBase {
         hardDeleteGroup(group);
     }
 
+    @Test
+    void deviceFieldsEchoAndStayNullable() throws Exception {
+        // exam-body-device-field-cleanup: the single DICOM body-part term rides the
+        // tree list (BodyTreeNode extends the entity); the Latin-name field is gone
+        long ts = System.currentTimeMillis();
+        int group = createGroup("CT", "ut组_设备部位_" + ts, 1);
+
+        ResponseEntity<String> mapped = exchangeJson(HttpMethod.POST, BODIES_URL,
+                body("{\"modality\":\"CT\",\"groupId\":" + group
+                        + ",\"upId\":null,\"name\":\"ut_exb_设备甲_" + ts
+                        + "\",\"code\":\"ut_exb_" + ts + "_d1\","
+                        + "\"deviceBodyPart\":\"HEAD\","
+                        + "\"sort\":1,\"enable\":1}"), fullPermToken());
+        assertEquals("200", parse(mapped).path("code").asText(),
+                "the device-field create must succeed: " + mapped);
+        int withFields = parse(mapped).path("data").asInt(-1);
+        int bare = createBody(group, "CT", "ut_exb_设备乙_" + ts, null);
+
+        JsonNode list = parse(exchangeJson(HttpMethod.GET,
+                BODIES_URL + "/list?modality=CT", null, fullPermToken()));
+        JsonNode mappedNode = findBodyNode(list.path("data"), withFields);
+        assertEquals("HEAD", mappedNode.path("deviceBodyPart").asText(),
+                "the tree node must echo the Body Part term verbatim: " + mappedNode);
+        assertTrue(mappedNode.path("deviceName").isMissingNode(),
+                "the Latin-name field no longer exists on the wire: " + mappedNode);
+        JsonNode bareNode = findBodyNode(list.path("data"), bare);
+        assertTrue(bareNode.path("deviceBodyPart").isNull()
+                        || bareNode.path("deviceBodyPart").isMissingNode(),
+                "a body created without the device field must echo NULL: " + bareNode);
+
+        hardDeleteBody(withFields);
+        hardDeleteBody(bare);
+        hardDeleteGroup(group);
+    }
+
+    private JsonNode findBodyNode(JsonNode nodes, int bodyId) {
+        for (JsonNode node : nodes) {
+            if (node.path("id").asInt(-1) == bodyId) {
+                return node;
+            }
+            JsonNode child = findBodyNode(node.path("children"), bodyId);
+            if (!child.isMissingNode()) {
+                return child;
+            }
+        }
+        return nodes.path(0).path("__missing__");
+    }
+
     private int createGroupWithRemark(String modality, String name, String remark) throws Exception {
         ResponseEntity<String> created = exchangeJson(HttpMethod.POST, GROUPS_URL,
                 body("{\"modality\":\"" + modality + "\",\"name\":\"" + name

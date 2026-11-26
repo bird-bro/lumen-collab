@@ -35,13 +35,9 @@ public class BodyUpdateRequest {
     @ApiModelProperty("部位编码 (absent clears)")
     private String code;
 
-    @ApiModelProperty("部位 token (absent clears - the DICOM Body Part Examined defined "
-            + "term, e.g. CHEST/ABDOMEN/LSPINE, the device-recognized token)")
-    private String deviceToken;
-
-    @ApiModelProperty("拉丁名 (absent clears - the Latin body name for charset-strict "
-            + "devices)")
-    private String deviceName;
+    @ApiModelProperty("部位token (absent clears - the DICOM Body Part Examined defined "
+            + "term, e.g. CHEST/ABDOMEN/LSPINE, the device-recognized term)")
+    private String deviceBodyPart;
 
     @ApiModelProperty("排序 (absent clears)")
     private Integer sort;

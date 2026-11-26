@@ -176,11 +176,11 @@ describe('exam body page - body drawer', () => {
 })
 
 describe('exam body page - name query row', () => {
-  it('maintains the device token/name fields (exam-catalog-device-fields)', async () => {
+  it('maintains the body-part device field (exam-body-device-field-cleanup)', async () => {
     const user = userEvent.setup()
     const withDevice: BodyTreeNode = {
       id: 12, modality: 'CT', groupId: 1, upId: null, name: '甲状腺', code: 'JZX',
-      deviceToken: 'THYROID', deviceName: 'Thyroid', sort: 4, enable: 1, remark: null,
+      deviceBodyPart: 'THYROID', sort: 4, enable: 1, remark: null,
       children: [],
     }
     vi.mocked(bodyApi.listExamBodies).mockResolvedValue([
@@ -190,28 +190,27 @@ describe('exam body page - name query row', () => {
     renderPage()
     await screen.findByText('甲状腺')
 
-    // the table's 设备 column renders the token · Latin name pair
+    // the table's 设备 column renders the single Body Part term
     const thyroidRow = screen.getByText('甲状腺').closest('tr') as HTMLElement
     expect(within(thyroidRow).getByText('THYROID')).toBeInTheDocument()
-    // the token and the Latin name share one compact cell - assert the composite
-    expect(thyroidRow.textContent).toContain('· Thyroid')
+    // the Latin name is gone from the wire and the page
+    expect(thyroidRow.textContent).not.toContain('Thyroid')
     // a blank row shows the em-dash in the 设备 column
     const plainRow = screen.getByText('腹').closest('tr') as HTMLElement
     expect(within(plainRow).getByText('—')).toBeInTheDocument()
 
-    // the drawer echoes the fields and the PUT carries the edits
+    // the drawer echoes the field and the PUT carries the edit
     await user.click(within(thyroidRow).getByRole('button', { name: '编辑' }))
     const tokenInput = await screen.findByLabelText('部位token')
     expect((tokenInput as HTMLInputElement).value).toBe('THYROID')
-    const latinInput = screen.getByLabelText('拉丁名')
-    expect((latinInput as HTMLInputElement).value).toBe('Thyroid')
+    expect(screen.queryByLabelText('拉丁名')).not.toBeInTheDocument()
     await user.clear(tokenInput)
     await user.type(tokenInput, 'NECK')
     await user.click(screen.getByRole('button', { name: /保 存|保存/ }))
     await waitFor(() => {
       expect(bodyApi.updateExamBody).toHaveBeenCalledWith(
         12,
-        expect.objectContaining({ deviceToken: 'NECK', deviceName: 'Thyroid' }),
+        expect.objectContaining({ deviceBodyPart: 'NECK' }),
       )
     })
   })

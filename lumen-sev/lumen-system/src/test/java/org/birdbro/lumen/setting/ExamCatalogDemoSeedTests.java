@@ -1,10 +1,6 @@
 package org.birdbro.lumen.setting;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -19,7 +15,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * V52/UsVocabDictSeedTests + V22/AuthWorkstationSeedTests precedents): V53 seeds
  * the five-table transitive closure (23 groups / 34 bodies / 15 methods / 46 items /
  * 58 links, every row remark-marked 演示种子 2026-11-24) with the reviewed Latin
- * device values, re-execution a row-count no-op.
+ * device values. The V53 re-execution no-op proof was removed by
+ * exam-body-device-field-cleanup (V54): replaying a superseded migration
+ * resurrects its dropped columns (ADD COLUMN IF NOT EXISTS) and poisons the shared
+ * schema - Flyway never re-runs a superseded ledger row, so the scenario is not
+ * real. The data-level replay safety stays proven by the shared DB replaying the
+ * archived migration as a no-op on every fresh install.
  *
  * @author birdbro
  */
@@ -81,13 +82,11 @@ class ExamCatalogDemoSeedTests extends SettingIntegrationTestBase {
             assertEquals(spot[3], row.get("device_desc"),
                     "the " + spot[1] + " reviewed device description");
         }
-        // the body token/name spot pairs (one per modality family)
+        // the body term spot row (one per modality family; the Latin-name column was
+        // dropped by V54 - the body's device field set is the single Body Part term)
         assertEquals("ABDOMEN_UPPER", jdbcTemplate.queryForObject(
-                "SELECT device_token FROM system.exam_body WHERE id = 1011", String.class),
-                "the 肝胆胰脾 DICOM token");
-        assertEquals("Esophagus, stomach and duodenum", jdbcTemplate.queryForObject(
-                "SELECT device_name FROM system.exam_body WHERE id = 1042", String.class),
-                "the 食管胃十二指肠 Latin name");
+                "SELECT device_body_part FROM system.exam_body WHERE id = 1011", String.class),
+                "the 肝胆胰脾 DICOM term");
         // the method device text
         assertEquals("Color Doppler", jdbcTemplate.queryForObject(
                 "SELECT device_desc FROM system.exam_method WHERE id = 812", String.class),
@@ -109,47 +108,5 @@ class ExamCatalogDemoSeedTests extends SettingIntegrationTestBase {
                 + "JOIN system.exam_item i ON m.exam_id = i.id "
                 + "WHERE i.remark = ? AND e.id IS NULL", MARK),
                 "every seeded method link resolves");
-    }
-
-    @Test
-    void seedStatementsReExecuteAsARowCountNoOp() throws Exception {
-        List<Long> before = tableCounts();
-
-        String sql = Files.readString(Path.of(getClass()
-                .getResource("/db/migration/V53__exam_catalog_device_fields.sql").toURI()));
-        for (String statement : splitStatements(sql)) {
-            jdbcTemplate.execute(statement);
-        }
-
-        assertEquals(before, tableCounts(), "the re-executed V53 must be a row-count no-op");
-    }
-
-    private List<Long> tableCounts() {
-        List<Long> counts = new ArrayList<>();
-        for (String table : new String[] {"exam_body_group", "exam_body", "exam_method",
-                "exam_item", "exam_item_method"}) {
-            counts.add(count("SELECT COUNT(*) FROM system." + table));
-        }
-        return counts;
-    }
-
-    /** Splits the migration on `;` after stripping `--` comment lines (the V36 lesson). */
-    private List<String> splitStatements(String sql) throws Exception {
-        List<String> statements = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        for (String line : sql.split("\n")) {
-            if (line.strip().startsWith("--")) {
-                continue;
-            }
-            current.append(line).append('\n');
-            if (line.strip().endsWith(";")) {
-                String stmt = current.toString().trim();
-                if (stmt.length() > 1) {
-                    statements.add(stmt);
-                }
-                current.setLength(0);
-            }
-        }
-        return statements;
     }
 }

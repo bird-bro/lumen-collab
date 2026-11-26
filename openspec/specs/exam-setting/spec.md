@@ -50,16 +50,17 @@ SHALL be unique within its modality among non-deleted rows. Zero physical FKs.
 - **THEN** `exam_body_group` exists with the ruled columns and the per-modality
   unique rule holds for non-deleted rows
 
+<!-- synced from: exam-body-device-field-cleanup 2026-11-26 -->
 ### Requirement: Exam Body Columns
 
 The `system` schema SHALL contain `exam_body` as the body-part registry with `id`
 integer PK, `modality` NOT NULL, `group_id` NOT NULL (convention reference to
 `exam_body_group`), `up_id` NULL (in-group parent body, convention reference),
-`name` NOT NULL, `code`, `device_token` varchar(32) NULL (the DICOM Body Part
-Examined defined term — CHEST / ABDOMEN / LSPINE …, the device-recognized token
-the MWL composer sends verbatim), `device_name` varchar(64) NULL (the Latin body
-name for charset-strict devices), `sort`, `enable`, and the EntityBase audit
-columns. Zero physical FKs.
+`name` NOT NULL, `code`, `device_body_part` varchar(32) NULL (the DICOM Body Part
+Examined defined term — CHEST / ABDOMEN / LSPINE …, the device-recognized term
+the MWL composer sends verbatim), `sort`, `enable`, and the EntityBase audit
+columns. Zero physical FKs. The body's device field set is this single column —
+no Latin-name column exists.
 
 #### Scenario: Body belongs to a group and may nest
 
@@ -70,12 +71,11 @@ columns. Zero physical FKs.
 
 #### Scenario: Body carries the device-facing fields
 
-- **WHEN** an administrator maintains a body with a `deviceToken` and a
-  `deviceName`
-- **THEN** the row stores them verbatim and the admin echo returns them
-- **WHEN** neither is provided
-- **THEN** both columns stay NULL (the Chinese `name` remains the only required
-  identity — the device fields are optional until an administrator fills them)
+- **WHEN** an administrator maintains a body with a `deviceBodyPart`
+- **THEN** the row stores it verbatim and the admin echo returns it
+- **WHEN** it is not provided
+- **THEN** the column stays NULL (the Chinese `name` remains the only required
+  identity — the device field is optional until an administrator fills it)
 
 ### Requirement: Exam Method Columns
 
