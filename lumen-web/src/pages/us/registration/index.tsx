@@ -1875,8 +1875,8 @@ export default function UsRegistrationPage() {
                             aria-label={`${item.exam}${used ? '（已选，点击移除）' : ''}`}
                             title={used ? '点击移除' : '点击加入'}
                             style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 5, height: 30, padding: '0 11px',
-                              fontSize: 13,
+                              display: 'inline-flex', alignItems: 'center', gap: 5, height: 32, padding: '0 11px',
+                              fontSize: 16,
                               borderRadius: 7, border: `1px solid ${used ? token.colorPrimary : token.colorPrimaryBorder}`,
                               background: used ? token.colorPrimary : token.colorPrimaryBg,
                               color: used ? token.colorBgContainer : token.colorPrimary,
