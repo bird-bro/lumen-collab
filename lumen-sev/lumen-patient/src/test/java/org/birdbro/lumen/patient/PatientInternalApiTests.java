@@ -172,6 +172,47 @@ class PatientInternalApiTests extends PatientIntegrationTestBase {
                 "the exact match must return the existing identity WITHOUT a new row");
     }
 
+    // ---------------- the card projection (patient-identity-card-projection task 1.1)
+
+    @Test
+    void resolvedIdentityProjectsTheArchivesLatestCard() throws Exception {
+        long ts = stamp();
+        String idNo = "USB2ID-" + ts;
+        String firstCard = "CARDA-" + ts;
+        String secondCard = "CARDB-" + ts;
+        // archive one: created WITH a card (the resolve-created path persists it)
+        PatientArchiveSaveRequest withCard = saveRequest(
+                PatientUsB2Fixtures.NAME_MARKER + "卡投影" + ts, "01", idNo);
+        withCard.setCardNo(firstCard);
+        PatientMaster seeded = patientArchiveService.create(withCard);
+        PatientUsB2Fixtures.registerArchive(seeded.getId());
+        // the archive accumulates a SECOND card (a later registration) - direct SQL
+        // (higher id = the latest, the server-owned rule under test)
+        jdbcTemplate.update(
+                "INSERT INTO patient_identifier (patient_id, id_type, id_no) "
+                + "VALUES (?, 'card', ?)", seeded.getId(), secondCard);
+
+        // archive two: NO card identifier at all - the null band
+        PatientMaster bare = patientArchiveService.create(saveRequest(
+                PatientUsB2Fixtures.NAME_MARKER + "无卡投影" + ts, "01", "USB2IDB-" + ts));
+        PatientUsB2Fixtures.registerArchive(bare.getId());
+
+        JsonNode withCardResponse = parse(exchangeJson(HttpMethod.POST, RESOLVE_OR_REGISTER_URL,
+                resolveBody("01", idNo, null, null, null, null), TEST_INTERNAL_KEY));
+        assertEquals("MATCHED", withCardResponse.path("data").path("result").asText());
+        // the projection reads the LATEST card identifier (the current visit card),
+        // never the first
+        assertEquals(secondCard,
+                withCardResponse.path("data").path("identity").path("cardNo").asText(null),
+                "the identity projects the archive's LATEST card identifier");
+
+        JsonNode bareResponse = parse(exchangeJson(HttpMethod.POST, RESOLVE_OR_REGISTER_URL,
+                resolveBody("01", "USB2IDB-" + ts, null, null, null, null), TEST_INTERNAL_KEY));
+        assertEquals("MATCHED", bareResponse.path("data").path("result").asText());
+        assertTrue(bareResponse.path("data").path("identity").path("cardNo").isNull(),
+                "a card-less archive projects a NULL cardNo - never a fabricated number");
+    }
+
     // ----------------------- scenario 2: register-new (placeholder + A0715)
 
     @Test

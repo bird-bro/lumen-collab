@@ -1106,3 +1106,24 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
 - 涟漪: 4 个既有 describe beforeEach 统一垫 rooms seam + us-last-room 种子（提交路径全带 roomId，房间专项 describe 自己开空态）
 - jsdom 事故三则（皆 memory 既知家族）: antd 关闭动画 DOM 幽灵（改 getAllByText/按钮缺席断言）; Modal 关闭不卸载内容（同名双节点 -> getAllByText）; 表头列序与数据行错位（修补脚本插错 td 位 -> 列序索引断言经表头定位）
 - L3: vitest 534/534 (36 files) exit 0
+
+## Change: us-nav-calendar-day-counts
+## Execution Mode: Inline
+## Completed: 2026-11-26
+
+### Apply + verify + archive
+- Status: Complete - archived (verify PASS: L1 exit 0; L2 4/4; L3 537/537 after one popconfirm-flake rerun)
+- Loader: ONE pageOrders per displayed-month day (pageSize 1 + exact range bounds, total-as-count), Promise.allSettled (a failed day = no badge, never a partial-month abort), gated on datePopOpen (the rail's load cycle untouched); refetch on open/month flip
+- Render: cells 26 -> 34, the count badge (fontSize 10 primary tint, count > 0 only) under the day number - the booking-dialog badge family; the selected cell reads white-on-primary
+- jsdom 教训一则: rc-motion 永不完成 -> 弹层关闭不留痕(节点恒带 visible band), 断言行为不断动画(点日跳轨 + onClick 里 setDatePopOpen(false) 即契约); 跨用例弹层幽灵取 last-match 亦不可靠, 一并弃断言
+
+## Change: patient-identity-card-projection
+## Execution Mode: Inline
+## Started: 2026-11-26
+
+### Apply: task 1 (TDD)
+- Status: task 1 complete (RED cardNo 缺失断言 -> GREEN 10/10)
+- 根因链: 档案卡号存 patient_identifier(id_type 'card') 而身份投影只读 PatientMaster -> PatientIdentityResponse 结构性无 cardNo -> web 回填映射(:522)与类型(:180)早已预留却永远拿到 null
+- Fix: Feign DTO +cardNo(可空); toIdentity 注入 PatientIdentifierMapper 投影最新 live card(id desc LIMIT 1 = 当前就诊卡); 无卡投影 null
+- web 零改动(us 直通层原样转发 Feign 结果; UsPatientIdentity.cardNo 已存在)
+- 全量 reactor 后台运行中

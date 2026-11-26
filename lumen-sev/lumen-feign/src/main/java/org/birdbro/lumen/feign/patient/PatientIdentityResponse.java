@@ -52,9 +52,17 @@ public class PatientIdentityResponse implements Serializable {
     /** 性别 0 未知 / 1 男 / 2 女. */
     private Integer gender;
 
-    /** 出生日期. */
+    /** 出生日期（yyyy-MM-dd；US 工作站解析链直接以本契约作 Web 响应——裸 Date 会
+     *  序列化成 epoch 毫秒数字，候选弹窗显示乱码、回填在非 GMT+8 浏览器漂移，
+     *  2026-11-26 裁决补注解，与 RegistrationCreateRequest.birthDate 同款）. */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
     private Date birthDate;
 
     /** 联系电话. */
     private String phone;
+
+    /** 就诊卡号 (patient-identity-card-projection): the archive's LATEST live card
+     * identifier (id_type 'card', highest id) - null when the archive holds none
+     * (never fabricated). The consuming desk's 卡号 backfill reads it. */
+    private String cardNo;
 }

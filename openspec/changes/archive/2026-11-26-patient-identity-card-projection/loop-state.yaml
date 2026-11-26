@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: patient-identity-card-projection
+execution_mode: SDD
+tasks_total: 12
+tasks_done: 12
+workflow_mode: full
+artifacts_hash: 6f4790748327ab751aa17a840ad802e7a42e6e8350e1fe653e8d962ad38d984f

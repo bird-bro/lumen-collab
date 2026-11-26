@@ -19,6 +19,9 @@ import org.birdbro.lumen.patient.dto.PatientResolveRequest;
 import org.birdbro.lumen.patient.dto.PatientResolveResult;
 import org.birdbro.lumen.patient.entity.PatientEventOutbox;
 import org.birdbro.lumen.patient.entity.PatientMaster;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.birdbro.lumen.patient.entity.PatientIdentifier;
+import org.birdbro.lumen.patient.mapper.PatientIdentifierMapper;
 import org.birdbro.lumen.patient.service.PatientArchiveService;
 import org.birdbro.lumen.patient.service.PatientEventOutboxDeliveryService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -63,13 +66,16 @@ public class InternalPatientController {
     private final PatientArchiveService patientArchiveService;
     private final PatientEventOutboxDeliveryService outboxDeliveryService;
     private final ObjectMapper objectMapper;
+    private final PatientIdentifierMapper patientIdentifierMapper;
 
     public InternalPatientController(PatientArchiveService patientArchiveService,
             PatientEventOutboxDeliveryService outboxDeliveryService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            PatientIdentifierMapper patientIdentifierMapper) {
         this.patientArchiveService = patientArchiveService;
         this.outboxDeliveryService = outboxDeliveryService;
         this.objectMapper = objectMapper;
+        this.patientIdentifierMapper = patientIdentifierMapper;
     }
 
     /**
@@ -144,11 +150,22 @@ public class InternalPatientController {
                 .build();
     }
 
-    /** The archive -> the contract identity (patUid/patId/state + display fields). */
+    /** The archive -> the contract identity (patUid/patId/state + display fields +
+     * the LATEST live card identifier, patient-identity-card-projection task 1.2). */
     private PatientIdentityResponse toIdentity(PatientMaster master) {
         if (master == null) {
             return null;
         }
+        // the card projection: the LATEST live card identifier row (id desc) is the
+        // CURRENT visit card - an archive accumulates cards per registration; none
+        // projects null (never a fabricated number)
+        PatientIdentifier latestCard = patientIdentifierMapper.selectList(
+                new LambdaQueryWrapper<PatientIdentifier>()
+                        .eq(PatientIdentifier::getPatientId, master.getId())
+                        .eq(PatientIdentifier::getIdType, "card")
+                        .orderByDesc(PatientIdentifier::getId)
+                        .last("LIMIT 1"))
+                .stream().findFirst().orElse(null);
         return PatientIdentityResponse.builder()
                 .patUid(master.getId())
                 .patId(master.getPatId())
@@ -159,6 +176,7 @@ public class InternalPatientController {
                 .gender(master.getGender())
                 .birthDate(master.getBirthDate())
                 .phone(master.getPhone())
+                .cardNo(latestCard == null ? null : latestCard.getIdNo())
                 .build();
     }
 

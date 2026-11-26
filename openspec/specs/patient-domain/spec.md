@@ -187,6 +187,7 @@ table and SHALL carry no message-broker dependency.
 - **THEN** `spring.application.name` is the module name and the port matches the
   coordination port table's patient row
 
+<!-- synced from: patient-identity-card-projection 2026-11-26 -->
 ### Requirement: Internal Service Surface
 
 The patient domain SHALL expose an internal, internal-key-guarded service surface (the system
@@ -195,7 +196,10 @@ The patient domain SHALL expose an internal, internal-key-guarded service surfac
 archive creation (placeholder archives included, `A0715` conflict semantics unchanged), and
 outbox `pull`/`ack` endpoints that hand out PENDING event entries in batches and mark them consumed.
 The `lumen-feign` module SHALL declare the matching `PatientApi` Feign contract (add-only, `NumberApi`
-precedent, direct-url target `lumen.feign.patient.url`).
+precedent, direct-url target `lumen.feign.patient.url`). The identity projection SHALL carry the
+archive's visit card as the OPTIONAL `cardNo` (the LATEST live `patient_identifier` row with
+`id_type 'card'`, highest id — archives accumulate cards per registration; an archive with no
+card identifier projects null, never a fabricated number).
 
 #### Scenario: Resolve-or-register resolves an exact match
 
@@ -219,4 +223,14 @@ precedent, direct-url target `lumen.feign.patient.url`).
 - **WHEN** a caller hits any internal endpoint without the shared internal key
 - **THEN** the request is refused before reaching the service layer
 
-<!-- synced from: us-station-registration-sev 2026-11-20 (internal-key surface for the us host: resolve-or-register composite + outbox pull/ack; PatientApi in lumen-feign) -->
+#### Scenario: The identity projects the archive's latest visit card
+
+<!-- added by patient-identity-card-projection: the desk's 就诊卡号 backfill -->
+
+- **WHEN** the identity projection runs for an archive that holds live card identifiers
+- **THEN** the projected `cardNo` carries the LATEST card identifier's `id_no` (highest
+  identifier id — the current visit card)
+- **WHEN** the archive holds no live card identifier
+- **THEN** `cardNo` projects null (the consuming desk backfills an empty 卡号, never a
+  fabricated number)
+
