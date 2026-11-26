@@ -1911,13 +1911,17 @@ export default function UsRegistrationPage() {
                 </div>
 
                 {/* 2 请检信息 - vertical spine; the 2026-11-26 bench-height ruling
-                    (round 5): row 1 = the apply trio, rows 2-3 = the CONSTANT
-                    two-row band - 临床诊断 (fixed band height) on the LEFT, the
-                    booking column on the RIGHT (预约时间 + 妊娠 stacked, with a
-                    reserved empty slot for non-female patients) - the geometry
-                    never shifts with 妊娠's visibility or content; long text
-                    scrolls, the user drags it taller. The hairline rule between
-                    the sections rides the wrapper's top border (2026-11-25). */}
+                    (round 5, as amended by the booking move below): row 1 = the
+                    apply trio, rows 2-3 = the CONSTANT two-row band - 临床诊断
+                    (fixed band height) on the LEFT, 妊娠 (female only) in the
+                    right 8-col column. The booking column LEFT this section for
+                    the 检查室 row in section 3 (user ruling 2026-11-26: booking
+                    depends on the room - 先室后时段), superseding round 4's
+                    booking-on-the-right; the band geometry rides the fixed-height
+                    diagnosis box and never shifts with 妊娠's visibility; long
+                    text scrolls, the user drags it taller. The hairline rule
+                    between the sections rides the wrapper's top border
+                    (2026-11-25). */}
                 <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, borderTop: `1px solid ${line}`, paddingTop: 10, marginBottom: 10 }}>
                   <div style={{ flex: 'none', width: 24, alignSelf: 'flex-start', borderRadius: 6, background: token.colorPrimaryBg, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: '7px 0 9px' }}>
                     <span style={{ width: 16, height: 16, borderRadius: '50%', background: token.colorPrimary, color: token.colorBgContainer, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>2</span>
@@ -1942,11 +1946,11 @@ export default function UsRegistrationPage() {
                       <Input aria-label="申请医生" style={inputStyle} />
                     </Form.Item>
                   </Field>
-                  {/* the diagnosis band LEFT + the booking/pregnancy stack RIGHT
-                      (user ruling 2026-11-26 round 4): 临床诊断 fills the CONSTANT
-                      two-row band on the left; 预约时间 + 妊娠 (female only) stack
-                      in the right 8-col column with an always-RESERVED second slot
-                      (round 5) so nothing shifts when 妊娠 toggles. The
+                  {/* the diagnosis band LEFT + the pregnancy column RIGHT (user
+                      ruling 2026-11-26 round 4, amended the same day: the booking
+                      column moved to the 检查室 row in section 3 - 先室后时段);
+                      临床诊断 fills the CONSTANT two-row band on the left; 妊娠
+                      (female only) is the right 8-col column's sole row. The
                       visit-classification compound is US-station-retired
                       (2026-11-25: on a single-modality station the type chip is
                       zero-information); the compound form [modality Select |
@@ -1964,58 +1968,17 @@ export default function UsRegistrationPage() {
                     </FieldRow>
                   </Col>
                   <Col xs={24} md={12} xl={8}>
-                    <FieldRow label="预约时间">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-                        <Button
-                          aria-label="选择预约时段"
-                          type="primary"
-                          ghost
-                          disabled={!slotConfigured}
-                          icon={<CalendarOutlined />}
-                          onClick={openSlotDialog}
-                        />
-                        <span style={{ minWidth: 0, color: booking ? token.colorText : token.colorTextTertiary }}>
-                          {booking ? (
-                            <>
-                              <span>周{WEEKDAYS[booking.date.day()]} {booking.date.format('MM-DD')}</span>{' '}
-                              <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{booking.slot}–{booking.end}</span>
-                            </>
-                          ) : (
-                            !slotConfigured && '未开通预约'
-                          )}
-                        </span>
-                        {booking && (
-                          <Button
-                            type="text"
-                            aria-label="清除预约时段"
-                            title="清除（回到即到即检）"
-                            onClick={() => setBooking(null)}
-                            style={{ width: 18, height: 18, minWidth: 18, padding: 0, borderRadius: '50%', background: token.colorFillSecondary, color: token.colorTextTertiary }}
-                          >
-                            ×
-                          </Button>
-                        )}
-                      </div>
-                    </FieldRow>
-                    {gender === GENDER_FEMALE_CODE ? (
-                      <div style={{ marginTop: 9 }}>
-                        <FieldRow label="妊娠">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-                            <Form.Item name="pregnancyStatus" noStyle>
-                              <Select aria-label="妊娠状态" style={{ flex: 1, minWidth: 0 }} allowClear placeholder="妊娠状态" options={valueKeyedOptions(pregnancyItems)} />
-                            </Form.Item>
-                            <Form.Item name="gestationalWeeks" noStyle>
-                              <InputNumber aria-label="孕周" style={{ width: 96, flex: 'none' }} min={1} max={45} suffix={unitSuffix('周')} disabled={pregnancyStatus == null || PREGNANCY_DISABLE_VALUES.includes(pregnancyStatus)} />
-                            </Form.Item>
-                          </div>
-                        </FieldRow>
-                      </div>
-                    ) : (
-                      /* the RESERVED pregnancy slot (user ruling 2026-11-26 round 5):
-                          the booking column always occupies its two rows, so the
-                          band - and the diagnosis box filling it - never shifts
-                          when the gender toggle shows/hides 妊娠 */
-                      <div style={{ marginTop: 9, height: token.controlHeight }} aria-hidden="true" />
+                    {gender === GENDER_FEMALE_CODE && (
+                      <FieldRow label="妊娠">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                          <Form.Item name="pregnancyStatus" noStyle>
+                            <Select aria-label="妊娠状态" style={{ flex: 1, minWidth: 0 }} allowClear placeholder="妊娠状态" options={valueKeyedOptions(pregnancyItems)} />
+                          </Form.Item>
+                          <Form.Item name="gestationalWeeks" noStyle>
+                            <InputNumber aria-label="孕周" style={{ width: 96, flex: 'none' }} min={1} max={45} suffix={unitSuffix('周')} disabled={pregnancyStatus == null || PREGNANCY_DISABLE_VALUES.includes(pregnancyStatus)} />
+                          </Form.Item>
+                        </div>
+                      </FieldRow>
                     )}
                   </Col>
                 </Row>
@@ -2059,6 +2022,43 @@ export default function UsRegistrationPage() {
                         options={stationRooms.map((r) => ({ value: r.id, label: r.name }))}
                         notFoundContent={roomsFailed ? '检查室目录加载失败' : '暂无可用检查室'}
                       />
+                      {/* the booking trigger (moved here from section 2, user ruling
+                          2026-11-26: booking depends on the room - 先室后时段; the
+                          slot dialog's footer room select stays, both share the same
+                          roomId state) - one trigger + dialog (2026-11-24 redesign),
+                          NO resting text until a pick */}
+                      <span style={{ color: token.colorTextSecondary }}>预约时间</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                        <Button
+                          aria-label="选择预约时段"
+                          type="primary"
+                          ghost
+                          disabled={!slotConfigured}
+                          icon={<CalendarOutlined />}
+                          onClick={openSlotDialog}
+                        />
+                        <span style={{ minWidth: 0, color: booking ? token.colorText : token.colorTextTertiary }}>
+                          {booking ? (
+                            <>
+                              <span>周{WEEKDAYS[booking.date.day()]} {booking.date.format('MM-DD')}</span>{' '}
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{booking.slot}–{booking.end}</span>
+                            </>
+                          ) : (
+                            !slotConfigured && '未开通预约'
+                          )}
+                        </span>
+                        {booking && (
+                          <Button
+                            type="text"
+                            aria-label="清除预约时段"
+                            title="清除（回到即到即检）"
+                            onClick={() => setBooking(null)}
+                            style={{ width: 18, height: 18, minWidth: 18, padding: 0, borderRadius: '50%', background: token.colorFillSecondary, color: token.colorTextTertiary }}
+                          >
+                            ×
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>

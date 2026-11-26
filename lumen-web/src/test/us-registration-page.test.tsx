@@ -699,17 +699,27 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     expect(screen.queryByLabelText('急诊占位')).not.toBeInTheDocument()
   })
 
-  it('section 2 hosts the 急诊 switch, the booking trigger, and 临床诊断', async () => {
+  it('section 2 hosts the 急诊 switch and 临床诊断', async () => {
     renderPage()
     await screen.findByText('请检信息')
     expect(screen.getByLabelText('急诊')).toBeInTheDocument()
     expect(screen.getByLabelText('临床诊断')).toBeInTheDocument()
-    // the booking cell collapses into ONE trigger + dialog (2026-11-24 redesign) -
-    // the raw DatePicker/Select pair is gone; NO resting text until a pick (ruling 2026-11-24)
+  })
+
+  it('the booking trigger rides the 检查室 row in section 3 (先室后时段)', async () => {
+    renderPage()
+    await screen.findByText('检查信息')
     const bookingTrigger = screen.getByRole('button', { name: '选择预约时段' })
     await waitFor(() => expect(bookingTrigger).toBeEnabled())
+    // the raw DatePicker/Select pair is gone (2026-11-24 redesign); NO resting
+    // text until a pick (ruling 2026-11-24)
     expect(screen.queryByLabelText('预约日期')).not.toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: '预约时段' })).not.toBeInTheDocument()
+    // the trigger shares the 检查室 row: its control cluster's parent row
+    // also hosts the room Select - same row = 先定室再挑时段
+    const row = bookingTrigger.closest('div')?.parentElement as HTMLElement
+    expect(row).not.toBeNull()
+    expect(within(row).getByRole('combobox', { name: '检查室' })).toBeInTheDocument()
   })
 
   it('the pregnancy cell is gender-conditional (female only, weeks disabled when 未孕/未知)', async () => {
