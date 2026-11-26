@@ -1,4 +1,5 @@
 import {
+  CloseCircleOutlined,
   DeleteOutlined,
   EditOutlined,
   LockOutlined,
@@ -209,6 +210,12 @@ const ACTION_ICONS = {
    * and trash — the bare plus keeps the tree's [+] [✎] [🗑] trio legible;
    * lineage: the borrowed star read as 设为默认 2026-11-18, ex-FolderAddOutlined). */
   folderAdd: PlusOutlined,
+  /** 取消单据类动词（取消登记/取消预约）- the ×-in-circle glyph (user ruling
+   * 2026-11-26: the former trash `remove` read as physical deletion, but a
+   * cancel is a STATE TRANSITION - the order stays for audit and lands in the
+   * 已取消 status; the ×-circle is the ecosystem's cancel verb and mirrors the
+   * landed status). NOT shared with 删除 verbs - those keep `remove`. */
+  cancel: CloseCircleOutlined,
 } as const
 
 /**
@@ -466,6 +473,7 @@ export function ConsolePagination({
         共 {total} 条
       </Typography.Text>
       <Pagination
+        size="small"
         current={current}
         total={total}
         pageSize={pageSize}

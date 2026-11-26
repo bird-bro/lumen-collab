@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US 登记窄列表卡片 v2 — 用户思路版</title>
+<style>
+  /* ============ 产品令牌（与 lumen-web theme/tokens.ts、antd 默认对齐） ============ */
+  :root {
+    --primary: #3178fc;
+    --primary-weak: #f0f8ff;
+    --primary-border: #91caff;
+    --ink-1: rgba(0,0,0,0.88);
+    --ink-2: rgba(0,0,0,0.65);
+    --ink-3: rgba(0,0,0,0.45);
+    --ink-4: rgba(0,0,0,0.25);
+    --line: #f0f0f0;
+    --line-2: #d9d9d9;
+    --card: #ffffff;
+    --page-bg: #f0f2f7;
+    --fill-2: rgba(0,0,0,0.06);
+    --success: #52c41a;  --success-bg: #f6ffed;
+    --warning: #faad14;  --warning-bg: #fffbe6;
+    --error:   #ff4d4f;  --error-bg:   #fff2f0;
+    --cyan: #13c2c2;
+    --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+    --font: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--page-bg); color: var(--ink-1);
+    font-family: var(--font); font-size: 14px; padding: 28px 20px 60px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .head { max-width: 1280px; margin: 0 auto 6px; }
+  .head h1 { font-size: 20px; font-weight: 700; letter-spacing: .2px; }
+  .head p  { color: var(--ink-2); margin-top: 6px; line-height: 1.7; max-width: 980px; }
+  .head b  { color: var(--primary); }
+
+  .board { max-width: 1280px; margin: 22px auto 0; display: flex; gap: 22px; align-items: flex-start; flex-wrap: wrap; }
+  .variant { flex: 1 1 400px; max-width: 432px; }
+  .variant > h2 {
+    font-size: 15px; font-weight: 700; padding: 9px 13px; border-radius: 8px 8px 0 0;
+    background: var(--card); border: 1px solid var(--line); border-bottom: none;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .variant > h2 .rec { font-size: 12px; font-weight: 600; color: var(--primary); background: var(--primary-weak); border: 1px solid var(--primary-border); border-radius: 999px; padding: 1px 9px; }
+  .rail {
+    border: 1px solid var(--line); border-top: none; border-radius: 0 0 8px 8px;
+    background: var(--card); padding: 9px 10px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .note {
+    margin-top: 12px; border: 1px dashed var(--line-2); border-radius: 8px;
+    padding: 11px 13px; font-size: 12.5px; color: var(--ink-2); line-height: 1.75;
+    background: rgba(255,255,255,.6);
+  }
+  .note b { color: var(--ink-1); }
+  .note .good { color: var(--success); font-weight: 600; }
+  .note .bad  { color: var(--error); font-weight: 600; }
+
+  /* ============ 变体 A：状态色条 + 时间带（用户思路版） ============ */
+  .ocard-a {
+    position: relative; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--card); padding: 9px 12px 11px 14px;
+    cursor: pointer; user-select: none; overflow: hidden;
+    transition: background .15s, border-color .15s;
+  }
+  .ocard-a:hover { background: #f7f9fd; }
+  .ocard-a.cur { border-color: var(--primary); background: var(--primary-weak); }
+  /* 左侧状态色条：字典 tag 色相（blue/green/amber/red），inset 竖条撑满卡高 */
+  .ocard-a::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--stripe, transparent);
+  }
+  .ocard-a.emg, .ocard-b.emg { border-color: var(--error); }
+  .ocard-a.cancelled { opacity: .55; }
+  .ocard-a.cancelled::before { background: repeating-linear-gradient(45deg, var(--ink-4) 0 3px, transparent 3px 6px); }
+  /* 首行 = 身份（姓名/性别年龄）‖ 居中红色急证 ‖ 取消 */
+  .hd { display: flex; align-items: center; gap: 6px; min-width: 0; position: relative; }
+  .hd .lead { display: flex; align-items: baseline; gap: 7px; min-width: 0; flex: 1; }
+  .rp-name { font-size: 20px; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ga { font-size: 16px; color: var(--ink-3); white-space: nowrap; flex: none; margin-left: 8px; }
+  .hd .tail { display: flex; align-items: center; gap: 4px; flex: none; margin-left: auto; }
+  /* 急证：号码行右缘的红色警示字（用户裁定 2026-11-26——姓名可能很长，居中位会与长姓名冲突） */
+  .emg-mark { margin-left: auto; font-size: 16px; font-weight: 700; color: var(--error); flex: none; }
+  .ract { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; color: var(--ink-3); flex: none; }
+  .ract:hover { background: var(--error-bg); color: var(--error); }
+  .hd-sep { height: 1px; background: var(--line); margin-top: 7px; }
+  /* 时间带：检查时间居左，右缘 = 来源 + 状态（用户思路 2026-11-26） */
+  .time-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .time-ico { display: inline-flex; align-items: center; color: var(--ink-3); flex: none; }
+  .time-val { font-size: 16px; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .time-tail { margin-left: auto; display: flex; align-items: center; gap: 4px; flex: none; }
+  /* 元数据链：时间 · 来源 · 诊室（右缘只留状态 chip） */
+  .meta-sep { color: var(--ink-4); flex: none; }
+  .rp-tag { font-size: 16px; color: var(--ink-3); white-space: nowrap; }
+  .rchip { font-size: 12px; display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; white-space: nowrap; font-weight: 500; }
+  .rchip.st-blue  { background: var(--primary-weak); color: var(--primary); }
+  .rchip.st-amber { background: var(--warning-bg);  color: #d48806; }
+  .rchip.st-green { background: var(--success-bg);  color: var(--success); }
+  .rchip.st-gray  { background: var(--fill-2);      color: var(--ink-3); }
+  .items-row { display: flex; align-items: flex-start; gap: 2px; margin-top: 7px; }
+  .items-row .items { flex: 1; min-width: 0; margin-top: 0; }
+  .items-row.open .items { display: block; }
+  .items { font-size: 14px; color: var(--ink-2); line-height: 1.5;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+  .chev { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+    border-radius: 5px; color: var(--ink-3); background: none; border: none; cursor: pointer; padding: 0; }
+  .chev:hover { background: var(--fill-2); }
+  .chev svg.i { transition: transform .15s; }
+  .chev.open svg.i { transform: rotate(180deg); }
+  .items .preg { color: var(--cyan); }
+  .ids { font-size: 16px; color: var(--ink-3); margin-top: 6px; font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 10px; }
+  .ids svg.i { width: 14px; height: 14px; flex: none; }
+  .idg { display: inline-flex; align-items: center; gap: 4px; }
+
+  /* ============ 变体 B：底部状态推进点（同款首行/时间带布局） ============ */
+  .ocard-b {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+    padding: 9px 12px 11px 14px; cursor: pointer; user-select: none;
+    position: relative; overflow: hidden; transition: background .15s;
+  }
+  .ocard-b:hover { background: #f7f9fd; }
+  .ocard-b.cur { border-color: var(--primary); background: var(--primary-weak); }
+  .flow { display: flex; align-items: center; gap: 0; margin-top: 7px; padding-top: 6px; border-top: 1px dashed var(--line); }
+  .fstep { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-4); }
+  .fdot { width: 7px; height: 7px; border-radius: 999px; background: var(--line-2); flex: none; }
+  .fstep.done .fdot { background: var(--primary); }
+  .fstep.done { color: var(--ink-3); }
+  .fstep.now  { color: var(--primary); font-weight: 600; }
+  .fstep.now .fdot { background: var(--primary); box-shadow: 0 0 0 3px var(--primary-weak); }
+  .fjoin { flex: 1; height: 1px; background: var(--line-2); margin: 0 5px; min-width: 8px; }
+  .fjoin.done { background: var(--primary-border); }
+
+  /* ============ 变体 C：色相头部带（旧结构备选，保留原结构） ============ */
+  .ocard-c {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+    cursor: pointer; user-select: none; overflow: hidden; transition: border-color .15s;
+  }
+  .ocard-c:hover { border-color: var(--line-2); }
+  .ocard-c.cur { border-color: var(--primary); }
+  .cband { display: flex; align-items: center; gap: 6px; padding: 6px 11px; background: var(--band, var(--fill-2)); }
+  .cband .rp-name { font-size: 16px; }
+  .cband .ga { font-size: 13px; }
+  .cbody { padding: 7px 11px 8px; }
+
+  svg.i { width: 1em; height: 1em; display: block; }
+
+  .legend { max-width: 1280px; margin: 26px auto 0; border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 14px 16px; font-size: 13px; color: var(--ink-2); line-height: 1.8; }
+  .legend h3 { font-size: 14px; color: var(--ink-1); margin-bottom: 6px; }
+  .legend li { margin-left: 18px; }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>US 登记窄列表卡片 v2 — 用户思路版</h1>
+  <p>本轮按用户思路重排：① <b>来源 = 首行姓名 div 内的纯文字</b>（无背景，随身份事实），首行 = 姓名+性别年龄+来源 ‖ 取消；
+  ② <b>急证 = 红色字体，居右于号码行</b>作警示——姓名可能很长（新疆等少数民族姓名），居中位会与长姓名冲突，故锚定号码行右缘；③ 首行只剩 身份 ‖ 取消。三列宽度 = 真实 392px 窄栏。</p>
+</div>
+
+<div class="board">
+
+  <!-- ================= 变体 A ================= -->
+  <div class="variant">
+    <h2>A · 状态色条 <span class="rec">推荐</span></h2>
+    <div class="rail">
+      <div class="ocard-a cur" style="--stripe: var(--primary)">
+        <div class="hd">
+          <span class="lead"><span class="rp-name">张晓雯</span><span class="ga">女 · 34岁</span><span class="meta-sep">·</span><span class="rp-tag">门诊</span></span>
+          <span class="tail"><span class="ract" title="取消登记"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg></span></span>
+        </div>
+        <div class="hd-sep"></div>
+        <div class="time-row">
+          <span class="time-ico" title="检查时间"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <span class="time-val">2026-11-26 08:00</span>
+          <span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>1号诊室</span>
+          <span class="time-tail"><span class="rchip st-blue">已登记</span></span>
+        </div>
+        <div class="items-row"><div class="items">颈部血管超声、甲状腺超声（含颈部淋巴结）、超声心动图（常规）、产科超声（常规）、胎儿生物物理评分 <span class="preg">· 中晚孕28周</span></div><button class="chev" title="展开项目" aria-expanded="false" aria-label="展开项目"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button></div>
+        <div class="ids"><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 14h4"/></svg>M0001120001</span><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6v12M7 6v12M10 6v8M10 17v1M13 6v12M16 6v8M16 17v1M19 6v12"/></svg>US2511260007</span></div>
+      </div>
+      <div class="ocard-a" style="--stripe: var(--primary)">
+        <div class="hd">
+          <span class="lead"><span class="rp-name">李慕青</span><span class="ga">女 · 28岁</span><span class="meta-sep">·</span><span class="rp-tag">住院</span></span>
+          <span class="tail"><span class="ract" title="取消登记"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg></span></span>
+        </div>
+        <div class="hd-sep"></div>
+        <div class="time-row">
+          <span class="time-ico" title="检查时间（现场单）"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <span class="time-val">2026-11-26 09:34</span>
+          <span class="time-tail"><span class="rchip st-blue">已登记</span></span>
+        </div>
+        <div class="items">妇科超声（常规）</div>
+        <div class="ids"><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 14h4"/></svg>M0001130021</span><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6v12M7 6v12M10 6v8M10 17v1M13 6v12M16 6v8M16 17v1M19 6v12"/></svg>US2511260006</span></div>
+      </div>
+      <div class="ocard-a emg" style="--stripe: var(--warning)">
+        <div class="hd">
+          <span class="lead"><span class="rp-name">王芳</span><span class="ga">女 · 41岁</span><span class="meta-sep">·</span><span class="rp-tag">急诊</span></span>
+          <span class="tail"><span class="ract" title="取消登记"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg></span></span>
+        </div>
+        <div class="hd-sep"></div>
+        <div class="time-row">
+          <span class="time-ico" title="检查时间（现场单）"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <span class="time-val">2026-11-26 08:12</span>
+          <span class="time-tail"><span class="rchip st-amber">检查中</span></span>
+        </div>
+        <div class="items">泌尿系超声（急诊床旁）</div>
+        <div class="ids"><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 14h4"/></svg>M0001140005</span><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6v12M7 6v12M10 6v8M10 17v1M13 6v12M16 6v8M16 17v1M19 6v12"/></svg>US2511260005</span><span class="emg-mark">急</span></div>
+      </div>
+      <div class="ocard-a" style="--stripe: var(--success)">
+        <div class="hd">
+          <span class="lead"><span class="rp-name">陈静</span><span class="ga">女 · 35岁</span><span class="meta-sep">·</span><span class="rp-tag">门诊</span></span>
+          <span class="tail"><span class="ract" title="取消登记"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg></span></span>
+        </div>
+        <div class="hd-sep"></div>
+        <div class="time-row">
+          <span class="time-ico" title="检查时间"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <span class="time-val">2026-11-26 10:00</span>
+          <span class="time-tail"><span class="rchip st-green">已完成</span></span>
+        </div>
+        <div class="items">甲状腺超声</div>
+        <div class="ids"><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 14h4"/></svg>M0001100098</span><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6v12M7 6v12M10 6v8M10 17v1M13 6v12M16 6v8M16 17v1M19 6v12"/></svg>US2511260004</span></div>
+      </div>
+      <div class="ocard-a cancelled">
+        <div class="hd">
+          <span class="lead"><span class="rp-name">刘洋</span><span class="ga">男 · 52岁</span><span class="meta-sep">·</span><span class="rp-tag">门诊</span></span>
+        </div>
+        <div class="hd-sep"></div>
+        <div class="time-row">
+          <span class="time-ico" title="检查时间（现场单）"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <span class="time-val">2026-11-26 07:58</span>
+          <span class="time-tail"><span class="rchip st-gray">已取消</span></span>
+        </div>
+        <div class="items">腹部超声（常规）</div>
+        <div class="ids"><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 14h4"/></svg>M0001100205</span><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6v12M7 6v12M10 6v8M10 17v1M13 6v12M16 6v8M16 17v1M19 6v12"/></svg>US2511260003</span></div>
+      </div>
+    </div>
+    <div class="note">
+      <b>设计逻辑</b>：① <b>状态色条</b>（字典 tag 色相，与状态 chip 同源）把窄栏变成一根<b>可扫视的状态色柱</b>；急诊存续单<b>外框红描边</b>（紧急度通道，与左缘状态色条分属两边互不抢占；已取消不描红）。已取消用斜纹灰条+整卡降透明度退到视野边缘。② <b>急证红字居右</b>：号码行右缘的红色「急」——姓名可能很长（新疆等少数民族姓名），居中位会与长姓名冲突，故锚定号码行右缘（用户裁定）；无急证单该位留空。③ <b>时间带</b>：检查时间 · 诊室居左（诊室带定位 pin 图标，图标即分隔、无圆点），<b>右缘只留状态 chip</b>——扫视规则单纯化：右缘永远回答「到哪步」。④ <b>首行只剩身份 ‖ 取消</b>：姓名(20px)+性别年龄(16px) ‖ 取消 icon，居中急证之外零杂物。⑤ <b>项目行默认 1 行 + 右缘伸缩钮点击展开全部</b>（点击替代悬停悬浮框，避免视觉晃动；多项目卡才有钮）；号码行 16px 三级灰（idcard/barcode 图标前缀）；来源无背景纯文字、居时间带元数据链。⑥ 发丝线分区首行与正文。
+    </div>
+  </div>
+
+  <!-- ================= 变体 B ================= -->
+  <div class="variant">
+    <h2>B · 底部状态推进条</h2>
+    <div class="rail">
+      <div class="ocard-b cur">
+        <div class="hd">
+          <span class="lead"><span class="rp-name">张晓雯</span><span class="ga">女 · 34岁</span><span class="meta-sep">·</span><span class="rp-tag">门诊</span></span>
+          <span class="tail"><span class="ract" title="取消登记"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg></span></span>
+        </div>
+        <div class="hd-sep"></div>
+        <div class="time-row">
+          <span class="time-ico" title="检查时间"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <span class="time-val">2026-11-26 08:00</span>
+          <span class="time-tail"><span class="rchip st-blue">已登记</span></span>
+        </div>
+        <div class="items-row"><div class="items">产科超声（常规）、胎儿生物物理评分 <span class="preg">· 中晚孕28周</span></div><button class="chev" title="展开项目" aria-expanded="false" aria-label="展开项目"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button></div>
+        <div class="flow">
+          <span class="fstep now"><span class="fdot"></span>登记</span><span class="fjoin"></span>
+          <span class="fstep"><span class="fdot"></span>检查</span><span class="fjoin"></span>
+          <span class="fstep"><span class="fdot"></span>诊断</span><span class="fjoin"></span>
+          <span class="fstep"><span class="fdot"></span>完成</span>
+        </div>
+        <div class="ids" style="margin-top:6px"><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 14h4"/></svg>M0001120001</span><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6v12M7 6v12M10 6v8M10 17v1M13 6v12M16 6v8M16 17v1M19 6v12"/></svg>US2511260007</span></div>
+      </div>
+      <div class="ocard-b emg">
+        <div class="hd">
+          <span class="lead"><span class="rp-name">王芳</span><span class="ga">女 · 41岁</span><span class="meta-sep">·</span><span class="rp-tag">急诊</span></span>
+          <span class="tail"><span class="ract" title="取消登记"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg></span></span>
+        </div>
+        <div class="hd-sep"></div>
+        <div class="time-row">
+          <span class="time-ico" title="检查时间（现场单）"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <span class="time-val">2026-11-26 08:12</span>
+          <span class="time-tail"><span class="rchip st-amber">检查中</span></span>
+        </div>
+        <div class="items">泌尿系超声（急诊床旁）</div>
+        <div class="flow">
+          <span class="fstep done"><span class="fdot"></span>登记</span><span class="fjoin done"></span>
+          <span class="fstep now"><span class="fdot"></span>检查</span><span class="fjoin"></span>
+          <span class="fstep"><span class="fdot"></span>诊断</span><span class="fjoin"></span>
+          <span class="fstep"><span class="fdot"></span>完成</span>
+        </div>
+        <div class="ids" style="margin-top:6px"><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 14h4"/></svg>M0001140005</span><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6v12M7 6v12M10 6v8M10 17v1M13 6v12M16 6v8M16 17v1M19 6v12"/></svg>US2511260005</span><span class="emg-mark">急</span></div>
+      </div>
+      <div class="ocard-b">
+        <div class="hd">
+          <span class="lead"><span class="rp-name">陈静</span><span class="ga">女 · 35岁</span><span class="meta-sep">·</span><span class="rp-tag">门诊</span></span>
+          <span class="tail"><span class="ract" title="取消登记"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg></span></span>
+        </div>
+        <div class="hd-sep"></div>
+        <div class="time-row">
+          <span class="time-ico" title="检查时间"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <span class="time-val">2026-11-26 10:00</span>
+          <span class="time-tail"><span class="rchip st-green">已完成</span></span>
+        </div>
+        <div class="items">甲状腺超声</div>
+        <div class="flow">
+          <span class="fstep done"><span class="fdot"></span>登记</span><span class="fjoin done"></span>
+          <span class="fstep done"><span class="fdot"></span>检查</span><span class="fjoin done"></span>
+          <span class="fstep done"><span class="fdot"></span>诊断</span><span class="fjoin done"></span>
+          <span class="fstep now"><span class="fdot"></span>完成</span>
+        </div>
+        <div class="ids" style="margin-top:6px"><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 14h4"/></svg>M0001100098</span><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6v12M7 6v12M10 6v8M10 17v1M13 6v12M16 6v8M16 17v1M19 6v12"/></svg>US2511260004</span></div>
+      </div>
+    </div>
+    <div class="note">
+      <b>设计逻辑</b>：与 A 同款首行/时间带/居中急证，状态另画在卡底推进条（登记→检查→诊断→完成，当前步高亮）——<span class="good">流程指向最强</span>，但每卡多一行且与时间带右缘的状态 chip 重复；此变体的时间带右缘可只留来源。<span class="bad">代价</span>：窄栏每卡 +26px，一屏可见单数下降。
+    </div>
+  </div>
+
+  <!-- ================= 变体 C ================= -->
+  <div class="variant">
+    <h2>C · 色相头部带（旧结构备选）</h2>
+    <div class="rail">
+      <div class="ocard-c cur">
+        <div class="cband" style="--band: var(--primary-weak)">
+          <span class="rp-name" style="font-weight:600">张晓雯</span><span class="ga">女 · 34岁</span>
+          <span class="tail" style="margin-left:auto;display:flex;align-items:center;gap:4px"><span class="rp-tag">门诊</span><span class="rchip st-blue">已登记</span>
+            <span class="ract" title="取消登记"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg></span></span>
+        </div>
+        <div class="cbody">
+          <div class="items" style="margin-top:0">产科超声（常规）、胎儿生物物理评分 <span class="preg">· 中晚孕28周</span></div>
+          <div class="ids" style="margin-top:6px"><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 14h4"/></svg>M0001120001</span><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6v12M7 6v12M10 6v8M10 17v1M13 6v12M16 6v8M16 17v1M19 6v12"/></svg>US2511260007</span></div>
+          <div class="time-row">
+            <span class="time-ico" title="检查时间"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <span class="time-val">2026-11-26 08:00</span>
+          </div>
+        </div>
+      </div>
+      <div class="ocard-c">
+        <div class="cband" style="--band: var(--warning-bg)">
+          <span class="rp-name" style="font-weight:600">王芳</span><span class="ga">女 · 41岁</span>
+          <span class="tail" style="margin-left:auto;display:flex;align-items:center;gap:4px"><span class="rp-tag">急诊</span><span class="rchip st-amber">检查中</span>
+            <span class="ract" title="取消登记"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></svg></span></span>
+        </div>
+        <div class="cbody">
+          <div class="items" style="margin-top:0">泌尿系超声（急诊床旁）</div>
+          <div class="ids" style="margin-top:6px"><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.2"/><path d="M14 10h4M14 14h4"/></svg>M0001140005</span><span class="idg"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6v12M7 6v12M10 6v8M10 17v1M13 6v12M16 6v8M16 17v1M19 6v12"/></svg>US2511260005</span><span class="emg-mark">急</span></div>
+          <div class="time-row">
+            <span class="time-ico" title="检查时间（现场单）"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <span class="time-val">2026-11-26 08:12</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note">
+      <b>设计逻辑</b>：沿用 datenav 淡染头部带的旧结构（保留作对照，未套用本轮时间带思路）。<span class="bad">已判劣势</span>：与工作台已有 tinted band 形态撞车、分区噪音重。
+    </div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <h3>拍板指引</h3>
+  <ul>
+    <li><b>用户思路三件套已画入 A/B</b>：检查时间上移正文首行；时间带右缘 = 来源 + 状态；急证红色字体居中姓名行（无急证留空）。</li>
+    <li><b>急证红色说明</b>：红色自此明确用于「急诊/危急」警示（临床警报语义），状态 chip 不用红色系即可保持区分。</li>
+    <li>色条/色带色相来自<b>字典管理 tag 配置</b>（blue/green/amber/red），演示赋值仅示意；已取消单斜纹灰条 + 降透明度。</li>
+    <li>选中态（.cur）统一主色描边 + primary-weak 底；点击卡片可切换看选中效果。</li>
+  </ul>
+</div>
+
+<script>
+  // 选中态交互（与现页一致：单选 .cur）
+  // 项目行伸缩钮：点击展开/收起全部项目（点击替代悬停，避免视觉晃动）
+  document.querySelectorAll('.chev').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('open')
+      btn.closest('.items-row').classList.toggle('open')
+      const open = btn.classList.contains('open')
+      btn.setAttribute('aria-expanded', String(open))
+      btn.setAttribute('aria-label', open ? '收起项目' : '展开项目')
+      btn.title = open ? '收起项目' : '展开项目'
+    })
+  })
+
+  document.querySelectorAll('.rail').forEach((rail) => {
+    rail.addEventListener('click', (e) => {
+      const card = e.target.closest('.ocard-a, .ocard-b, .ocard-c')
+      if (!card) return
+      if (e.target.closest('.ract')) return
+      rail.querySelectorAll('.ocard-a, .ocard-b, .ocard-c').forEach((c) => c.classList.remove('cur'))
+      card.classList.add('cur')
+    })
+  })
+</script>
+</body>
+</html>

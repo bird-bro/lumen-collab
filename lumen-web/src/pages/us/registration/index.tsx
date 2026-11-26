@@ -1456,7 +1456,7 @@ export default function UsRegistrationPage() {
                       <span style={{ fontSize: 20, fontWeight: 600, ...ellipsis }} title={row.patientSnapshot?.name ?? '无名氏'}>
                         {row.patientSnapshot?.name ?? '无名氏'}
                       </span>
-                      {genderAge && <span style={{ flex: 'none', marginLeft: 4, fontSize: 16, color: token.colorTextTertiary, whiteSpace: 'nowrap' }}>{genderAge}</span>}
+                      {genderAge && <span style={{ flex: 'none', marginLeft: 8, fontSize: 16, color: token.colorTextTertiary, whiteSpace: 'nowrap' }}>{genderAge}</span>}
                       {/* the visit source rides the HEAD lead as plain tertiary text
                           (user final ruling 2026-11-26: no chip chrome, beside the
                           identity facts) behind a quaternary dot separator, pinned to
