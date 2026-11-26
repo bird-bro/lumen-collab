@@ -72,6 +72,8 @@ export interface UsOrderCreateBody {
   cardNo?: string | null;
   name?: string | null;
   gender?: number | null;
+  /** 出生日期 (yyyy-MM-dd; the archive soft-match key - us-registration-birthdate). */
+  birthDate?: string | null;
   phone?: string | null;
   age?: string | null;
   patientSource?: string | null;

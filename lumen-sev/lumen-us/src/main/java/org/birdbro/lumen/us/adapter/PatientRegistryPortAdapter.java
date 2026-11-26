@@ -99,7 +99,8 @@ public class PatientRegistryPortAdapter implements PatientRegistryPort {
 
     /**
      * The kernel port request -&gt; the contract body. {@code BeanUtil.copyProperties}
-     * copies the matching resolve keys 1:1 (idType/idNo/cardNo/name/gender/phone); the
+     * copies the matching resolve keys 1:1 (idType/idNo/cardNo/name/gender/birthDate/
+     * phone - birthDate joins as a soft-match key, us-registration-birthdate-sev); the
      * kernel request's exam-time extras (age/patientSource/...) are deliberately NOT on
      * the contract - they ride the us-side snapshot instead.
      */

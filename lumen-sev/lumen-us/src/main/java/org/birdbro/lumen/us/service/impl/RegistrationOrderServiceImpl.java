@@ -410,8 +410,10 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
 
     /**
      * The create body -&gt; the kernel port request: the resolution chain's keys copy
-     * 1:1 (idType/idNo/cardNo/name/gender/phone). The exam-time extras do NOT ride the
-     * port (they are not resolution keys) - they join the snapshot instead.
+     * 1:1 (idType/idNo/cardNo/name/gender/birthDate/phone) - birthDate joins as a
+     * soft-match key (us-registration-birthdate-sev, specs/us-station "Birth Date
+     * Capture"). The exam-time extras (age/patientSource/...) do NOT ride the port -
+     * they join the snapshot instead.
      */
     private PatientRegistrationRequest toPortRequest(RegistrationCreateRequest request) {
         return PatientRegistrationRequest.builder()
@@ -420,6 +422,7 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
                 .cardNo(request.getCardNo())
                 .name(request.getName())
                 .gender(request.getGender())
+                .birthDate(request.getBirthDate())
                 .phone(request.getPhone())
                 .build();
     }

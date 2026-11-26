@@ -1,6 +1,7 @@
 package org.birdbro.lumen.core.patient;
 
 import java.math.BigDecimal;
+import java.util.Date;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,6 +38,9 @@ public class PatientRegistrationRequest {
 
     /** 性别 0 未知 / 1 男 / 2 女. */
     private Integer gender;
+
+    /** 出生日期（软匹配键之一；建档携带，可空）. */
+    private Date birthDate;
 
     /** 检查时年龄. */
     private String age;

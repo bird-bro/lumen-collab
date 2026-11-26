@@ -1,7 +1,9 @@
 package org.birdbro.lumen.us;
 
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.Map;
+import java.util.TimeZone;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +12,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
@@ -21,6 +24,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import org.birdbro.lumen.feign.patient.PatientIdentityResponse;
 import org.birdbro.lumen.feign.patient.PatientLookupResult;
+import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterRequest;
 import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterResult;
 import org.birdbro.lumen.feign.number.NumberIssueRequest;
 import org.birdbro.lumen.feign.number.NumberIssueResponse;
@@ -32,6 +36,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -205,6 +211,66 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 "SELECT COUNT(*) FROM exam_report WHERE order_id = ?", Integer.class, orderId);
         assertEquals(Integer.valueOf(1), executionRows, "the execution member exists");
         assertEquals(Integer.valueOf(1), reportRows, "the report placeholder member exists");
+    }
+
+    @Test
+    void createWalkInCarriesBirthDateIntoTheRegistryChain() throws Exception {
+        // us-registration-birthdate-sev task 1.1 (specs/us-station "Birth Date Capture"):
+        // the create body's birthDate rides the port chain - the resolve-or-register
+        // contract carries it as a soft key (the archive stores it); absent keeps null
+        // (regression guard).
+        int stubUid = STUB_UID_BASE + 111;
+        when(patientApi.resolveOrRegister(any())).thenReturn(org.birdbro.common.core.R.ofSuccess(
+                PatientResolveOrRegisterResult.builder()
+                        .result(PatientResolveOrRegisterResult.RESULT_MATCHED)
+                        .identity(PatientIdentityResponse.builder()
+                                .patUid(stubUid)
+                                .patId("US3-BD")
+                                .name("us3建档生日")
+                                .gender(1)
+                                .state("RESOLVED")
+                                .build())
+                        .build()));
+        when(numberApi.issue(any())).thenReturn(org.birdbro.common.core.R.ofSuccess(
+                NumberIssueResponse.builder().number(STUB_ACCESSION_PREFIX + "ACC111").build()));
+
+        long ts = stamp();
+        String body = "{\"idType\":\"01\",\"idNo\":\"US3BD-" + ts + "\","
+                + "\"cardNo\":\"US3BDCARD-" + ts + "\","
+                + "\"name\":\"us3建档生日\",\"gender\":1,"
+                + "\"birthDate\":\"1990-05-20\","
+                + "\"age\":\"36\",\"patientSource\":\"门诊\","
+                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}]}";
+        JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
+                fullPermToken()));
+        assertEquals("200", response.path("code").asText(),
+                "the create with birthDate succeeds through the real chain: " + response);
+
+        ArgumentCaptor<PatientResolveOrRegisterRequest> captor =
+                ArgumentCaptor.forClass(PatientResolveOrRegisterRequest.class);
+        verify(patientApi).resolveOrRegister(captor.capture());
+        SimpleDateFormat dayKey = new SimpleDateFormat("yyyy-MM-dd");
+        dayKey.setTimeZone(TimeZone.getTimeZone("GMT+8"));
+        assertEquals("1990-05-20", dayKey.format(captor.getValue().getBirthDate()),
+                "the registry contract carries the body's birth date as a soft key");
+
+        // the absent path: no birthDate field -> the contract's birth date stays null
+        when(numberApi.issue(any())).thenReturn(org.birdbro.common.core.R.ofSuccess(
+                NumberIssueResponse.builder().number(STUB_ACCESSION_PREFIX + "ACC112").build()));
+        String bodyNoBirth = "{\"idType\":\"01\",\"idNo\":\"US3BDN-" + ts + "\","
+                + "\"cardNo\":\"US3BDNCARD-" + ts + "\","
+                + "\"name\":\"us3建档无生日\",\"gender\":1,"
+                + "\"age\":\"36\",\"patientSource\":\"门诊\","
+                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}]}";
+        JsonNode responseNoBirth = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, bodyNoBirth,
+                fullPermToken()));
+        assertEquals("200", responseNoBirth.path("code").asText(),
+                "the create without birthDate succeeds unchanged: " + responseNoBirth);
+        ArgumentCaptor<PatientResolveOrRegisterRequest> captorNoBirth =
+                ArgumentCaptor.forClass(PatientResolveOrRegisterRequest.class);
+        verify(patientApi, times(2)).resolveOrRegister(captorNoBirth.capture());
+        assertNull(captorNoBirth.getAllValues().get(1).getBirthDate(),
+                "the absent birthDate keeps the contract null (regression guard)");
     }
 
     // ---------------- Booking slot options (us-booking-slot-picker: the prototype's

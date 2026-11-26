@@ -51,6 +51,10 @@ public class RegistrationCreateRequest {
     @ApiModelProperty("性别 0 未知 / 1 男 / 2 女（软匹配键之一）")
     private Integer gender;
 
+    @ApiModelProperty("出生日期（yyyy-MM-dd，软匹配键之一；建档携带，可空）")
+    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
+    private Date birthDate;
+
     @ApiModelProperty("联系电话（软匹配键之一）")
     private String phone;
 

@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: us-registration-birthdate-web
+execution_mode: Batch Inline
+tasks_total: 7
+tasks_done: 7
+workflow_mode: full
+artifacts_hash: 46f42f389c199adafae5ef5926f2de7dec4660d4fc6d2ab88c861bf3c0b3ad0b

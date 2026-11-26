@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { ConfigProvider } from 'antd'
 import dayjs from 'dayjs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import UsRegistrationPage from '@/pages/us/registration'
+import UsRegistrationPage, { diffYmd } from '@/pages/us/registration'
 import * as usOrdersApi from '@/api/us-orders'
 import type { UsOrderStatus, UsOrderView } from '@/api/us-orders'
 import * as examItemApi from '@/api/exam-item'
@@ -255,7 +255,12 @@ async function pickOption(title: string): Promise<HTMLElement> {
 /** The required-demographics fill (ruling 2026-11-24: 姓名/性别/年龄/就诊卡号/患者来源
  *  mandatory - 患者来源 rides its first-option default, the rest fill here). */
 function fillRequiredDemo() {
-  fireEvent.click(screen.getByRole('radio', { name: '男' }))
+  // the gender Select (2026-11-25: the radio triple squeezed on small screens):
+  // open + click the 男 option - the sync rc-select jsdom recipe (mouseDown opens)
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: '性别' }))
+  const male = Array.from(document.querySelectorAll('.ant-select-item-option'))
+    .find((el) => el.textContent === '男') as HTMLElement
+  fireEvent.click(male)
   fireEvent.change(screen.getByLabelText('年龄-岁'), { target: { value: '3' } })
   fireEvent.change(screen.getByLabelText('卡号'), { target: { value: 'CARD-1' } })
 }
@@ -470,7 +475,9 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     expect(screen.queryByLabelText('妊娠状态')).not.toBeInTheDocument()
     // female: the cell appears (the gender radio rides the dict 1004 options)
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('radio', { name: '女' }))
+    // the gender Select (2026-11-25): open + click the 女 option
+    await user.click(screen.getByRole('combobox', { name: '性别' }))
+    await user.click(await pickOption('女'))
     expect((await screen.findAllByLabelText('妊娠状态')).length).toBeGreaterThan(0)
     // 未孕 disables the weeks input
     await user.click(screen.getAllByRole('combobox', { name: '妊娠状态' })[0])
@@ -481,9 +488,13 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
   it('性别 and 证件类型 resolve from the dict catalogs (1004/1006, id-anchored)', async () => {
     renderPage()
     await screen.findByText('请检信息')
-    // the gender radios carry the dict labels (no hard-coded option set)
-    expect(await screen.findByRole('radio', { name: '男' })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: '未知' })).toBeInTheDocument()
+    // the gender Select rides catalog 1004 (id-anchored): the dict labels, no
+    // hard-coded set, no radio strip (2026-11-25)
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: '性别' }))
+    await waitFor(() => {
+      const texts = Array.from(document.querySelectorAll('.ant-select-item-option')).map((o) => o.textContent)
+      expect(texts).toEqual(['男', '女', '未知'])
+    })
     // 患者来源 opens the value-keyed catalog-1023 dropdown (us-vocab-dict-catalogs)
     await userEvent.setup().click(screen.getByRole('combobox', { name: '患者来源' }))
     expect(await pickOption('体检')).toBeInTheDocument()
@@ -696,6 +707,135 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     // the form stays (the filled name survives the refusal)
     expect((screen.getByLabelText('姓名') as HTMLInputElement).value).toBe('孙八')
   })
+
+  describe('出生日期 two-way conversion (us-registration-birthdate-web)', () => {
+    /** The house DatePicker commit: open the panel, type the ISO date, Enter. */
+    function commitBirthDate(iso: string) {
+      const input = screen.getByLabelText('出生日期') as HTMLInputElement
+      fireEvent.mouseDown(input)
+      fireEvent.change(input, { target: { value: iso } })
+      fireEvent.keyDown(input, { key: 'Enter', keyCode: 13 })
+    }
+
+    const birthInput = () => screen.getByLabelText('出生日期') as HTMLInputElement
+    const ageField = (label: string) => screen.getByLabelText(label) as HTMLInputElement
+
+    it('diffYmd fixed oracles (leap-day anniversary + exact spans)', () => {
+      expect(diffYmd(dayjs('1990-05-20'), dayjs('2026-11-25'))).toEqual([36, 6, 5])
+      // the Feb-29 asymmetry: the remainder never leaks 12 into the months slot
+      expect(diffYmd(dayjs('2000-02-29'), dayjs('2028-02-28'))).toEqual([28, 0, 0])
+      expect(diffYmd(dayjs('2026-11-25'), dayjs('2026-11-25'))).toEqual([0, 0, 0])
+    })
+
+    it('clearing the picker resets the derived age fields', async () => {
+      renderPage()
+      await screen.findByText('请检信息')
+      commitBirthDate('1990-05-20')
+      expect(ageField('年龄-岁').value).not.toBe('')
+      fireEvent.mouseEnter(birthInput())
+      const clear = await waitFor(() => {
+        const el = document.querySelector('.ant-picker-clear')
+        expect(el).not.toBeNull()
+        return el as HTMLElement
+      })
+      fireEvent.click(clear)
+      expect(birthInput().value).toBe('')
+      expect(ageField('年龄-岁').value).toBe('')
+      expect(ageField('年龄-天').value).toBe('')
+    })
+
+    it('a future or malformed archive birth date no-ops the backfill', async () => {
+      renderPage()
+      await screen.findByText('请检信息')
+      vi.mocked(usOrdersApi.resolvePatients).mockResolvedValueOnce({
+        result: 'MATCHED',
+        identity: {
+          patUid: 992, patId: 'US3-BD2', state: 'RESOLVED', name: 'us3坏生日',
+          gender: 1, birthDate: '2990-01-01', cardNo: 'CARD-BD2',
+        },
+        candidates: null,
+      })
+      fireEvent.change(screen.getByLabelText('解析键值'), { target: { value: 'ID-BD-2' } })
+      fireEvent.click(screen.getByRole('button', { name: '解析查询' }))
+      await screen.findByText(/已匹配档案/)
+      expect(birthInput().value).toBe('')
+      expect(ageField('年龄-天').value).toBe('')
+    })
+
+    it('picker commit converts the age inputs exactly', async () => {
+      renderPage()
+      await screen.findByText('请检信息')
+      commitBirthDate('1990-05-20')
+      const [y, m, d] = diffYmd(dayjs('1990-05-20'), dayjs())
+      expect(ageField('年龄-岁').value).toBe(y > 0 ? String(y) : '')
+      expect(ageField('年龄-月').value).toBe(m > 0 ? String(m) : '')
+      expect(ageField('年龄-天').value).toBe(String(d))
+      expect(birthInput().value).toBe('1990-05-20')
+    })
+
+    it('age edit re-pins the picker year, month/day preserved', async () => {
+      renderPage()
+      await screen.findByText('请检信息')
+      commitBirthDate('1990-05-20')
+      fireEvent.change(screen.getByLabelText('年龄-岁'), { target: { value: '50' } })
+      expect(birthInput().value).toBe(`${dayjs().year() - 50}-05-20`)
+    })
+
+    it('future dates are disabled in the panel', async () => {
+      const user = userEvent.setup()
+      renderPage()
+      await screen.findByText('请检信息')
+      await user.click(screen.getByLabelText('出生日期'))
+      const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD')
+      const cell = await waitFor(() => {
+        const el = document.querySelector(`.ant-picker-cell[title="${tomorrow}"]`)
+        expect(el).not.toBeNull()
+        return el as HTMLElement
+      })
+      expect(cell.className).toContain('ant-picker-cell-disabled')
+    })
+
+    it('MATCHED identity backfills the picker and the converted age', async () => {
+      renderPage()
+      await screen.findByText('请检信息')
+      vi.mocked(usOrdersApi.resolvePatients).mockResolvedValueOnce({
+        result: 'MATCHED',
+        identity: {
+          patUid: 991, patId: 'US3-BD', state: 'RESOLVED', name: 'us3生日回填',
+          gender: 1, birthDate: '1991-03-10', idType: '01', idNo: 'ID-BD-1',
+          cardNo: 'CARD-BD', phone: '13800000001',
+        },
+        candidates: null,
+      })
+      fireEvent.change(screen.getByLabelText('解析键值'), { target: { value: 'ID-BD-1' } })
+      fireEvent.click(screen.getByRole('button', { name: '解析查询' }))
+      await screen.findByText(/已匹配档案/)
+      expect(birthInput().value).toBe('1991-03-10')
+      const [y, m, d] = diffYmd(dayjs('1991-03-10'), dayjs())
+      expect(ageField('年龄-岁').value).toBe(y > 0 ? String(y) : '')
+      expect(ageField('年龄-月').value).toBe(m > 0 ? String(m) : '')
+      expect(ageField('年龄-天').value).toBe(String(d))
+    })
+
+    it('submit posts birthDate as yyyy-MM-dd, unset posts null', async () => {
+      renderPage()
+      await screen.findByText('请检信息')
+      fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '赵生日' } })
+      fillRequiredDemo()
+      fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
+      commitBirthDate('1990-05-20')
+      fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
+      await waitFor(() => expect(usOrdersApi.createOrder).toHaveBeenCalled())
+      expect(vi.mocked(usOrdersApi.createOrder).mock.calls[0][0].birthDate).toBe('1990-05-20')
+      // the reset workbench submits null without a picker value
+      fireEvent.change(screen.getByLabelText('姓名'), { target: { value: '钱无生日' } })
+      fillRequiredDemo()
+      fireEvent.click(screen.getByRole('button', { name: '腹部彩超' }))
+      fireEvent.click(screen.getByRole('button', { name: '提交登记' }))
+      await waitFor(() => expect(vi.mocked(usOrdersApi.createOrder).mock.calls.length).toBe(2))
+      expect(vi.mocked(usOrdersApi.createOrder).mock.calls[1][0].birthDate).toBeNull()
+    })
+  })
 })
 
 
@@ -793,7 +933,7 @@ describe('wide state + saved searches (us-registration-redesign batches 3-4)', (
     fireEvent.change(screen.getByLabelText('检查号条件'), { target: { value: 'US2600' } })
     fireEvent.change(screen.getByLabelText('患者姓名条件'), { target: { value: '张' } })
     fireEvent.click(screen.getByRole('button', { name: '更多条件' }) ?? screen.getByLabelText('更多条件'))
-    fireEvent.change(screen.getByLabelText('患者编号条件'), { target: { value: 'P00000100' } })
+    fireEvent.change(screen.getByLabelText('影像号条件'), { target: { value: 'P00000100' } })
     fireEvent.change(screen.getByLabelText('就诊卡号条件'), { target: { value: 'CARD-9' } })
     fireEvent.change(screen.getByLabelText('项目名称条件'), { target: { value: '胆囊' } })
     fireEvent.click(screen.getByRole('button', { name: '查询' }))

@@ -3,6 +3,7 @@ import {
   Button,
   Checkbox,
   Col,
+  DatePicker,
   Dropdown,
   Form,
   Input,
@@ -68,7 +69,8 @@ import {
  * the compact table yields to the xtable and the rail-xhead query rows, the datenav
  * hides), the edge round button on the card's right edge toggles, and the bench card
  * carries the resolve bar (键型 seg + 查询 + matched chip) + the three fgrid sections
- * (sec-no circles, label 88px right, 3 cols) + the bench-foot (hint + 重置/提交登记).
+ * (vertical section spines, label 88px right, 3 cols; the 急诊 switch lives in the
+ * 检查类型 field - user ruling 2026-11-25) + the bench-foot (重置/提交登记).
  * Against the REAL `/api/v1/us/**` backend (no mock layer - ruling 2026-11-05).
  */
 /** The rail-head chip row (user ruling 2026-11-24): BOOKING_CANCELLED stays off the
@@ -91,9 +93,41 @@ const LIVE_STATES: UsOrderStatus[] = ['BOOKED', 'REGISTERED']
 const PREGNANCY_DISABLE_VALUES = ['未孕', '未知']
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
+/** The exact elapsed years/months/days between two dates (us-registration-birthdate-web
+ *  design D2, the EIS CheckInfo conversion semantics): full years first, then months,
+ *  then days. Exported for the fixed-oracle unit tests (the page-level tests pin the
+ *  wiring; these pin the conversion math). */
+export const diffYmd = (from: Dayjs, to: Dayjs): [number, number, number] => {
+  let years = to.diff(from, 'year')
+  let cursor = from.add(years, 'year')
+  if (cursor.isAfter(to)) { years -= 1; cursor = from.add(years, 'year') }
+  let months = to.diff(cursor, 'month')
+  let cursor2 = cursor.add(months, 'month')
+  if (cursor2.isAfter(to)) { months -= 1; cursor2 = cursor.add(months, 'month') }
+  // the Feb-29 anniversary asymmetry: dayjs's clamped year-add can leave exactly 12
+  // months on the remainder (2000-02-29 on 2028-02-28) - relabel it into the years
+  // slot so the age string stays well-formed (months never leave [0, 11])
+  if (months >= 12) { years += 1; months = 0 }
+  return [years, months, to.diff(cursor2, 'day')]
+}
+
+/** Birth date -> the age form fields; zero-leading 岁/月 parts render empty.
+ *  null leaves the fields untouched (the matched-identity backfill no-ops when
+ *  the archive carries no birth date). */
+const ageFieldsFromBirth = (date: Dayjs | null): Partial<RegistrationFormValues> => {
+  if (!date) return {}
+  const [years, months, days] = diffYmd(date, dayjs())
+  return {
+    ageYears: years > 0 ? String(years) : '',
+    ageMonths: months > 0 ? String(months) : '',
+    ageDays: String(days),
+  }
+}
+
 interface RegistrationFormValues {
   name?: string | null
   gender?: number | null
+  birthDate?: Dayjs | null
   ageYears?: string | null
   ageMonths?: string | null
   ageDays?: string | null
@@ -194,6 +228,9 @@ export default function UsRegistrationPage() {
   // The picker dialog's 检查部位 condition (2026-11-24): a client-side slice of
   // the loaded catalog - distinct body names, no server round trip.
   const [dialogBody, setDialogBody] = useState<string | null>(null)
+  // The 急诊 flag lives on the resolve bar (outside the Form, user move
+  // 2026-11-25) - React state, not a form field; submit + reset carry it.
+  const [emg, setEmg] = useState(false)
   // The header seek (方案 C 2026-11-24): the section-level typeahead state; plus
   // the busy flag of the picked-table refresh glyph (it re-runs the catalog load).
   const [seekKw, setSeekKw] = useState('')
@@ -376,6 +413,11 @@ export default function UsRegistrationPage() {
   // ---------------- the resolution flow (键型 seg, the three outcomes) ---------
 
   const fillFromIdentity = (identity: UsPatientIdentity) => {
+    // the archive's birth date backfills only when parseable and not in the future
+    // (disabledDate governs the panel, not programmatic values) - anything else
+    // no-ops, so a bad archive row can never poison the create body (review 2026-11-25)
+    const parsed = identity.birthDate ? dayjs(identity.birthDate) : null
+    const birth = parsed && parsed.isValid() && !parsed.isAfter(dayjs(), 'day') ? parsed : null
     form.setFieldsValue({
       idType: identity.idType ?? null,
       idNo: identity.idNo ?? null,
@@ -383,6 +425,8 @@ export default function UsRegistrationPage() {
       name: identity.name ?? null,
       gender: identity.gender ?? null,
       phone: identity.phone ?? null,
+      birthDate: birth,
+      ...ageFieldsFromBirth(birth),
     })
     setMatchedPatId(identity.patId ?? null)
   }
@@ -665,6 +709,11 @@ export default function UsRegistrationPage() {
   // The header seek (方案 C 2026-11-24): fuzzy name/code match over the loaded
   // catalog, top 6; Enter/click adds directly - the dialog stays for browsing.
   // Picked options disable with the 已在单内 suffix; matched substrings bold.
+  // The fixed unit suffix (the EIS hw-unit pattern, user ruling 2026-11-25):
+  // the unit rides INSIDE the control - 岁/月/天 and cm/kg stay always visible.
+  const unitSuffix = (t: string) => (
+    <span style={{ color: token.colorTextTertiary, fontSize: 12 }}>{t}</span>
+  )
   const seekKwTrim = seekKw.trim()
   const markMatch = (text: string): ReactNode => {
     if (!seekKwTrim || !(text ?? '').includes(seekKwTrim)) return text
@@ -705,6 +754,7 @@ export default function UsRegistrationPage() {
     setMatchedPatId(null)
     setLookupValue('')
     setBooking(null)
+    setEmg(false)
     form.setFieldsValue({
       patientSource: patientSourceItems.find((item) => item.value)?.value ?? null,
       idType: idTypeItems.find((item) => item.value)?.value ?? null,
@@ -731,6 +781,7 @@ export default function UsRegistrationPage() {
         cardNo: values.cardNo ?? null,
         name: values.name?.trim() ? values.name.trim() : null,
         gender: values.gender ?? null,
+        birthDate: values.birthDate ? values.birthDate.format('YYYY-MM-DD') : null,
         phone: values.phone ?? null,
         age: ageParts.length ? ageParts.join('') : null,
         patientSource: values.patientSource ?? null,
@@ -747,7 +798,7 @@ export default function UsRegistrationPage() {
           itemName: item.exam,
           modality: item.modality ?? null,
         })),
-        emgFlag: values.emgFlag ? 1 : 0,
+        emgFlag: emg ? 1 : 0,
         ext: {
           pregnancyStatus: values.pregnancyStatus ?? null,
           gestationalWeeks: values.gestationalWeeks ?? null,
@@ -912,7 +963,7 @@ export default function UsRegistrationPage() {
         {rowPregnancy(row) && <span style={{ color: token.colorInfo }}> · {rowPregnancy(row)}</span>}
       </div>
       <div style={{ color: token.colorTextTertiary, marginTop: 1, fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 4 }}>
-        {row.accessionNo} · {categoryTag(row)} {(row.bookingTime ?? row.createTime ?? '').slice(11, 16)}
+        {row.patientSnapshot?.patId ?? ''}{row.patientSnapshot?.patId ? ' · ' : ''}{row.accessionNo} · {categoryTag(row)} {(row.bookingTime ?? row.createTime ?? '').slice(11, 16)}
       </div>
     </div>
   )
@@ -1027,8 +1078,8 @@ export default function UsRegistrationPage() {
                 {extrasOpen && (
                   <>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                      <span style={{ color: token.colorTextSecondary }}>患者编号</span>
-                      <Input aria-label="患者编号条件" style={{ ...inputStyle, width: 150, fontFamily: 'monospace' }} value={filters.patientId} placeholder="P…" onChange={(e) => setFilters((p) => ({ ...p, patientId: e.target.value }))} allowClear />
+                      <span style={{ color: token.colorTextSecondary }}>影像号</span>
+                      <Input aria-label="影像号条件" style={{ ...inputStyle, width: 150, fontFamily: 'monospace' }} value={filters.patientId} placeholder="P…" onChange={(e) => setFilters((p) => ({ ...p, patientId: e.target.value }))} allowClear />
                     </span>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                       <span style={{ color: token.colorTextSecondary }}>患者类型</span>
@@ -1243,16 +1294,50 @@ export default function UsRegistrationPage() {
                   ✓ 已匹配档案 <span style={{ fontFamily: 'monospace' }}>{matchedPatId}</span>，已回填
                 </span>
               )}
+              {/* the 急诊 flag, pinned right on the resolve bar (user move 2026-11-25):
+                  the "what kind of order" toggle rides the operator's entry toolbar.
+                  Alarm-red styling (user ruling 2026-11-25): the label runs the error
+                  color at body size + weight, the checked switch turns alarm red via
+                  the --lumen-switch-emg-bg pipeline (red = clinical-alarm semantics). */}
+              <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 7, color: token.colorError, fontSize: 16, fontWeight: 700 }}>
+                急诊
+                <Switch id="us-emg" className="lumen-switch-emg" aria-label="急诊" size="small" checked={emg} onChange={(v) => setEmg(v)} />
+              </span>
             </div>
 
-            <Form form={form} disabled={saving} style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+            <Form
+              form={form}
+              disabled={saving}
+              style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}
+              onValuesChange={(changed) => {
+                // the EIS year-pin (us-registration-birthdate-web design D2): an edited 岁
+                // re-pins the picker's year only (month/day preserved). NO fabricated
+                // dates: an empty picker + age edit is a no-op (invented month/day would
+                // poison the archive); garbage/empty 岁 no-ops. setFieldsValue (backfill)
+                // never fires this - no loop.
+                if (!('ageYears' in changed)) return
+                const years = Number(changed.ageYears)
+                if (!changed.ageYears || !Number.isFinite(years) || years <= 0) return
+                const base = form.getFieldValue('birthDate') as Dayjs | null
+                if (!base) return
+                form.setFieldsValue({ birthDate: base.year(dayjs().year() - years) })
+              }}
+            >
               <div style={{ padding: '10px 16px 4px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                {/* 1 患者信息 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', paddingBottom: 6, borderBottom: `1px solid ${line}` }}>
-                  <span style={{ width: 18, height: 18, borderRadius: '50%', background: token.colorPrimary, color: token.colorBgContainer, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>1</span>
-                  <span style={{ fontWeight: 600 }}>患者信息</span>
-                </div>
-                <Row gutter={[14, 9]} style={{ marginBottom: 8 }}>
+                {/* 1 患者信息 - the vertical section spine (user ruling 2026-11-25):
+                    the 4-char title rides a tinted left rail (writing-mode vertical),
+                    the former header row's height budget goes to the fields */}
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, marginBottom: 10 }}>
+                  <div style={{ flex: 'none', width: 24, alignSelf: 'flex-start', borderRadius: 6, background: token.colorPrimaryBg, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: '7px 0 9px' }}>
+                    <span style={{ width: 16, height: 16, borderRadius: '50%', background: token.colorPrimary, color: token.colorBgContainer, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>1</span>
+                    <span style={{ writingMode: 'vertical-rl', letterSpacing: 4, marginBottom: -4, fontSize: 13, fontWeight: 600, color: token.colorPrimary, lineHeight: '14px' }}>患者信息</span>
+                  </div>
+                  <Row gutter={[14, 9]} style={{ flex: 1, minWidth: 0, margin: 0 }}>
+                  <Field label="就诊卡号" required>
+                    <Form.Item name="cardNo" noStyle rules={[{ required: true, whitespace: true, message: '请填写就诊卡号' }]}>
+                      <Input aria-label="卡号" style={inputStyle} />
+                    </Form.Item>
+                  </Field>
                   <Field label="姓名" required>
                     <Form.Item name="name" noStyle rules={[{ required: true, whitespace: true, message: '请填写姓名' }]}>
                       <Input aria-label="姓名" style={inputStyle} />
@@ -1260,12 +1345,7 @@ export default function UsRegistrationPage() {
                   </Field>
                   <Field label="性别" required>
                     <Form.Item name="gender" noStyle rules={[{ required: true, message: '请选择性别' }]}>
-                      <Radio.Group
-                        aria-label="性别"
-                        options={genderItems
-                          .filter((item) => item.code != null)
-                          .map((item) => ({ value: item.code as number, label: item.value ?? '' }))}
-                      />
+                      <Select aria-label="性别" style={{ width: '100%' }} placeholder="请选择" options={genderItems.filter((item) => item.code != null).map((item) => ({ value: item.code as number, label: item.value ?? '' }))} />
                     </Form.Item>
                   </Field>
                   <Field label="年龄" required>
@@ -1280,19 +1360,35 @@ export default function UsRegistrationPage() {
                               : Promise.reject(new Error('请填写年龄')),
                         }]}
                       >
-                        <Input aria-label="年龄-岁" style={{ ...inputStyle, flex: 1, textAlign: 'center' }} placeholder="岁" />
+                        <Input aria-label="年龄-岁" style={{ ...inputStyle, flex: '1 1 0', minWidth: 0 }} suffix={unitSuffix('岁')} />
                       </Form.Item>
                       <Form.Item name="ageMonths" noStyle>
-                        <Input aria-label="年龄-月" style={{ ...inputStyle, flex: '0 0 44px', textAlign: 'center' }} placeholder="月" />
+                        <Input aria-label="年龄-月" style={{ ...inputStyle, flex: '1 1 0', minWidth: 0 }} suffix={unitSuffix('月')} />
                       </Form.Item>
                       <Form.Item name="ageDays" noStyle>
-                        <Input aria-label="年龄-天" style={{ ...inputStyle, flex: '0 0 44px', textAlign: 'center' }} placeholder="天" />
+                        <Input aria-label="年龄-天" style={{ ...inputStyle, flex: '1 1 0', minWidth: 0 }} suffix={unitSuffix('天')} />
                       </Form.Item>
                     </div>
                   </Field>
-                  <Field label="就诊卡号" required>
-                    <Form.Item name="cardNo" noStyle rules={[{ required: true, whitespace: true, message: '请填写就诊卡号' }]}>
-                      <Input aria-label="卡号" style={inputStyle} />
+                  <Field label="出生日期">
+                    {/* us-registration-birthdate-web: the EIS-parity conversion pair -
+                        a pick recomputes 岁/月/天 exactly; the reverse (岁 -> year-pin)
+                        rides the Form's onValuesChange. Future dates are refused. */}
+                    <Form.Item name="birthDate" noStyle>
+                      <DatePicker
+                        aria-label="出生日期"
+                        style={{ width: '100%' }}
+                        disabledDate={(current) => current != null && current.isAfter(dayjs(), 'day')}
+                        onChange={(date) => {
+                          // the age fields are the picker's shadow: a pick derives them,
+                          // a clear resets them (no stale derived age may ship without
+                          // its birth date - review 2026-11-25)
+                          form.setFieldsValue(date
+                            ? ageFieldsFromBirth(date)
+                            : { ageYears: '', ageMonths: '', ageDays: '' })
+                        }}
+                        allowClear
+                      />
                     </Form.Item>
                   </Field>
                   {/* The 证件 compound control (user ruling 2026-11-24): ONE bordered box -
@@ -1343,16 +1439,6 @@ export default function UsRegistrationPage() {
                       </Form.Item>
                     </div>
                   </Col>
-                  <Field label="手机号">
-                    <Form.Item name="phone" noStyle>
-                      <Input aria-label="电话" style={inputStyle} />
-                    </Form.Item>
-                  </Field>
-                  <Field label="患者来源" required>
-                    <Form.Item name="patientSource" noStyle rules={[{ required: true, message: '请选择患者来源' }]}>
-                      <Select aria-label="患者来源" style={{ width: '100%' }} size="small" allowClear placeholder="请选择" options={valueKeyedOptions(patientSourceItems)} />
-                    </Form.Item>
-                  </Field>
                   <Field label="住院/床号">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
                       <Form.Item name="admissionNumber" noStyle>
@@ -1367,33 +1453,40 @@ export default function UsRegistrationPage() {
                   <Field label="身高/体重">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
                       <Form.Item name="height" noStyle>
-                        <InputNumber aria-label="身高" style={{ flex: 1, minWidth: 0 }} min={0} placeholder="身高cm" />
+                        <InputNumber aria-label="身高" style={{ flex: 1, minWidth: 0 }} min={0} suffix={unitSuffix('cm')} />
                       </Form.Item>
                       <span style={{ color: token.colorTextTertiary }}>/</span>
                       <Form.Item name="weight" noStyle>
-                        <InputNumber aria-label="体重" style={{ flex: 1, minWidth: 0 }} min={0} placeholder="体重kg" />
+                        <InputNumber aria-label="体重" style={{ flex: 1, minWidth: 0 }} min={0} suffix={unitSuffix('kg')} />
                       </Form.Item>
                     </div>
                   </Field>
+                  <Field label="手机号">
+                    <Form.Item name="phone" noStyle>
+                      <Input aria-label="电话" style={inputStyle} />
+                    </Form.Item>
+                  </Field>
                 </Row>
-
-                {/* 2 请检信息 (the 急诊 switch in the section title tail) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', paddingBottom: 6, borderBottom: `1px solid ${line}` }}>
-                  <span style={{ width: 18, height: 18, borderRadius: '50%', background: token.colorPrimary, color: token.colorBgContainer, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>2</span>
-                  <span style={{ fontWeight: 600 }}>请检信息</span>
-                  <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 14 }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: token.colorTextSecondary }}>
-                      急诊
-                      <Form.Item name="emgFlag" valuePropName="checked" noStyle>
-                        <Switch id="us-emg" aria-label="急诊" size="small" />
-                      </Form.Item>
-                    </span>
-                  </span>
                 </div>
-                <Row gutter={[14, 9]} style={{ marginBottom: 8 }}>
+
+                {/* 2 请检信息 - vertical spine; the 急诊 switch moved INTO the
+                    检查类型 field (user ruling 2026-11-25: the pair reads as one
+                    "what kind of exam" cluster). The hairline rule between the
+                    sections rides the wrapper's top border (2026-11-25). */}
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, borderTop: `1px solid ${line}`, paddingTop: 10, marginBottom: 10 }}>
+                  <div style={{ flex: 'none', width: 24, alignSelf: 'flex-start', borderRadius: 6, background: token.colorPrimaryBg, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: '7px 0 9px' }}>
+                    <span style={{ width: 16, height: 16, borderRadius: '50%', background: token.colorPrimary, color: token.colorBgContainer, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>2</span>
+                    <span style={{ writingMode: 'vertical-rl', letterSpacing: 4, marginBottom: -4, fontSize: 13, fontWeight: 600, color: token.colorPrimary, lineHeight: '14px' }}>请检信息</span>
+                  </div>
+                  <Row gutter={[14, 9]} style={{ flex: 1, minWidth: 0, margin: 0 }}>
                   {/* the HIS application origin (us-apply-info) leads the section:
                       the department / doctor / moment that opened the 检查申请单 -
                       free text per the coordination ruling, HIS identities are external */}
+                  <Field label="申请时间">
+                    <Form.Item name="applyTime" noStyle>
+                      <Input aria-label="申请时间" style={inputStyle} />
+                    </Form.Item>
+                  </Field>
                   <Field label="申请科室">
                     <Form.Item name="applyDept" noStyle>
                       <Input aria-label="申请科室" style={inputStyle} />
@@ -1404,14 +1497,9 @@ export default function UsRegistrationPage() {
                       <Input aria-label="申请医生" style={inputStyle} />
                     </Form.Item>
                   </Field>
-                  <Field label="检查类型">
-                    <span style={{ display: 'inline-flex', alignItems: 'center', height: 22, padding: '0 10px', borderRadius: 4, background: token.colorPrimaryBg, color: token.colorPrimary, fontWeight: 600, letterSpacing: '0.06em' }}>
-                      US
-                    </span>
-                  </Field>
-                  <Field label="申请时间">
-                    <Form.Item name="applyTime" noStyle>
-                      <Input aria-label="申请时间" style={inputStyle} />
+                  <Field label="患者来源">
+                    <Form.Item name="patientSource" noStyle>
+                      <Select aria-label="患者来源" style={{ width: '100%' }} allowClear placeholder="请选择" options={valueKeyedOptions(patientSourceItems)} />
                     </Form.Item>
                   </Field>
                   <Field label="预约时间">
@@ -1447,14 +1535,21 @@ export default function UsRegistrationPage() {
                       )}
                     </div>
                   </Field>
+                  {/* the visit-classification compound is US-station-retired
+                      (2026-11-25: on a single-modality station the type chip is
+                      zero-information - the whole page is the US context). The
+                      compound form [modality Select | source] re-appears in the
+                      radiology workstation proposal, where the type is truly
+                      switchable (CT/DR/MR) and switching re-scopes the item
+                      catalog + slot options with a picked-list reset. */}
                   {gender === GENDER_FEMALE_CODE && (
                     <Field label="妊娠">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
                         <Form.Item name="pregnancyStatus" noStyle>
-                          <Select aria-label="妊娠状态" style={{ flex: 1 }} size="small" allowClear placeholder="妊娠状态" options={valueKeyedOptions(pregnancyItems)} />
+                          <Select aria-label="妊娠状态" style={{ flex: 1, minWidth: 0 }} allowClear placeholder="妊娠状态" options={valueKeyedOptions(pregnancyItems)} />
                         </Form.Item>
                         <Form.Item name="gestationalWeeks" noStyle>
-                          <InputNumber aria-label="孕周" style={{ width: 72, minWidth: 0 }} min={1} max={45} placeholder="周" disabled={pregnancyStatus == null || PREGNANCY_DISABLE_VALUES.includes(pregnancyStatus)} />
+                          <InputNumber aria-label="孕周" style={{ width: 96, flex: 'none' }} min={1} max={45} suffix={unitSuffix('周')} disabled={pregnancyStatus == null || PREGNANCY_DISABLE_VALUES.includes(pregnancyStatus)} />
                         </Form.Item>
                       </div>
                     </Field>
@@ -1465,18 +1560,22 @@ export default function UsRegistrationPage() {
                     </Form.Item>
                   </Field>
                 </Row>
+                </div>
 
                 {/* 3 检查信息 - the split picker (方案 C, user-approved prototype
                     2026-11-24): the picked list lives left, the common-item rail
-                    right; the section header carries the seek typeahead so
-                    non-common items skip the dialog. Ops-column family chrome:
+                    right; the seek typeahead rides the trailing ADD row of the
+                    picked table. Vertical spine (2026-11-25); the section fills
+                    the remaining bench height. Ops-column family chrome:
                     trash-icon 删除 + the right-edge refresh glyph (the
                     ConsoleTable invariants). The add entry is the dashed-block
                     family pattern (the rep-template 添加测量项 ruling). */}
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', paddingBottom: 6, borderBottom: `1px solid ${line}` }}>
-                  <span style={{ width: 18, height: 18, borderRadius: '50%', background: token.colorPrimary, color: token.colorBgContainer, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>3</span>
-                  <span style={{ fontWeight: 600 }}>检查信息</span>
-                </div>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, borderTop: `1px solid ${line}`, paddingTop: 10, flex: 1, minHeight: 0 }}>
+                  <div style={{ flex: 'none', width: 24, alignSelf: 'flex-start', borderRadius: 6, background: token.colorPrimaryBg, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: '7px 0 9px' }}>
+                    <span style={{ width: 16, height: 16, borderRadius: '50%', background: token.colorPrimary, color: token.colorBgContainer, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>3</span>
+                    <span style={{ writingMode: 'vertical-rl', letterSpacing: 4, marginBottom: -4, fontSize: 13, fontWeight: 600, color: token.colorPrimary, lineHeight: '14px' }}>检查信息</span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', flex: 1 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: token.colorSuccessBg, borderRadius: 5, padding: '5px 12px', marginBottom: 6, fontWeight: 600 }}>
@@ -1585,6 +1684,8 @@ export default function UsRegistrationPage() {
                         <span style={{ color: token.colorTextTertiary, fontSize: 12 }}>暂无常用项目</span>
                       )}
                     </div>
+                  </div>
+                </div>
                   </div>
                 </div>
               </div>
