@@ -11,7 +11,7 @@ import org.birdbro.lumen.core.patient.PatientIdentity;
  * kernel order creation takes patient identity ONLY from a patient-registry port
  * result, links {@code patient_uid} from it, and refuses without one. The 检查号
  * accession is issued here when the caller did not bring one (the exam-side issuer's
- * consumer). The entry state (BOOKED for a booking, REGISTERED for a walk-in) stays
+ * consumer). The entry state (REGISTERED for every path - 预约=预登记, user ruling 2026-11-24) stays
  * the caller's choice - the aggregate service refuses a stateless document.
  *
  * @author birdbro

@@ -47,7 +47,7 @@ class SnapshotRefreshGuardTests extends KernelIntegrationTestBase {
         ExamOrder order = new ExamOrder();
         order.setPatientUid(patientUid);
         order.setAccessionNo("AC" + System.nanoTime());
-        order.setStatus(org.birdbro.lumen.core.entity.ExamOrderStatus.BOOKED);
+        order.setStatus(org.birdbro.lumen.core.entity.ExamOrderStatus.REGISTERED);
         order.setPatientSnapshot(PatientSnapshot.builder()
                 .patId("P000" + patientUid).name("旧名").age("30").build());
         return aggregateService.insertWithMembers(

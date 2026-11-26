@@ -37,7 +37,7 @@ const FULL_PERMS = ['us:order:list', 'us:order:create', 'us:order:update', 'us:o
 function orderView(partial: Partial<UsOrderView> & { orderId: number }): UsOrderView {
   return {
     accessionNo: 'US26000001',
-    status: 'BOOKED',
+    status: 'REGISTERED',
     patientUid: 101,
     patientSnapshot: { name: '张三', patId: 'P00000100', gender: 1, phone: '13800000001' },
     examItems: [{ itemId: 1, itemName: '腹部彩超' }],
@@ -64,11 +64,11 @@ function pageFixture(records: UsOrderView[]) {
 }
 
 const ZERO_COUNTS: Record<UsOrderStatus, number> = {
-  BOOKED: 0,
   REGISTERED: 0,
-  IN_PROGRESS: 0,
+  IN_EXAM: 0,
+  IN_DIAGNOSIS: 0,
   COMPLETED: 0,
-  BOOKING_CANCELLED: 0,
+  PRINTED: 0,
   CANCELLED: 0,
 }
 
@@ -136,6 +136,18 @@ describe('US workstation two-state workbench (spec: web-us-station)', () => {
           { code: 4, value: '未知' },
         ]
       }
+      // the 1031 登记单状态 catalog (registration-order-status-dict-sev V55): the
+      // six machine statuses as code 103101-103106 with the DB-configured colors
+      if (catalId === 1031) {
+        return [
+          { code: 103101, value: '已登记', tag: 'blue' },
+          { code: 103102, value: '检查中', tag: 'amber' },
+          { code: 103103, value: '诊断中', tag: 'amber' },
+          { code: 103104, value: '已完成', tag: 'green' },
+          { code: 103105, value: '已打印', tag: 'green' },
+          { code: 103106, value: '已取消', tag: 'gray' },
+        ]
+      }
       return []
     })
     vi.mocked(examItemApi.pageExamItems).mockResolvedValue({
@@ -147,14 +159,13 @@ describe('US workstation two-state workbench (spec: web-us-station)', () => {
     } as never)
     vi.mocked(usOrdersApi.pageOrders).mockResolvedValue(
       pageFixture([
-        orderView({ orderId: 11, status: 'BOOKED', bookingTime: '2026-11-25 09:17:00' }),
+        orderView({ orderId: 11, status: 'REGISTERED', bookingTime: '2026-11-25 09:17:00' }),
         orderView({ orderId: 12, status: 'REGISTERED', accessionNo: 'US26000002' }),
       ]) as never,
     )
     vi.mocked(usOrdersApi.statusCounts).mockResolvedValue({
       ...ZERO_COUNTS,
-      BOOKED: 1,
-      REGISTERED: 1,
+      REGISTERED: 2,
     })
   })
 
@@ -193,8 +204,9 @@ describe('US workstation two-state workbench (spec: web-us-station)', () => {
   it('the six status chips share one grouped row (head row 1 = datenav + autorefresh)', async () => {
     renderPage()
     await screen.findByLabelText('日期导航')
-    // the mocked counts seed the chip labels (ZERO_COUNTS + BOOKED/REGISTERED = 1)
-    const chips = ['预约 1', '已登记 1', '处理中 0', '已完成 0', '已取消 0']
+    // the mocked counts seed the chip labels (ZERO_COUNTS + REGISTERED = 2); the
+    // labels ride the dict-1031 resolver in the V55 seed's sort order
+    const chips = ['已登记 2', '检查中 0', '诊断中 0', '已完成 0', '已打印 0', '已取消 0']
       .map((label) => screen.getByLabelText(label))
     // all six live in ONE group container - no chip scattered onto the head row
     expect(new Set(chips.map((chip) => chip.parentElement)).size).toBe(1)
@@ -312,6 +324,18 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
           { code: 4, value: '未知' },
         ]
       }
+      // the 1031 登记单状态 catalog (registration-order-status-dict-sev V55): the
+      // six machine statuses as code 103101-103106 with the DB-configured colors
+      if (catalId === 1031) {
+        return [
+          { code: 103101, value: '已登记', tag: 'blue' },
+          { code: 103102, value: '检查中', tag: 'amber' },
+          { code: 103103, value: '诊断中', tag: 'amber' },
+          { code: 103104, value: '已完成', tag: 'green' },
+          { code: 103105, value: '已打印', tag: 'green' },
+          { code: 103106, value: '已取消', tag: 'gray' },
+        ]
+      }
       return []
     })
     vi.mocked(examItemApi.pageExamItems).mockResolvedValue({
@@ -323,14 +347,13 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     } as never)
     vi.mocked(usOrdersApi.pageOrders).mockResolvedValue(
       pageFixture([
-        orderView({ orderId: 11, status: 'BOOKED', bookingTime: '2026-11-25 09:17:00' }),
+        orderView({ orderId: 11, status: 'REGISTERED', bookingTime: '2026-11-25 09:17:00' }),
         orderView({ orderId: 12, status: 'REGISTERED', accessionNo: 'US26000002' }),
       ]) as never,
     )
     vi.mocked(usOrdersApi.statusCounts).mockResolvedValue({
       ...ZERO_COUNTS,
-      BOOKED: 1,
-      REGISTERED: 1,
+      REGISTERED: 2,
     })
     vi.mocked(usOrdersApi.resolvePatients).mockResolvedValue({
       result: 'NONE',
@@ -350,31 +373,100 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
   it('the chips carry the counts and multi-select toggles the IN-filter', async () => {
     renderPage()
     await screen.findByLabelText('日期导航')
-    // us-prereg-as-registered: the default selection rides 已登记 only (BOOKED never
-    // occurs in the US flow — 预登记=已登记; the chip still renders its zero count)
+    // us-prereg-as-registered: the default selection rides 已登记 only (the six-state
+    // machine's desk default); the dict-1031 labels ride the resolver
     await waitFor(() => {
       const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]
       expect(call?.status?.join(',')).toBe('REGISTERED')
     })
-    // the chips render the zero-filled meter
-    expect(screen.getByRole('button', { name: '预约 1' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '已完成 0' })).toBeInTheDocument()
-    // toggling the 预约 chip adds BOOKED back into the IN-filter (order appended)
-    fireEvent.click(screen.getByRole('button', { name: '预约 1' }))
+    // the chips render the zero-filled meter with the dict-configured hue attributes;
+    // the checkbox affordance makes the selection explicit (aria-pressed + the check
+    // glyph) - color alone was ruled not intuitive enough (user ruling 2026-11-26)
+    const registeredChip = screen.getByRole('button', { name: '已登记 2' })
+    expect(registeredChip.getAttribute('data-status-hue')).toBe('blue')
+    expect(registeredChip.getAttribute('aria-pressed')).toBe('true')
+    expect(registeredChip.querySelector('svg')).not.toBeNull()
+    const examChip = screen.getByRole('button', { name: '检查中 0' })
+    expect(examChip.getAttribute('data-status-hue')).toBe('amber')
+    expect(examChip.getAttribute('aria-pressed')).toBe('false')
+    expect(examChip.querySelector('svg')).toBeNull()
+    expect(screen.getByRole('button', { name: '已完成 0' }).getAttribute('data-status-hue')).toBe('green')
+    // toggling the 检查中 chip adds IN_EXAM into the IN-filter and flips its checkbox
+    fireEvent.click(screen.getByRole('button', { name: '检查中 0' }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '检查中 0' }).getAttribute('aria-pressed')).toBe('true')
+    })
     await waitFor(() => {
       const call = vi.mocked(usOrdersApi.pageOrders).mock.calls.at(-1)?.[0]
-      expect(call?.status?.join(',')).toBe('REGISTERED,BOOKED')
+      expect(call?.status?.join(',')).toBe('REGISTERED,IN_EXAM')
     })
   })
 
-  it('the rail renders dense rows with the cancel action (NO 登记 affordance)', async () => {
+  it('the rail renders the per-order card flow with the cancel action (NO 登记 affordance)', async () => {
     renderPage()
     // us-prereg-as-registered: the arrival confirmation retires — 预登记 rows enter
-    // 已登记 at creation (预约=预登记), so no row carries a 登记 action; 取消 stays
-    const bookedRow = (await screen.findAllByText('张三'))[0].closest('tr') as HTMLElement
-    expect(within(bookedRow).getByText('预约')).toBeInTheDocument()
+    // 已登记 at creation (预约=预登记), so no card carries a 登记 action; 取消 stays.
+    // The compact list is the card flow (user-approved prototype 2026-11-26) —
+    // the facts stack per order panel, no table rows.
+    const bookedRow = (await screen.findAllByText('张三'))[0].closest('.us-ocard') as HTMLElement
+    // the six-state model: the pre-registered row IS 已登记 (预约=预登记) - the
+    // status pill renders the dict-1031 label with its DB-configured hue
+    expect(within(bookedRow).getByText('已登记')).toBeInTheDocument()
+    expect(within(bookedRow).getByText('已登记').getAttribute('data-status-hue')).toBe('blue')
     expect(within(bookedRow).queryByRole('button', { name: /^登记/ })).not.toBeInTheDocument()
     expect(within(bookedRow).getByRole('button', { name: /^取消/ })).toBeInTheDocument()
+  })
+
+  it('the cancel affordance rides the machine live set (已登记/检查中/诊断中)', async () => {
+    // the six-state edges: CANCELLED fires from the three live states only -
+    // COMPLETED/PRINTED rows render stateless (the em-dash placeholder)
+    vi.mocked(usOrdersApi.pageOrders).mockResolvedValue(
+      pageFixture([
+        orderView({ orderId: 21, status: 'REGISTERED' }),
+        orderView({ orderId: 22, status: 'IN_EXAM' }),
+        orderView({ orderId: 23, status: 'IN_DIAGNOSIS' }),
+        orderView({ orderId: 24, status: 'COMPLETED' }),
+        orderView({ orderId: 25, status: 'PRINTED' }),
+      ]) as never,
+    )
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    const cards = (await screen.findAllByText('张三')).map(
+      (node) => node.closest('.us-ocard') as HTMLElement,
+    )
+    expect(cards.length).toBe(5)
+    const cancelable = cards.filter(
+      (card) => within(card).queryByRole('button', { name: /^取消/ }),
+    )
+    expect(cancelable.length).toBe(3)
+  })
+
+  it('a dict-1031 failure degrades to the bridge labels + one error message (meter survives)', async () => {
+    // the coordination doc's display-vocabulary deviation: unlike the form
+    // vocabularies (empty options), the chips fall back to the bridge's 中文
+    // labels with no hue so the desk meter never blanks
+    vi.mocked(dictsApi.fetchDictItemsById).mockImplementation(async (catalId: number) => {
+      if (catalId === 1031) {
+        throw new Error('dict wire down')
+      }
+      if (catalId === 1004) {
+        return [
+          { code: 100401, value: '男' },
+          { code: 100402, value: '女' },
+          { code: 100403, value: '未知' },
+        ]
+      }
+      return []
+    })
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    // the bridge fallback labels render in code order, hue-less
+    const registered = await screen.findByRole('button', { name: '已登记 2' })
+    expect(registered.getAttribute('data-status-hue')).toBeNull()
+    expect(screen.getByRole('button', { name: '检查中 0' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '已打印 0' }).getAttribute('data-status-hue')).toBeNull()
+    // one error message surfaces
+    expect(await screen.findByText('状态字典加载失败')).toBeInTheDocument()
   })
 
   it('the category tag reads the server-stamped registrationType (现场/预约)', async () => {
@@ -393,9 +485,9 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
       ]) as never,
     )
     renderPage()
-    const preRegRow = (await screen.findAllByText('张三'))[0].closest('tr') as HTMLElement
+    const preRegRow = (await screen.findAllByText('张三'))[0].closest('.us-ocard') as HTMLElement
     expect(within(preRegRow).getByText('预约')).toBeInTheDocument()
-    const walkInRow = (await screen.findAllByText('张三'))[1].closest('tr') as HTMLElement
+    const walkInRow = (await screen.findAllByText('张三'))[1].closest('.us-ocard') as HTMLElement
     expect(within(walkInRow).getByText('现场')).toBeInTheDocument()
     // the wide table carries the same tag beside the status chip
     fireEvent.click(screen.getByLabelText('工作台切换'))
@@ -886,6 +978,18 @@ describe('wide state + saved searches (us-registration-redesign batches 3-4)', (
           { code: 4, value: '未知' },
         ]
       }
+      // the 1031 登记单状态 catalog (registration-order-status-dict-sev V55): the
+      // six machine statuses as code 103101-103106 with the DB-configured colors
+      if (catalId === 1031) {
+        return [
+          { code: 103101, value: '已登记', tag: 'blue' },
+          { code: 103102, value: '检查中', tag: 'amber' },
+          { code: 103103, value: '诊断中', tag: 'amber' },
+          { code: 103104, value: '已完成', tag: 'green' },
+          { code: 103105, value: '已打印', tag: 'green' },
+          { code: 103106, value: '已取消', tag: 'gray' },
+        ]
+      }
       return []
     })
     vi.mocked(examItemApi.pageExamItems).mockResolvedValue({
@@ -897,7 +1001,7 @@ describe('wide state + saved searches (us-registration-redesign batches 3-4)', (
     } as never)
     vi.mocked(usOrdersApi.pageOrders).mockResolvedValue(
       pageFixture([
-        orderView({ orderId: 11, status: 'BOOKED', bookingTime: '2026-11-25 09:17:00' }),
+        orderView({ orderId: 11, status: 'REGISTERED', bookingTime: '2026-11-25 09:17:00' }),
         orderView({ orderId: 12, status: 'REGISTERED', accessionNo: 'US26000002' }),
       ]) as never,
     )

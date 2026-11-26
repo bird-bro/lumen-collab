@@ -506,7 +506,13 @@ unimplemented 2026-11-03, served by the dev mock) is retired by this change.
 `lumen-system` SHALL expose a read-only lookup `GET /api/v1/system/dicts/detail/items/{catalogName}`
 that resolves one dict catalog by its unique `name` and returns its live, enabled
 details as a slim `{code, value}[]` (the V9/V12 single-text model) in the standard
-envelope. The endpoint is for label-resolution consumers such as the role console and is
+envelope, ordered by `sort` ascending, plus an OPTIONAL `tag` display-metadata key
+(the V9 spare pair — the registration-order-status-dict color carrier, user ruling
+2026-11-26): items whose detail row carries a `tag` serialize the third key, items
+without one keep the strict two-key `{code, value}` shape (`@JsonInclude(NON_NULL)`
+— existing consumers unaffected). The twin `items-by-id/{catalId}` lookup (the
+dict-lookup-by-id ruling, id-anchored) carries the same shape. The endpoint is for
+label-resolution consumers such as the role console and is
 authenticated-only (no permission string — see auth-rbac).
 
 #### Scenario: Items returned for a known catalog
@@ -531,7 +537,12 @@ authenticated-only (no permission string — see auth-rbac).
 - **THEN** the request succeeds (`code: "200"`) — the dict page gate does not apply
 - **AND** an unauthenticated call is rejected like every other endpoint
 
-<!-- synced from: role-type-dict-api 2026-11-09 -->
+#### Scenario: Tagged items carry the optional display metadata
+
+- **WHEN** a detail row carries a `tag` value (e.g. the 1031 登记单状态 color token)
+- **THEN** the item serializes the third `tag` key alongside `code` and `value`
+- **AND** a detail row without a `tag` keeps the strict two-key `{code, value}` shape
+  (the key never serializes as an explicit null)
 
 ### Requirement: Menu Tree Endpoint
 `lumen-system` SHALL expose `GET /api/v1/system/menus/tree` returning the directory/menu/button
@@ -712,6 +723,7 @@ gate is `system:device:list`; mutating methods additionally pin
   feeds from the room's own 负责科室)
 
 <!-- synced from: org-device-drop-box 2026-11-19 -->
+
 ### Requirement: Device Create Validation
 
 Device create SHALL require `code`, `name`, `type` (the dict-1024 VALUE token, e.g.

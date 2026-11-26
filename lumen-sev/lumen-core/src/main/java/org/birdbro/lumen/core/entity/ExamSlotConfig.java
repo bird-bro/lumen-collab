@@ -46,7 +46,7 @@ public class ExamSlotConfig extends EntityBase {
     /** 开台时段粒度（分钟）- the grid the booking time floors onto (design D4). */
     private Integer granularityMinutes;
 
-    /** 每时段容量 - the live BOOKED count ceiling per slot window. */
+    /** 每时段容量 - the live not-cancelled order count ceiling per slot window. */
     private Integer slotCapacity;
 
     /**

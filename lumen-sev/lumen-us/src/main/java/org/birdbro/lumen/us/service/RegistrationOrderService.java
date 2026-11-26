@@ -94,21 +94,11 @@ public interface RegistrationOrderService {
     java.util.Map<String, Long> statusCounts(RegistrationOrderPageQuery query);
 
     /**
-     * Fires the 登记 transition (task 3.2; specs/us-station "Illegal transition is
-     * refused verbatim"): BOOKED &rarr; REGISTERED through the kernel state machine -
-     * the single status writer; any illegal jump refuses with the kernel's own message
-     * and leaves the stored status unchanged.
-     *
-     * @param orderId the order id
-     * @return the persisted status after the transition
-     */
-    ExamOrderStatus register(Integer orderId);
-
-    /**
-     * Cancels a live order with a reason (task 3.2; specs/us-station "Cancel carries a
-     * reason"): the branch splits by stage - BOOKED &rarr; BOOKING_CANCELLED, otherwise
-     * &rarr; CANCELLED - and the kernel state machine refuses the illegal shapes
-     * verbatim (a cancelled order re-cancelling, a report-issued cancel).
+     * Cancels a live order with a reason (specs/us-station "Cancel carries a reason"):
+     * the six-state machine has ONE cancel landing — 已取消 — reachable from
+     * 已登记/检查中/诊断中 (user ruling 2026-11-26; the former BOOKED &rarr;
+     * BOOKING_CANCELLED branch is removed), and the kernel state machine refuses the
+     * illegal shapes verbatim (a cancelled order re-cancelling, a report-issued cancel).
      *
      * @param orderId the order id
      * @param reason the cancel reason (stored on the cancel branch)

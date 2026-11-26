@@ -9,6 +9,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popover,
   Radio,
   Row,
   Select,
@@ -18,7 +19,7 @@ import {
   message,
   theme,
 } from 'antd'
-import { CalendarOutlined, DeleteOutlined, DownOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { CalendarOutlined, CheckOutlined, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, DownOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -50,13 +51,16 @@ import {
   setDefaultFilter,
 } from '@/api/search-filters'
 import type { SearchFilterView } from '@/api/search-filters'
-import { ConsolePage, ConsolePagination } from '@/pages/system/console-shell'
+import { ConsoleAction, ConsolePage, ConsolePagination } from '@/pages/system/console-shell'
 import {
   dictItemsById,
   GENDER_DICT_ID,
   GENDER_FEMALE_CODE,
   ID_TYPE_DICT_ID,
   PATIENT_SOURCE_DICT_ID,
+  usOrderStatusFallbackLabels,
+  usOrderStatusLabels,
+  type UsOrderStatusLabel,
   PREGNANCY_STATUS_DICT_ID,
   resolveDictLabel,
 } from '@/utils/dict-items'
@@ -65,7 +69,7 @@ import {
  * US 工作站两态工作台 (us-registration-redesign; 拍板 01-B/02-B; the UI AUTHORITY is
  * docs/prototypes/us-registration-redesign.html - this render mirrors its 壹 section
  * composition: the 392px rail card carries BOTH states (compact = the datenav + the
- * chips + the 3-line composite rows + the rail-foot; wide = the rail flexes full-width,
+ * chips + the per-order card flow + the rail-foot; wide = the rail flexes full-width,
  * the compact table yields to the xtable and the rail-xhead query rows, the datenav
  * hides), the edge round button on the card's right edge toggles, and the bench card
  * carries the resolve bar (键型 seg + 查询 + matched chip) + the three fgrid sections
@@ -73,23 +77,16 @@ import {
  * 检查类型 field - user ruling 2026-11-25) + the bench-foot (重置/提交登记).
  * Against the REAL `/api/v1/us/**` backend (no mock layer - ruling 2026-11-05).
  */
-/** The rail-head chip row (user ruling 2026-11-24): BOOKING_CANCELLED stays off the
- * chips - the state still renders in the tables via its gray pill, but a dead 0-count
- * filter chip is noise. */
-const RAIL_HEAD_STATUSES: UsOrderStatus[] = ['BOOKED', 'REGISTERED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
-const STATUS_LABELS: Record<UsOrderStatus, string> = {
-  BOOKED: '预约',
-  REGISTERED: '已登记',
-  IN_PROGRESS: '处理中',
-  COMPLETED: '已完成',
-  BOOKING_CANCELLED: '预约已取消',
-  CANCELLED: '已取消',
-}
-// us-prereg-as-registered: the US flow never produces BOOKED rows (预登记=已登记) —
-// the desk default watches the live pre-exam state; the BOOKED chip still renders its
-// (zero) count for legacy rows
+/** The rail-head chip row = the SIX machine statuses (registration-order-status-dict,
+ * user ruling 2026-11-26): labels AND colors resolve from dict catalog 1031 through
+ * the session resolver - the hard-coded STATUS_LABELS map is retired with the
+ * removed BOOKED/BOOKING_CANCELLED vocabulary (the chips serve BOTH states' filter). */
+const RAIL_HEAD_STATUSES: UsOrderStatus[] = ['REGISTERED', 'IN_EXAM', 'IN_DIAGNOSIS', 'COMPLETED', 'PRINTED', 'CANCELLED']
+// us-prereg-as-registered: the desk default watches the live pre-exam state
 const DEFAULT_STATUS_FILTER: UsOrderStatus[] = ['REGISTERED']
-const LIVE_STATES: UsOrderStatus[] = ['BOOKED', 'REGISTERED']
+// the machine's cancelable set (the six-state edges: CANCELLED fires from the three
+// live states; COMPLETED/PRINTED/CANCELLED rows render stateless)
+const LIVE_STATES: UsOrderStatus[] = ['REGISTERED', 'IN_EXAM', 'IN_DIAGNOSIS']
 const PREGNANCY_DISABLE_VALUES = ['未孕', '未知']
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -172,13 +169,18 @@ const SAVED_FILTER_KEYS = [
   'examItemName',
 ] as const
 
-/** The status pill colors via the antd tokens (the prototype's rchip mapping). */
-function statusChipColors(status: UsOrderStatus, token: {
+/** The status pill colors from the DB-configured hue (the dict-1031 tag) through the
+ * design-token map (registration-order-status-dict design D3 - never ad-hoc hex);
+ * an unknown/absent tag degrades to the neutral fills. */
+function hueChipColors(hue: string | null | undefined, token: {
   colorPrimaryBg: string; colorPrimary: string; colorSuccessBg: string; colorSuccess: string;
+  colorWarningBg: string; colorWarning: string; colorErrorBg: string; colorError: string;
   colorFillSecondary: string; colorTextTertiary: string;
 }) {
-  if (status === 'BOOKED') return { background: token.colorPrimaryBg, color: token.colorPrimary }
-  if (status === 'REGISTERED') return { background: token.colorSuccessBg, color: token.colorSuccess }
+  if (hue === 'blue') return { background: token.colorPrimaryBg, color: token.colorPrimary }
+  if (hue === 'green') return { background: token.colorSuccessBg, color: token.colorSuccess }
+  if (hue === 'amber') return { background: token.colorWarningBg, color: token.colorWarning }
+  if (hue === 'red') return { background: token.colorErrorBg, color: token.colorError }
   return { background: token.colorFillSecondary, color: token.colorTextTertiary }
 }
 
@@ -195,10 +197,12 @@ export default function UsRegistrationPage() {
   const [loading, setLoading] = useState(false)
   const [counts, setCounts] = useState<Record<UsOrderStatus, number> | null>(null)
   const [activeDate, setActiveDate] = useState(dayjs())
+  const [datePopOpen, setDatePopOpen] = useState(false)
+  const [navMonth, setNavMonth] = useState(dayjs().startOf('month'))
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [cancelTarget, setCancelTarget] = useState<UsOrderView | null>(null)
   const [cancelReason, setCancelReason] = useState('')
-  const [lookupField, setLookupField] = useState<'idNo' | 'cardNo' | 'phone'>('idNo')
+  const [lookupField, setLookupField] = useState<'idNo' | 'cardNo' | 'phone'>('cardNo')
   const [lookupValue, setLookupValue] = useState('')
   const [matchedPatId, setMatchedPatId] = useState<string | null>(null)
   const [candidates, setCandidates] = useState<UsPatientIdentity[] | null>(null)
@@ -209,6 +213,10 @@ export default function UsRegistrationPage() {
   const [idTypeItems, setIdTypeItems] = useState<DictItem[]>([])
   const [patientSourceItems, setPatientSourceItems] = useState<DictItem[]>([])
   const [pregnancyItems, setPregnancyItems] = useState<DictItem[]>([])
+  // The status labels + colors (dict-1031 through the session resolver): the state
+  // SEEDS with the bridge fallback so the meter renders before the wire lands and
+  // survives a dict failure (the coordination doc's display-vocabulary deviation).
+  const [statusLabels, setStatusLabels] = useState<UsOrderStatusLabel[]>(usOrderStatusFallbackLabels())
   const [slotOptions, setSlotOptions] = useState<SlotOptionsView | null>(null)
   const [slotOptionsDate, setSlotOptionsDate] = useState<string | null>(null)
   // The booking pair + the slot dialog states (us-booking-slot-picker 2026-11-24
@@ -480,6 +488,24 @@ export default function UsRegistrationPage() {
   // dict-lookup-by-id ruling 2026-11-19; session-cached via dictItemsById). A
   // failed fetch degrades to an empty option set + one error message, never
   // blocking the workbench (the users-console precedent).
+  // The status vocabulary (dict 1031, id-anchored): labels + DB-configured colors
+  // through the session resolver; a failed fetch keeps the bridge fallback meter +
+  // one error message (never blocks the desk).
+  useEffect(() => {
+    let alive = true
+    void usOrderStatusLabels()
+      .then((labels) => {
+        if (alive) setStatusLabels(labels)
+      })
+      .catch((error: unknown) => {
+        if (!alive) return
+        messageApi.error(error instanceof ApiError ? error.msg : '状态字典加载失败')
+      })
+    return () => {
+      alive = false
+    }
+  }, [messageApi])
+
   useEffect(() => {
     let alive = true
     void dictItemsById(GENDER_DICT_ID)
@@ -810,11 +836,9 @@ export default function UsRegistrationPage() {
         },
       }
       const created = await createOrder(body)
-      messageApi.success(
-        created.status === 'BOOKED'
-          ? `预约成功，检查号 ${created.accessionNo}`
-          : `登记成功，检查号 ${created.accessionNo}`,
-      )
+      // 预约=预登记 (user ruling 2026-11-24): every create lands REGISTERED - the
+      // single success message (the category rides registrationType, not the status)
+      messageApi.success(`登记成功，检查号 ${created.accessionNo}`)
       resetWorkbench()
       refreshAll()
     } catch (error) {
@@ -869,6 +893,17 @@ export default function UsRegistrationPage() {
     row.pregnancyStatus
       ? `${row.pregnancyStatus}${row.gestationalWeeks ? `${row.gestationalWeeks}周` : ''}`
       : null
+  // The row timestamps format defensively through dayjs: the VO's Date fields
+  // serialize per-field — @JsonFormat strings ("yyyy-MM-dd HH:mm:ss") where
+  // annotated, epoch millis numbers where not — so a stray number must never
+  // crash the page again (the createTime .slice crash, 2026-11-26; the backend
+  // annotation now pins the string form, this bridges any older deployment).
+  // Null/absent renders the em dash.
+  const formatStamp = (value?: string | number | null, fmt = 'HH:mm') => {
+    if (value == null || value === '') return '—'
+    const d = dayjs(value)
+    return d.isValid() ? d.format(fmt) : '—'
+  }
 
   // ---------------- the shared prototype styles (via the antd tokens) ----------
 
@@ -878,14 +913,30 @@ export default function UsRegistrationPage() {
     display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
     padding: '10px 10px', borderBottom: `1px solid ${line}`, background: headBg,
   }
-  const schipStyle = (active: boolean, hue: 'blue' | 'green' | 'plain') => ({
-    display: 'inline-flex', alignItems: 'center', gap: 4, height: 26, padding: '0 8px',
-    borderRadius: 999, cursor: 'pointer', userSelect: 'none' as const,
-    border: `1px solid ${active ? (hue === 'green' ? token.colorSuccess : hue === 'blue' ? token.colorPrimary : token.colorBorder) : token.colorBorderSecondary}`,
-    background: active ? (hue === 'green' ? token.colorSuccessBg : hue === 'blue' ? token.colorPrimaryBg : token.colorBgContainer) : token.colorBgContainer,
-    color: active ? (hue === 'green' ? token.colorSuccess : hue === 'blue' ? token.colorPrimary : token.colorText) : token.colorTextSecondary,
+  // The status chip = checkbox + label + count (user ruling 2026-11-26: the plain
+  // pill's color-only selection was not intuitive enough - the check glyph makes it
+  // explicit; the body-size text + breathing room keep 3-digit counts legible). The
+  // hue still tints the selected state through the design-token map.
+  const schipStyle = (active: boolean, hue: string | null) => {
+    const pair = hueChipColors(hue, token)
+    return {
+    display: 'inline-flex', alignItems: 'center', gap: 7, padding: '3px 6px',
+    cursor: 'pointer', userSelect: 'none' as const, fontSize: token.fontSize,
+    lineHeight: 1.2, whiteSpace: 'nowrap' as const,
+    color: active ? pair.color : token.colorTextSecondary,
     fontWeight: active ? 600 : 400,
-  })
+    }
+  }
+  const chipCheckStyle = (active: boolean, hue: string | null) => {
+    const pair = hueChipColors(hue, token)
+    return {
+    width: 16, height: 16, flex: '0 0 auto', borderRadius: 4,
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    border: `1px solid ${active ? pair.color : token.colorBorder}`,
+    background: active ? pair.color : token.colorBgContainer,
+    color: token.colorBgContainer, fontSize: 11, lineHeight: 1,
+    }
+  }
   const inputStyle: React.CSSProperties = {}
   const thStyle: React.CSSProperties = {
     textAlign: 'left', fontWeight: 500, color: token.colorTextSecondary,
@@ -894,43 +945,49 @@ export default function UsRegistrationPage() {
   const tdStyle: React.CSSProperties = {
     borderBottom: `1px solid ${token.colorFillSecondary}`, padding: '9px 8px', verticalAlign: 'middle',
   }
+  // The narrow-list text ellipsis (the card flow's name span) — the 14px
+  // thStyle/tdStyle stay for the wide table + the picked table.
+  const ellipsis: React.CSSProperties = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
   /** The value-keyed dict projection for string-token selects (value = label = the dict text). */
   const valueKeyedOptions = (dictItems: DictItem[]) =>
     dictItems
       .filter((item) => item.value)
       .map((item) => ({ value: item.value as string, label: item.value as string }))
 
+  const statusHue = (status: UsOrderStatus) =>
+    statusLabels.find((l) => l.status === status)?.hue ?? null
+  const statusLabel = (status: UsOrderStatus) =>
+    statusLabels.find((l) => l.status === status)?.label ?? status
+
   const statusChip = (row: UsOrderView) => (
     <span
+      data-status-hue={statusHue(row.status)}
       style={{
         display: 'inline-flex', alignItems: 'center', height: 22, padding: '0 8px',
         borderRadius: 999, whiteSpace: 'nowrap', fontWeight: 500,
-        ...statusChipColors(row.status, token),
+        ...hueChipColors(statusHue(row.status), token),
       }}
     >
-      {STATUS_LABELS[row.status]}
+      {statusLabel(row.status)}
     </span>
   )
 
   const railRowActions = (row: UsOrderView) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
       {/* us-prereg-as-registered: NO 登记 action — 预登记 rows enter 已登记 at creation
-          (预约=预登记, user ruling 2026-11-24); the only row action is 取消 */}
+          (预约=预登记, user ruling 2026-11-24); the only row action is 取消. The verb
+          rides the shared ConsoleAction chrome (the ops-column invariant: the trash
+          glyph + Tooltip, never the emoji literal the other 14 pages don't use). */}
       {LIVE_STATES.includes(row.status) && hasPerm('us:order:cancel') && (
-        <Button
-          size="small"
-          type="text"
-          aria-label={`取消 ${row.accessionNo}`}
-          title="取消登记"
+        <ConsoleAction
+          label="取消登记"
+          icon="remove"
           danger
-          style={{ width: 22, height: 22, minWidth: 22, padding: 0 }}
           onClick={() => {
             setCancelTarget(row)
             setCancelReason('')
           }}
-        >
-          🗑
-        </Button>
+        />
       )}
       {!LIVE_STATES.includes(row.status) && <span style={{ color: token.colorTextTertiary }}>—</span>}
     </div>
@@ -948,25 +1005,6 @@ export default function UsRegistrationPage() {
     ) : (
       <span style={{ padding: '0 6px', lineHeight: '20px', borderRadius: 3, background: token.colorFillSecondary, color: token.colorTextSecondary }}>现场</span>
     )
-
-  const compositeCell = (row: UsOrderView) => (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <span style={{ fontWeight: 600, color: row.patientSnapshot?.name ? undefined : token.colorTextTertiary }}>
-          {row.patientSnapshot?.name ?? '无名氏'}
-        </span>
-        {sourceTag(row.patientSnapshot?.patientSource)}
-        {row.emgFlag === 1 && emgTag}
-      </div>
-      <div style={{ color: token.colorTextSecondary, marginTop: 2 }}>
-        {rowItemsText(row)}
-        {rowPregnancy(row) && <span style={{ color: token.colorInfo }}> · {rowPregnancy(row)}</span>}
-      </div>
-      <div style={{ color: token.colorTextTertiary, marginTop: 1, fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 4 }}>
-        {row.patientSnapshot?.patId ?? ''}{row.patientSnapshot?.patId ? ' · ' : ''}{row.accessionNo} · {categoryTag(row)} {(row.bookingTime ?? row.createTime ?? '').slice(11, 16)}
-      </div>
-    </div>
-  )
 
   return (
     <ConsolePage>
@@ -995,15 +1033,15 @@ export default function UsRegistrationPage() {
             title={mode === 'compact' ? '展开完整列表（查询态）' : '返回工作台'}
             shape="circle"
             style={{
-              position: 'absolute', top: '50%', right: -13, transform: 'translateY(-50%)',
-              width: 26, height: 26, minWidth: 26, zIndex: 6,
-              background: token.colorBgContainer, color: token.colorTextSecondary,
-              border: `1px solid ${token.colorBorderSecondary}`,
+              position: 'absolute', top: '50%', right: -17, transform: 'translateY(-50%)',
+              width: 34, height: 34, minWidth: 34, zIndex: 6, fontSize: 18,
+              background: token.colorBgContainer, color: token.colorPrimary,
+              border: `1px solid ${token.colorPrimaryBorder}`,
               boxShadow: token.boxShadowSecondary,
             }}
             onClick={() => setMode((prev) => (prev === 'compact' ? 'wide' : 'compact'))}
           >
-            {mode === 'compact' ? '»' : '«'}
+            {mode === 'compact' ? <DoubleRightOutlined /> : <DoubleLeftOutlined />}
           </Button>
 
           {/* the rail head, TWO rows (user ruling 2026-11-24, compact): row 1 =
@@ -1013,10 +1051,56 @@ export default function UsRegistrationPage() {
               third row; the wide mode keeps chips-first + autorefresh right */}
           <div style={railHeadStyle}>
             {mode === 'compact' && (
-              <span role="group" aria-label="日期导航" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <Button size="small" aria-label="上一日" style={{ width: 18, height: 22, minWidth: 18, padding: 0 }} onClick={() => shiftDate(-1)}>‹</Button>
-                <span><b>{activeDate.format('MM-DD')}</b> <span style={{ color: token.colorTextTertiary }}>{activeDate.isSame(dayjs(), 'day') ? '今天' : ''}</span></span>
-                <Button size="small" aria-label="下一日" style={{ width: 18, height: 22, minWidth: 18, padding: 0 }} onClick={() => shiftDate(1)}>›</Button>
+              <span role="group" aria-label="日期导航" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 20 }}>
+                <Button size="small" aria-label="上一日" style={{ width: 24, height: 28, minWidth: 24, padding: 0, fontSize: 20 }} onClick={() => shiftDate(-1)}>‹</Button>
+                <Popover
+                  open={datePopOpen}
+                  onOpenChange={(open) => { setDatePopOpen(open); if (open) setNavMonth(activeDate.startOf('month')) }}
+                  trigger="click"
+                  placement="bottomLeft"
+                  content={
+                    <div style={{ width: 231 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <Button size="small" type="text" aria-label="跳转上一月" onClick={() => setNavMonth((prev) => prev.subtract(1, 'month'))}>‹</Button>
+                        <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.05em' }}>{navMonth.format('YYYY 年 MM 月')}</span>
+                        <Button size="small" type="text" aria-label="跳转下一月" onClick={() => setNavMonth((prev) => prev.add(1, 'month'))}>›</Button>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+                        {['一', '二', '三', '四', '五', '六', '日'].map((week) => (
+                          <span key={week} style={{ fontSize: 12, color: token.colorTextTertiary, textAlign: 'center', paddingBottom: 2 }}>{week}</span>
+                        ))}
+                        {Array.from({ length: (navMonth.day() + 6) % 7 }, (_, i) => (
+                          <span key={`nav-blank-${i}`} />
+                        ))}
+                        {Array.from({ length: navMonth.daysInMonth() }, (_, i) => navMonth.date(i + 1)).map((day) => {
+                          const today = day.isSame(dayjs(), 'day')
+                          const selected = day.isSame(activeDate, 'day')
+                          return (
+                            <button
+                              key={day.format('YYYY-MM-DD')}
+                              type="button"
+                              aria-label={day.format('YYYY-MM-DD')}
+                              onClick={() => { setActiveDate(day); setDatePopOpen(false) }}
+                              style={{
+                                height: 26, fontFamily: 'monospace', fontSize: 12, borderRadius: 5, border: 'none', padding: 0,
+                                cursor: 'pointer',
+                                background: selected ? token.colorPrimary : 'transparent',
+                                color: selected ? token.colorBgContainer : today ? token.colorPrimary : token.colorText,
+                                fontWeight: selected || today ? 600 : 400,
+                                boxShadow: today && !selected ? `inset 0 0 0 1px ${token.colorPrimaryBorder}` : undefined,
+                              }}
+                            >
+                              {day.date()}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  }
+                >
+                  <span role="button" aria-label="选择日期" style={{ cursor: 'pointer' }} title="选择日期">{activeDate.format('YYYY-MM-DD')}</span>
+                </Popover>
+                <Button size="small" aria-label="下一日" style={{ width: 24, height: 28, minWidth: 24, padding: 0, fontSize: 20 }} onClick={() => shiftDate(1)}>›</Button>
               </span>
             )}
             {mode === 'compact' && (
@@ -1032,16 +1116,23 @@ export default function UsRegistrationPage() {
             >
               {RAIL_HEAD_STATUSES.map((status) => {
                 const active = filters.status.includes(status)
-                const hue = status === 'BOOKED' ? 'blue' : status === 'REGISTERED' ? 'green' : 'plain'
+                const hue = statusHue(status)
+                const label = statusLabel(status)
                 return (
                   <span
                     key={status}
                     role="button"
-                    aria-label={`${STATUS_LABELS[status]} ${counts?.[status] ?? 0}`}
+                    aria-pressed={active}
+                    data-status-hue={hue}
+                    aria-label={`${label} ${counts?.[status] ?? 0}`}
                     style={{ ...schipStyle(active, hue) }}
                     onClick={() => toggleStatus(status)}
                   >
-                    {STATUS_LABELS[status]} <span style={{ fontFamily: 'monospace' }}>{counts?.[status] ?? 0}</span>
+                    <span aria-hidden style={{ ...chipCheckStyle(active, hue) }}>
+                      {active && <CheckOutlined />}
+                    </span>
+                    {label}
+                    <span style={{ fontFamily: 'monospace' }}>{counts?.[status] ?? 0}</span>
                   </span>
                 )
               })}
@@ -1135,31 +1226,59 @@ export default function UsRegistrationPage() {
             </div>
           )}
 
-          {/* the COMPACT table (3-line composite rows; the list area scrolls, the foot pins) */}
+          {/* the COMPACT list (the per-order card flow, user-approved prototype
+              2026-11-26): the rail's narrow band cannot hold columns without shrinking
+              fonts or scrolling sideways, so each order is ONE panel stacking the
+              facts vertically — line 1 = name/source/emg + status/category + 取消;
+              line 2 = the items (+ pregnancy); line 3 = 影像号·检查号 (mono);
+              line 4 = the labeled 检查/登记 times (HH:mm; the datenav scopes the day —
+              the wide state keeps the full datetimes). NO horizontal scroll, no
+              squeezed columns; the wide state restores the xtable form (edge toggle). */}
           {mode === 'compact' && (
-              <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>患者 / 项目</th>
-                    <th style={{ ...thStyle, width: 62 }}>状态</th>
-                    <th style={{ ...thStyle, width: 52 }}>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.orderId}>
-                      <td style={tdStyle}>{compositeCell(row)}</td>
-                      <td style={tdStyle}>{statusChip(row)}</td>
-                      <td style={tdStyle}>{railRowActions(row)}</td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 && !loading && (
-                    <tr><td colSpan={3} style={{ padding: 16, color: token.colorTextTertiary, textAlign: 'center' }}>当日暂无登记单</td></tr>
-                  )}
-                </tbody>
-              </table>
-              </div>
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '9px 10px' }}>
+              {rows.map((row) => (
+                <div
+                  key={row.orderId}
+                  className="us-ocard"
+                  style={{ border: `1px solid ${line}`, borderRadius: 8, background: token.colorBgContainer, padding: '8px 11px 9px' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, ...ellipsis }} title={row.patientSnapshot?.name ?? '无名氏'}>
+                        {row.patientSnapshot?.name ?? '无名氏'}
+                      </span>
+                      {sourceTag(row.patientSnapshot?.patientSource)}
+                      {row.emgFlag === 1 && emgTag}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', flex: 'none' }}>
+                      {statusChip(row)}
+                      {categoryTag(row)}
+                      {railRowActions(row)}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: token.colorTextSecondary, marginTop: 4 }}>
+                    {rowItemsText(row) || '—'}
+                    {rowPregnancy(row) && <span style={{ color: token.colorInfo }}> · {rowPregnancy(row)}</span>}
+                  </div>
+                  <div style={{ fontSize: 12, color: token.colorTextTertiary, marginTop: 4, fontFamily: 'monospace' }}>
+                    {row.patientSnapshot?.patId ? `${row.patientSnapshot.patId} · ` : ''}{row.accessionNo}
+                  </div>
+                  <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    <span>
+                      <span style={{ color: token.colorTextTertiary, marginRight: 4 }}>检查</span>
+                      <span style={{ fontFamily: 'monospace' }}>{formatStamp(row.bookingTime)}</span>
+                    </span>
+                    <span>
+                      <span style={{ color: token.colorTextTertiary, marginRight: 4 }}>登记</span>
+                      <span style={{ fontFamily: 'monospace' }}>{formatStamp(row.createTime)}</span>
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {rows.length === 0 && !loading && (
+                <div style={{ padding: 16, color: token.colorTextTertiary, textAlign: 'center' }}>当日暂无登记单</div>
+              )}
+            </div>
           )}
 
           {/* the WIDE xtable (the full columns + the 列设置 gear in the ops header) */}
@@ -1225,7 +1344,7 @@ export default function UsRegistrationPage() {
                       {!hiddenColumns.emg && <td style={tdStyle}>{row.emgFlag === 1 ? emgTag : null}</td>}
                       {!hiddenColumns.pregnancy && <td style={{ ...tdStyle, color: token.colorTextSecondary }}>{preg ? <span><b>{row.pregnancyStatus}</b>{row.gestationalWeeks ? ` · ${row.gestationalWeeks}周` : ''}</span> : '—'}</td>}
                       {!hiddenColumns.accessionNo && <td style={{ ...tdStyle, fontFamily: 'monospace', color: token.colorTextSecondary }}>{row.accessionNo}</td>}
-                      {!hiddenColumns.createTime && <td style={{ ...tdStyle, color: token.colorTextSecondary }}>{row.createTime}</td>}
+                      {!hiddenColumns.createTime && <td style={{ ...tdStyle, color: token.colorTextSecondary }}>{formatStamp(row.createTime, 'YYYY-MM-DD HH:mm:ss')}</td>}
                       {!hiddenColumns.note && <td style={{ ...tdStyle, color: token.colorTextTertiary, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.note ?? '—'}</td>}
                       <td style={tdStyle}>{railRowActions(row)}</td>
                     </tr>
@@ -1269,8 +1388,8 @@ export default function UsRegistrationPage() {
                 buttonStyle="solid"
                 size="small"
                 options={[
-                  { value: 'idNo', label: '证件号' },
                   { value: 'cardNo', label: '就诊卡号' },
+                  { value: 'idNo', label: '证件号' },
                   { value: 'phone', label: '手机号' },
                 ]}
                 disabled={!hasPerm('us:order:create')}
@@ -1330,7 +1449,7 @@ export default function UsRegistrationPage() {
                 <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, marginBottom: 10 }}>
                   <div style={{ flex: 'none', width: 24, alignSelf: 'flex-start', borderRadius: 6, background: token.colorPrimaryBg, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: '7px 0 9px' }}>
                     <span style={{ width: 16, height: 16, borderRadius: '50%', background: token.colorPrimary, color: token.colorBgContainer, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>1</span>
-                    <span style={{ writingMode: 'vertical-rl', letterSpacing: 4, marginBottom: -4, fontSize: 13, fontWeight: 600, color: token.colorPrimary, lineHeight: '14px' }}>患者信息</span>
+                    <span style={{ writingMode: 'vertical-rl', letterSpacing: 4, marginBottom: -4, fontSize: 13, color: token.colorPrimary, lineHeight: '14px' }}>患者信息</span>
                   </div>
                   <Row gutter={[14, 9]} style={{ flex: 1, minWidth: 0, margin: 0 }}>
                   <Field label="就诊卡号" required>
@@ -1343,11 +1462,28 @@ export default function UsRegistrationPage() {
                       <Input aria-label="姓名" style={inputStyle} />
                     </Form.Item>
                   </Field>
-                  <Field label="性别" required>
-                    <Form.Item name="gender" noStyle rules={[{ required: true, message: '请选择性别' }]}>
-                      <Select aria-label="性别" style={{ width: '100%' }} placeholder="请选择" options={genderItems.filter((item) => item.code != null).map((item) => ({ value: item.code as number, label: item.value ?? '' }))} />
-                    </Form.Item>
-                  </Field>
+                  {/* the gender/source pair shares one grid cell (user ruling
+                      2026-11-26, the 住院/床号 pattern): two plain bordered selects
+                      side by side, the placeholders identify each - no special
+                      chrome, the cell just saves one column. 患者来源 returns to
+                      患者信息 (its 请检信息 posting existed to accompany the
+                      retired 类型 chip). */}
+                  <Col xs={24} md={12} xl={8}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                      <span style={{ flex: 'none', color: token.colorTextSecondary, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <i style={{ color: token.colorError, fontStyle: 'normal' }}>* </i>性别
+                      </span>
+                      <Form.Item name="gender" noStyle rules={[{ required: true, message: '请选择性别' }]}>
+                        <Select aria-label="性别" style={{ flex: 1, minWidth: 0 }} options={genderItems.filter((item) => item.code != null).map((item) => ({ value: item.code as number, label: item.value ?? '' }))} />
+                      </Form.Item>
+                      <span style={{ flex: 'none', color: token.colorTextSecondary, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <i style={{ color: token.colorError, fontStyle: 'normal' }}>* </i>来源
+                      </span>
+                      <Form.Item name="patientSource" noStyle rules={[{ required: true, message: '请选择患者来源' }]}>
+                        <Select aria-label="患者来源" style={{ flex: 1, minWidth: 0 }} allowClear options={valueKeyedOptions(patientSourceItems)} />
+                      </Form.Item>
+                    </div>
+                  </Col>
                   <Field label="年龄" required>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <Form.Item
@@ -1469,14 +1605,18 @@ export default function UsRegistrationPage() {
                 </Row>
                 </div>
 
-                {/* 2 请检信息 - vertical spine; the 急诊 switch moved INTO the
-                    检查类型 field (user ruling 2026-11-25: the pair reads as one
-                    "what kind of exam" cluster). The hairline rule between the
-                    sections rides the wrapper's top border (2026-11-25). */}
+                {/* 2 请检信息 - vertical spine; the 2026-11-26 bench-height ruling
+                    (round 5): row 1 = the apply trio, rows 2-3 = the CONSTANT
+                    two-row band - 临床诊断 (fixed band height) on the LEFT, the
+                    booking column on the RIGHT (预约时间 + 妊娠 stacked, with a
+                    reserved empty slot for non-female patients) - the geometry
+                    never shifts with 妊娠's visibility or content; long text
+                    scrolls, the user drags it taller. The hairline rule between
+                    the sections rides the wrapper's top border (2026-11-25). */}
                 <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, borderTop: `1px solid ${line}`, paddingTop: 10, marginBottom: 10 }}>
                   <div style={{ flex: 'none', width: 24, alignSelf: 'flex-start', borderRadius: 6, background: token.colorPrimaryBg, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: '7px 0 9px' }}>
                     <span style={{ width: 16, height: 16, borderRadius: '50%', background: token.colorPrimary, color: token.colorBgContainer, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>2</span>
-                    <span style={{ writingMode: 'vertical-rl', letterSpacing: 4, marginBottom: -4, fontSize: 13, fontWeight: 600, color: token.colorPrimary, lineHeight: '14px' }}>请检信息</span>
+                    <span style={{ writingMode: 'vertical-rl', letterSpacing: 4, marginBottom: -4, fontSize: 13, color: token.colorPrimary, lineHeight: '14px' }}>请检信息</span>
                   </div>
                   <Row gutter={[14, 9]} style={{ flex: 1, minWidth: 0, margin: 0 }}>
                   {/* the HIS application origin (us-apply-info) leads the section:
@@ -1497,68 +1637,82 @@ export default function UsRegistrationPage() {
                       <Input aria-label="申请医生" style={inputStyle} />
                     </Form.Item>
                   </Field>
-                  <Field label="患者来源">
-                    <Form.Item name="patientSource" noStyle>
-                      <Select aria-label="患者来源" style={{ width: '100%' }} allowClear placeholder="请选择" options={valueKeyedOptions(patientSourceItems)} />
-                    </Form.Item>
-                  </Field>
-                  <Field label="预约时间">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-                      <Button
-                        aria-label="选择预约时段"
-                        type="primary"
-                        ghost
-                        disabled={!slotConfigured}
-                        icon={<CalendarOutlined />}
-                        onClick={openSlotDialog}
-                      />
-                      <span style={{ minWidth: 0, color: booking ? token.colorText : token.colorTextTertiary }}>
-                        {booking ? (
-                          <>
-                            <span>周{WEEKDAYS[booking.date.day()]} {booking.date.format('MM-DD')}</span>{' '}
-                            <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{booking.slot}–{booking.end}</span>
-                          </>
-                        ) : (
-                          !slotConfigured && '未开通预约'
-                        )}
-                      </span>
-                      {booking && (
-                        <Button
-                          type="text"
-                          aria-label="清除预约时段"
-                          title="清除（回到即到即检）"
-                          onClick={() => setBooking(null)}
-                          style={{ width: 18, height: 18, minWidth: 18, padding: 0, borderRadius: '50%', background: token.colorFillSecondary, color: token.colorTextTertiary }}
-                        >
-                          ×
-                        </Button>
-                      )}
-                    </div>
-                  </Field>
-                  {/* the visit-classification compound is US-station-retired
+                  {/* the diagnosis band LEFT + the booking/pregnancy stack RIGHT
+                      (user ruling 2026-11-26 round 4): 临床诊断 fills the CONSTANT
+                      two-row band on the left; 预约时间 + 妊娠 (female only) stack
+                      in the right 8-col column with an always-RESERVED second slot
+                      (round 5) so nothing shifts when 妊娠 toggles. The
+                      visit-classification compound is US-station-retired
                       (2026-11-25: on a single-modality station the type chip is
-                      zero-information - the whole page is the US context). The
-                      compound form [modality Select | source] re-appears in the
-                      radiology workstation proposal, where the type is truly
-                      switchable (CT/DR/MR) and switching re-scopes the item
-                      catalog + slot options with a picked-list reset. */}
-                  {gender === GENDER_FEMALE_CODE && (
-                    <Field label="妊娠">
+                      zero-information); the compound form [modality Select |
+                      source] re-appears in the radiology workstation proposal. */}
+                  <Col xs={24} md={24} xl={16}>
+                    <FieldRow label="临床诊断">
+                      <Form.Item name="note" noStyle>
+                        {/* the box fills the CONSTANT two-row band (round 5):
+                            2 controls + the 9px row gap - flush top and bottom on
+                            BOTH genders, no dead band under it, nothing moves when
+                            妊娠 toggles. Long text scrolls natively; resize:
+                            vertical still lets the user drag it taller. */}
+                        <Input.TextArea aria-label="临床诊断" maxLength={255} style={{ width: '100%', height: token.controlHeight * 2 + 9, resize: 'vertical' }} />
+                      </Form.Item>
+                    </FieldRow>
+                  </Col>
+                  <Col xs={24} md={12} xl={8}>
+                    <FieldRow label="预约时间">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-                        <Form.Item name="pregnancyStatus" noStyle>
-                          <Select aria-label="妊娠状态" style={{ flex: 1, minWidth: 0 }} allowClear placeholder="妊娠状态" options={valueKeyedOptions(pregnancyItems)} />
-                        </Form.Item>
-                        <Form.Item name="gestationalWeeks" noStyle>
-                          <InputNumber aria-label="孕周" style={{ width: 96, flex: 'none' }} min={1} max={45} suffix={unitSuffix('周')} disabled={pregnancyStatus == null || PREGNANCY_DISABLE_VALUES.includes(pregnancyStatus)} />
-                        </Form.Item>
+                        <Button
+                          aria-label="选择预约时段"
+                          type="primary"
+                          ghost
+                          disabled={!slotConfigured}
+                          icon={<CalendarOutlined />}
+                          onClick={openSlotDialog}
+                        />
+                        <span style={{ minWidth: 0, color: booking ? token.colorText : token.colorTextTertiary }}>
+                          {booking ? (
+                            <>
+                              <span>周{WEEKDAYS[booking.date.day()]} {booking.date.format('MM-DD')}</span>{' '}
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{booking.slot}–{booking.end}</span>
+                            </>
+                          ) : (
+                            !slotConfigured && '未开通预约'
+                          )}
+                        </span>
+                        {booking && (
+                          <Button
+                            type="text"
+                            aria-label="清除预约时段"
+                            title="清除（回到即到即检）"
+                            onClick={() => setBooking(null)}
+                            style={{ width: 18, height: 18, minWidth: 18, padding: 0, borderRadius: '50%', background: token.colorFillSecondary, color: token.colorTextTertiary }}
+                          >
+                            ×
+                          </Button>
+                        )}
                       </div>
-                    </Field>
-                  )}
-                  <Field label="临床诊断" full>
-                    <Form.Item name="note" noStyle>
-                      <Input.TextArea aria-label="临床诊断" rows={2} maxLength={255} style={{ width: '100%' }} />
-                    </Form.Item>
-                  </Field>
+                    </FieldRow>
+                    {gender === GENDER_FEMALE_CODE ? (
+                      <div style={{ marginTop: 9 }}>
+                        <FieldRow label="妊娠">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                            <Form.Item name="pregnancyStatus" noStyle>
+                              <Select aria-label="妊娠状态" style={{ flex: 1, minWidth: 0 }} allowClear placeholder="妊娠状态" options={valueKeyedOptions(pregnancyItems)} />
+                            </Form.Item>
+                            <Form.Item name="gestationalWeeks" noStyle>
+                              <InputNumber aria-label="孕周" style={{ width: 96, flex: 'none' }} min={1} max={45} suffix={unitSuffix('周')} disabled={pregnancyStatus == null || PREGNANCY_DISABLE_VALUES.includes(pregnancyStatus)} />
+                            </Form.Item>
+                          </div>
+                        </FieldRow>
+                      </div>
+                    ) : (
+                      /* the RESERVED pregnancy slot (user ruling 2026-11-26 round 5):
+                          the booking column always occupies its two rows, so the
+                          band - and the diagnosis box filling it - never shifts
+                          when the gender toggle shows/hides 妊娠 */
+                      <div style={{ marginTop: 9, height: token.controlHeight }} aria-hidden="true" />
+                    )}
+                  </Col>
                 </Row>
                 </div>
 
@@ -1573,15 +1727,11 @@ export default function UsRegistrationPage() {
                 <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, borderTop: `1px solid ${line}`, paddingTop: 10, flex: 1, minHeight: 0 }}>
                   <div style={{ flex: 'none', width: 24, alignSelf: 'flex-start', borderRadius: 6, background: token.colorPrimaryBg, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, padding: '7px 0 9px' }}>
                     <span style={{ width: 16, height: 16, borderRadius: '50%', background: token.colorPrimary, color: token.colorBgContainer, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>3</span>
-                    <span style={{ writingMode: 'vertical-rl', letterSpacing: 4, marginBottom: -4, fontSize: 13, fontWeight: 600, color: token.colorPrimary, lineHeight: '14px' }}>检查信息</span>
+                    <span style={{ writingMode: 'vertical-rl', letterSpacing: 4, marginBottom: -4, fontSize: 13, color: token.colorPrimary, lineHeight: '14px' }}>检查信息</span>
                   </div>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', flex: 1 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: token.colorSuccessBg, borderRadius: 5, padding: '5px 12px', marginBottom: 6, fontWeight: 600 }}>
-                      <span>已选择<span style={{ color: token.colorPrimary, margin: '0 3px' }}>{picked.length}</span>个检查项目</span>
-                      <span>合计：¥{pickedTotal.toFixed(2)}</span>
-                    </div>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr>
@@ -1650,6 +1800,13 @@ export default function UsRegistrationPage() {
                         添加项目
                       </Button>
                     )}
+                    {/* the selection summary docked at the LEFT COLUMN bottom (user
+                        ruling 2026-11-26): marginTop auto pins it level with the
+                        常用项目 rail bottom, never spanning under the rail */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: token.colorSuccessBg, borderRadius: 5, padding: '5px 12px', marginTop: 'auto', fontWeight: 600 }}>
+                      <span>已选择<span style={{ color: token.colorPrimary, margin: '0 3px' }}>{picked.length}</span>个检查项目</span>
+                      <span>合计：¥{pickedTotal.toFixed(2)}</span>
+                    </div>
                   </div>
                   <div style={{ flex: 'none', width: 260, borderLeft: `1px solid ${line}`, paddingLeft: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 12, fontWeight: 700, color: token.colorTextTertiary, letterSpacing: '0.08em' }}>
@@ -2035,25 +2192,38 @@ export default function UsRegistrationPage() {
   )
 }
 
-/** The prototype's `field` row wrapped in the RESPONSIVE grid cell (xl 三列 /
- *  md 两列 / xs 单列 - the prototype's own 1180px media collapse, antd-native):
- *  the 88px right label + the control flexing. `full` spans every breakpoint. */
-function Field({ label, required, full, children }: {
+/** The 88px-right-label + flexing-control row, WITHOUT the grid cell - the
+ *  unit every Field cell wraps and the booking/pregnancy stack composes
+ *  directly (user ruling 2026-11-26 round 2). */
+function FieldRow({ label, required, children }: {
   label: string
   required?: boolean
-  full?: boolean
   children: React.ReactNode
 }) {
   const { token } = theme.useToken()
   return (
-    <Col xs={24} md={full ? 24 : 12} xl={full ? 24 : 8}>
-      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-        <span style={{ flex: '0 0 88px', width: 88, color: token.colorTextSecondary, textAlign: 'right', paddingRight: 8, whiteSpace: 'nowrap' }}>
-          {required && <i style={{ color: token.colorError, fontStyle: 'normal' }}>* </i>}
-          {label}
-        </span>
-        <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
-      </div>
+    <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+      <span style={{ flex: '0 0 88px', width: 88, color: token.colorTextSecondary, textAlign: 'right', paddingRight: 8, whiteSpace: 'nowrap' }}>
+        {required && <i style={{ color: token.colorError, fontStyle: 'normal' }}>* </i>}
+        {label}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+    </div>
+  )
+}
+
+/** The prototype's `field` row wrapped in the RESPONSIVE grid cell (xl 三列 /
+ *  md 两列 / xs 单列 - the prototype's own 1180px media collapse, antd-native):
+ *  a FieldRow inside the cell. Compound placements (the booking/pregnancy
+ *  stack, the diagnosis band) compose FieldRow inside their own Col. */
+function Field({ label, required, children }: {
+  label: string
+  required?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <Col xs={24} md={12} xl={8}>
+      <FieldRow label={label} required={required}>{children}</FieldRow>
     </Col>
   )
 }

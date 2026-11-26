@@ -81,6 +81,14 @@ public abstract class UsIntegrationTestBase {
     @org.springframework.boot.test.mock.mockito.MockBean
     protected org.birdbro.lumen.feign.number.NumberApi numberApi;
 
+    /**
+     * The system rooms seam (us-order-exam-room-sev task 2.3): the room directory +
+     * validation read the station consumes - room tests override per-case; the default
+     * stub answers an EMPTY directory (the honest no-rooms band).
+     */
+    @org.springframework.boot.test.mock.mockito.MockBean
+    protected org.birdbro.lumen.feign.system.SystemRoomApi systemRoomApi;
+
     @org.junit.jupiter.api.BeforeEach
     void stubFeignCounterparties() {
         java.util.concurrent.atomic.AtomicInteger seq = STUB_SEQ;
@@ -110,6 +118,21 @@ public abstract class UsIntegrationTestBase {
                         org.birdbro.lumen.feign.number.NumberIssueResponse.builder()
                                 .number(STUB_ACCESSION_PREFIX + seq.incrementAndGet())
                                 .build()));
+        // the system rooms seam defaults (us-order-exam-room-sev): a VALID room for
+        // any id (did 307 = the suite's station binding below, enable 1 - the create
+        // gate passes for bodies carrying roomId) and an EMPTY directory (the page's
+        // read-time name join degrades to null names = the honest '—' band)
+        org.mockito.Mockito.when(systemRoomApi.getInternalRoom(
+                        org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(inv -> org.birdbro.common.core.R.ofSuccess(
+                        org.birdbro.lumen.feign.system.RoomDetailDto.builder()
+                                .id((Integer) inv.getArgument(0))
+                                .oid(885000).did(307).name("307 诊室").enable(1)
+                                .build()));
+        org.mockito.Mockito.when(systemRoomApi.listInternal(
+                        org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(inv -> org.birdbro.common.core.R.ofSuccess(
+                        java.util.Collections.emptyList()));
     }
 
     /**
@@ -124,6 +147,9 @@ public abstract class UsIntegrationTestBase {
                 UsTestEnv.PG_HOST, UsTestEnv.PG_PORT, UsTestEnv.PG_USER,
                 UsTestEnv.PG_PASSWORD, UsTestEnv.REDIS_HOST, UsTestEnv.REDIS_PORT);
         String database = env.optional(UsTestEnv.DB, UsTestEnv.DEFAULT_DB);
+        // the suite's station department binding (us-order-exam-room-sev): the create
+        // gate + the directory scope anchor - the base room stub answers did=307
+        registry.add("lumen.us.station-dept-id", () -> "307");
         String redisPassword = env.optional(UsTestEnv.REDIS_PASSWORD, null);
 
         String pgHost = required.get(UsTestEnv.PG_HOST);

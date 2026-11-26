@@ -27,6 +27,10 @@ import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
 import org.birdbro.lumen.feign.patient.PatientLookupResult;
 import org.birdbro.lumen.feign.patient.PatientResolveOrRegisterRequest;
+import org.birdbro.lumen.feign.system.RoomDetailDto;
+import org.birdbro.lumen.feign.system.RoomSummaryDto;
+import org.birdbro.lumen.feign.system.SystemRoomApi;
+import org.birdbro.lumen.us.config.UsStationProperties;
 import org.birdbro.lumen.core.entity.ExamExecution;
 import org.birdbro.lumen.core.entity.ExamOrder;
 import org.birdbro.lumen.core.entity.ExamOrderStatus;
@@ -104,6 +108,8 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
     private final ExamSlotCapacityService examSlotCapacityService;
     private final ExamSlotConfigMapper examSlotConfigMapper;
     private final TransactionTemplate transactionTemplate;
+    private final SystemRoomApi systemRoomApi;
+    private final UsStationProperties stationProperties;
 
     /** The create path's strict window format (us-slot-options-window-fix D3) - the
      *  same HH:mm contract as the kernel capacity service's private formatter. */
@@ -118,7 +124,9 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
             PreRegistrationPolicy preRegistrationPolicy,
             ExamSlotCapacityService examSlotCapacityService,
             ExamSlotConfigMapper examSlotConfigMapper,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            SystemRoomApi systemRoomApi,
+            UsStationProperties stationProperties) {
         this.patientRegistryPortAdapter = patientRegistryPortAdapter;
         this.examOrderRegistrationService = examOrderRegistrationService;
         this.examOrderStateMachineService = examOrderStateMachineService;
@@ -128,6 +136,8 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
         this.examSlotCapacityService = examSlotCapacityService;
         this.examSlotConfigMapper = examSlotConfigMapper;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.systemRoomApi = systemRoomApi;
+        this.stationProperties = stationProperties;
     }
 
     @Override
@@ -137,6 +147,14 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
 
     @Override
     public RegistrationCreateResult create(RegistrationCreateRequest request) {
+        // (0) the exam-room gate (us-order-exam-room: 检查室必选, user ruling
+        // 2026-11-26) - the FIRST step, before even the patient port resolve, so a bad
+        // room persists NOTHING anywhere (not even a patient archive). The validation
+        // read is a REMOTE call and stays OUTSIDE any transaction (kernel design D8);
+        // its Sentinel fallback fails CLOSED (throws - a roomless/unverifiable create
+        // is refused, never stamped unverifiable).
+        requireValidRoom(request.getRoomId());
+
         // (1) the port resolve-or-register - the ONLY identity source; the adapter
         // refuses incomplete results before any order row is written. It stays OUTSIDE
         // any transaction (kernel design D8 - a remote call never holds a local tx).
@@ -203,6 +221,9 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
         order.setEmgFlag(request.getEmgFlag());
         order.setPatientSnapshot(buildSnapshot(request, identity));
         order.setBookingTime(request.getBookingTime());
+        // the room anchor (us-order-exam-room): ONE stamp point for BOTH entry branches
+        // (the validation already ran at the create() head - this trusts the gate)
+        order.setRoomId(request.getRoomId());
         return order;
     }
 
@@ -229,8 +250,7 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
         // not-cancelled orders in the window - the reservation survives every live
         // stage (the retired predicate counted BOOKED rows only)
         int occupancy = examOrderMapper.selectCount(new LambdaQueryWrapper<ExamOrder>()
-                .notIn(ExamOrder::getStatus, ExamOrderStatus.BOOKING_CANCELLED,
-                        ExamOrderStatus.CANCELLED)
+                .notIn(ExamOrder::getStatus, ExamOrderStatus.CANCELLED)
                 .ge(ExamOrder::getBookingTime, bounds.getWindowStart())
                 .lt(ExamOrder::getBookingTime, bounds.getWindowEnd())
                 .apply("exam_items->0->>'modality' = {0}", modality))
@@ -321,8 +341,7 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
             Date spanEndTs = java.sql.Timestamp.valueOf(day.atStartOfDay().plusMinutes(maxCellEnd));
             for (ExamOrder row : examOrderMapper.selectList(new LambdaQueryWrapper<ExamOrder>()
                     .select(ExamOrder::getBookingTime)
-                    .notIn(ExamOrder::getStatus, ExamOrderStatus.BOOKING_CANCELLED,
-                            ExamOrderStatus.CANCELLED)
+                    .notIn(ExamOrder::getStatus, ExamOrderStatus.CANCELLED)
                     .ge(ExamOrder::getBookingTime, dayStartTs)
                     .lt(ExamOrder::getBookingTime, spanEndTs)
                     .apply("exam_items->0->>'modality' = {0}", modality))) {
@@ -391,7 +410,41 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
                         .stream()
                         .collect(Collectors.toMap(UsRegistrationExt::getOrderId,
                                 Function.identity()));
-        return orders.convert(order -> toView(order, extByOrderId.get(order.getId())));
+        return applyRoomNames(
+                orders.convert(order -> toView(order, extByOrderId.get(order.getId()))));
+    }
+
+    /**
+     * The read-time room-name join (us-order-exam-room): the station's room universe
+     * is exactly its department directory (create-time validation scopes every stamped
+     * roomId into it), so ONE directory read resolves the whole page. The degraded
+     * bands (no binding / adapter fallback / null envelope) leave the names null - the
+     * UI renders '—' and never guesses.
+     */
+    private IPage<RegistrationOrderView> applyRoomNames(IPage<RegistrationOrderView> views) {
+        boolean anyRoom = views.getRecords().stream()
+                .anyMatch((view) -> view.getRoomId() != null);
+        if (!anyRoom) {
+            return views;
+        }
+        Long deptId = stationProperties.getStationDeptId();
+        if (deptId == null) {
+            return views;
+        }
+        org.birdbro.common.core.R<List<RoomSummaryDto>> answer =
+                systemRoomApi.listInternal(deptId.intValue());
+        if (answer == null || CollUtil.isEmpty(answer.getData())) {
+            return views;
+        }
+        Map<Integer, String> nameByRoomId = answer.getData().stream()
+                .collect(Collectors.toMap(RoomSummaryDto::getId, RoomSummaryDto::getName,
+                        (first, second) -> first));
+        views.getRecords().forEach((view) -> {
+            if (view.getRoomId() != null) {
+                view.setRoomName(nameByRoomId.get(view.getRoomId()));
+            }
+        });
+        return views;
     }
 
     @Override
@@ -463,25 +516,11 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
     }
 
     @Override
-    public ExamOrderStatus register(Integer orderId) {
-        // the kernel state machine is the status column's SINGLE writer - the refusal
-        // message surfaces verbatim, the stored status stays unchanged
-        return examOrderStateMachineService.transition(orderId,
-                ExamOrderStatus.REGISTERED, null);
-    }
-
-    @Override
     public ExamOrderStatus cancel(Integer orderId, String reason) {
-        // the branch splits by stage - the kernel refuses the illegal shapes verbatim
-        ExamOrder order = examOrderMapper.selectById(orderId);
-        if (order == null) {
-            throw new BusinessException(ExceptionEnum.ERROR_A0400,
-                    "检查单不存在: " + orderId);
-        }
-        ExamOrderStatus target = order.getStatus() == ExamOrderStatus.BOOKED
-                ? ExamOrderStatus.BOOKING_CANCELLED
-                : ExamOrderStatus.CANCELLED;
-        return examOrderStateMachineService.transition(orderId, target, reason);
+        // the six-state machine has ONE cancel landing (user ruling 2026-11-26) - the
+        // kernel refuses the illegal shapes verbatim, the stored status stays unchanged
+        return examOrderStateMachineService.transition(orderId, ExamOrderStatus.CANCELLED,
+                reason);
     }
 
     // ---------------------------------------------------------------- helpers
@@ -551,6 +590,7 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
                 .createBy(order.getCreateBy())
                 .registrationType(order.getRegistrationType())
                 .bookingTime(order.getBookingTime())
+                .roomId(order.getRoomId())
                 .build();
         if (ext != null) {
             view.setPregnancyStatus(ext.getPregnancyStatus());
@@ -563,6 +603,27 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
             view.setApplyDoctorId(ext.getApplyDoctorId());
         }
         return view;
+    }
+
+    /**
+     * The exam-room gate (us-order-exam-room-sev task 4.2; design D2): the room must
+     * exist, be enabled, and belong to the station's department (the {@code did} match
+     * against {@code lumen.us.station-dept-id}) - the refusals surface verbatim with
+     * NOTHING persisted. The read rides the Feign detail endpoint whose Sentinel
+     * fallback THROWS (fail closed) - an unreachable room service refuses the create.
+     */
+    private void requireValidRoom(Integer roomId) {
+        if (roomId == null) {
+            throw new BusinessException(ExceptionEnum.ERROR_A0400, "检查室不能为空");
+        }
+        org.birdbro.common.core.R<RoomDetailDto> answer = systemRoomApi.getInternalRoom(roomId);
+        RoomDetailDto room = answer == null ? null : answer.getData();
+        Long deptId = stationProperties.getStationDeptId();
+        if (room == null || room.getEnable() == null || room.getEnable() != 1
+                || deptId == null || room.getDid() == null
+                || deptId.intValue() != room.getDid()) {
+            throw new BusinessException(ExceptionEnum.ERROR_A0400, "检查室不存在或未启用");
+        }
     }
 
     /**

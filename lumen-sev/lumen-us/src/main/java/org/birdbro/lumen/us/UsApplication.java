@@ -55,7 +55,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @EnableFeignClients(clients = {
         org.birdbro.lumen.feign.patient.PatientApi.class,
-        org.birdbro.lumen.feign.number.NumberApi.class})
+        org.birdbro.lumen.feign.number.NumberApi.class,
+        org.birdbro.lumen.feign.system.SystemRoomApi.class})
 public class UsApplication {
 
     public static void main(String[] args) {

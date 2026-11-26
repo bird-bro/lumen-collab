@@ -9,17 +9,19 @@
  * Contract mirror: `org.birdbro.lumen.us.controller.RegistrationController` +
  * its DTOs (RegistrationCreateRequest / RegistrationOrderView / the resolve
  * passthrough over `PatientLookupResult`), kernel `ExamItemRef` ({itemId,
- * itemName} catalog reference + name snapshot), and `ExamOrderStatus`
- * (BOOKED/REGISTERED/IN_PROGRESS/COMPLETED/BOOKING_CANCELLED/CANCELLED).
+ * itemName} catalog reference + name snapshot), and `ExamOrderStatus` — the
+ * six-state machine (user ruling 2026-11-26): REGISTERED/IN_EXAM/IN_DIAGNOSIS/
+ * COMPLETED/PRINTED/CANCELLED (the former BOOKED/BOOKING_CANCELLED arrival
+ * vocabulary is removed; registration-order-status-dict).
  */
 import { apiRequest } from './client';
 
 export type UsOrderStatus =
-  | 'BOOKED'
   | 'REGISTERED'
-  | 'IN_PROGRESS'
+  | 'IN_EXAM'
+  | 'IN_DIAGNOSIS'
   | 'COMPLETED'
-  | 'BOOKING_CANCELLED'
+  | 'PRINTED'
   | 'CANCELLED';
 
 /** The entry-category marker (us-prereg-as-registered; user ruling 2026-11-24 预约=
@@ -153,7 +155,7 @@ export interface UsLookupResult {
 }
 
 /** One granularity slot of the booking picker's day grid (us-booking-slot-picker):
- * the HH:mm bounds, the LIVE BOOKED occupancy, and the config's per-slot capacity. */
+ * the HH:mm bounds, the live not-cancelled occupancy, and the config's per-slot capacity. */
 export interface SlotOptionView {
   start: string;
   end: string;

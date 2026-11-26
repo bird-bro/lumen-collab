@@ -23,17 +23,22 @@ import org.springframework.transaction.annotation.Transactional;
  * exam-workflow-kernel "Document State Machine"). Recorded decisions:
  *
  * <ol>
- *   <li>The transition table is a static enum-level map (design D4): each source state
- *       maps to its set of legal targets - BOOKED &rarr; {REGISTERED,
- *       BOOKING_CANCELLED}; REGISTERED &rarr; {IN_PROGRESS, CANCELLED};
- *       IN_PROGRESS &rarr; {COMPLETED, CANCELLED}; COMPLETED and the two cancel states
- *       are terminal. The EIS numeric dict codes are NOT copied (design D4).</li>
+ *   <li>The transition table is a static enum-level map (registration-order-status-dict
+ *       design D1): each source state maps to its set of legal targets - the six-state
+ *       machine, user ruling 2026-11-26 (BOOKED/BOOKING_CANCELLED removed, the former
+ *       IN_PROGRESS split into IN_EXAM/IN_DIAGNOSIS, PRINTED added):
+ *       REGISTERED &rarr; {IN_EXAM, IN_DIAGNOSIS, COMPLETED, CANCELLED};
+ *       IN_EXAM &rarr; {IN_DIAGNOSIS, COMPLETED, CANCELLED};
+ *       IN_DIAGNOSIS &rarr; {COMPLETED, CANCELLED}; COMPLETED &rarr; {PRINTED}.
+ *       PRINTED and CANCELLED are terminal. Forward edges stay permissive (every later
+ *       stage fires from each earlier live state - orders cannot strand while a stage
+ *       caller is absent); backward moves and terminal exits do not exist.</li>
  *   <li>This service is the status column's SINGLE writer (interface contract): the
- *       update patches the status (and the cancel reason on the cancel branches) with a
+ *       update patches the status (and the cancel reason on the cancel branch) with a
  *       null-ignoring {@code updateById}, refusing BEFORE any write when the edge is
  *       illegal - the stored status stays unchanged in every refusal case.</li>
  *   <li>The cancel guard reads the order's report member: a report already ISSUED (已出)
- *       refuses every cancel branch (spec: cancelling an order whose report is issued
+ *       refuses the cancel branch (spec: cancelling an order whose report is issued
  *       SHALL be refused) - the DB-backed medical document survives the order-stage
  *       cancel.</li>
  *   <li>Rejections are A0400 + descriptive msg for now (design D4: dedicated
@@ -50,13 +55,16 @@ public class ExamOrderStateMachineServiceImpl implements ExamOrderStateMachineSe
 
     static {
         Map<ExamOrderStatus, Set<ExamOrderStatus>> edges = new EnumMap<>(ExamOrderStatus.class);
-        edges.put(ExamOrderStatus.BOOKED,
-                Set.of(ExamOrderStatus.REGISTERED, ExamOrderStatus.BOOKING_CANCELLED));
         edges.put(ExamOrderStatus.REGISTERED,
-                Set.of(ExamOrderStatus.IN_PROGRESS, ExamOrderStatus.CANCELLED));
-        edges.put(ExamOrderStatus.IN_PROGRESS,
+                Set.of(ExamOrderStatus.IN_EXAM, ExamOrderStatus.IN_DIAGNOSIS,
+                        ExamOrderStatus.COMPLETED, ExamOrderStatus.CANCELLED));
+        edges.put(ExamOrderStatus.IN_EXAM,
+                Set.of(ExamOrderStatus.IN_DIAGNOSIS, ExamOrderStatus.COMPLETED,
+                        ExamOrderStatus.CANCELLED));
+        edges.put(ExamOrderStatus.IN_DIAGNOSIS,
                 Set.of(ExamOrderStatus.COMPLETED, ExamOrderStatus.CANCELLED));
-        // COMPLETED / BOOKING_CANCELLED / CANCELLED are terminal - absent from the map
+        edges.put(ExamOrderStatus.COMPLETED, Set.of(ExamOrderStatus.PRINTED));
+        // PRINTED / CANCELLED are terminal - absent from the map
         EDGES = edges;
     }
 
@@ -99,7 +107,7 @@ public class ExamOrderStateMachineServiceImpl implements ExamOrderStateMachineSe
     }
 
     private static boolean isCancelBranch(ExamOrderStatus target) {
-        return target == ExamOrderStatus.BOOKING_CANCELLED || target == ExamOrderStatus.CANCELLED;
+        return target == ExamOrderStatus.CANCELLED;
     }
 
     private boolean reportIssued(Integer orderId) {

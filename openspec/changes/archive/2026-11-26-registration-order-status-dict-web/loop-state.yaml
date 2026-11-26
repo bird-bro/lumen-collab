@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: registration-order-status-dict-web
+execution_mode: SDD
+tasks_total: 12
+tasks_done: 12
+workflow_mode: full
+artifacts_hash: c27734bbb16c28e51e7ad87757cc95befbd94bda08766a2d41bf18b371bb6e71

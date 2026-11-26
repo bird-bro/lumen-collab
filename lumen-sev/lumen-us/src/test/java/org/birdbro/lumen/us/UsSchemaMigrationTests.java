@@ -114,6 +114,9 @@ class UsSchemaMigrationTests extends UsIntegrationTestBase {
             if ("exam_order".equals(table)) {
                 expected.add("booking_time");
                 expected.add("registration_type");
+                // V57 (us-order-exam-room-sev) appends the exam-room anchor last - the
+                // same ALTER-appends-last reality (kernel V4 vendored)
+                expected.add("room_id");
             }
             assertEquals(expected, orderedColumns,
                     "us." + table + " must carry EXACTLY the canonical kernel columns "

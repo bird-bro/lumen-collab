@@ -374,6 +374,9 @@ export type UpdateDictCatalBody = Partial<CreateDictCatalBody>;
 export interface DictItem {
   code: number | null;
   value: string | null;
+  /** Optional display metadata (the V9 spare string column — the 1031 登记单状态
+   * color token; absent on untagged catalogs, registration-order-status-dict-sev). */
+  tag?: string | null;
 }
 
 /**

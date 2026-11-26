@@ -155,6 +155,39 @@ class AuthDictItemsLookupTests extends AuthIntegrationTestBase {
     }
 
     @Test
+    void registrationStatusCatalogResolvesTheSixStatesById() throws Exception {
+        // registration-order-status-dict-sev task 2.2 (user ruling 2026-11-26): the
+        // V55-seeded 登记单状态 catalog (id 1031) carries the six machine statuses as
+        // code = 目录ID前缀 (catalId*100 + seq: 103101-103106, the 100401 gender-anchor
+        // family shape - the user's same-day code correction superseding the draft's
+        // bare 1-6), value = the 中文 label, sort = the chip order - the LABEL authority
+        // the frontend resolves through the id-anchored lookup
+        String token = adminToken();
+        JsonNode body = parse(exchangeJson(HttpMethod.GET,
+                ITEMS_BY_ID_URL + "/1031", null, token));
+        assertEquals("200", body.path("code").asText(),
+                "the by-id lookup must answer the success envelope: " + body);
+        JsonNode items = body.path("data");
+        assertTrue(items.isArray() && items.size() == 6,
+                "the six seeded statuses ride the array: " + items);
+        List<String> expected = List.of("已登记", "检查中", "诊断中", "已完成", "已打印", "已取消");
+        List<String> expectedTags = List.of("blue", "amber", "amber", "green", "green", "gray");
+        for (int i = 0; i < items.size(); i++) {
+            JsonNode item = items.get(i);
+            assertEquals(3, item.size(),
+                    "the tagged item carries code+value+tag (the color carrier): " + item);
+            assertEquals(103101 + i, item.path("code").asInt(-1),
+                    "the code is the bridge half, the catalog-id-prefixed family in "
+                            + "sort order: " + item);
+            assertEquals(expected.get(i), item.path("value").asText(),
+                    "the label rides the dict sort order at position " + i + ": " + items);
+            assertEquals(expectedTags.get(i), item.path("tag").asText(),
+                    "the DB-configured color token rides the tag at position " + i
+                            + ": " + items);
+        }
+    }
+
+    @Test
     void disabledDetailsAreExcluded() throws Exception {
         String token = adminToken();
         long ts = System.currentTimeMillis();

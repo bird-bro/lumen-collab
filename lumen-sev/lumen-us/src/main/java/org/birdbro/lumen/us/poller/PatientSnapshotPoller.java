@@ -217,8 +217,7 @@ public class PatientSnapshotPoller {
     private List<ExamOrder> liveOrders(Integer patientUid) {
         return examOrderMapper.selectList(new LambdaQueryWrapper<ExamOrder>()
                 .eq(ExamOrder::getPatientUid, patientUid)
-                .notIn(ExamOrder::getStatus, ExamOrderStatus.BOOKING_CANCELLED,
-                        ExamOrderStatus.CANCELLED));
+                .notIn(ExamOrder::getStatus, ExamOrderStatus.CANCELLED));
     }
 
     /**
@@ -230,8 +229,7 @@ public class PatientSnapshotPoller {
         examOrderMapper.update(null, new LambdaUpdateWrapper<ExamOrder>()
                 .set(ExamOrder::getPatientUid, survivorUid)
                 .eq(ExamOrder::getPatientUid, mergedUid)
-                .notIn(ExamOrder::getStatus, ExamOrderStatus.BOOKING_CANCELLED,
-                        ExamOrderStatus.CANCELLED));
+                .notIn(ExamOrder::getStatus, ExamOrderStatus.CANCELLED));
     }
 
     /**

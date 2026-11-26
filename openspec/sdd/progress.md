@@ -1031,3 +1031,57 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
 - Status: Complete, review in progress (commit b28c0d5; us 49/49; L1 ✓)
 - Scope landed: PatientSnapshotPoller(ack-after-success/poison 隔离/传输错不 ack/ISSUED 拒绝确定性 ack)+Rider1 ext 审计字段剥离(实锤真注入)+Rider2 sweep 语义钉(B3 评审前提不成立,括号本在)
 - 上抛裁决中: MERGED 载荷仅 {survivorId,mergedId} 无档案字段——repoint ✓ 但幸存者快照刷新落空(空覆盖),reviewer 裁定 accept+debt vs 小骑手 widening
+
+---
+
+## Change: registration-order-status-dict-sev + -web
+## Execution Mode: Batch Inline (SDD-seeded mode; in-context sequential, no subagent dispatch)
+## Started: 2026-11-26
+## Branch: dev-US (dirty shared workspace)
+
+### Apply: sev (registration-order-status-dict-sev)
+- Status: Complete - phase verifying (guard PASS; 9/9 tasks incl. mid-apply 2b color scope)
+- TDD: state-machine tests rewritten to the six-state contract RED (missing enum constants) -> enum+EDGES GREEN; V55 dict seed test RED (empty array) -> seed GREEN; tag-carrier test RED (size 2) -> DictItemDto+projection GREEN (blank-tag normalization for the empty-string legacy rows)
+- Kernel: ExamOrderStatus collapsed to six (BOOKED/BOOKING_CANCELLED removed); forward-permissive EDGES; cancel single-landing; us register endpoint removed; lumen-us notIn narrowed (4 sites); fixtures re-seeded REGISTERED/IN_EXAM
+- Migrations: V55 (1031 seed, codes = catalId*100+seq 103101-103106 per user correction, tag color seeds + idempotent backfill; replayed twice via the sanctioned history-row drop) + V56 (legacy remap BOOKED->REGISTERED, BOOKING_CANCELLED->CANCELLED, IN_PROGRESS->IN_EXAM)
+- Note: bare `-pl` runs resolved a stale ~/.m2 framework jar (missing the 8-arg getPage) - always `-am` from here
+
+### Apply: web (registration-order-status-dict-web)
+- Status: Complete - phase verifying (guard PASS; 6/6 tasks)
+- TDD: union narrowing RED (14 tsc errors) -> fallout GREEN; resolver tests RED (hue undefined) -> bridge 103101-103106 + hue passthrough GREEN; page tests 37/37 GREEN (chips dict-ordered with data-status-hue, cancel affordance on the three live states, dict-failure bridge-fallback meter)
+- Page: RAIL_HEAD_STATUSES six states, LIVE_STATES = REGISTERED/IN_EXAM/IN_DIAGNOSIS, hueChipColors token map (blue/green/amber/red/gray -> antd tokens), STATUS_LABELS retired, datenav untouched (user reworked it into a calendar Popover mid-session)
+
+### Regression evidence
+- backend: full reactor 322 tests exit 0 (1 shared-DB connection flake, isolated rerun green) pre-color; dict tests 6/6 post-color; full suite re-runs at verify
+- web: vitest 521/521 (36 files) exit 0 + pnpm build exit 0 post-color
+
+## Change: us-order-exam-room-sev (+ coordination us-order-exam-room; -web pair planned)
+## Execution Mode: SDD (workspace precedent: in-context sequential, no subagent dispatch)
+## Started: 2026-11-26
+## Branch: dev-US (dirty shared workspace; stacks on registration-order-status-dict pair)
+
+### Mid-apply rewind (2c): provider internal rooms family
+- 发现: lumen-system 房间读是 JWT+system:room:list 门控（Feign 无 JWT 撞门）→ 回退 proposing 修订: 提供方新增 /api/v1/system/internal/org-rooms/{list,{id}}（InternalKeyInterceptor 家族, NumberIssueController 先例; console 端点不动）, Feign SystemRoomApi 复用既有 lumen.feign.system.url 键; spec/api delta ADDED "Internal Exam Room Reads"; contract 重新生成+hash 刷新
+
+### Apply: batch 1 kernel column (tasks 1.1-1.3)
+- Status: Complete (RED 编译失败 setRoomId → GREEN core aggregate 6/6)
+- Kernel: ExamOrder.roomId (javadoc: nullable, surface-enforced); kernel V4 源文件 + us V57 vendor copy (V56 归 status-dict); UsSchemaMigrationTests 列序断言补 room_id (6/6)
+
+### Apply: batch 2 provider + feign (tasks 2.1-2.5)
+- Status: Complete (RED 3/3 fail → GREEN 3/3; fallback 契约 RED 包不存在 → GREEN 3/3)
+- Provider: OrgRoomService.listInternalByDepartment/getInternalById + InternalRoomController + InternalRoomApiWebConfig(新 configurer, additive) + yml permit-all 两行
+- 测试脚注: disableRoom fixture 参数序错位(token 位传了 body)致 203 — 修正后绿; SystemRoomApi 分裂 fallback: list→empty / detail→throw C0001 (fail-closed)
+- UsApplication EnableFeignClients + SystemRoomApi; UsIntegrationTestBase @MockBean seam; lumen.us.station-dept-id 旋钮(yml 注释: 缺省=目录空+创建拒, fail closed)
+
+### Apply: batch 3 directory endpoint (tasks 3.1-3.2)
+- Status: Complete (RED UsStationProperties 不存在 → GREEN 4/4)
+- StationRoomService/Impl + StationRoomController (GET /api/v1/us/rooms, us:order:create 门控)
+- 教训: 端点层模拟 fallback 抛异常会漏到全局处理器变 C0001 — 生产路径降级发生在 fallback 类内部(应答而非抛出); 端点测试改为验证降级带量(空列表)穿透真实链路
+- 注意: UsStationRoomsApiTests 用 ReflectionTestUtils 改单例 bean → 需恢复纪律(@BeforeEach/@AfterAll restore 307), 防共享上下文测试污染
+
+### Apply: batch 4 create gate + view (tasks 4.1-4.3)
+- Status: Complete (RED 5 fail+1 error → GREEN 6/6)
+- RegistrationCreateRequest.roomId; create() 第 0 步 requireValidRoom(port resolve 之前=连患者档案都不落); newOrder() 单盖章点双分支; RegistrationOrderView.roomId/roomName + applyRoomNames(一次目录读解全页名, 悬空 id→null 名)
+- 涟漪: UsRegistrationApiTests 19 体 sed 补 roomId:90307 + NOUNID/ambiguous 两处手工(保测试意图); snapshot poller 1 体; 基座默认 stub(有效房 any-id did=307 + 空目录) + station-dept-id=307 property
+- 盲 sed 事故: 未转义 "examItems" 命中 Java 断言 path("examItems") 一处 → 已修复(教训: 替换须匹配转义形态)
+- 全量 us 套件回归后台运行中

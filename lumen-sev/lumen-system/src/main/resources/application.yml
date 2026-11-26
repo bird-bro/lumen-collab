@@ -71,6 +71,12 @@ security:
     # ONLY permit-all entry that mints anything, so the key config below is MANDATORY
     # (fail-closed: an unconfigured key rejects every call).
     - /api/v1/system/number-rules/issue
+    # The INTERNAL exam-room reads (us-order-exam-room-sev): the station room
+    # directory + the create-time room validation - exempt from user-token auth,
+    # guarded by the X-Internal-Key interceptor instead (the /issue family precedent;
+    # the console /org-rooms endpoints stay JWT + system:room:* gated).
+    - /api/v1/system/internal/org-rooms/list
+    - /api/v1/system/internal/org-rooms/*
     # The SM2 public-key distribution for password transport encryption (coordinate D3):
     # the login page must fetch the key BEFORE it can produce a login body, so the key
     # endpoint is anonymous like /login itself.

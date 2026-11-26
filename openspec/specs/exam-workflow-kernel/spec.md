@@ -70,21 +70,27 @@ NULL/NOT NULL inference:
 ### Requirement: Document State Machine
 
 The kernel SHALL drive every order through a single state machine —
-已预约 →(签到)→ 已登记 → 处理中 → 已完成 — with the branches 取消预约 (from 已预约) and
-已取消 (from 已登记 or 处理中). 预登记 (booking) creates an order directly as 已登记
-(预约=预登记, user ruling 2026-11-24 — the arrival-free model); walk-in registration and
-HIS two-phase confirm enter directly as 已登记; the 已预约 state stays defined and every
-edge is unchanged, but no current flow produces it. The kernel SHALL reject any other
-transition with a client-error signal and leave the stored status unchanged:
+已登记 →(检查开始)→ 检查中 →(诊断抢占)→ 诊断中 →(完成报告)→ 已完成 →(打印)→ 已打印 —
+with the branch 已取消 (from 已登记, 检查中, or 诊断中, refused once the report is 已出).
+预登记 (booking), walk-in registration, and HIS two-phase confirm enter directly as
+已登记 (预约=预登记, user ruling 2026-11-24 — the arrival-free model). The machine
+defines NO 已预约 and NO 取消预约 state: the former arrival vocabulary and its edges are
+removed (user ruling 2026-11-26, six-state model — the 登记 order-status machine).
+Forward edges stay permissive (every later stage is reachable from each earlier live
+state) so an order cannot strand while a stage caller is absent; backward moves and
+terminal-state exits do not exist. The kernel SHALL reject any other transition with a
+client-error signal and leave the stored status unchanged:
 
 #### Scenario: Booking enters at 已预约
 
-<!-- scenario superseded in place by the 2026-11-24 ruling 预约=预登记: the retired
-shape (entering 已预约) is kept only in this comment for history -->
+<!-- scenario superseded in place: the retired shape (entering 已预约) survives only
+in this comment for history; the 2026-11-24 ruling 预约=预登记 landed the 已登记 entry
+and the 2026-11-26 six-state ruling removed the state itself -->
 
 - **WHEN** a 预登记 (booking) creates an order
 - **THEN** the order is stored in the 已登记 state
-- **AND** the 已预约 state remains defined but unreachable from current flows
+- **AND** the machine defines no 已预约 state — the former arrival step and its
+  签到 edge are gone
 
 #### Scenario: Walk-in and HIS confirm enter at 已登记
 
@@ -94,22 +100,29 @@ shape (entering 已预约) is kept only in this comment for history -->
 
 #### Scenario: Happy path advances through each stage
 
-- **WHEN** 签到, 处理中, and 已完成 fire in sequence on a 已预约 order
-- **THEN** the status advances 已登记 → 处理中 → 已完成, each step persisted
+- **WHEN** 检查开始, 诊断抢占, 完成报告, and 打印 fire in sequence on a live order
+- **THEN** the status advances 已登记 → 检查中 → 诊断中 → 已完成 → 已打印, each step
+  persisted
+- **AND** the forward-permissive edges let every later stage fire from each earlier
+  live state (e.g. 诊断抢占 from 检查中 or directly from 已登记)
 
 #### Scenario: Cancellation branches split by stage
 
-- **WHEN** cancellation fires on a 已预约 order
-- **THEN** the order lands in 取消预约
-- **WHEN** cancellation fires on a 已登记 or 处理中 order whose report is not 已出
+<!-- scenario superseded in place by the 2026-11-26 six-state ruling: the retired
+shape (the 取消预约 branch from 已预约 and the two-way split) survives only in this
+comment for history -->
+
+- **WHEN** cancellation fires on a 已登记, 检查中, or 诊断中 order whose report is
+  not 已出
 - **THEN** the order lands in 已取消
-- **WHEN** cancellation fires on an order whose report is 已出
+- **WHEN** cancellation fires on an order whose report is 已出 (or on an order already
+  in 已完成 or 已打印)
 - **THEN** it is refused and the status is unchanged
 
 #### Scenario: Illegal transition rejected
 
-- **WHEN** a transition not defined by the state machine fires (e.g. 处理中 back to
-  已预约, or any move out of 已完成)
+- **WHEN** a transition not defined by the state machine fires (e.g. 诊断中 back to
+  已登记, any move out of 已打印, or the removed 已预约 vocabulary)
 - **THEN** the kernel rejects it with a client-error signal
 - **AND** the stored status is unchanged
 
@@ -206,8 +219,8 @@ The create entry status is `REGISTERED` for every path (预登记=已登记, use
 both enter `REGISTERED` in the same transaction as the aggregate save. The kernel SHALL
 validate every future-slot create against the modality's slot capacity configuration.
 Refusals SHALL ride the house `A0400` business-refusal pattern with a descriptive
-Chinese message. The state-machine edges are unchanged (`BOOKED → REGISTERED` stays
-defined).
+Chinese message. The state-machine edges are the six-state machine's (the former
+`BOOKED → REGISTERED` arrival edge is removed, user ruling 2026-11-26).
 
 #### Scenario: Entry status derives from booking time in one transaction
 

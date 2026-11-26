@@ -88,3 +88,66 @@ describe('dict items client + session resolver (role-type-dict-web)', () => {
     expect(resolveDictLabel(ITEMS, 0)).toBe('0')
   })
 })
+
+describe('us order status labels (registration-order-status-dict-web task 1.2)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.resetModules()
+  })
+
+  it('usOrderStatusLabels resolves the six labels+hues in dict (sort) order', async () => {
+    // the V55-seeded catalog 1031: code = the catalog-id-prefixed family
+    // (103101-103106, the user's correction), value = the 中文 label, tag = the
+    // DB-configured color - the array order the by-id endpoint returns IS the
+    // dict sort order (the chip order)
+    stubOk([
+      { code: 103101, value: '已登记', tag: 'blue' },
+      { code: 103102, value: '检查中', tag: 'amber' },
+      { code: 103103, value: '诊断中', tag: 'amber' },
+      { code: 103104, value: '已完成', tag: 'green' },
+      { code: 103105, value: '已打印', tag: 'green' },
+      { code: 103106, value: '已取消', tag: 'gray' },
+    ])
+    const { usOrderStatusLabels } = await freshResolver()
+    const labels = await usOrderStatusLabels()
+    expect(labels.map((l) => l.status)).toEqual([
+      'REGISTERED', 'IN_EXAM', 'IN_DIAGNOSIS', 'COMPLETED', 'PRINTED', 'CANCELLED',
+    ])
+    expect(labels.map((l) => l.label)).toEqual(['已登记', '检查中', '诊断中', '已完成', '已打印', '已取消'])
+    expect(labels.map((l) => l.hue)).toEqual(['blue', 'amber', 'amber', 'green', 'green', 'gray'])
+    expect(labels.every((l) => l.fromDict)).toBe(true)
+  })
+
+  it('a dict item missing/disabled degrades that status to the bridge fallback, order preserved', async () => {
+    // the operator disabled 已打印 (5) + 已取消 (6): the backend returns only the
+    // enabled four - the disabled statuses fall back to the bridge labels appended
+    // in code order (the meter always renders the six statuses)
+    stubOk([
+      { code: 103101, value: '已登记', tag: 'blue' },
+      { code: 103102, value: '检查中', tag: 'amber' },
+      { code: 103103, value: '诊断中', tag: 'amber' },
+      { code: 103104, value: '已完成', tag: 'green' },
+    ])
+    const { usOrderStatusLabels } = await freshResolver()
+    const labels = await usOrderStatusLabels()
+    expect(labels.map((l) => l.status)).toEqual([
+      'REGISTERED', 'IN_EXAM', 'IN_DIAGNOSIS', 'COMPLETED', 'PRINTED', 'CANCELLED',
+    ])
+    expect(labels[4]).toMatchObject({ status: 'PRINTED', label: '已打印', hue: null, fromDict: false })
+    expect(labels[5]).toMatchObject({ status: 'CANCELLED', label: '已取消', hue: null, fromDict: false })
+    expect(labels[0]).toMatchObject({ status: 'REGISTERED', label: '已登记', hue: 'blue', fromDict: true })
+  })
+
+  it('a dict failure PROPAGATES - the page owns the one error message + the fallback builder', async () => {
+    stubOk([], true)
+    const { usOrderStatusLabels, usOrderStatusFallbackLabels } = await freshResolver()
+    await expect(usOrderStatusLabels()).rejects.toMatchObject({ code: 'A0301' })
+    const fallback = usOrderStatusFallbackLabels()
+    expect(fallback.map((l) => l.status)).toEqual([
+      'REGISTERED', 'IN_EXAM', 'IN_DIAGNOSIS', 'COMPLETED', 'PRINTED', 'CANCELLED',
+    ])
+    expect(fallback.map((l) => l.label)).toEqual(['已登记', '检查中', '诊断中', '已完成', '已打印', '已取消'])
+    expect(fallback.every((l) => !l.fromDict)).toBe(true)
+    expect(fallback.every((l) => l.hue === null)).toBe(true)
+  })
+})

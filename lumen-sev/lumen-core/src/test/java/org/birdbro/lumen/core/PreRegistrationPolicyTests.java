@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Derived entry-status policy (kernel-pre-registration tasks 2.1/2.2; spec
  * exam-workflow-kernel "Pre-Registration Support" - Entry status derives from
  * booking time): NULL/now/past → REGISTERED (现场单 submit registers directly),
- * future → BOOKED (预登记态). PURE time math - unit-tested without DB; the now
+ * future → REGISTERED as well (预约=预登记, user ruling 2026-11-24). PURE time math - unit-tested without DB; the now
  * boundary is the DB-server time the caller supplies (design D4).
  *
  * @author birdbro
@@ -45,7 +45,7 @@ class PreRegistrationPolicyTests {
     void bookingInThePastDerivesRegistered() {
         Date past = new Date(now.getTime() - 60_000L);
         assertEquals(ExamOrderStatus.REGISTERED, policy.deriveEntryStatus(past, now),
-                "a past booking_time cannot enter BOOKED");
+                "a past booking_time is not a future slot - REGISTERED");
     }
 
     @Test

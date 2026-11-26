@@ -8,10 +8,12 @@ import org.birdbro.lumen.core.entity.ExamOrderStatus;
  * goes through {@link #transition}: legal edges advance, branches split by stage, and
  * anything else is refused with the stored status UNCHANGED.
  *
- * <p>Legal edges: BOOKED &rarr; REGISTERED (签到), REGISTERED &rarr; IN_PROGRESS,
- * IN_PROGRESS &rarr; COMPLETED, BOOKED &rarr; BOOKING_CANCELLED, and CANCELLED from
- * REGISTERED or IN_PROGRESS. Entry states (BOOKED from booking; REGISTERED from walk-in
- * or HIS confirm) are set by the creation entries through the aggregate service, not by
+ * <p>Legal edges (the six-state machine, user ruling 2026-11-26): REGISTERED &rarr;
+ * IN_EXAM (检查开始 = MPPS IN PROGRESS) &rarr; IN_DIAGNOSIS (进报告页抢占) &rarr;
+ * COMPLETED (完成报告) &rarr; PRINTED (打印), each later stage also firing from each
+ * earlier live state (forward-permissive), and CANCELLED from REGISTERED / IN_EXAM /
+ * IN_DIAGNOSIS. Entry states (REGISTERED from booking 预约=预登记, walk-in, or HIS
+ * confirm) are set by the creation entries through the aggregate service, not by
  * transitions.</p>
  *
  * @author birdbro

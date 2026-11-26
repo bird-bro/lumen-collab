@@ -39,14 +39,14 @@ class UsRegistrationSweepTests extends UsIntegrationTestBase {
         int bandUid = STUB_UID_BASE + 711;
         jdbcTemplate.update(
                 "INSERT INTO exam_order (status, patient_uid, accession_no, patient_snapshot,"
-                        + " deleted) VALUES ('BOOKED', ?, ?, ?::jsonb, 0)",
+                        + " deleted) VALUES ('REGISTERED', ?, ?, ?::jsonb, 0)",
                 bandUid, accessionBase + "-LIVE", "{\"name\":\"us3sweep活行\"}");
         Integer liveId = jdbcTemplate.queryForObject(
                 "SELECT id FROM exam_order WHERE patient_snapshot->>'name' = 'us3sweep活行'",
                 Integer.class);
         jdbcTemplate.update(
                 "INSERT INTO exam_order (status, patient_uid, accession_no, patient_snapshot,"
-                        + " deleted) VALUES ('BOOKED', ?, ?, ?::jsonb, 1)",
+                        + " deleted) VALUES ('REGISTERED', ?, ?, ?::jsonb, 1)",
                 bandUid, accessionBase + "-DEAD", "{\"name\":\"us3sweep软删行\"}");
         Integer softDeletedId = jdbcTemplate.queryForObject(
                 "SELECT id FROM exam_order WHERE patient_snapshot->>'name' = 'us3sweep软删行'",

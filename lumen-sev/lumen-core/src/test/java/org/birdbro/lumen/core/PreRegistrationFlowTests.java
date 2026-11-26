@@ -141,7 +141,7 @@ class PreRegistrationFlowTests extends KernelIntegrationTestBase {
      */
     private int countOccupants(SlotWindowBounds bounds, int patientUid) {
         return jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM exam_order WHERE status NOT IN ('BOOKING_CANCELLED', 'CANCELLED')"
+                "SELECT count(*) FROM exam_order WHERE status NOT IN ('CANCELLED')"
                 + " AND booking_time >= ? AND booking_time < ? AND deleted = 0"
                 + " AND patient_uid = ?",
                 Integer.class, bounds.getWindowStart(), bounds.getWindowEnd(), patientUid);
@@ -232,13 +232,13 @@ class PreRegistrationFlowTests extends KernelIntegrationTestBase {
         seedConfig(modality, 4);
         Date bookingTime = at(9, 17);
 
-        // seed the slot to capacity-1 with two live BOOKED orders plus one REGISTERED
+        // seed the slot to capacity-1 with two live REGISTERED pre-registrations plus one
         // pre-registration (未取消即占位: it COUNTS), and the two shapes that must NOT
         // count: a CANCELLED order carrying the same booking_time (the reservation
-        // releases), and a walk-in BOOKED order with NULL booking_time
+        // releases), and a pre-registered REGISTERED order and a walk-in order with NULL booking_time
         for (int i = 0; i < 2; i++) {
             ExamOrder booked = draftOrder(patientUid, bookingTime);
-            booked.setStatus(ExamOrderStatus.BOOKED);
+            booked.setStatus(ExamOrderStatus.REGISTERED);
             booked.setAccessionNo("AC-SEED-" + Long.toUnsignedString(System.nanoTime())
                     + "-" + i);
             examOrderMapper.insert(booked);
@@ -252,14 +252,14 @@ class PreRegistrationFlowTests extends KernelIntegrationTestBase {
         cancelled.setAccessionNo("AC-SEED-" + Long.toUnsignedString(System.nanoTime()) + "-X");
         examOrderMapper.insert(cancelled);
         ExamOrder walkIn = draftOrder(patientUid, null);
-        walkIn.setStatus(ExamOrderStatus.BOOKED);
+        walkIn.setStatus(ExamOrderStatus.REGISTERED);
         walkIn.setAccessionNo("AC-SEED-" + Long.toUnsignedString(System.nanoTime()) + "-W");
         examOrderMapper.insert(walkIn);
 
         SlotWindowBounds bounds = SlotWindowBounds.builder()
                 .windowStart(expectedBound(9, 0)).windowEnd(expectedBound(9, 30)).build();
         assertEquals(3, countOccupants(bounds, patientUid),
-                "live not-cancelled slot-anchored orders count (BOOKED and REGISTERED alike) - "
+                "live not-cancelled slot-anchored orders count (every live stage alike) - "
                 + "cancelled releases the seat and NULL-booking walk-ins never occupy");
 
         // below capacity: the composed create passes and takes the final seat

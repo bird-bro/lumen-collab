@@ -40,7 +40,7 @@ class PatientSnapshotJsonbTests extends KernelIntegrationTestBase {
         ExamOrder order = new ExamOrder();
         order.setPatientUid(patientUid);
         order.setAccessionNo("AC" + System.nanoTime());
-        order.setStatus(ExamOrderStatus.BOOKED);
+        order.setStatus(ExamOrderStatus.REGISTERED);
         order.setPatientSnapshot(snapshot);
         return aggregateService.insertWithMembers(
                 order, ExamExecution.builder().build(), ExamReport.builder().build());
@@ -66,7 +66,7 @@ class PatientSnapshotJsonbTests extends KernelIntegrationTestBase {
         ExamOrder order = new ExamOrder();
         order.setPatientUid(990402);
         order.setAccessionNo("AC" + System.nanoTime());
-        order.setStatus(ExamOrderStatus.BOOKED);
+        order.setStatus(ExamOrderStatus.REGISTERED);
         examOrderMapper.insert(order);
         jdbcTemplate.update("UPDATE exam_order SET patient_snapshot = ?::jsonb WHERE id = ?",
                 "{\"patId\":\"POLD\",\"name\":\"旧形状\"}", order.getId());

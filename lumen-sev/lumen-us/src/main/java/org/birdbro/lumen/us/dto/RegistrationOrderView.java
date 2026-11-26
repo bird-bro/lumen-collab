@@ -58,6 +58,7 @@ public class RegistrationOrderView {
     private String cancelReason;
 
     @ApiModelProperty("创建时间（=登记时间：两种单据的登记都发生在建单那一刻）")
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date createTime;
 
     @ApiModelProperty("登记人（建单操作人 uid；create_by 即登记人）")
@@ -69,6 +70,15 @@ public class RegistrationOrderView {
     @ApiModelProperty("预登记时段锚点（null=现场单/无预约）")
     @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date bookingTime;
+
+    // ---- the exam-room pair (us-order-exam-room: the anchor stored, the name joined
+    // at read time over the station's directory; a dangling id yields a null name) ----
+
+    @ApiModelProperty("检查室锚点（存量行/历史单可空）")
+    private Integer roomId;
+
+    @ApiModelProperty("检查室名称（读取时按站内目录 join；目录缺失/房间已删回 null）")
+    private String roomName;
 
     // ---- the 1:1 US extension ----
 

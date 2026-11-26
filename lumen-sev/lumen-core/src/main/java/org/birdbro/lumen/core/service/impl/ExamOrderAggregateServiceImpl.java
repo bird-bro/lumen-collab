@@ -63,10 +63,10 @@ public class ExamOrderAggregateServiceImpl implements ExamOrderAggregateService 
                     "检查单必须携带患者引用 patient_uid（占位患者行也须先落患者域）");
         }
         if (order.getStatus() == null) {
-            // the entry state belongs to the creation entry (booking -> BOOKED;
+            // the entry state belongs to the creation entry (booking 预约=预登记;
             // walk-in/HIS confirm -> REGISTERED) - a stateless document never persists
             throw new BusinessException(ExceptionEnum.ERROR_A0400,
-                    "检查单必须携带入口状态（BOOKED 或 REGISTERED，由创建入口决定）");
+                    "检查单必须携带入口状态（REGISTERED，由创建入口决定）");
         }
         if (order.getChannel() == null) {
             order.setChannel(ExamChannel.LOCAL);

@@ -20,10 +20,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * Document state machine proof (lumen-core-registration-kernel task 3.1; spec
- * exam-workflow-kernel "Document State Machine" - all five scenarios). The transition
- * service is the status column's single writer; every refusal leaves the stored status
- * unchanged.
+ * Document state machine proof (registration-order-status-dict-sev task 1.1; spec
+ * exam-workflow-kernel "Document State Machine" - the six-state machine, user ruling
+ * 2026-11-26). Maps the five delta scenarios: booking/walk-in entry at REGISTERED,
+ * the four-step happy path with forward-permissive edges, the single cancel landing
+ * (CANCELLED from the three live states, refused on an issued report), and the illegal
+ * rejections. The transition service is the status column's single writer; every
+ * refusal leaves the stored status unchanged. The removed 已预约 vocabulary
+ * (BOOKED / BOOKING_CANCELLED / IN_PROGRESS) is proven gone at the compile level - the
+ * test source cannot reference it.
  *
  * @author birdbro
  */
@@ -41,12 +46,12 @@ class ExamOrderStateMachineTests extends KernelIntegrationTestBase {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    /** Saves one BOOKED-order aggregate and returns its id. */
-    private Integer bookedOrder(int patientUid) {
+    /** Saves one REGISTERED-order aggregate (the 预约=预登记 entry shape) and returns its id. */
+    private Integer registeredOrder(int patientUid) {
         ExamOrder order = new ExamOrder();
         order.setPatientUid(patientUid);
         order.setAccessionNo("AC" + System.nanoTime());
-        order.setStatus(ExamOrderStatus.BOOKED);
+        order.setStatus(ExamOrderStatus.REGISTERED);
         return aggregateService.insertWithMembers(
                 order, ExamExecution.builder().build(), ExamReport.builder().build());
     }
@@ -56,12 +61,22 @@ class ExamOrderStateMachineTests extends KernelIntegrationTestBase {
                 "SELECT status FROM exam_order WHERE id = ?", String.class, orderId));
     }
 
+    /** Marks the order's report ISSUED (the cancel-guard trigger). */
+    private void issueReport(Integer orderId) {
+        ExamReport report = examReportMapper.selectOne(new LambdaQueryWrapper<ExamReport>()
+                .eq(ExamReport::getOrderId, orderId));
+        report.setStatus(ExamReportStatus.ISSUED);
+        examReportMapper.updateById(report);
+    }
+
     @Test
     @Transactional
-    void bookingEntersAtBooked() {
-        Integer orderId = bookedOrder(990201);
-        assertEquals(ExamOrderStatus.BOOKED, storedStatus(orderId),
-                "a booking-created order is stored in the BOOKED entry state");
+    void bookingEntersAtRegistered() {
+        // the booking-created aggregate (预约=预登记) is stored in the REGISTERED entry
+        // state; the machine defines no BOOKED state at all
+        Integer orderId = registeredOrder(990201);
+        assertEquals(ExamOrderStatus.REGISTERED, storedStatus(orderId),
+                "a booking-created order is stored in the REGISTERED entry state");
     }
 
     @Test
@@ -81,73 +96,99 @@ class ExamOrderStateMachineTests extends KernelIntegrationTestBase {
     @Test
     @Transactional
     void happyPathAdvancesThroughEachStage() {
-        Integer orderId = bookedOrder(990203);
-        assertEquals(ExamOrderStatus.REGISTERED,
-                stateMachineService.transition(orderId, ExamOrderStatus.REGISTERED, null),
-                "签到 advances BOOKED to REGISTERED");
-        assertEquals(ExamOrderStatus.IN_PROGRESS,
-                stateMachineService.transition(orderId, ExamOrderStatus.IN_PROGRESS, null),
-                "处理中 advances REGISTERED to IN_PROGRESS");
+        Integer orderId = registeredOrder(990203);
+        assertEquals(ExamOrderStatus.IN_EXAM,
+                stateMachineService.transition(orderId, ExamOrderStatus.IN_EXAM, null),
+                "检查开始 advances REGISTERED to IN_EXAM");
+        assertEquals(ExamOrderStatus.IN_DIAGNOSIS,
+                stateMachineService.transition(orderId, ExamOrderStatus.IN_DIAGNOSIS, null),
+                "诊断抢占 advances IN_EXAM to IN_DIAGNOSIS");
         assertEquals(ExamOrderStatus.COMPLETED,
                 stateMachineService.transition(orderId, ExamOrderStatus.COMPLETED, null),
-                "完成 advances IN_PROGRESS to COMPLETED");
-        assertEquals(ExamOrderStatus.COMPLETED, storedStatus(orderId),
+                "完成报告 advances IN_DIAGNOSIS to COMPLETED");
+        assertEquals(ExamOrderStatus.PRINTED,
+                stateMachineService.transition(orderId, ExamOrderStatus.PRINTED, null),
+                "打印 advances COMPLETED to PRINTED");
+        assertEquals(ExamOrderStatus.PRINTED, storedStatus(orderId),
                 "each step persisted through the single-writer service");
     }
 
     @Test
     @Transactional
-    void cancellationBranchesSplitByStage() {
-        // from BOOKED: the 取消预约 branch
-        Integer bookingId = bookedOrder(990204);
-        assertEquals(ExamOrderStatus.BOOKING_CANCELLED,
-                stateMachineService.transition(bookingId, ExamOrderStatus.BOOKING_CANCELLED, "患者取消"),
-                "cancel from BOOKED lands in BOOKING_CANCELLED");
+    void forwardEdgesStayPermissive() {
+        // forward-permissive: every later stage fires from each earlier live state
+        Integer skippedExam = registeredOrder(990208);
+        assertEquals(ExamOrderStatus.IN_DIAGNOSIS,
+                stateMachineService.transition(skippedExam, ExamOrderStatus.IN_DIAGNOSIS, null),
+                "诊断抢占 fires directly from REGISTERED (no MPPS yet)");
+        Integer skippedBoth = registeredOrder(990209);
+        assertEquals(ExamOrderStatus.COMPLETED,
+                stateMachineService.transition(skippedBoth, ExamOrderStatus.COMPLETED, null),
+                "完成报告 fires directly from REGISTERED");
+        Integer skippedDiag = registeredOrder(990210);
+        stateMachineService.transition(skippedDiag, ExamOrderStatus.IN_EXAM, null);
+        assertEquals(ExamOrderStatus.COMPLETED,
+                stateMachineService.transition(skippedDiag, ExamOrderStatus.COMPLETED, null),
+                "完成报告 fires directly from IN_EXAM");
+    }
 
-        // from REGISTERED (report not issued): the 已取消 branch
-        Integer registeredId = bookedOrder(990205);
-        stateMachineService.transition(registeredId, ExamOrderStatus.REGISTERED, null);
+    @Test
+    @Transactional
+    void cancellationBranchesSplitByStage() {
+        // cancel from each of the three live states lands CANCELLED (the single landing)
+        Integer registeredId = registeredOrder(990204);
         assertEquals(ExamOrderStatus.CANCELLED,
                 stateMachineService.transition(registeredId, ExamOrderStatus.CANCELLED, "改期"),
                 "cancel from REGISTERED lands in CANCELLED");
 
+        Integer examId = registeredOrder(990205);
+        stateMachineService.transition(examId, ExamOrderStatus.IN_EXAM, null);
+        assertEquals(ExamOrderStatus.CANCELLED,
+                stateMachineService.transition(examId, ExamOrderStatus.CANCELLED, "改期"),
+                "cancel from IN_EXAM lands in CANCELLED");
+
+        Integer diagId = registeredOrder(990206);
+        stateMachineService.transition(diagId, ExamOrderStatus.IN_DIAGNOSIS, null);
+        assertEquals(ExamOrderStatus.CANCELLED,
+                stateMachineService.transition(diagId, ExamOrderStatus.CANCELLED, "改期"),
+                "cancel from IN_DIAGNOSIS lands in CANCELLED");
+
         // an order whose report is ISSUED: cancel refused, status unchanged
-        Integer issuedId = bookedOrder(990206);
-        ExamReport report = examReportMapper.selectOne(new LambdaQueryWrapper<ExamReport>()
-                .eq(ExamReport::getOrderId, issuedId));
-        report.setStatus(ExamReportStatus.ISSUED);
-        examReportMapper.updateById(report);
-        stateMachineService.transition(issuedId, ExamOrderStatus.REGISTERED, null);
+        Integer issuedId = registeredOrder(990211);
+        stateMachineService.transition(issuedId, ExamOrderStatus.COMPLETED, null);
+        issueReport(issuedId);
         assertThrows(BusinessException.class,
-                () -> stateMachineService.transition(issuedId, ExamOrderStatus.CANCELLED, " Late"),
+                () -> stateMachineService.transition(issuedId, ExamOrderStatus.CANCELLED, " late"),
                 "cancel with an ISSUED report is refused");
-        assertEquals(ExamOrderStatus.REGISTERED, storedStatus(issuedId),
+        // COMPLETED is not cancelable either (absent from the cancel edges)
+        assertThrows(BusinessException.class,
+                () -> stateMachineService.transition(issuedId, ExamOrderStatus.CANCELLED, null),
+                "COMPLETED cannot be cancelled");
+        assertEquals(ExamOrderStatus.COMPLETED, storedStatus(issuedId),
                 "the refused cancel leaves the stored status unchanged");
     }
 
     @Test
     @Transactional
     void illegalTransitionRejected() {
-        Integer orderId = bookedOrder(990207);
+        Integer orderId = registeredOrder(990207);
 
-        // a non-edge from BOOKED: straight to IN_PROGRESS
-        assertThrows(BusinessException.class,
-                () -> stateMachineService.transition(orderId, ExamOrderStatus.IN_PROGRESS, null),
-                "BOOKED to IN_PROGRESS skips a stage and is refused");
-        assertEquals(ExamOrderStatus.BOOKED, storedStatus(orderId),
-                "the refused transition leaves the stored status unchanged");
-
-        // advance to COMPLETED, then any move out of the terminal state is refused
-        stateMachineService.transition(orderId, ExamOrderStatus.REGISTERED, null);
-        stateMachineService.transition(orderId, ExamOrderStatus.IN_PROGRESS, null);
-        stateMachineService.transition(orderId, ExamOrderStatus.COMPLETED, null);
+        // a backward move is refused
+        stateMachineService.transition(orderId, ExamOrderStatus.IN_EXAM, null);
         assertThrows(BusinessException.class,
                 () -> stateMachineService.transition(orderId, ExamOrderStatus.REGISTERED, null),
-                "COMPLETED is terminal - no move out is accepted");
+                "IN_EXAM back to REGISTERED is refused");
+        assertEquals(ExamOrderStatus.IN_EXAM, storedStatus(orderId),
+                "the refused transition leaves the stored status unchanged");
+
+        // advance to PRINTED (terminal): any move out is refused
+        stateMachineService.transition(orderId, ExamOrderStatus.IN_DIAGNOSIS, null);
+        stateMachineService.transition(orderId, ExamOrderStatus.COMPLETED, null);
+        stateMachineService.transition(orderId, ExamOrderStatus.PRINTED, null);
         assertThrows(BusinessException.class,
                 () -> stateMachineService.transition(orderId, ExamOrderStatus.CANCELLED, null),
-                "COMPLETED cannot be cancelled either");
-        assertEquals(ExamOrderStatus.COMPLETED, storedStatus(orderId),
+                "PRINTED is terminal - no move out is accepted");
+        assertEquals(ExamOrderStatus.PRINTED, storedStatus(orderId),
                 "the terminal state holds");
     }
 }

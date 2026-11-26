@@ -5,6 +5,8 @@ import java.util.List;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 
 import org.birdbro.lumen.manage.dto.deviceroom.RoomCreateRequest;
+import org.birdbro.lumen.manage.dto.deviceroom.RoomInternalDetail;
+import org.birdbro.lumen.manage.dto.deviceroom.RoomInternalSummary;
 import org.birdbro.lumen.manage.dto.deviceroom.RoomPageQuery;
 import org.birdbro.lumen.manage.dto.deviceroom.RoomRow;
 import org.birdbro.lumen.manage.dto.deviceroom.RoomStatusRequest;
@@ -42,6 +44,23 @@ public interface OrgRoomService {
 
     /** Picker/feed list: the org's (optionally one department's) live rooms, join-free. */
     List<OrgRoom> getList(Integer orgId, Integer depId);
+
+    /**
+     * INTERNAL machine read (us-order-exam-room-sev task 2.2, the
+     * {@code /api/v1/system/internal/org-rooms} family): the department's ENABLED rooms
+     * as the slim {@code {id, name}} projection, ordered by id - the station room
+     * directory's feed. Absent/blank department answers an empty list (the caller's
+     * config problem surfaces there, not here).
+     */
+    List<RoomInternalSummary> listInternalByDepartment(Integer depId);
+
+    /**
+     * INTERNAL machine read (us-order-exam-room-sev task 2.2): one room's
+     * validation fields ({@code id}/{@code oid}/{@code did}/{@code name}/
+     * {@code enable}), or null when the id misses a live row - the station's
+     * create-time room check reads {@code did} + {@code enable}.
+     */
+    RoomInternalDetail getInternalById(Integer id);
 
     /**
      * One room with the bound-device summary resolved server-side, or null when the id

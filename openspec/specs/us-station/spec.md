@@ -38,7 +38,7 @@ modify the kernel library in no way.
 
 The module SHALL expose the registration lifecycle over `/api/v1/us/orders/**`: create an
 order from a patient-registry identity + 检查项目 (setting-catalog references snapshotted into
-`exam_items`), page-query orders, transition 登记, and cancel with a reason. Creation SHALL
+`exam_items`), page-query orders, and cancel with a reason. Creation SHALL
 enter `REGISTERED` for every path in ONE transaction (拍板 02-B 提交即登记; 预约=预登记, user
 ruling 2026-11-24): a null/absent `bookingTime` is a 现场单 stamped `registration_type`
 `WALK_IN`; a strictly-future one is a 预登记 stamped `PRE_REGISTERED` that enters `REGISTERED`
@@ -53,12 +53,12 @@ inside the creation transaction, and the HTTP surface SHALL gate every action be
 token from the setting catalog (the dict-1024 value), so the kernel issues the accession under
 the modality-scoped rule when one exists and the family global rule otherwise. The create SHALL
 store the body's `cardNo` into the patient snapshot (the additive jsonb key — the card-no
-workbench query condition reads it). The 登记 transition endpoint stays for machine completeness;
-US-flow rows never sit in `BOOKED` (no arrival-confirmation step exists — the page drops the
-登记 action, us-prereg-as-registered-web). The page view rows SHALL carry `createTime` /
-`createBy` (the 登记时间/登记人 stamps — the create stamps serve BOTH kinds; the earlier
-`registered_time`/`registered_by` idea is retracted) and `registrationType` alongside
-`bookingTime`.
+workbench query condition reads it). The former 登记 transition endpoint is REMOVED — the
+machine no longer defines the `BOOKED` arrival edge (user ruling 2026-11-26, six-state model;
+the page already dropped the 登记 action, us-prereg-as-registered-web). The page view rows
+SHALL carry `createTime` / `createBy` (the 登记时间/登记人 stamps — the create stamps serve
+BOTH kinds; the earlier `registered_time`/`registered_by` idea is retracted) and
+`registrationType` alongside `bookingTime`.
 
 #### Scenario: Create a booked order
 
@@ -105,16 +105,20 @@ response/view under the same scenario name -->
 
 #### Scenario: Illegal transition is refused verbatim
 
-- **WHEN** a client attempts a state jump the kernel state machine forbids (e.g. 登记 on a
-  cancelled order, or 登记 on a `REGISTERED` order)
+- **WHEN** a client attempts a state jump the kernel state machine forbids (e.g. a cancel
+  whose report is 已出, or any backward move)
 - **THEN** the kernel refusal surfaces verbatim and the order state is unchanged
 
 #### Scenario: Cancel carries a reason
 
+<!-- scenario superseded in place by the 2026-11-26 six-state ruling: the retired
+shape (the machine's reserved BOOKING_CANCELLED branch) survives only in this
+comment for history -->
+
 - **WHEN** an authorized client cancels a live order with a reason
-- **THEN** the order lands in `CANCELLED` with the reason stored (the US flow no longer
-  produces `BOOKED` rows — the machine's `BOOKING_CANCELLED` branch stays reserved but
-  unreachable from the US flow)
+- **THEN** the order lands in `CANCELLED` with the reason stored — the six-state machine has
+  ONE cancel landing (已取消 from 已登记/检查中/诊断中 per the kernel edges); the former
+  `BOOKING_CANCELLED` branch is removed
 
 #### Scenario: Modality reaches the issuer port
 
@@ -245,10 +249,14 @@ machine status.
 
 #### Scenario: Status counts respect the filters
 
+<!-- scenario superseded in place by the 2026-11-26 six-state ruling: the retired
+key set (the former six-state enum incl. BOOKED/BOOKING_CANCELLED) survives only in
+this comment for history -->
+
 - **WHEN** the status-count endpoint receives the wide filter set WITHOUT the status
   condition
-- **THEN** it returns one count per document state machine status (`BOOKED`, `REGISTERED`,
-  `IN_PROGRESS`, `COMPLETED`, `BOOKING_CANCELLED`, `CANCELLED`), zero-filled, each counted
+- **THEN** it returns one count per document state machine status (`REGISTERED`, `IN_EXAM`,
+  `IN_DIAGNOSIS`, `COMPLETED`, `PRINTED`, `CANCELLED`), zero-filled, each counted
   under the same remaining filters
 
 ### Requirement: Slot Config Administration

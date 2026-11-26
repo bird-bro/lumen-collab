@@ -30,12 +30,12 @@ import org.springframework.web.bind.annotation.RestController;
  * /api/v1/us} registration family - a THIN face over the kernel services: create rides
  * the kernel registration entry (identity from the patient-registry port, the accession
  * issued INSIDE the creation path through the number-issuer port, the ext block riding
- * the kernel {@code RegistrationHook} seam); query/登记/取消 ride the kernel mapper and
+ * the kernel {@code RegistrationHook} seam); query/取消 ride the kernel mapper and
  * the state machine (the status column's single writer - its refusals surface verbatim).
  *
  * <p>Perms: every action sits behind the {@code us:order:*} family the us ledger V3
  * seeded ({@code us:order:list} the page, {@code us:order:create} the 新建 button + the
- * resolve passthrough, {@code us:order:update} the 登记 button, {@code us:order:cancel}
+ * resolve passthrough, {@code us:order:cancel}
  * the 取消 button) via the framework security chain's method pins (the
  * {@code DictDetailController} button-perm precedent); tokenless requests answer the
  * entry point's "203" and an authenticated perm-less caller the A0301 deny envelope.
@@ -106,16 +106,8 @@ public class RegistrationController {
         return registrationOrderService.slotOptions(date, modality);
     }
 
-    /** Fires the 登记 transition (specs/us-station "Illegal transition is refused verbatim"). */
-    @ApiOperation("登记（签到：BOOKED -> REGISTERED）")
-    @PreAuthorize("hasAuthority('us:order:update')")
-    @PostMapping("/orders/{id}/register")
-    public ExamOrderStatus register(@PathVariable Integer id) {
-        return registrationOrderService.register(id);
-    }
-
     /** Cancels a live order with a reason (specs/us-station "Cancel carries a reason"). */
-    @ApiOperation("取消登记单（分支按阶段：BOOKED->BOOKING_CANCELLED，否则->CANCELLED）")
+    @ApiOperation("取消登记单（六态机单一落点：已登记/检查中/诊断中 → 已取消）")
     @PreAuthorize("hasAuthority('us:order:cancel')")
     @PostMapping("/orders/{id}/cancel")
     public ExamOrderStatus cancel(@PathVariable Integer id,

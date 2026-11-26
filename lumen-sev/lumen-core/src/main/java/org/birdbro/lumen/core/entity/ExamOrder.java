@@ -64,6 +64,16 @@ public class ExamOrder extends EntityBase {
      */
     private ExamRegistrationType registrationType;
 
+    /**
+     * 检查室锚点 (us-order-exam-room; user ruling 2026-11-26): WHERE the exam happens,
+     * chosen at creation and stamped on BOTH entry branches (预约时选房 for
+     * pre-registered orders, 现场选房 for walk-ins) - never derived. Nullable by
+     * design: no natural default and no legacy backfill; the CREATE-TIME requirement
+     * (a room must be supplied and validated) is the registering service's surface
+     * rule, not a column rule - legacy rows read NULL and still load.
+     */
+    private Integer roomId;
+
     /** 申请单号 (HIS or manual). */
     private String applyNo;
 

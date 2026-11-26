@@ -1,7 +1,9 @@
 package org.birdbro.lumen.manage.service.impl;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -13,6 +15,8 @@ import org.birdbro.common.enums.ExceptionEnum;
 import org.birdbro.common.exception.BusinessException;
 import org.birdbro.common.utils.SecurityUtils;
 import org.birdbro.lumen.manage.dto.deviceroom.RoomCreateRequest;
+import org.birdbro.lumen.manage.dto.deviceroom.RoomInternalDetail;
+import org.birdbro.lumen.manage.dto.deviceroom.RoomInternalSummary;
 import org.birdbro.lumen.manage.dto.deviceroom.RoomPageQuery;
 import org.birdbro.lumen.manage.dto.deviceroom.RoomRow;
 import org.birdbro.lumen.manage.dto.deviceroom.RoomStatusRequest;
@@ -64,6 +68,38 @@ public class OrgRoomServiceImpl implements OrgRoomService {
             requireLiveDepartmentOfOrg(depId, orgId);
         }
         return orgRoomMapper.selectRoomList(orgId, depId);
+    }
+
+    @Override
+    public List<RoomInternalSummary> listInternalByDepartment(Integer depId) {
+        // the INTERNAL family carries no org anchor and no user-perm guards (the
+        // X-Internal-Key interceptor owns the gate) - a null/blank department answers
+        // an EMPTY list (the caller's station-dept-id config problem surfaces there;
+        // fail closed, never a whole-registry dump)
+        if (depId == null) {
+            return Collections.emptyList();
+        }
+        List<OrgRoom> rooms = orgRoomMapper.selectList(new LambdaQueryWrapper<OrgRoom>()
+                .eq(OrgRoom::getDid, depId)
+                .eq(OrgRoom::getEnable, 1)
+                .orderByAsc(OrgRoom::getId));
+        return rooms.stream()
+                .map((room) -> RoomInternalSummary.builder()
+                        .id(room.getId()).name(room.getName()).build())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public RoomInternalDetail getInternalById(Integer id) {
+        // selectById rides the @TableLogic deleted filter - a logically-deleted room
+        // reads as missing (null), the station's validation then refuses it
+        OrgRoom room = id == null ? null : orgRoomMapper.selectById(id);
+        if (room == null) {
+            return null;
+        }
+        return RoomInternalDetail.builder()
+                .id(room.getId()).oid(room.getOid()).did(room.getDid())
+                .name(room.getName()).enable(room.getEnable()).build();
     }
 
     @Override

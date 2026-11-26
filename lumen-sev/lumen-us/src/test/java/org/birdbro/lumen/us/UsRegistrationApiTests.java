@@ -113,7 +113,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 + "\"cardNo\":\"US3CARD-" + ts + "\","
                 + "\"name\":\"us3建档张三\",\"gender\":2,\"phone\":\"13800000101\","
                 + "\"age\":\"30\",\"patientSource\":\"门诊\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}],"
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}],"
                 + "\"emgFlag\":1,"
                 + "\"ext\":{\"pregnancyStatus\":\"孕12周\",\"gestationalWeeks\":12,"
                 + "\"note\":\"us3 ext 备注\",\"applyDept\":\"门诊内科\","
@@ -240,7 +240,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 + "\"name\":\"us3建档生日\",\"gender\":1,"
                 + "\"birthDate\":\"1990-05-20\","
                 + "\"age\":\"36\",\"patientSource\":\"门诊\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}]}";
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}]}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
         assertEquals("200", response.path("code").asText(),
@@ -261,7 +261,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 + "\"cardNo\":\"US3BDNCARD-" + ts + "\","
                 + "\"name\":\"us3建档无生日\",\"gender\":1,"
                 + "\"age\":\"36\",\"patientSource\":\"门诊\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}]}";
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}]}";
         JsonNode responseNoBirth = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, bodyNoBirth,
                 fullPermToken()));
         assertEquals("200", responseNoBirth.path("code").asText(),
@@ -280,13 +280,13 @@ class UsRegistrationApiTests extends UsApiTestBase {
     void slotOptionsExposeTheConfiguredGridWithLiveOccupancy() throws Exception {
         String modality = uniqueModality();
         seedSlotConfig(modality, 2); // granularity 30, window 08:00-12:00 → 8 slots
-        // one LIVE BOOKED order in tomorrow's 09:00-09:30 slot (the create path's
-        // count predicate: BOOKED + booking_time in the window + first-item modality)
+        // one LIVE order in tomorrow's 09:00-09:30 slot (the create path's
+        // count predicate: live not-cancelled + booking_time in the window + first-item modality)
         long ts = stamp();
         int uid = STUB_UID_BASE + 801 + (int) (ts % 5000);
         jdbcTemplate.update(
                 "INSERT INTO exam_order (accession_no, status, patient_uid, booking_time,"
-                + " exam_items, patient_snapshot) VALUES (?, 'BOOKED', ?, ?::timestamp,"
+                + " exam_items, patient_snapshot) VALUES (?, 'REGISTERED', ?, ?::timestamp,"
                 + " ?::jsonb, ?::jsonb)",
                 "US3-SEED-" + ts, uid,
                 java.time.LocalDate.now().plusDays(1).atTime(9, 17) + ":00",
@@ -309,7 +309,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         assertEquals("09:00", slots.path(2).path("start").asText(), "the third slot starts 09:00");
         assertEquals("09:30", slots.path(2).path("end").asText(), "the third slot ends 09:30");
         assertEquals(1, slots.path(2).path("booked").asInt(-1),
-                "the live BOOKED order counts against its slot (the create predicate)");
+                "the live seeded order counts against its slot (the create predicate)");
         assertEquals(2, slots.path(2).path("capacity").asInt(-1),
                 "the capacity rides the config's slot_capacity");
         assertEquals(0, slots.path(0).path("booked").asInt(-1),
@@ -391,7 +391,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         String body = "{\"idType\":\"01\",\"idNo\":\"US3GRID-" + ts + "\","
                 + "\"name\":\"us3离格受试者\",\"gender\":2,"
                 + "\"bookingTime\":\"" + tomorrowAt(8, 15) + "\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"离格项目\","
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"离格项目\","
                 + "\"modality\":\"" + modality + "\"}]}";
         JsonNode created = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
@@ -560,7 +560,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         String body = "{\"idType\":\"01\",\"idNo\":\"US3OCC-" + ts + "\","
                 + "\"name\":\"us3占位受试者\",\"gender\":2,"
                 + "\"bookingTime\":\"" + tomorrowAt(9, 17) + "\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"占位项目\","
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"占位项目\","
                 + "\"modality\":\"" + modality + "\"}]}";
         JsonNode refused = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
@@ -605,7 +605,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         String body = "{\"idType\":\"01\",\"idNo\":\"US3PRE-" + stamp() + "\","
                 + "\"name\":\"us3预登记档案\",\"gender\":2,"
                 + "\"bookingTime\":\"" + bookingTime + "\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记项目\","
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记项目\","
                 + "\"modality\":\"" + modality + "\"}]}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
@@ -636,7 +636,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         // live not-cancelled orders in the window occupy, regardless of live stage
         Integer windowCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM exam_order WHERE deleted = 0"
-                + " AND status NOT IN ('BOOKING_CANCELLED', 'CANCELLED')"
+                + " AND status NOT IN ('CANCELLED')"
                 + " AND booking_time >= ?::timestamp AND booking_time < ?::timestamp"
                 + " AND exam_items->0->>'modality' = ?",
                 Integer.class, tomorrowAt(9, 0), tomorrowAt(9, 30), modality);
@@ -669,7 +669,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         String body = "{\"idType\":\"01\",\"idNo\":\"US3FORGE-" + stamp() + "\","
                 + "\"name\":\"us3伪造类别\",\"gender\":2,"
                 + "\"registrationType\":\"PRE_REGISTERED\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"伪造类别项目\","
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"伪造类别项目\","
                 + "\"modality\":\"" + modality + "\"}]}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
@@ -698,7 +698,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         String body = "{\"idType\":\"01\",\"idNo\":\"US3PAST-" + stamp() + "\","
                 + "\"name\":\"us3过期预登记\",\"gender\":2,"
                 + "\"bookingTime\":\"" + past + "\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记项目\","
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记项目\","
                 + "\"modality\":\"" + modality + "\"}]}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
@@ -720,7 +720,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         String body = "{\"idType\":\"01\",\"idNo\":\"US3UNCONF-" + stamp() + "\","
                 + "\"name\":\"us3未开通预登记\",\"gender\":2,"
                 + "\"bookingTime\":\"" + tomorrowAt(9, 17) + "\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记项目\","
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记项目\","
                 + "\"modality\":\"" + modality + "\"}]}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
@@ -743,7 +743,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         String body = "{\"idType\":\"01\",\"idNo\":\"US3OUTW-" + stamp() + "\","
                 + "\"name\":\"us3窗外预登记\",\"gender\":2,"
                 + "\"bookingTime\":\"" + tomorrowAt(13, 30) + "\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记项目\","
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记项目\","
                 + "\"modality\":\"" + modality + "\"}]}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
@@ -759,12 +759,12 @@ class UsRegistrationApiTests extends UsApiTestBase {
         seedSlotConfig(modality, 4);
         long ts = stamp();
         int stubUid = STUB_UID_BASE + 205;
-        // seed the slot to capacity with REAL live BOOKED rows (the service's own count
+        // seed the slot to capacity with REAL live rows (the service's own count
         // predicate reads them - the caller count is not hand-fed)
         for (int i = 0; i < 4; i++) {
             jdbcTemplate.update(
                     "INSERT INTO exam_order (accession_no, status, patient_uid, booking_time,"
-                    + " exam_items) VALUES (?, 'BOOKED', ?, ?::timestamp, ?::jsonb)",
+                    + " exam_items) VALUES (?, 'REGISTERED', ?, ?::timestamp, ?::jsonb)",
                     "US3-CAP-" + ts + "-" + i, stubUid, tomorrowAt(9, 17),
                     "[{\"itemId\":1024,\"itemName\":\"容量种子\",\"modality\":\"" + modality + "\"}]");
         }
@@ -773,7 +773,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         String body = "{\"idType\":\"01\",\"idNo\":\"US3CAP-" + ts + "\","
                 + "\"name\":\"us3满时段预登记\",\"gender\":2,"
                 + "\"bookingTime\":\"" + tomorrowAt(9, 17) + "\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记项目\","
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记项目\","
                 + "\"modality\":\"" + modality + "\"}]}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
@@ -782,7 +782,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         assertTrue(response.path("msg").asText().contains("该时段已满"),
                 "the D5 capacity token surfaces verbatim: " + response);
         Integer windowCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM exam_order WHERE status = 'BOOKED' AND deleted = 0"
+                "SELECT COUNT(*) FROM exam_order WHERE status = 'REGISTERED' AND deleted = 0"
                 + " AND booking_time >= ?::timestamp AND booking_time < ?::timestamp"
                 + " AND exam_items->0->>'modality' = ?",
                 Integer.class, tomorrowAt(9, 0), tomorrowAt(9, 30), modality);
@@ -790,22 +790,9 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 "the refused create left no row - the count stays at capacity");
     }
 
-    @Test
-    void registerOnRegisteredOrderRefusesVerbatim() throws Exception {
-        // the transitional break (design D9): a walk-in create IS registered now - the
-        // old page's 登记 button A0400s on new orders until proposal ③ lands
-        int orderId = createOrder("us3重复登记" + stamp());
-        JsonNode response = parse(exchangeJson(HttpMethod.POST,
-                ORDERS_URL + "/" + orderId + "/register", null, fullPermToken()));
-        assertEquals("A0400", response.path("code").asText(),
-                "REGISTERED -> REGISTERED is illegal: " + response);
-        assertTrue(response.path("msg").asText()
-                        .contains("非法状态迁移: REGISTERED → REGISTERED"),
-                "the kernel refusal surfaces verbatim: " + response);
-        String status = jdbcTemplate.queryForObject(
-                "SELECT status FROM exam_order WHERE id = ?", String.class, orderId);
-        assertEquals("REGISTERED", status, "the stored status stays unchanged");
-    }
+    // the 登记 transition endpoint is REMOVED (registration-order-status-dict-sev task
+    // 2.1: the six-state machine has no BOOKED arrival edge - user ruling 2026-11-26);
+    // the kernel-refusal-surfaces-verbatim proof rides the re-cancel refusal below
 
     // ------------------- Workbench query surface (us-registration-redesign-api 拍板 03-B)
 
@@ -813,7 +800,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
     void statusMultiSelectComposesWithWideConditions() throws Exception {
         int registeredA = createOrder("us3多选在册甲" + stamp());
         int registeredB = createOrder("us3多选在册乙" + stamp());
-        int bookedId = seedBookedOrder("us3多选预登记" + stamp());
+        int examId = seedInExamOrder("us3多选检查中" + stamp());
 
         JsonNode multi = parse(exchangeJson(HttpMethod.GET,
                 ORDERS_URL + "?pageNum=1&pageSize=100&status=REGISTERED,CANCELLED",
@@ -821,14 +808,14 @@ class UsRegistrationApiTests extends UsApiTestBase {
         assertEquals("200", multi.path("code").asText(), "the multi-select must succeed");
         assertNotNull(findRecordByOrderId(multi, registeredA), "the first REGISTERED matches");
         assertNotNull(findRecordByOrderId(multi, registeredB), "the second REGISTERED matches");
-        assertNull(findRecordByOrderId(multi, bookedId),
-                "the BOOKED order is OUTSIDE the multi-select set");
+        assertNull(findRecordByOrderId(multi, examId),
+                "the IN_EXAM order is OUTSIDE the multi-select set");
 
         JsonNode union = parse(exchangeJson(HttpMethod.GET,
-                ORDERS_URL + "?pageNum=1&pageSize=100&status=BOOKED,REGISTERED",
+                ORDERS_URL + "?pageNum=1&pageSize=100&status=REGISTERED,IN_EXAM",
                 null, fullPermToken()));
         assertNotNull(findRecordByOrderId(union, registeredA), "the union keeps the walk-ins");
-        assertNotNull(findRecordByOrderId(union, bookedId), "the union keeps the pre-registration");
+        assertNotNull(findRecordByOrderId(union, examId), "the union keeps the exam-stage row");
     }
 
     @Test
@@ -842,7 +829,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 + "\"cardNo\":\"" + cardNo + "\","
                 + "\"name\":\"us3快照条件" + ts + "\",\"gender\":1,"
                 + "\"patientSource\":\"体检\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"超声检查\"}]}";
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"超声检查\"}]}";
         JsonNode create = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
         assertEquals("200", create.path("code").asText(), "the create must succeed: " + create);
@@ -883,7 +870,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         stubNumber();
         String body = "{\"idType\":\"01\",\"idNo\":\"US3ITEM-" + ts + "\","
                 + "\"name\":\"us3项目模糊" + ts + "\",\"gender\":1,"
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"胆囊超声检查\","
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"胆囊超声检查\","
                 + "\"modality\":\"UR3GALLX\"}]}";
         JsonNode create = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
@@ -933,28 +920,28 @@ class UsRegistrationApiTests extends UsApiTestBase {
         // needs archived-name creates (the pageQueryFiltersByStatusAndPatientName lesson)
         createOrderWithArchivedName(marker + "甲");
         createOrderWithArchivedName(marker + "乙");
-        int bookedId = seedBookedOrder(marker + "预");
+        int examId = seedInExamOrder(marker + "检");
 
         JsonNode counts = parse(exchangeJson(HttpMethod.GET,
                 ORDERS_URL + "/status-counts", null, fullPermToken()));
         assertEquals("200", counts.path("code").asText(),
                 "the status-count endpoint must exist: " + counts);
-        assertTrue(counts.path("data").path("BOOKED").asLong(0) >= 1,
-                "the seeded pre-registration counts under BOOKED");
         assertTrue(counts.path("data").path("REGISTERED").asLong(0) >= 2,
                 "the walk-ins count under REGISTERED");
-        for (String status : new String[]{"IN_PROGRESS", "COMPLETED",
-                "BOOKING_CANCELLED", "CANCELLED"}) {
+        assertTrue(counts.path("data").path("IN_EXAM").asLong(0) >= 1,
+                "the seeded exam-stage row counts under IN_EXAM");
+        for (String status : new String[]{"IN_DIAGNOSIS", "COMPLETED",
+                "PRINTED", "CANCELLED"}) {
             assertTrue(counts.path("data").has(status),
-                    "the meter zero-fills every state: missing " + status);
+                    "the meter zero-fills every six-state key: missing " + status);
         }
 
         JsonNode filtered = parse(exchangeJson(HttpMethod.GET,
                 ORDERS_URL + "/status-counts?patientName=" + marker, null, fullPermToken()));
         assertEquals(2, filtered.path("data").path("REGISTERED").asLong(-1),
                 "the counts respect the remaining filters (the name marker narrows to 2)");
-        assertEquals(1, filtered.path("data").path("BOOKED").asLong(-1),
-                "the seeded pre-registration counts under the same filter");
+        assertEquals(1, filtered.path("data").path("IN_EXAM").asLong(-1),
+                "the seeded exam-stage row counts under the same filter");
     }
 
     // ------------------- red-registration stub helpers (us-registration-redesign-api)
@@ -1011,16 +998,16 @@ class UsRegistrationApiTests extends UsApiTestBase {
         return id;
     }
 
-    /** Seeds one raw BOOKED order (the 登记/取消 action targets - a pre-registered row
-     *  bypasses the create path; the US3- prefix + stub band carry the sweep). */
-    private int seedBookedOrder(String name) {
+    /** Seeds one raw IN_EXAM order (a non-REGISTERED live state the create path cannot
+     *  produce yet - the per-state counting/multi-select proofs; the US3- prefix +
+     *  stub band carry the sweep). */
+    private int seedInExamOrder(String name) {
         long ts = stamp();
         int uid = STUB_UID_BASE + 701 + (int) (ts % 5000);
         jdbcTemplate.update(
-                "INSERT INTO exam_order (accession_no, status, patient_uid, booking_time,"
-                + " patient_snapshot) VALUES (?, 'BOOKED', ?, ?::timestamp, ?::jsonb)",
+                "INSERT INTO exam_order (accession_no, status, patient_uid, patient_snapshot)"
+                + " VALUES (?, 'IN_EXAM', ?, ?::jsonb)",
                 "US3-SEED-" + ts, uid,
-                java.time.LocalDate.now().plusDays(1).atTime(9, 17) + ":00",
                 "{\"patId\":\"US3-SEED\",\"name\":\"" + name + "\"}");
         return jdbcTemplate.queryForObject(
                 "SELECT id FROM exam_order WHERE accession_no = ?",
@@ -1061,7 +1048,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         long ts = stamp();
         String body = "{\"idType\":\"01\",\"idNo\":\"US3MOD-" + ts + "\","
                 + "\"name\":\"us3模态档案\",\"gender\":2,"
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\","
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\","
                 + "\"modality\":\"US\"}]}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
@@ -1113,7 +1100,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
                         .build()));
         String name = "us3拒绝无uid" + stamp();
         String body = "{\"idType\":\"01\",\"idNo\":\"US3NOUNID-" + stamp() + "\","
-                + "\"name\":\"" + name + "\"}";
+                + "\"name\":\"" + name + "\",\"roomId\":90307}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
         assertEquals("A0400", response.path("code").asText(),
@@ -1134,7 +1121,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
                                 PatientIdentityResponse.builder().patUid(1).build()))
                         .build()));
         String name = "us3拒绝候选" + stamp();
-        String body = "{\"name\":\"" + name + "\",\"phone\":\"13900000999\"}";
+        String body = "{\"name\":\"" + name + "\",\"phone\":\"13900000999\",\"roomId\":90307}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
         assertEquals("A0400", response.path("code").asText(),
@@ -1143,82 +1130,56 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 "nothing persists on the refusal path");
     }
 
-    // --------------------------------------- transitions (register / cancel)
-
-    @Test
-    void registerTransitionsBookedToRegistered() throws Exception {
-        // us-registration-redesign-api: the 登记 action's real target is a PRE-REGISTERED
-        // (BOOKED) order - a raw-seeded row (the create path now derives REGISTERED)
-        int orderId = seedBookedOrder("us3登记流转" + stamp());
-        JsonNode response = parse(exchangeJson(HttpMethod.POST,
-                ORDERS_URL + "/" + orderId + "/register", null, fullPermToken()));
-        assertEquals("200", response.path("code").asText(),
-                "the 登记 transition must succeed: " + response);
-        assertEquals("REGISTERED", response.path("data").asText(),
-                "BOOKED -> REGISTERED is the legal 登记 edge (arrival confirmation)");
-        String status = jdbcTemplate.queryForObject(
-                "SELECT status FROM exam_order WHERE id = ?", String.class, orderId);
-        assertEquals("REGISTERED", status, "the transition persists");
-    }
+    // --------------------------------------- transitions (cancel)
 
     @Test
     void illegalTransitionRefusalSurfacesKernelMessageVerbatim() throws Exception {
-        int orderId = seedBookedOrder("us3非法迁移" + stamp());
-        // BOOKED -> BOOKING_CANCELLED first (legal), then 登记 on the cancelled order
-        // - the state machine's exact refusal shape the spec pins verbatim
+        // cancel a live order (legal), then re-cancel - the state machine's exact
+        // refusal shape the spec pins verbatim; the 登记 endpoint is REMOVED
+        // (registration-order-status-dict-sev task 2.1: the six-state machine has no
+        // BOOKED arrival edge), so the re-cancel is the surviving illegal-jump surface
+        int orderId = createOrder("us3非法迁移" + stamp());
         JsonNode cancel = parse(exchangeJson(HttpMethod.POST,
                 ORDERS_URL + "/" + orderId + "/cancel",
                 "{\"reason\":\"us3先取消\"}", fullPermToken()));
-        assertEquals("BOOKING_CANCELLED", cancel.path("data").asText(),
-                "the cancel branch from BOOKED: " + cancel);
+        assertEquals("CANCELLED", cancel.path("data").asText(),
+                "the cancel lands CANCELLED (the single landing): " + cancel);
 
         JsonNode response = parse(exchangeJson(HttpMethod.POST,
-                ORDERS_URL + "/" + orderId + "/register", null, fullPermToken()));
+                ORDERS_URL + "/" + orderId + "/cancel",
+                "{\"reason\":\"us3再取消\"}", fullPermToken()));
         assertEquals("A0400", response.path("code").asText(),
                 "the kernel refusal must surface verbatim: " + response);
         // the house BusinessException envelope prefixes the enum text (the B2 A0715
         // discipline): the kernel's own message rides VERBATIM inside it - no masking,
         // no rewriting
         assertTrue(response.path("msg").asText()
-                        .contains("非法状态迁移: BOOKING_CANCELLED → REGISTERED"),
+                        .contains("非法状态迁移: CANCELLED → CANCELLED"),
                 "the refusal message is the KERNEL's own, verbatim inside the house "
                         + "envelope shape: " + response);
         String status = jdbcTemplate.queryForObject(
                 "SELECT status FROM exam_order WHERE id = ?", String.class, orderId);
-        assertEquals("BOOKING_CANCELLED", status,
+        assertEquals("CANCELLED", status,
                 "the stored status stays UNCHANGED after the refusal");
     }
 
     @Test
-    void cancelBranchSplitsByStageWithTheReasonStored() throws Exception {
-        // BOOKED -> BOOKING_CANCELLED with the reason stored (a raw-seeded
-        // pre-registered row - the create path derives REGISTERED now)
-        int bookedId = seedBookedOrder("us3取消预约" + stamp());
-        JsonNode bookedCancel = parse(exchangeJson(HttpMethod.POST,
-                ORDERS_URL + "/" + bookedId + "/cancel",
-                "{\"reason\":\"us3取消原因-预约\"}", fullPermToken()));
-        assertEquals("BOOKING_CANCELLED", bookedCancel.path("data").asText(),
-                "the cancel branch from BOOKED lands BOOKING_CANCELLED: " + bookedCancel);
-        String bookedReason = jdbcTemplate.queryForObject(
-                "SELECT cancel_reason FROM exam_order WHERE id = ?", String.class, bookedId);
-        assertEquals("us3取消原因-预约", bookedReason, "the reason is stored on the branch");
-
-        // REGISTERED -> CANCELLED with the reason stored (the walk-in create IS
-        // registered now - no 登记 step)
+    void cancelLandsTheSingleCancelledStateWithTheReasonStored() throws Exception {
+        // REGISTERED -> CANCELLED with the reason stored (the six-state machine has ONE
+        // cancel landing - user ruling 2026-11-26; the former BOOKED ->
+        // BOOKING_CANCELLED branch is removed with its dead vocabulary)
         int registeredId = createOrder("us3取消在册" + stamp());
         JsonNode registeredCancel = parse(exchangeJson(HttpMethod.POST,
                 ORDERS_URL + "/" + registeredId + "/cancel",
                 "{\"reason\":\"us3取消原因-在册\"}", fullPermToken()));
         assertEquals("CANCELLED", registeredCancel.path("data").asText(),
-                "the cancel branch from REGISTERED lands CANCELLED: " + registeredCancel);
+                "the cancel lands CANCELLED: " + registeredCancel);
         String registeredReason = jdbcTemplate.queryForObject(
                 "SELECT cancel_reason FROM exam_order WHERE id = ?", String.class, registeredId);
         assertEquals("us3取消原因-在册", registeredReason, "the reason is stored on the branch");
 
         // the PRE-REGISTERED order (PRE_REGISTERED stamp) cancels -> CANCELLED too - the
-        // US flow no longer produces BOOKED rows, so the machine's BOOKING_CANCELLED
-        // branch is unreachable from the API surface (us-prereg-as-registered; the
-        // BOOKED branch above stays as the raw-seeded machine characterization)
+        // same single landing for every live state (us-prereg-as-registered)
         String preRegModality = uniqueModality();
         seedSlotConfig(preRegModality, 4);
         stubNumber();
@@ -1226,7 +1187,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         String preRegBody = "{\"idType\":\"01\",\"idNo\":\"US3PREREGCANCEL-" + cancelTs + "\","
                 + "\"name\":\"us3取消预登记" + cancelTs + "\",\"gender\":1,"
                 + "\"bookingTime\":\"" + tomorrowAt(10, 30) + "\","
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记取消项目\","
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"预登记取消项目\","
                 + "\"modality\":\"" + preRegModality + "\"}]}";
         JsonNode preRegCreate = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, preRegBody,
                 fullPermToken()));
@@ -1241,7 +1202,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 ORDERS_URL + "/" + preRegId + "/cancel",
                 "{\"reason\":\"us3取消原因-预登记\"}", fullPermToken()));
         assertEquals("CANCELLED", preRegCancel.path("data").asText(),
-                "cancelling the pre-registered order lands CANCELLED (no BOOKED in the flow): "
+                "cancelling the pre-registered order lands CANCELLED (the single landing): "
                         + preRegCancel);
         String preRegReason = jdbcTemplate.queryForObject(
                 "SELECT cancel_reason FROM exam_order WHERE id = ?", String.class, preRegId);
@@ -1357,7 +1318,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         String name = "us3回滚" + stamp();
         String body = "{\"idType\":\"01\",\"idNo\":\"US3ROLL-" + stamp() + "\","
                 + "\"name\":\"" + name + "\",\"gender\":2,"
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"超声产检\"}],"
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"超声产检\"}],"
                 + "\"ext\":{\"pregnancyStatus\":\"孕17周溢出长度测试ABCDEFJKLMNOPQR\","
                 + "\"gestationalWeeks\":17}}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
@@ -1396,7 +1357,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
                         .build()));
         String body = "{\"idType\":\"01\",\"idNo\":\"US3EXTAUDIT-" + stamp() + "\","
                 + "\"name\":\"us3ext审计档案\",\"gender\":2,"
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"超声产检\"}],"
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"超声产检\"}],"
                 + "\"ext\":{\"pregnancyStatus\":\"孕8周\",\"gestationalWeeks\":8,"
                 + "\"note\":\"us3 ext 审计\","
                 + "\"deleted\":1,\"createBy\":999,\"updateBy\":999,"
@@ -1519,7 +1480,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
 
     // ---------------------------------------------------------------- helpers
 
-    /** Creates one BOOKED order whose archive identity carries the given name. */
+    /** Creates one live (REGISTERED) order whose archive identity carries the given name. */
     private int createOrderWithArchivedName(String name) throws Exception {
         when(patientApi.resolveOrRegister(any())).thenReturn(org.birdbro.common.core.R.ofSuccess(
                 PatientResolveOrRegisterResult.builder()
@@ -1535,12 +1496,12 @@ class UsRegistrationApiTests extends UsApiTestBase {
         return createOrder(name);
     }
 
-    /** Creates one BOOKED order through the real route (default seam stubs). */
+    /** Creates one live (REGISTERED) order through the real route (default seam stubs). */
     private int createOrder(String name) throws Exception {
         long ts = stamp();
         String body = "{\"idType\":\"01\",\"idNo\":\"US3ORDER-" + ts + "\","
                 + "\"name\":\"" + name + "\",\"gender\":1,\"phone\":\"139" + (ts % 1000000000)
-                + "\",\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}]}";
+                + "\",\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"腹部超声\"}]}";
         JsonNode response = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
                 fullPermToken()));
         assertEquals("200", response.path("code").asText(),
@@ -1557,7 +1518,7 @@ class UsRegistrationApiTests extends UsApiTestBase {
         long ts = stamp();
         String body = "{\"idType\":\"01\",\"idNo\":\"US3EXT-" + ts + "\","
                 + "\"name\":\"" + name + "\",\"gender\":2,"
-                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"超声产检\"}],"
+                + "\"roomId\":90307,\"examItems\":[{\"itemId\":1024,\"itemName\":\"超声产检\"}],"
                 + "\"ext\":{\"pregnancyStatus\":\"" + pregnancyStatus + "\","
                 + "\"gestationalWeeks\":" + gestationalWeeks + ",\"note\":\"" + note + "\","
                 + "\"applyDept\":\"门诊内科\",\"applyDoctor\":\"李临床\","

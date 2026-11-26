@@ -55,7 +55,7 @@ class ExamOrderAggregateTests extends KernelIntegrationTestBase {
         order.setPatientUid(patientUid);
         order.setAccessionNo("AC" + System.nanoTime());
         // the entry state belongs to the creation entry; the tests stand in for booking
-        order.setStatus(ExamOrderStatus.BOOKED);
+        order.setStatus(ExamOrderStatus.REGISTERED);
         order.setExamItems(Collections.singletonList(
                 ExamItemRef.builder().itemId(101).itemName("腹部超声").build()));
         return order;
@@ -158,7 +158,7 @@ class ExamOrderAggregateTests extends KernelIntegrationTestBase {
         String accession = "ACLEGACY" + System.nanoTime();
         jdbcTemplate.update(
                 "INSERT INTO exam_order (accession_no, status, patient_uid, exam_items) "
-                        + "VALUES (?, 'BOOKED', 990004, ?::jsonb)",
+                        + "VALUES (?, 'REGISTERED', 990004, ?::jsonb)",
                 accession, "[{\"itemId\":101,\"itemName\":\"腹部超声\"}]");
         Integer orderId = jdbcTemplate.queryForObject(
                 "SELECT id FROM exam_order WHERE accession_no = ?", Integer.class, accession);
@@ -184,5 +184,39 @@ class ExamOrderAggregateTests extends KernelIntegrationTestBase {
                 "[{\"itemId\":101,\"itemName\":\"腹部超声\"}]", ExamItemRef[].class);
         assertNull(refs[0].getModality(),
                 "the typed shape reads the absent key as a null token");
+    }
+
+    // ------------- exam room anchor (us-order-exam-room-sev task 1.1)
+
+    @Test
+    void examRoomAnchorsTheExamDestination() {
+        PatientSnapshot snapshot = PatientSnapshot.builder()
+                .patId("P2611260001").name("李四").gender(2).age("28")
+                .patientSource("门诊").build();
+
+        // both entry branches stamp the supplied room anchor
+        ExamOrder withRoom = order(990042);
+        withRoom.setRoomId(307);
+        withRoom.setPatientSnapshot(snapshot);
+        Integer withRoomId = aggregateService.insertWithMembers(
+                withRoom, ExamExecution.builder().build(), ExamReport.builder().build());
+        Integer roomId = jdbcTemplate.queryForObject(
+                "SELECT room_id FROM exam_order WHERE id = ?", Integer.class, withRoomId);
+        assertEquals(307, roomId, "the room anchor persists on the order row");
+
+        // the entity round-trips through the mapper (autoResultMap column mapping)
+        ExamOrder loaded = examOrderMapper.selectById(withRoomId);
+        assertEquals(307, loaded.getRoomId(), "the loaded aggregate carries the room anchor");
+
+        // legacy shape: no room supplied -> the column reads NULL and the row loads
+        ExamOrder legacy = order(990043);
+        legacy.setPatientSnapshot(PatientSnapshot.builder()
+                .patId("P2611260002").name("王五").gender(1).age("40")
+                .patientSource("门诊").build());
+        Integer legacyId = aggregateService.insertWithMembers(
+                legacy, ExamExecution.builder().build(), ExamReport.builder().build());
+        Integer legacyRoom = jdbcTemplate.queryForObject(
+                "SELECT room_id FROM exam_order WHERE id = ?", Integer.class, legacyId);
+        assertNull(legacyRoom, "a roomless (legacy-shape) order carries a NULL room anchor");
     }
 }

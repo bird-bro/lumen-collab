@@ -110,6 +110,7 @@ public class DictDetailManageServiceImpl implements DictDetailManageService {
                 DictItemDto item = new DictItemDto();
                 item.setCode(detail.getCode());
                 item.setValue(detail.getValue());
+                if (StrUtil.isNotBlank(detail.getTag())) item.setTag(detail.getTag());
                 items.add(item);
             }
         }
@@ -136,6 +137,7 @@ public class DictDetailManageServiceImpl implements DictDetailManageService {
                 DictItemDto item = new DictItemDto();
                 item.setCode(detail.getCode());
                 item.setValue(detail.getValue());
+                if (StrUtil.isNotBlank(detail.getTag())) item.setTag(detail.getTag());
                 items.add(item);
             }
         }

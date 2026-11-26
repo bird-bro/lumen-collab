@@ -1,5 +1,6 @@
 import { fetchDictItemsByName, fetchDictItemsById } from '@/api/dicts';
 import type { DictItem } from '@/api/types';
+import type { UsOrderStatus } from '@/api/us-orders';
 
 /**
  * Session-cached dict-item resolver (role-type-dict-web tasks 1.2; the
@@ -138,4 +139,102 @@ export function resolveDictLabel(items: DictItem[], code: number): string {
 export function resolveDictLabelByValue(items: DictItem[], value: string): string {
   const match = items.find((item) => item.value === value);
   return match?.value ?? value;
+}
+
+/**
+ * The 「登记单状态」 catalog id - the V55 seed (registration-order-status-dict-sev;
+ * user ruling 2026-11-26). ID-ANCHORED per the dict-lookup-by-id ruling 2026-11-19
+ * (the id never moves; the operator may rename the catalog freely). LABEL-ONLY
+ * vocabulary: the stored/wire status token stays the backend enum name; the dict
+ * supplies the desk's chip/state-tag labels through the code bridge below.
+ */
+export const US_ORDER_STATUS_DICT_ID = 1031;
+
+/**
+ * The enum-name ↔ dict-code bridge (the recorded cross-stack contract in
+ * openspec/coordination/registration-order-status-dict.md): code = the
+ * catalog-id-prefixed family 103101-103106 (catalId*100 + seq — the 100401 性别
+ * anchor shape, the user's 2026-11-26 correction superseding the draft's bare 1-6),
+ * `fallback` = the 中文 label rendered when the dict item is missing/disabled or
+ * the fetch failed (the desk meter must survive a dict outage - the coordination
+ * doc's deliberate deviation from the form vocabularies' empty-options degrade).
+ * CONTRACT, not a vocabulary option set (the Dict-Resolved Vocabularies carve-out
+ * in the delta spec).
+ */
+export const US_ORDER_STATUS_BRIDGE: Record<
+  UsOrderStatus,
+  { code: number; fallback: string }
+> = {
+  REGISTERED: { code: 103101, fallback: '已登记' },
+  IN_EXAM: { code: 103102, fallback: '检查中' },
+  IN_DIAGNOSIS: { code: 103103, fallback: '诊断中' },
+  COMPLETED: { code: 103104, fallback: '已完成' },
+  PRINTED: { code: 103105, fallback: '已打印' },
+  CANCELLED: { code: 103106, fallback: '已取消' },
+};
+
+/** One resolved status-label row: the enum token, its bridge code, the rendered label
+ * and the DB-configured color token (`tag`, null when unconfigured/fallback). */
+export interface UsOrderStatusLabel {
+  status: UsOrderStatus;
+  code: number;
+  label: string;
+  /** The dict-`tag` color token as configured in 字典管理 (e.g. 'blue'/'amber'); the
+   * page maps it through the design-token hue map. Null = no tag / bridge fallback. */
+  hue: string | null;
+  /** True when the label came off the wire (dict value); false = bridge fallback. */
+  fromDict: boolean;
+}
+
+/**
+ * The six statuses in bridge-code order with their FALLBACK labels - the desk
+ * meter's degradation floor (never blocks, never blanks).
+ */
+export function usOrderStatusFallbackLabels(): UsOrderStatusLabel[] {
+  return (Object.keys(US_ORDER_STATUS_BRIDGE) as UsOrderStatus[]).map((status) => ({
+    status,
+    code: US_ORDER_STATUS_BRIDGE[status].code,
+    label: US_ORDER_STATUS_BRIDGE[status].fallback,
+    hue: null,
+    fromDict: false,
+  }));
+}
+
+/**
+ * The status labels resolved through the id-anchored lookup (session-cached by
+ * `dictItemsById`): the statuses whose dict items are enabled render the dict
+ * `value` IN DICT ORDER (the backend returns items sort-ordered - the chip order
+ * follows it), any status whose item is missing/disabled falls back to the bridge
+ * label appended in code order, and the six statuses ALWAYS render (the meter is
+ * never blank). Throws when the dict fetch fails - the PAGE owns the one error
+ * message + the `usOrderStatusFallbackLabels` degradation (this resolver never
+ * swallows: a swallowed failure would silently mask the backend, ruling 2026-11-05).
+ */
+export async function usOrderStatusLabels(): Promise<UsOrderStatusLabel[]> {
+  const items = await dictItemsById(US_ORDER_STATUS_DICT_ID);
+  const codeToStatus = new Map<number, UsOrderStatus>(
+    (Object.keys(US_ORDER_STATUS_BRIDGE) as UsOrderStatus[]).map((status) => [
+      US_ORDER_STATUS_BRIDGE[status].code,
+      status,
+    ]),
+  );
+  const resolved: UsOrderStatusLabel[] = [];
+  const seen = new Set<UsOrderStatus>();
+  for (const item of items) {
+    const status = item.code != null ? codeToStatus.get(item.code) : undefined;
+    if (!status) continue;
+    seen.add(status);
+    resolved.push({
+      status,
+      code: US_ORDER_STATUS_BRIDGE[status].code,
+      label: item.value ?? US_ORDER_STATUS_BRIDGE[status].fallback,
+      hue: item.tag || null,
+      fromDict: item.value != null,
+    });
+  }
+  // the uncovered statuses ride the bridge floor, in code order after the dict block
+  for (const label of usOrderStatusFallbackLabels()) {
+    if (!seen.has(label.status)) resolved.push(label);
+  }
+  return resolved;
 }
