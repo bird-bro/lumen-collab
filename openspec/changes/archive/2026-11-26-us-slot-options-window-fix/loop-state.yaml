@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: us-slot-options-window-fix
+execution_mode: Batch Inline
+tasks_total: 9
+tasks_done: 9
+workflow_mode: full
+artifacts_hash: c25cff44cca5df2cf02b136fe1b44125d09d6cb2135ff324a4338d40358cef7f

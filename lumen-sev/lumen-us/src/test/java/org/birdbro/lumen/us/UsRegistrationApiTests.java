@@ -327,6 +327,204 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 "the soft answer carries no slots");
     }
 
+    // ---------------- Window semantics alignment (us-slot-options-window-fix)
+
+    @Test
+    void slotOptionsTerminatesOnWrapAroundGranularity() throws Exception {
+        // us-slot-options-window-fix task 1.1a (specs/us-station "Wrap-around
+        // granularity cannot pin the enumeration"): LocalTime.plusMinutes wraps for
+        // 1440 - the old loop never advanced and pinned the thread; the fixed
+        // enumeration answers finite/empty within latency.
+        String modality = uniqueModality();
+        seedSlotConfigWindow(modality, 2, 1440, "[{\"start\":\"08:00\",\"end\":\"12:00\"}]");
+        String tomorrow = java.time.LocalDate.now().plusDays(1)
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        JsonNode response = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "/slot-options?date=" + tomorrow + "&modality=" + modality,
+                null, fullPermToken()));
+        assertEquals("200", response.path("code").asText(),
+                "the wrap-around granularity answers normally: " + response);
+        assertTrue(response.path("data").path("configured").asBoolean(),
+                "the config is live (configured=true)");
+        assertEquals(0, response.path("data").path("slots").size(),
+                "no midnight grid point falls inside the 08:00-12:00 window at g=1440");
+    }
+
+    @Test
+    void slotOptionsOffersExactlyTheBookableGridPoints() throws Exception {
+        // us-slot-options-window-fix task 1.1b (specs/us-station "Off-grid windows
+        // offer exactly the bookable grid points"): the create floors onto the
+        // midnight grid - the picker must offer exactly those grid points, and the
+        // occupancy must count the same cell the create validates.
+        String modality = uniqueModality();
+        seedSlotConfigWindow(modality, 3, 45, "[{\"start\":\"08:00\",\"end\":\"12:00\"}]");
+        long ts = stamp();
+        int uid = STUB_UID_BASE + 811 + (int) (ts % 5000);
+        jdbcTemplate.update(
+                "INSERT INTO exam_order (accession_no, status, patient_uid, booking_time,"
+                + " exam_items, patient_snapshot) VALUES (?, 'REGISTERED', ?, ?::timestamp,"
+                + " ?::jsonb, ?::jsonb)",
+                "US3-SEED-" + ts, uid,
+                java.time.LocalDate.now().plusDays(1).atTime(8, 30) + ":00",
+                "[{\"itemId\":1024,\"itemName\":\"腹部超声\",\"modality\":\"" + modality + "\"}]",
+                "{\"patId\":\"US3-SEED\",\"name\":\"us3离格占位\"}");
+        String tomorrow = java.time.LocalDate.now().plusDays(1)
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        JsonNode slots = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "/slot-options?date=" + tomorrow + "&modality=" + modality,
+                null, fullPermToken())).path("data").path("slots");
+        assertEquals(5, slots.size(),
+                "the 08:00-12:00 window at g=45 holds five midnight-grid points");
+        assertEquals("08:15", slots.path(0).path("start").asText(),
+                "the first grid point >= 08:00 is 08:15 (not the raw window start)");
+        assertEquals("11:15", slots.path(4).path("start").asText(),
+                "the last grid point below 12:00 is 11:15");
+        assertEquals(1, slots.path(0).path("booked").asInt(-1),
+                "the 08:30 order floors into the 08:15-09:00 cell");
+        assertEquals(0, slots.path(1).path("booked").asInt(-1),
+                "the 09:00-09:45 cell stays empty");
+
+        // the create accepts the offered slot start and lands in the SAME cell the
+        // picker counted
+        stubMatchedIdentity(STUB_UID_BASE + 812, "us3离格受试者");
+        stubNumber();
+        String body = "{\"idType\":\"01\",\"idNo\":\"US3GRID-" + ts + "\","
+                + "\"name\":\"us3离格受试者\",\"gender\":2,"
+                + "\"bookingTime\":\"" + tomorrowAt(8, 15) + "\","
+                + "\"examItems\":[{\"itemId\":1024,\"itemName\":\"离格项目\","
+                + "\"modality\":\"" + modality + "\"}]}";
+        JsonNode created = parse(exchangeJson(HttpMethod.POST, ORDERS_URL, body,
+                fullPermToken()));
+        assertEquals("200", created.path("code").asText(),
+                "the create accepts the offered grid point: " + created);
+        UsRegistrationFixtures.registerOrder(created.path("data").path("orderId").asInt(-1));
+        JsonNode after = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "/slot-options?date=" + tomorrow + "&modality=" + modality,
+                null, fullPermToken())).path("data").path("slots");
+        assertEquals(2, after.path(0).path("booked").asInt(-1),
+                "the new booking counts into the same 08:15-09:00 cell the picker showed");
+    }
+
+    @Test
+    void slotOptionsDeadEndsAtTheFirstMalformedWindow() throws Exception {
+        // us-slot-options-window-fix task 1.4 (specs/us-station "Malformed windows
+        // dead-end the enumeration" — review-corrected 2026-11-26): the create
+        // validates windows LAZILY in order, so the read offers the valid windows
+        // BEFORE a malformed one and nothing from it or any later window.
+        String modality = uniqueModality();
+        seedSlotConfigWindow(modality, 2, 30,
+                "[{\"start\":\"08:00\",\"end\":\"12:00\"},{\"start\":\"08:00:00\",\"end\":\"12:00\"}]");
+        String tomorrow = java.time.LocalDate.now().plusDays(1)
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        JsonNode slots = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "/slot-options?date=" + tomorrow + "&modality=" + modality,
+                null, fullPermToken())).path("data").path("slots");
+        assertEquals(8, slots.size(),
+                "the valid window's grid points stay offered despite the later malformed one");
+        assertEquals("08:00", slots.path(0).path("start").asText(),
+                "the valid first window enumerates normally");
+    }
+
+    @Test
+    void slotOptionsAnswersEmptyWhenTheFirstWindowIsMalformed() throws Exception {
+        // us-slot-options-window-fix task 1.4 (the [malformed-first] half): every
+        // booking would reach the malformed window and refuse, so nothing is
+        // bookable - the read answers configured=true with an empty list, it does
+        // not refuse.
+        String modality = uniqueModality();
+        seedSlotConfigWindow(modality, 2, 30,
+                "[{\"start\":\"08:00:00\",\"end\":\"12:00\"},{\"start\":\"14:00\",\"end\":\"18:00\"}]");
+        String tomorrow = java.time.LocalDate.now().plusDays(1)
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        JsonNode response = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "/slot-options?date=" + tomorrow + "&modality=" + modality,
+                null, fullPermToken()));
+        assertEquals("200", response.path("code").asText(),
+                "the dead-end mirror is a read answer, not a refusal: " + response);
+        assertTrue(response.path("data").path("configured").asBoolean(),
+                "the config is live");
+        assertEquals(0, response.path("data").path("slots").size(),
+                "nothing is bookable behind a malformed first window - the later valid"
+                        + " window is unreachable for the create");
+    }
+
+    @Test
+    void slotOptionsOffersNothingOnAPastDate() throws Exception {
+        // us-slot-options-window-fix task 1.4 (specs/us-station "A past date offers
+        // nothing"): the create's future-only guard (预登记时间不能早于当前时间) is
+        // part of bookability - a past calendar day offers zero slots.
+        String modality = uniqueModality();
+        seedSlotConfigWindow(modality, 2, 30, "[{\"start\":\"08:00\",\"end\":\"12:00\"}]");
+        String yesterday = java.time.LocalDate.now().minusDays(1)
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        JsonNode response = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "/slot-options?date=" + yesterday + "&modality=" + modality,
+                null, fullPermToken()));
+        assertEquals("200", response.path("code").asText(),
+                "the past-date read answers normally: " + response);
+        assertTrue(response.path("data").path("configured").asBoolean(),
+                "the config is live");
+        assertEquals(0, response.path("data").path("slots").size(),
+                "every cell of a past day starts at or before the DB clock");
+    }
+
+    @Test
+    void slotOptionsSortsAndDeduplicatesAcrossWindows() throws Exception {
+        // us-slot-options-window-fix review round 2 (2026-11-26): stored windows can
+        // be out-of-order or overlapping - the offered grid is the sorted, deduped
+        // union (the web groups by start and keys rows on slot.start).
+        String modality = uniqueModality();
+        seedSlotConfigWindow(modality, 2, 30,
+                "[{\"start\":\"14:00\",\"end\":\"18:00\"},{\"start\":\"08:00\",\"end\":\"12:00\"},"
+                + "{\"start\":\"10:00\",\"end\":\"14:00\"}]");
+        String tomorrow = java.time.LocalDate.now().plusDays(1)
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        JsonNode slots = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "/slot-options?date=" + tomorrow + "&modality=" + modality,
+                null, fullPermToken())).path("data").path("slots");
+        // 08:00-12:00 ∪ 10:00-14:00 = 08:00..13:30 (12 cells), then 14:00..17:30 (8)
+        assertEquals(20, slots.size(),
+                "the union of the three windows dedupes the overlapping 10:00-12:00 cells");
+        assertEquals("08:00", slots.path(0).path("start").asText(),
+                "the grid opens with the earliest window despite its stored position");
+        assertEquals("13:30", slots.path(11).path("start").asText(),
+                "the overlap tail runs to 13:30 without duplicate cells");
+        assertEquals("14:00", slots.path(12).path("start").asText(),
+                "the stored-first window's cells sort last");
+    }
+
+    @Test
+    void slotOptionsCountsCrossMidnightTails() throws Exception {
+        // us-slot-options-window-fix task 1.4 (specs/us-station "Cross-midnight cells
+        // count their tails"): g=50 puts the last cell's tail on the next day - the
+        // tail's bookings count, exactly as the create's [t, t+g) range query does.
+        String modality = uniqueModality();
+        seedSlotConfigWindow(modality, 5, 50, "[{\"start\":\"00:00\",\"end\":\"23:59\"}]");
+        long ts = stamp();
+        int uid = STUB_UID_BASE + 821 + (int) (ts % 5000);
+        String dayAfter = java.time.LocalDate.now().plusDays(2)
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        for (int i = 0; i < 3; i++) {
+            jdbcTemplate.update(
+                    "INSERT INTO exam_order (accession_no, status, patient_uid, booking_time,"
+                    + " exam_items, patient_snapshot) VALUES (?, 'REGISTERED', ?, ?::timestamp,"
+                    + " ?::jsonb, ?::jsonb)",
+                    "US3-SEED-" + ts + "-" + i, uid + i,
+                    dayAfter + " 00:0" + (2 + i) + ":00",
+                    "[{\"itemId\":1024,\"itemName\":\"腹部超声\",\"modality\":\"" + modality + "\"}]",
+                    "{\"patId\":\"US3-SEED\",\"name\":\"us3跨午夜尾格\"}");
+        }
+        String tomorrow = java.time.LocalDate.now().plusDays(1)
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        JsonNode slots = parse(exchangeJson(HttpMethod.GET,
+                ORDERS_URL + "/slot-options?date=" + tomorrow + "&modality=" + modality,
+                null, fullPermToken())).path("data").path("slots");
+        assertEquals("23:20", slots.path(slots.size() - 1).path("start").asText(),
+                "the day's last grid point is 23:20 at g=50");
+        assertEquals(3, slots.path(slots.size() - 1).path("booked").asInt(-1),
+                "the next-day tail bookings count into the 23:20 cell [23:20, 00:10)");
+    }
+
     // ---------------- Occupancy re-anchor (us-prereg-as-registered: 未取消即占位)
 
     @Test
@@ -797,6 +995,18 @@ class UsRegistrationApiTests extends UsApiTestBase {
                 + " open_windows) VALUES (?, 30, ?, ?::jsonb) RETURNING id",
                 Integer.class, modality, capacity,
                 "[{\"start\":\"08:00\",\"end\":\"12:00\"}]");
+        UsRegistrationFixtures.registerSlotConfig(id);
+        return id;
+    }
+
+    /** Seeds one live slot config with an explicit granularity/window pair
+     *  (us-slot-options-window-fix: the window-semantics scenarios). */
+    private int seedSlotConfigWindow(String modality, int capacity, int granularity,
+            String windowsJson) {
+        Integer id = jdbcTemplate.queryForObject(
+                "INSERT INTO exam_slot_config (modality, granularity_minutes, slot_capacity,"
+                + " open_windows) VALUES (?, ?, ?, ?::jsonb) RETURNING id",
+                Integer.class, modality, granularity, capacity, windowsJson);
         UsRegistrationFixtures.registerSlotConfig(id);
         return id;
     }

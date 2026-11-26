@@ -21,8 +21,11 @@ import org.birdbro.lumen.us.entity.UsRegistrationExt;
  * (kernel {@link ExamItemRef} shape - the catalog id + the name snapshot taken at order
  * time; the kernel holds references + snapshots, not the catalog), the optional 急诊
  * flag, and the optional US extension block. The entry state is DERIVED from the
- * optional {@code bookingTime} (us-registration-redesign-api, 拍板 02-B): null =
- * REGISTERED (提交即登记), strictly-future = BOOKED (预登记, capacity-validated).
+ * optional {@code bookingTime} (us-registration-redesign-api, 拍板 02-B; re-anchored
+ * by us-prereg-as-registered, 拍板 2026-11-24): null = REGISTERED (提交即登记,
+ * WALK_IN), strictly-future = REGISTERED (预登记, PRE_REGISTERED,
+ * capacity-validated) — the status column starts every order at 已登记; the
+ * category stamp carries the appointment distinction.
  *
  * <p>The exam-time demographics (年龄/患者来源/住院号/床号/身高/体重) ride THIS body
  * (patient decision #4: the exam-time snapshot is taken at registration) - the us create

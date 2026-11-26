@@ -9,8 +9,9 @@ import org.birdbro.lumen.core.entity.SlotWindowBounds;
  * Slot-capacity validation for pre-registration creates (kernel-pre-registration
  * tasks 2.3-2.5, design D2/D4). The kernel owns the VALIDATION; the occupancy COUNT
  * belongs to the caller (D2 - the kernel is a schema-free library): the consuming
- * create flow counts its own live BOOKED orders in the window and hands the number
- * in. All refusals ride the house A0400 pattern (design D5).
+ * create flow counts its own live NOT-CANCELLED orders in the window (未取消即占位,
+ * us-prereg-as-registered 2026-11-24) and hands the number in. All refusals ride the
+ * house A0400 pattern (design D5).
  *
  * @author birdbro
  */
@@ -39,7 +40,8 @@ public interface ExamSlotCapacityService {
      *
      * @param modality       the dict-1024 modality token (required)
      * @param bookingTime    the requested pre-registration time (required, future)
-     * @param occupancyCount the caller's live BOOKED count for the resolved window
+     * @param occupancyCount the caller's live not-cancelled count for the resolved
+     *                       window (未取消即占位, us-prereg-as-registered)
      * @return the resolved slot bounds (the count predicate's window)
      */
     SlotWindowBounds validatePreregistration(String modality, Date bookingTime, int occupancyCount);

@@ -1,10 +1,16 @@
 package org.birdbro.lumen.us.service.impl;
 
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -99,6 +105,10 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
     private final ExamSlotConfigMapper examSlotConfigMapper;
     private final TransactionTemplate transactionTemplate;
 
+    /** The create path's strict window format (us-slot-options-window-fix D3) - the
+     *  same HH:mm contract as the kernel capacity service's private formatter. */
+    private static final DateTimeFormatter HH_MM = DateTimeFormatter.ofPattern("HH:mm");
+
     public RegistrationOrderServiceImpl(
             PatientRegistryPortAdapter patientRegistryPortAdapter,
             ExamOrderRegistrationService examOrderRegistrationService,
@@ -153,7 +163,7 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
             if (request.getBookingTime() == null) {
                 // (3a) the WALK-IN path: 提交即登记 (拍板 02-B) - REGISTERED directly
                 // (us-prereg-as-registered: deriveEntryStatus retires from the us flow,
-                // the kernel support method stays untouched); no slot-config machinery
+                // its kernel semantics re-anchored to always-REGISTERED); no slot-config machinery
                 // is touched (an unconfigured modality never blocks a walk-in). The
                 // category stamp is SERVER-OWNED - the request DTO carries no
                 // registrationType property, so the body can never set it.
@@ -199,9 +209,9 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
     /**
      * The composed pre-registration create (design D1 - the kernel flow-test reference
      * composition): guard the past BEFORE the count (D4), lock the config row FOR
-     * UPDATE, resolve the slot window, count the live BOOKED orders scoped by the first
-     * item's modality, validate, then derive BOOKED and register INSIDE the same
-     * transaction.
+     * UPDATE, resolve the slot window, count the live NOT-CANCELLED orders scoped by
+     * the first item's modality (未取消即占位, us-prereg-as-registered), validate,
+     * then stamp REGISTERED/PRE_REGISTERED and register INSIDE the same transaction.
      */
     private RegistrationCreateResult registerPreRegistration(RegistrationCreateRequest request,
             PatientIdentity identity) {
@@ -257,42 +267,110 @@ public class RegistrationOrderServiceImpl implements RegistrationOrderService {
                 || config.getGranularityMinutes() == null || config.getGranularityMinutes() <= 0) {
             return SlotOptionsView.builder().configured(false).slots(Collections.emptyList()).build();
         }
-        int granularity = config.getGranularityMinutes();
-        List<SlotOption> slots = new ArrayList<>();
+        final int granularity = config.getGranularityMinutes();
+        // the create's parse contract mirrored (us-slot-options-window-fix design D3,
+        // review-revised): strict trimmed HH:mm, and the create validates windows
+        // LAZILY in order - a booking is accepted by the first containing VALID
+        // window and a malformed window refuses any booking that reaches it. The
+        // read dead-ends at the first malformed window: it and every later window
+        // are unreachable for acceptance and never advertised; the valid windows
+        // before it stay offered (a [bad-first] config answers empty, not a refusal).
+        List<int[]> windows = new ArrayList<>();
         for (SlotWindow window : config.getOpenWindows()) {
-            final LocalTime windowOpen;
-            final LocalTime windowClose;
-            try {
-                windowOpen = LocalTime.parse(window.getStart());
-                windowClose = LocalTime.parse(window.getEnd());
-            } catch (RuntimeException badWindow) {
-                // the create path fails closed on unparseable windows - the read
-                // mirrors it by skipping the broken window (the picker shows the
-                // rest; the create still refuses the same broken booking)
-                continue;
+            LocalTime open = parseHhMmStrict(window == null ? null : window.getStart());
+            LocalTime close = parseHhMmStrict(window == null ? null : window.getEnd());
+            if (open == null || close == null || !close.isAfter(open)) {
+                break;
             }
-            LocalTime cursor = windowOpen;
-            while (!cursor.plusMinutes(granularity).isAfter(windowClose)) {
-                LocalTime slotEnd = cursor.plusMinutes(granularity);
-                Date slotStartTs = java.sql.Timestamp.valueOf(day.atTime(cursor));
-                Date slotEndTs = java.sql.Timestamp.valueOf(day.atTime(slotEnd));
-                int booked = examOrderMapper.selectCount(new LambdaQueryWrapper<ExamOrder>()
-                        .notIn(ExamOrder::getStatus, ExamOrderStatus.BOOKING_CANCELLED,
-                                ExamOrderStatus.CANCELLED)
-                        .ge(ExamOrder::getBookingTime, slotStartTs)
-                        .lt(ExamOrder::getBookingTime, slotEndTs)
-                        .apply("exam_items->0->>'modality' = {0}", modality))
-                        .intValue();
-                slots.add(SlotOption.builder()
-                        .start(cursor.toString())
-                        .end(slotEnd.toString())
-                        .booked(booked)
-                        .capacity(config.getSlotCapacity() == null ? 0 : config.getSlotCapacity())
-                        .build());
-                cursor = slotEnd;
+            windows.add(new int[]{open.getHour() * 60 + open.getMinute(),
+                    close.getHour() * 60 + close.getMinute()});
+        }
+        // (dead-end stops HERE - windows after the first malformed one are dead for
+        // the create and never reach the enumeration below)
+        // the candidate grid points across the valid windows, in day-minute integers
+        // (design D1/D2): the create's bookable set - grid points t with
+        // start <= t < end, the occupancy cell [t, t+g) identical to the create's
+        // floored window. int arithmetic makes termination structural (no LocalTime
+        // wrap-around, the 1440/720 granularities cannot pin the loop)
+        // a TreeSet: stored windows may overlap or arrive out of order - the offered
+        // grid is the sorted, deduped union (review round 2, 2026-11-26: the web
+        // groups by start and keys rows on slot.start)
+        java.util.TreeSet<Integer> cellStarts = new java.util.TreeSet<>();
+        int maxCellEnd = 0;
+        for (int[] span : windows) {
+            int first = ((span[0] + granularity - 1) / granularity) * granularity;
+            for (int t = first; t < span[1]; t += granularity) {
+                cellStarts.add(t);
+                maxCellEnd = Math.max(maxCellEnd, t + granularity);
             }
         }
+        // nothing bookable behind a dead-ended/misaligned grid - answer empty before
+        // any DB round trip (review round 2: the dbNow probe is not free)
+        if (cellStarts.isEmpty()) {
+            return SlotOptionsView.builder().configured(true)
+                    .slots(Collections.emptyList()).build();
+        }
+        // ONE span load (design D4, review-revised): bookings bucket by ABSOLUTE
+        // minutes from dayStart, and the span extends past midnight to the largest
+        // cell end - granularities that do not divide 1440 (e.g. 50) put the last
+        // cell's tail on the next day, and the tail counts exactly as the create's
+        // [t, t+g) range query does
+        Map<Integer, Integer> bookedByCell = new HashMap<>();
+        if (maxCellEnd > 0) {
+            Date dayStartTs = java.sql.Timestamp.valueOf(day.atStartOfDay());
+            Date spanEndTs = java.sql.Timestamp.valueOf(day.atStartOfDay().plusMinutes(maxCellEnd));
+            for (ExamOrder row : examOrderMapper.selectList(new LambdaQueryWrapper<ExamOrder>()
+                    .select(ExamOrder::getBookingTime)
+                    .notIn(ExamOrder::getStatus, ExamOrderStatus.BOOKING_CANCELLED,
+                            ExamOrderStatus.CANCELLED)
+                    .ge(ExamOrder::getBookingTime, dayStartTs)
+                    .lt(ExamOrder::getBookingTime, spanEndTs)
+                    .apply("exam_items->0->>'modality' = {0}", modality))) {
+                Date bookingTime = row.getBookingTime();
+                if (bookingTime == null) {
+                    continue;
+                }
+                LocalDateTime booking = LocalDateTime.ofInstant(bookingTime.toInstant(),
+                        ZoneId.systemDefault());
+                int absMinutes = (int) Duration.between(day.atStartOfDay(), booking).toMinutes();
+                bookedByCell.merge((absMinutes / granularity) * granularity, 1, Integer::sum);
+            }
+        }
+        // the create's future-only guard mirrored (design D2): a slot is offered only
+        // when its start is strictly after the DB clock (requireFutureBooking refuses
+        // anything else - a past date offers nothing)
+        Date dbNow = examSlotConfigMapper.selectDbNow();
+        List<SlotOption> slots = new ArrayList<>();
+        for (int t : cellStarts) {
+            java.sql.Timestamp slotStart = java.sql.Timestamp.valueOf(day.atStartOfDay().plusMinutes(t));
+            if (!slotStart.after(dbNow)) {
+                continue;
+            }
+            slots.add(SlotOption.builder()
+                    .start(day.atStartOfDay().plusMinutes(t).toLocalTime().toString())
+                    .end(day.atStartOfDay().plusMinutes(t + granularity).toLocalTime().toString())
+                    .booked(bookedByCell.getOrDefault(t, 0))
+                    .capacity(config.getSlotCapacity() == null ? 0 : config.getSlotCapacity())
+                    .build());
+        }
         return SlotOptionsView.builder().configured(true).slots(slots).build();
+    }
+
+    /**
+     * The create path's strict window parse (us-slot-options-window-fix design D3):
+     * trimmed {@code HH:mm} only, blank/malformed returns null (the caller fails
+     * closed). The same contract as the kernel capacity service's {@code parseHhMm} -
+     * one dialect, locally defined because the kernel formatter is private.
+     */
+    private LocalTime parseHhMmStrict(String raw) {
+        if (StrUtil.isBlank(raw)) {
+            return null;
+        }
+        try {
+            return LocalTime.parse(raw.trim(), HH_MM);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 
     @Override
