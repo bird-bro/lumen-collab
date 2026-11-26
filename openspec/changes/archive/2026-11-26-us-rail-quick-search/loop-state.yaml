@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: verifying
+change: us-rail-quick-search
+execution_mode: SDD
+tasks_total: 12
+tasks_done: 12
+workflow_mode: full
+artifacts_hash: d7aefd8e3cd0b82fc70d648610b76348ecb9979f2e234f5eb2f80c795ba1f24b

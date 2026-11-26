@@ -215,15 +215,18 @@ role auto-granted.
 
 The page query SHALL serve the two-state workbench's wide-list state (拍板 03-B, the
 RCP ∪ EIS condition union) over `GET /api/v1/us/orders` behind `us:order:list`: status
-multi-select (IN semantics; empty = all), accession number fuzzy, patient name fuzzy (jsonb
+multi-select (IN semantics; empty = all), the rail quick-search `keyword` (ONE text box
+OR-matching the identity handles — patient name, accession (检查号; the v1 影像号 rides
+the accession family), snapshot `patId`/`cardNo` — AND-composed with the other wide
+conditions; user ruling 2026-11-26), accession number fuzzy, patient name fuzzy (jsonb
 snapshot), patient-id exact (snapshot `patId`), patient-source exact (snapshot), card-no
-exact (snapshot `cardNo`), exam-item name fuzzy over the `exam_items` jsonb array, and the
-apply-time range (the order's `create_time` — the kernel carries no separate apply
+exact (snapshot `cardNo`), exam-item name fuzzy over the `exam_items` jsonb array, and
+the apply-time range (the order's `create_time` — the kernel carries no separate apply
 timestamp). All conditions SHALL compose. A status-count endpoint (`GET
 /api/v1/us/orders/status-counts`, same `us:order:list` perm) SHALL return per-status
 counts under the SAME filter set minus the status condition (EIS ReportStatusCheckbox
 semantics — the chips are the desk workload meter), zero-filled for every document state
-machine status.
+machine status; the keyword narrows the meter with the list.
 
 #### Scenario: Status multi-select composes with the wide conditions
 
@@ -258,6 +261,16 @@ this comment for history -->
 - **THEN** it returns one count per document state machine status (`REGISTERED`, `IN_EXAM`,
   `IN_DIAGNOSIS`, `COMPLETED`, `PRINTED`, `CANCELLED`), zero-filled, each counted
   under the same remaining filters
+
+#### Scenario: The rail quick-search OR-matches the identity handles
+
+- **WHEN** the query carries a non-blank `keyword`
+- **THEN** an order matches when its snapshot name, its `accession_no`, its snapshot
+  `patId`, or its snapshot `cardNo` contains the keyword (OR-composed; the 检查号 and
+  the 影像号 ride the accession family in v1)
+- **AND** the keyword AND-composes with the other wide conditions as usual
+- **AND** the status-count meter applies the same keyword (the chips narrow with the
+  search)
 
 ### Requirement: Slot Config Administration
 
