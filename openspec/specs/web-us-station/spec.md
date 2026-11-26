@@ -12,6 +12,7 @@ extension) and state actions, and the order list. Every request goes through the
 
 <!-- synced from: web-us-station-redesign 2026-11-24 -->
 
+<!-- synced from: us-nav-calendar-day-counts 2026-11-26 -->
 ### Requirement: Registration Page Shell
 
 The US workstation SHALL keep the 登记 page at route `us/registration` (component key
@@ -21,7 +22,16 @@ hide without them. The page SHALL follow the workstation visual conventions alre
 established by the console shell kit, and SHALL render as the TWO-STATE workbench (拍板
 01-B, the prototype's 壹 section): an edge toggle switches between the COMPACT state (the
 392px 今日登记单 rail beside the registration workbench form) and the WIDE-LIST query state
-(the full-width table with the wide query row). The registration drawer retires.
+(the full-width table with the wide query row). The registration drawer retires. The
+compact state's date navigation (‹ date ›) opens a compact month popover (the 2026-11-26
+in-session addition): month nav, day cells with the today ring and the selected fill —
+and each day cell SHALL carry the day's registration count as a small badge (count > 0
+renders the number in the primary tint under the day number; days without orders carry
+no badge). The counts aggregate CLIENT-SIDE over the existing per-date page read
+(parallel prefetch of the displayed month's days, `pageSize: 1`, reading the `total` —
+the dedicated day-level range endpoint stays a future optimization, the booking-dialog
+deferral precedent); a refetch runs when the displayed month changes and the badge
+never blocks the day pick.
 
 #### Scenario: Page renders under the activated US workstation
 
@@ -39,6 +49,15 @@ established by the console shell kit, and SHALL render as the TWO-STATE workbenc
 - **WHEN** the operator toggles the workbench edge
 - **THEN** the page switches between the compact state (rail + form) and the wide-list
   state (full-width table + query row) — one route, no navigation loss
+
+#### Scenario: The datenav popover calendar carries per-day counts
+
+- **WHEN** the operator opens the date popover and the displayed month's prefetch
+  answers (any day carrying orders)
+- **THEN** that day's cell shows the count badge in the primary tint under the day
+  number; days with no orders carry no badge; picking a day still jumps the rail and
+  closes the popover unchanged
+
 
 ### Requirement: Patient Resolution Flow
 

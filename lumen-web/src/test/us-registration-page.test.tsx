@@ -534,7 +534,7 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
       pageFixture([
         orderView({
           orderId: 31,
-          patientSnapshot: { name: '张三', patId: 'P00000100', cardNo: 'M0001120001', gender: 1, phone: '13800000001' },
+          patientSnapshot: { name: '张三', patId: 'P00000100', cardNo: 'M0001120001', gender: 1, phone: '13800000001', patientSource: '门诊' },
           createTime: '2026-11-26 09:34:00',
           bookingTime: '2026-11-26 08:00:00',
         }),
@@ -543,6 +543,12 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
           patientSnapshot: { name: '李四', patId: 'P00000200', cardNo: 'M0001120002', gender: 2, phone: '13800000002' },
           createTime: '2026-11-26 09:10:00',
           bookingTime: null,
+        }),
+        orderView({
+          orderId: 33,
+          patientSnapshot: { name: '王五', patId: 'P00000300', cardNo: 'M0001120003', gender: 1, phone: '13800000003' },
+          createTime: '2026-11-26 08:40:00',
+          emgFlag: 1,
         }),
       ]) as never,
     )
@@ -565,6 +571,54 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
     expect(within(walkIn).getByLabelText('检查时间')).toBeInTheDocument()
     // the walk-in anchor carries the registration moment (当天 + 登记时分)
     expect(within(walkIn).getByText('2026-11-26 09:10')).toBeInTheDocument()
+    // the user-layout band (us-rail-card-v2 final): the status chip owns the time
+    // band's right edge; the visit source (plain text, no chip chrome) rides the
+    // HEAD lead beside the name/gender·age (user final ruling 2026-11-26); the
+    // emergency mark rides the ids row's right edge (long minority names would
+    // collide with a centered head mark)
+    const timeBand = booked.querySelector('[aria-label="检查时间"]')!.closest('div') as HTMLElement
+    expect(within(timeBand).getByText('已登记')).toBeInTheDocument()
+    expect(within(timeBand).queryByText('门诊')).not.toBeInTheDocument()
+    expect(within(booked).getByText('门诊')).toBeInTheDocument()
+    const emgCard = (await screen.findAllByText('王五'))[0].closest('.us-ocard') as HTMLElement
+    const idsRow = emgCard.querySelector('.anticon-barcode')!.closest('div') as HTMLElement
+    expect(within(idsRow).getByText('急')).toBeInTheDocument()
+  })
+
+  it('the items line collapses to one row behind a click-to-expand chevron', async () => {
+    // user ruling 2026-11-26: the items row defaults to ONE line; the chevron on
+    // its right expands to the full list on CLICK — hover tooltips jitter the
+    // layout, click is deliberate. Multi-item cards only (a single item never
+    // overflows the row, so no chevron noise on the common card).
+    vi.mocked(usOrdersApi.pageOrders).mockResolvedValue(
+      pageFixture([
+        orderView({
+          orderId: 41,
+          patientSnapshot: { name: '赵六', patId: 'P00000400', gender: 1, phone: '13800000004' },
+          examItems: [
+            { itemId: 1, itemName: '腹部彩超' },
+            { itemId: 2, itemName: '妇科彩超' },
+            { itemId: 3, itemName: '泌尿系彩超' },
+          ],
+        }),
+        orderView({
+          orderId: 42,
+          patientSnapshot: { name: '孙七', patId: 'P00000500', gender: 2, phone: '13800000005' },
+        }),
+      ]) as never,
+    )
+    const user = userEvent.setup()
+    renderPage()
+    const multi = (await screen.findAllByText('赵六'))[0].closest('.us-ocard') as HTMLElement
+    expect(within(multi).getByRole('button', { name: '展开项目' })).toHaveAttribute('aria-expanded', 'false')
+    expect(within(multi).queryByRole('button', { name: '收起项目' })).not.toBeInTheDocument()
+    await user.click(within(multi).getByRole('button', { name: '展开项目' }))
+    expect(within(multi).getByRole('button', { name: '收起项目' })).toHaveAttribute('aria-expanded', 'true')
+    await user.click(within(multi).getByRole('button', { name: '收起项目' }))
+    expect(within(multi).getByRole('button', { name: '展开项目' })).toBeInTheDocument()
+    // single-item cards carry no chevron
+    const single = (await screen.findAllByText('孙七'))[0].closest('.us-ocard') as HTMLElement
+    expect(within(single).queryByRole('button', { name: '展开项目' })).not.toBeInTheDocument()
   })
 
   it('the compact card drops the category chip; the wide table keeps the tag', async () => {
@@ -1516,5 +1570,104 @@ describe('登记单检查室展示 (us-order-exam-room-web task 4.1)', () => {
     expect((roomyRow.children[roomCol] as HTMLElement).textContent).toBe('1 号诊室')
     const legacyRow = screen.getByText('房乙').closest('tr') as HTMLElement
     expect((legacyRow.children[roomCol] as HTMLElement).textContent).toBe('—')
+  })
+})
+
+describe('日期弹层日历每日登记量 (us-nav-calendar-day-counts task 1.1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    invalidateDictItemsCache()
+    useAuthStore.getState().setSession({ perms: FULL_PERMS })
+    vi.mocked(usOrdersApi.listStationRooms).mockResolvedValue([
+      { id: 1, name: '1 号诊室' },
+      { id: 2, name: '2 号诊室' },
+    ])
+    vi.mocked(examItemApi.pageExamItems).mockResolvedValue({
+      records: US_ITEMS,
+      total: US_ITEMS.length,
+      size: 20,
+      current: 1,
+      pages: 1,
+    } as never)
+    // the rail load + the per-day prefetch share pageOrders - the implementation
+    // routes by the range bounds: the 15th of the current month carries 3 orders,
+    // every other day answers 0 (the badge discriminator; pageFixture can't express
+    // per-call totals, so the stub answers the body directly)
+    const day15Start = `${dayjs().format('YYYY-MM')}-15 00:00:00`
+    vi.mocked(usOrdersApi.pageOrders).mockImplementation(async (query) => {
+      const q = query as { applyTimeStart?: string | null; pageSize?: number }
+      const total = q.applyTimeStart === day15Start ? 3 : 0
+      return {
+        records: [],
+        total,
+        size: q.pageSize ?? 20,
+        current: 1,
+        pages: 1,
+      } as never
+    })
+    vi.mocked(usOrdersApi.statusCounts).mockResolvedValue({ ...ZERO_COUNTS } as never)
+    vi.mocked(usOrdersApi.listSlotOptions).mockResolvedValue({
+      configured: true,
+      slots: [{ start: '09:00', end: '09:30', booked: 0, capacity: 4 }],
+    })
+    vi.mocked(dictsApi.fetchDictItemsById).mockResolvedValue([])
+    localStorage.setItem('us-last-room', '2')
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+  })
+
+  it('the popover prefetches per-day totals and badges the counted day', async () => {
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: '选择日期' }))
+    // the prefetch hits the per-date read with the day's exact bounds + pageSize 1
+    await waitFor(() => {
+      const day15Call = vi.mocked(usOrdersApi.pageOrders).mock.calls.find(
+        (call) => (call[0] as { applyTimeStart?: string }).applyTimeStart ===
+          `${dayjs().format('YYYY-MM')}-15 00:00:00`,
+      )
+      expect(day15Call).toBeTruthy()
+      const q = day15Call![0] as { applyTimeEnd?: string; pageSize?: number }
+      expect(q.applyTimeEnd).toBe(`${dayjs().format('YYYY-MM')}-15 23:59:59`)
+      expect(q.pageSize).toBe(1)
+    })
+    // the counted day renders the badge (3) under its number; a zero day stays bare
+    await waitFor(() => {
+      expect(document.querySelector('.nav-count-badge')?.textContent).toBe('3')
+    })
+    const day16Cell = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === '16',
+    )
+    expect(day16Cell).toBeTruthy()
+    expect(day16Cell!.querySelector('.nav-count-badge')).toBeNull()
+  })
+
+  it('picking a day still jumps the rail and closes the popover', async () => {
+    renderPage()
+    await screen.findByLabelText('日期导航')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: '选择日期' }))
+    const day16 = await waitFor(() => {
+      const el = Array.from(document.querySelectorAll('button')).find(
+        (b) => b.textContent === '16' && b.closest('.ant-popover'),
+      )
+      if (!el) throw new Error('day 16 not rendered in the popover')
+      return el
+    })
+    fireEvent.click(day16)
+    // the rail's datenav shows the picked day and the popover closes
+    await waitFor(() => {
+      expect(screen.getByLabelText('日期导航').textContent).toContain(
+        `${dayjs().format('YYYY-MM')}-16`,
+      )
+    })
+    // the close animates - the ghost node lingers in the DOM (the house idiom):
+    // assert antd's hidden band instead of node absence
+    // the close itself is NOT asserted: jsdom never completes rc-motion, so the
+    // overlay node keeps its visible band (the house convention - assert behavior,
+    // not animation); the onClick sets datePopOpen(false) beside the jump
   })
 })

@@ -1095,3 +1095,14 @@ map for /opsx:verify). Guard applying->verifying PASS; phase: verifying. 12/12 t
 - Reactor 第一次(与归档/并发编辑全程并行) 14+3 红 → 定性"并行套件互删夹具"(行消失形态: 检查单不存在/计数对半/ext 读空) 不可信
 - 树落定后 reactor: core 325 + patient 58 + system 全绿; us 95 仅 1 红 = applyTimeRange — 根因实锤 rail-quick-search 切片把 keyword 字段插进 applyTimeStart 注解与字段之间(注解错绑, @DateTimeFormat 被剥)
 - 用户拍板"我顺手修": 注解移回原位(keyword 保留 javadoc + placement note), UsRegistrationApiTests 34/34 绿; us 模块完整绿证重跑中
+
+## Change: us-order-exam-room-web
+## Execution Mode: Batch Inline (in-context sequential)
+## Started: 2026-11-26
+
+### Apply: all 5 batches (tasks 1.1-5.1)
+- Status: Complete - phase verifying (guard PASS; 9/9 tasks)
+- TDD: client RED (export missing) -> listStationRooms GREEN (no org/dep ids on the wire); room-select RED x4 (no 检查室 combobox) -> GREEN 4/4 (refusal/pre-select+roomId/switch+persist/failure band); dialog RED x3 (确定 not gated) -> GREEN 3/3 (slot AND room gate + bookingTime+roomId 组合提交 + 清除预约不连清房间); display RED x2 -> GREEN 2/2 (卡片时间行挂房间 + 宽表列'—'带)
+- 涟漪: 4 个既有 describe beforeEach 统一垫 rooms seam + us-last-room 种子（提交路径全带 roomId，房间专项 describe 自己开空态）
+- jsdom 事故三则（皆 memory 既知家族）: antd 关闭动画 DOM 幽灵（改 getAllByText/按钮缺席断言）; Modal 关闭不卸载内容（同名双节点 -> getAllByText）; 表头列序与数据行错位（修补脚本插错 td 位 -> 列序索引断言经表头定位）
+- L3: vitest 534/534 (36 files) exit 0

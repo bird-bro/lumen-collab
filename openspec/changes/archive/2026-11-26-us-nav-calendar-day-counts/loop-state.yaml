@@ -1,0 +1,8 @@
+# Per-change workflow state (parallel-safe: each change owns its own file).
+phase: archived
+change: us-nav-calendar-day-counts
+execution_mode: SDD
+tasks_total: 12
+tasks_done: 12
+workflow_mode: full
+artifacts_hash: 795273cab15c442394336f698c34eb93ed29684fc05d4e90d422ae7bb48bf38f

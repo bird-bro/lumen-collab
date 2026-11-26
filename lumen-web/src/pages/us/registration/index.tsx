@@ -19,7 +19,7 @@ import {
   message,
   theme,
 } from 'antd'
-import { BarcodeOutlined, CalendarOutlined, CheckOutlined, ClockCircleOutlined, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, DownOutlined, IdcardOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { BarcodeOutlined, CalendarOutlined, CheckOutlined, ClockCircleOutlined, DeleteOutlined, DoubleLeftOutlined, DoubleRightOutlined, DownOutlined, EnvironmentOutlined, IdcardOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, UpOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -202,6 +202,9 @@ export default function UsRegistrationPage() {
   const [datePopOpen, setDatePopOpen] = useState(false)
   const [navMonth, setNavMonth] = useState(dayjs().startOf('month'))
   const [autoRefresh, setAutoRefresh] = useState(false)
+  // the card items-line expand state (user ruling 2026-11-26): ONE line by default,
+  // the chevron expands to the full list on CLICK — no hover tooltips (they jitter)
+  const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({})
   const [cancelTarget, setCancelTarget] = useState<UsOrderView | null>(null)
   const [cancelReason, setCancelReason] = useState('')
   const [lookupField, setLookupField] = useState<'idNo' | 'cardNo' | 'phone'>('cardNo')
@@ -235,6 +238,9 @@ export default function UsRegistrationPage() {
   const [stationRooms, setStationRooms] = useState<StationRoomRow[]>([])
   const [roomId, setRoomId] = useState<number | null>(null)
   const [roomsFailed, setRoomsFailed] = useState(false)
+  // the datenav popover's per-day counts (us-nav-calendar-day-counts task 1.2):
+  // day 'YYYY-MM-DD' -> order total, prefetched while the popover shows a month
+  const [navCounts, setNavCounts] = useState<Record<string, number>>({})
   // Day-level remaining badges for the ALWAYS-VISIBLE month calendar, aggregated
   // CLIENT-SIDE over the per-date read (user ruling 2026-11-24 mid-apply; a
   // dedicated day-level range endpoint stays a future optimization).
@@ -370,6 +376,36 @@ export default function UsRegistrationPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // the datenav popover's per-day prefetch (us-nav-calendar-day-counts design D1):
+  // ONE pageOrders call per displayed-month day, pageSize 1, the response `total`
+  // IS the day's count; allSettled so a failed day answers no badge instead of
+  // aborting the month; refetches when the popover opens or the month flips
+  useEffect(() => {
+    if (!datePopOpen) return
+    let cancelled = false
+    const days = Array.from({ length: navMonth.daysInMonth() }, (_, i) => navMonth.date(i + 1))
+    void Promise.allSettled(
+      days.map((day) =>
+        pageOrders({
+          pageNum: 1,
+          pageSize: 1,
+          applyTimeStart: day.format('YYYY-MM-DD 00:00:00'),
+          applyTimeEnd: day.format('YYYY-MM-DD 23:59:59'),
+        }).then((r) => [day.format('YYYY-MM-DD'), r.total] as const),
+      ),
+    ).then((results) => {
+      if (cancelled) return
+      const counts: Record<string, number> = {}
+      for (const result of results) {
+        if (result.status === 'fulfilled') counts[result.value[0]] = result.value[1]
+      }
+      setNavCounts(counts)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [datePopOpen, navMonth])
 
   useEffect(() => {
     if (!autoRefresh) return
@@ -1056,12 +1092,14 @@ export default function UsRegistrationPage() {
     <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
       {/* us-prereg-as-registered: NO 登记 action — 预登记 rows enter 已登记 at creation
           (预约=预登记, user ruling 2026-11-24); the only row action is 取消. The verb
-          rides the shared ConsoleAction chrome (the ops-column invariant: the trash
-          glyph + Tooltip, never the emoji literal the other 14 pages don't use). */}
+          rides the shared ConsoleAction chrome (the ops-column invariant: the glyph +
+          Tooltip, never the emoji literal); the GLYPH is the cancel ×-circle, NOT the
+          trash — a cancel is a state transition, not a deletion (user ruling
+          2026-11-26). */}
       {LIVE_STATES.includes(row.status) && hasPerm('us:order:cancel') && (
         <ConsoleAction
           label="取消登记"
-          icon="remove"
+          icon="cancel"
           danger
           onClick={() => {
             setCancelTarget(row)
@@ -1074,8 +1112,12 @@ export default function UsRegistrationPage() {
   )
 
   const emgTag = <span style={{ padding: '0 6px', lineHeight: '20px', borderRadius: 3, background: token.colorWarningBg, color: token.colorWarning, fontWeight: 600 }}>急</span>
-  const sourceTag = (source: string | null | undefined) =>
-    source ? <span style={{ padding: '0 6px', lineHeight: '20px', borderRadius: 3, background: token.colorFillSecondary, color: token.colorTextSecondary }}>{source}</span> : null
+  // the visit source renders as PLAIN tertiary text (user ruling 2026-11-26: no
+  // background chip) — the fill stays reserved for the status chip. The optional
+  // size pins the card-head instance to the gender·age 16px (user ruling: source
+  // matches the age size); the wide table keeps the inherited 14px.
+  const sourceTag = (source: string | null | undefined, size?: number) =>
+    source ? <span style={{ color: token.colorTextTertiary, ...(size ? { fontSize: size } : {}) }}>{source}</span> : null
   // the entry-category tag (us-prereg-as-registered): the SERVER-stamped business fact
   // — 预约 = PRE_REGISTERED (info tint, the special kind), 现场 = WALK_IN (neutral fill,
   // the sourceTag chrome). Never inferred from bookingTime null-ness.
@@ -1190,6 +1232,7 @@ export default function UsRegistrationPage() {
                         {Array.from({ length: navMonth.daysInMonth() }, (_, i) => navMonth.date(i + 1)).map((day) => {
                           const today = day.isSame(dayjs(), 'day')
                           const selected = day.isSame(activeDate, 'day')
+                          const dayCount = navCounts[day.format('YYYY-MM-DD')] ?? 0
                           return (
                             <button
                               key={day.format('YYYY-MM-DD')}
@@ -1197,15 +1240,29 @@ export default function UsRegistrationPage() {
                               aria-label={day.format('YYYY-MM-DD')}
                               onClick={() => { setActiveDate(day); setDatePopOpen(false) }}
                               style={{
-                                height: 26, fontFamily: 'monospace', fontSize: 12, borderRadius: 5, border: 'none', padding: 0,
-                                cursor: 'pointer',
+                                height: 34, fontFamily: 'monospace', fontSize: 12, borderRadius: 5, border: 'none', padding: 0,
+                                cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                                 background: selected ? token.colorPrimary : 'transparent',
                                 color: selected ? token.colorBgContainer : today ? token.colorPrimary : token.colorText,
                                 fontWeight: selected || today ? 600 : 400,
                                 boxShadow: today && !selected ? `inset 0 0 0 1px ${token.colorPrimaryBorder}` : undefined,
                               }}
                             >
-                              {day.date()}
+                              <span style={{ lineHeight: 1 }}>{day.date()}</span>
+                              {/* the day's registration count (us-nav-calendar-day-counts):
+                                  the booking-dialog badge family - count > 0 only, the
+                                  selected cell reads it white-on-primary */}
+                              {dayCount > 0 && (
+                                <span
+                                  className="nav-count-badge"
+                                  style={{
+                                    fontSize: 10, lineHeight: 1, fontWeight: 400,
+                                    color: selected ? token.colorBgContainer : token.colorPrimary,
+                                  }}
+                                >
+                                  {dayCount}
+                                </span>
+                              )}
                             </button>
                           )
                         })}
@@ -1331,20 +1388,22 @@ export default function UsRegistrationPage() {
             </div>
           )}
 
-          {/* the COMPACT list (the per-order card flow, user-approved prototype
-              2026-11-26; font rebaseline + category-chip drop, user ruling same day):
-              the rail's narrow band cannot hold columns without shrinking
-              fonts or scrolling sideways, so each order is ONE panel stacking the
-              facts vertically — line 1 = name/source/emg + status + 取消 (the
-              预约/现场 category chip is dropped from the CARD; the fact still rides
-              registrationType and the wide table keeps the tag);
-              line 2 = the items (+ pregnancy); line 3 = 就诊卡号·检查流水号 (mono,
-              the snapshot cardNo — user ruling 2026-11-26 swaps out 影像号);
-              line 4 = the SINGLE time anchor with FULL 年月日 (variant-A prototype
-              us-rail-card-v2: 检查时间 primary tint, walk-in falls back to 登记时间
-              neutral fill, the right-edge caption names which). 20px name is the head
-              baseline (gender·age and the body lines ride 16px — user trial
-              2026-11-26).
+          {/* the COMPACT list (the per-order card flow; FINAL layout = the user-drawn
+              us-rail-card-v2 prototype, approved 2026-11-26): the rail's narrow band
+              cannot hold columns without shrinking fonts or scrolling sideways, so
+              each order is ONE panel stacking the facts vertically —
+              line 1 = 身份 ‖ 取消 (name 20px + gender·age 16px; the tail is the
+              cancel action ONLY);
+              hairline separator;
+              time band = the single 检查时间 anchor (slot datetime for 预约单 /
+              registration moment for 现场单) + room, normal ink / regular weight
+              (only the NAME is bold — user ruling 2026-11-26) ‖ the status chip
+              alone on the right whitespace (the visit source rides the head lead);
+              line 3 = the items (+ pregnancy, 14px, 3-line clamp);
+              line 4 = the ids (就诊卡号·检查流水号, icon-prefixed mono 16px) with the
+              RED emergency glyph at the right edge (a centered head mark would
+              collide with long minority names);
+              the left stripe rides the dict tag hue (已取消 = hatch + dimmed).
               NO horizontal scroll, no squeezed columns; the wide state restores
               the xtable form (edge toggle). */}
           {mode === 'compact' && (
@@ -1380,7 +1439,13 @@ export default function UsRegistrationPage() {
                   data-stripe={cancelled ? 'hatch' : statusHue(row.status) ?? 'none'}
                   style={{
                     position: 'relative', overflow: 'hidden',
-                    border: `1px solid ${line}`, borderRadius: 8, background: token.colorBgContainer,
+                    // the emergency border (user ruling 2026-11-26): LIVE emergency
+                    // cards read a red frame — the clinical-alarm case where red is
+                    // the right semantics; the left stripe stays the STATE channel
+                    // (the two edges never compete). Cancelled cards keep the
+                    // default line + the dim/hatch exit treatment (no alarm).
+                    border: `1px solid ${!cancelled && row.emgFlag === 1 ? token.colorError : line}`,
+                    borderRadius: 8, background: token.colorBgContainer,
                     padding: '9px 12px 11px 14px',
                     opacity: cancelled ? 0.55 : undefined,
                   }}
@@ -1391,29 +1456,90 @@ export default function UsRegistrationPage() {
                       <span style={{ fontSize: 20, fontWeight: 600, ...ellipsis }} title={row.patientSnapshot?.name ?? '无名氏'}>
                         {row.patientSnapshot?.name ?? '无名氏'}
                       </span>
-                      {genderAge && <span style={{ flex: 'none', fontSize: 16, color: token.colorTextTertiary, whiteSpace: 'nowrap' }}>{genderAge}</span>}
-                      {row.emgFlag === 1 && emgTag}
+                      {genderAge && <span style={{ flex: 'none', marginLeft: 4, fontSize: 16, color: token.colorTextTertiary, whiteSpace: 'nowrap' }}>{genderAge}</span>}
+                      {/* the visit source rides the HEAD lead as plain tertiary text
+                          (user final ruling 2026-11-26: no chip chrome, beside the
+                          identity facts) behind a quaternary dot separator, pinned to
+                          the gender·age size */}
+                      {row.patientSnapshot?.patientSource && <span style={{ flex: 'none', color: token.colorTextQuaternary }}>·</span>}
+                      {sourceTag(row.patientSnapshot?.patientSource, 16)}
                     </span>
-                    {/* 门诊 rides the tail (user ruling 2026-11-26): identity owns the
-                        lead, the visit kind joins the status cluster on the right */}
+                    {/* the head tail carries the cancel action ONLY (user layout
+                        2026-11-26): the status chip + visit source moved down to the
+                        time band's right edge; the emergency mark rides the ids row */}
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', flex: 'none' }}>
-                      {sourceTag(row.patientSnapshot?.patientSource)}
-                      {statusChip(row)}
                       {railRowActions(row)}
                     </span>
                   </div>
                   {/* the head/body hairline (user ruling 2026-11-26): the identity+status
                       band separates from the clinical body */}
                   <div style={{ height: 1, background: line, marginTop: 7 }} />
-                  <div
-                    style={{
-                      fontSize: 14, color: token.colorTextSecondary, marginTop: 7, lineHeight: 1.5,
-                      display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {rowItemsText(row) || '—'}
-                    {rowPregnancy(row) && <span style={{ color: token.colorInfo }}> · {rowPregnancy(row)}</span>}
+                  {/* the TIME BAND (user layout 2026-11-26, us-rail-card-v2 final): the
+                      exam-time anchor + room chain on the left, the status chip on the
+                      right whitespace — the right edge answers 到哪步 and nothing else
+                      (the visit source rides the head lead, user final ruling) */}
+                  <div style={{ fontSize: 16, color: token.colorText, marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Tooltip title="检查时间">
+                      <span
+                        role="img"
+                        aria-label="检查时间"
+                        style={{ display: 'inline-flex', alignItems: 'center', flex: 'none', color: token.colorTextTertiary }}
+                      >
+                        <ClockCircleOutlined style={{ fontSize: 16 }} />
+                      </span>
+                    </Tooltip>
+                    <span style={{ fontFamily: 'monospace', flex: 'none' }}>
+                      {formatStamp(timeIsBooking ? row.bookingTime : row.createTime, 'YYYY-MM-DD HH:mm')}
+                    </span>
+                    {/* the room rides THIS band (us-order-exam-room-web task 4.2; the
+                        card-flow ruling - no fifth row): WHEN + WHERE read as one
+                        line; a legacy/dangling room renders nothing. The pin glyph
+                        replaces the old dot separator (the icons delimit — same
+                        idiom as the ids row) */}
+                    {row.roomName && (
+                      <Tooltip title="检查室">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+                          <EnvironmentOutlined style={{ fontSize: 14, color: token.colorTextTertiary, flex: 'none' }} />
+                          <span style={{ ...ellipsis }} title={row.roomName}>{row.roomName}</span>
+                        </span>
+                      </Tooltip>
+                    )}
+                    <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, flex: 'none' }}>
+                      {statusChip(row)}
+                    </span>
+                  </div>
+                  {/* the items line (user ruling 2026-11-26): ONE line by default, the
+                      chevron expands to the full list on CLICK — no hover tooltips
+                      (they jitter the layout). Multi-item cards only; single-item
+                      rows carry no chevron noise. */}
+                  <div style={{ marginTop: 7, display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                    <div
+                      style={{
+                        flex: 1, minWidth: 0, fontSize: 14, color: token.colorTextSecondary, lineHeight: 1.5,
+                        ...(expandedItems[row.orderId] ? {} : {
+                          display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 1,
+                          overflow: 'hidden',
+                        }),
+                      }}
+                    >
+                      {rowItemsText(row) || '—'}
+                      {rowPregnancy(row) && <span style={{ color: token.colorInfo }}> · {rowPregnancy(row)}</span>}
+                    </div>
+                    {row.examItems.length > 1 && (
+                      <Tooltip title={expandedItems[row.orderId] ? '收起项目' : '展开项目'}>
+                        <Button
+                          type="text"
+                          size="small"
+                          aria-label={expandedItems[row.orderId] ? '收起项目' : '展开项目'}
+                          aria-expanded={!!expandedItems[row.orderId]}
+                          icon={expandedItems[row.orderId]
+                            ? <UpOutlined style={{ fontSize: 11, color: token.colorTextTertiary }} />
+                            : <DownOutlined style={{ fontSize: 11, color: token.colorTextTertiary }} />}
+                          onClick={() => setExpandedItems((prev) => ({ ...prev, [row.orderId]: !prev[row.orderId] }))}
+                          style={{ flex: 'none', width: 22, height: 22, minWidth: 22, padding: 0 }}
+                        />
+                      </Tooltip>
+                    )}
                   </div>
                   {/* the retrieval ids (user ruling 2026-11-26): icon-prefixed 就诊卡号
                       + 检查流水号 — the glyphs teach the two numbers apart at scan
@@ -1433,34 +1559,19 @@ export default function UsRegistrationPage() {
                         {row.accessionNo}
                       </span>
                     </Tooltip>
-                  </div>
-                  {/* the single 检查时间 anchor: uniform primary-tint clock glyph, the
-                      slot datetime for pre-registrations / the bare day for walk-ins */}
-                  <div style={{ fontSize: 16, color: token.colorTextSecondary, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Tooltip title="检查时间">
-                      <span
-                        role="img"
-                        aria-label="检查时间"
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          width: 22, height: 22, borderRadius: 5, flex: 'none',
-                          background: token.colorPrimaryBg, color: token.colorPrimary,
-                        }}
-                      >
-                        <ClockCircleOutlined />
-                      </span>
-                    </Tooltip>
-                    <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>
-                      {formatStamp(timeIsBooking ? row.bookingTime : row.createTime, 'YYYY-MM-DD HH:mm')}
-                    </span>
-                    {/* the room rides THIS existing meta line (us-order-exam-room-web
-                        task 4.2; the card-flow ruling - no fifth row): WHEN + WHERE
-                        read as one line; a legacy/dangling room renders nothing */}
-                    {row.roomName && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                        <span style={{ color: token.colorTextQuaternary }}>·</span>
-                        <span style={{ ...ellipsis }} title={row.roomName}>{row.roomName}</span>
-                      </span>
+                    {/* the emergency mark rides the ids row's RIGHT edge (user ruling
+                        2026-11-26): a centered head mark collides with long minority
+                        names — the red glyph anchors the card's bottom-right corner */}
+                    {row.emgFlag === 1 && (
+                      <Tooltip title="急诊">
+                        <span
+                          role="img"
+                          aria-label="急诊"
+                          style={{ marginLeft: 'auto', flex: 'none', fontSize: 16, fontWeight: 700, color: token.colorError }}
+                        >
+                          急
+                        </span>
+                      </Tooltip>
                     )}
                   </div>
                 </div>
@@ -1929,20 +2040,26 @@ export default function UsRegistrationPage() {
                     (no small density, form-control-height-parity). The default rides
                     the workstation's last choice (us-last-room); the required rule
                     gates the submit client-side, the server re-validates. */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, color: token.colorTextSecondary }}>检查室</span>
-                  <Select
-                    aria-label="检查室"
-                    style={{ width: 240 }}
-                    placeholder="选择检查室"
-                    value={roomId ?? undefined}
-                    onChange={(v) => setRoomId(v)}
-                    options={stationRooms.map((r) => ({ value: r.id, label: r.name }))}
-                    notFoundContent={roomsFailed ? '检查室目录加载失败' : '暂无可用检查室'}
-                  />
-                </div>
                 <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', flex: 1 }}>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                    {/* the exam-room pick (us-order-exam-room-web task 2.2) lives INSIDE
+                        the left column (user ruling 2026-11-26): a full-width row above
+                        the split pushed the 常用项目 rail down — the rail must stay
+                        top-aligned with the 检查室 row. Standard control height (no
+                        small density, form-control-height-parity); the default rides
+                        the workstation's last choice (us-last-room). */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <span style={{ color: token.colorTextSecondary }}>检查室</span>
+                      <Select
+                        aria-label="检查室"
+                        style={{ width: 240 }}
+                        placeholder="选择检查室"
+                        value={roomId ?? undefined}
+                        onChange={(v) => setRoomId(v)}
+                        options={stationRooms.map((r) => ({ value: r.id, label: r.name }))}
+                        notFoundContent={roomsFailed ? '检查室目录加载失败' : '暂无可用检查室'}
+                      />
+                    </div>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr>
