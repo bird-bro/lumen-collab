@@ -998,6 +998,27 @@ describe('compact workbench behaviors (us-registration-redesign batch 2)', () =>
       expect(ageField('年龄-天').value).toBe('')
     })
 
+    it('the identity backfill derives the age fields from a parseable birth date', async () => {
+      renderPage()
+      await screen.findByText('请检信息')
+      vi.mocked(usOrdersApi.resolvePatients).mockResolvedValueOnce({
+        result: 'MATCHED',
+        identity: {
+          patUid: 993, patId: 'US3-BD3', state: 'RESOLVED', name: 'us3好生日',
+          gender: 2, birthDate: '1990-05-20', cardNo: 'CARD-BD3', phone: '13800000003',
+        },
+        candidates: null,
+      })
+      fireEvent.change(screen.getByLabelText('解析键值'), { target: { value: 'ID-BD-3' } })
+      fireEvent.click(screen.getByRole('button', { name: '解析查询' }))
+      await screen.findByText(/已匹配档案/)
+      const [y, m, d] = diffYmd(dayjs('1990-05-20'), dayjs())
+      expect(birthInput().value).toBe('1990-05-20')
+      expect(ageField('年龄-岁').value).toBe(y > 0 ? String(y) : '')
+      expect(ageField('年龄-月').value).toBe(m > 0 ? String(m) : '')
+      expect(ageField('年龄-天').value).toBe(String(d))
+    })
+
     it('a future or malformed archive birth date no-ops the backfill', async () => {
       renderPage()
       await screen.findByText('请检信息')
