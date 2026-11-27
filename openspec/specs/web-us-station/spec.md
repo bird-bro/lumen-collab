@@ -174,19 +174,26 @@ confirmation is retired; the scenario pins its absence -->
 - **THEN** the backend refusal message renders verbatim and the row is unchanged
 
 
-<!-- synced from: us-order-exam-room-web 2026-11-26 -->
+<!-- synced from: us-rail-card-v2 2026-11-27 (supersedes the us-order-exam-room-web
+     2026-11-26 sync): the compact card carries the v2 anatomy (variant A, user pick
+     2026-11-26); the retired compact-card facts — the four-row meta-line room carriage
+     and the 预登记时间 wide reading — leave the spec, and the 类别 chip leaves the card
+     while staying server-stamped on `registrationType` in the wide table -->
 ### Requirement: Order List
 
 The registration workbench SHALL present orders in BOTH states from the real page endpoint:
-the COMPACT rail renders the day's 今日登记单 (the prototype's dense rows: patient composite
-two-line, state tag, row actions) under the status chips; the WIDE state renders the full
-paged table (accession 检查号, patient identity name + pat_id, 检查项目 summary, state tags,
-the 急诊 marker, the 类别 tag, 预登记时间). The 类别 tag SHALL read 现场 / 预约 from the
-row's `registrationType` (the business fact — the `bookingTime` NULL/NOT NULL inference is
-retired). The rows SHALL additionally carry the exam room: the compact card renders the
-room's `roomName` inside an existing meta line (the four-row card-flow ruling — no fifth
-row, no horizontal scroll, no font shrinking), the wide table gains a 检查室 column; a
-null room (legacy rows, dangling id) renders '—'. The status chips (拍板 03-B: not a dropdown — the chips are the desk workload meter)
+the COMPACT rail renders the day's 今日登记单 as the v2 card anatomy (user-drawn prototype
+`docs/prototypes/us-rail-card-v2.html` variant A, approved 2026-11-26): identity band,
+hairline separator, time band, items row, ids row, the left state stripe — with the visit
+source in the head lead and ONE 检查时间 anchor — under the status chips; the WIDE state
+renders the full paged table (accession 检查号, patient identity name + pat_id, 检查项目
+summary, state tags, the 急诊 marker, the 创建时间 audit column). The 类别 tag stays the
+server-stamped `registrationType` business fact and the WIDE table keeps it beside the
+status chip; the compact card drops the chip chrome (the 2026-11-26 v2 ruling — the
+`bookingTime` NULL/NOT NULL inference retirement stands). The rows SHALL additionally carry
+the exam room: the compact card renders the room's `roomName` as the time band's pin
+segment (rendered only when a room is set), the wide table keeps its 检查室 column; a null
+room (legacy rows, dangling id) renders '—' in the wide column. The status chips (拍板 03-B: not a dropdown — the chips are the desk workload meter)
 SHALL render the SIX machine statuses (已登记/检查中/诊断中/已完成/已打印/已取消, user ruling
 2026-11-26) with labels AND colors resolved from dict catalog 1031 「登记单状态」 through
 the id-anchored session-cached lookup (`dictItemsById` + the recorded enum-name→code
@@ -210,11 +217,48 @@ compact rail and the autorefresh mini switch follow the prototype's 紧凑化对
 #### Scenario: List renders with state and identity
 
 - **WHEN** the page loads
-- **THEN** the orders render from the real backend — the compact rail beside the form, the
-  wide table on toggle — with accession, patient identity, item summary, state tags, the
-  急诊 marker, the 现场/预约 category tag from `registrationType`, the 预登记时间 where set,
-  and the 检查室 name (the compact card's meta line / the wide table's column; '—' when
-  the room is absent)
+- **THEN** the orders render from the real backend — the compact rail beside the form,
+  the wide table on toggle — with accession, patient identity, item summary, state
+  tags, the 检查室 name (the compact card's time band pin segment, rendered only when
+  a room is set / the wide table's column, which renders '—' when the room is absent)
+- **AND** the compact card head reads the patient name (the card's only bold text),
+  the gender·age pair, and the visit source as plain tertiary text behind a dot
+  separator — the 现场/预约 category chip is dropped from the card (the fact stays
+  server-stamped on `registrationType`; the wide table keeps the tag beside the status
+  chip), and the head tail carries the cancel action alone (a cancelled row's tail
+  renders the em-dash placeholder instead)
+- **AND** the time band reads ONE 检查时间 anchor under the clock glyph — the booked
+  slot datetime for 预约单, the registration moment (当天 + 时分) for 现场单 — the
+  full 年月日时分 at regular weight in the normal ink (NOT the order-log semantics;
+  the wide table's 创建时间 column keeps the audit value), with the status chip alone
+  on the band's right edge
+
+#### Scenario: The card anatomy carries the v2 layout
+
+- **WHEN** a compact card renders
+- **THEN** a 4px left stripe rides the dict-1031 tag hue of the order status (unconfigured
+  hue renders transparent; CANCELLED renders the diagonal hatch with the whole card at
+  0.55 opacity and no cancel action)
+- **AND** a hairline separates the identity band from the clinical body
+- **AND** the items line defaults to ONE line with a click-to-expand chevron on
+  multi-item cards (the chevron toggles the full item list and its aria-expanded state;
+  single-item cards render no chevron, and no hover tooltip serves the overflow)
+- **AND** the ids line reads the 就诊卡号 (snapshot cardNo; absent on legacy rows — the
+  number line then shows the accession alone) and the 检查流水号 behind icon prefixes
+  with the quaternary dot dropped
+- **AND** live emergency orders render the red 急 glyph at the ids line's right edge and
+  a red card border; cancelled orders never alarm — the default line + the dim/hatch
+  treatment is the card's exit state, and the 急 glyph stays as the record's fact dimmed
+  with the card (the border is the alarm channel)
+
+#### Scenario: The card keeps one icon and one bold discipline
+
+- **WHEN** the card renders its icons and text
+- **THEN** every card icon (clock, room pin, idcard, barcode, items chevron) renders
+  tertiary gray with no tint or background — color stays reserved for the status chip,
+  the 急 glyph, and the cancel action
+- **AND** the 20px patient name is the card's only bold text (the time value and room
+  read regular weight in the normal ink)
 
 #### Scenario: Status chips carry the meter and multi-select
 
@@ -252,6 +296,27 @@ chip) survives only in this comment for history -->
   as the page default
 - **THEN** the searches persist through the search-filters REST for this user only, and
   reloading the page auto-applies the default search's conditions
+
+<!-- synced from: us-rail-card-v2 2026-11-27 (ADDED requirement - the 2026-11-26
+     single-anchor semantic ruling, recorded by the v2 card reconciliation) -->
+
+### Requirement: Card Rail Anchor Semantics
+
+The compact card's time anchor SHALL always read as the 检查时间 — the pre-registration
+slot value (`bookingTime`) for 预约单, and the registration moment for 现场单 (a
+same-day walk-in is examined at registration, so the moment stands in — and for a
+walk-in the registration moment IS the row's `create_time` instant) — and SHALL never
+present `create_time` as a booked slot's exam time or as audit metadata on the card
+(the wide table's 创建时间 column keeps the audit value).
+
+#### Scenario: The anchor never shows the audit clock
+
+- **WHEN** a compact card renders its time anchor for either entry category
+- **THEN** the value shown is the slot datetime for a pre-registration and the
+  registration moment (当天 + 时分) for a walk-in, both formatted as the full 年月日时分
+- **AND** the raw `create_time` clock appears as audit metadata only in the wide
+  table's 创建时间 column; on the compact card `create_time` surfaces only as the
+  walk-in's registration-moment anchor, never labeled as a creation/audit time
 
 
 ### Requirement: Apply Origin Fields
