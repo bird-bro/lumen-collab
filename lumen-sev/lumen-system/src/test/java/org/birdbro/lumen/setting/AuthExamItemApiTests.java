@@ -256,6 +256,60 @@ class AuthExamItemApiTests extends SettingIntegrationTestBase {
     }
 
     @Test
+    void deviceDescEchoesReplacesAndStaysNullable() throws Exception {
+        // exam-catalog-device-fields: the MWL-facing Latin description rides the
+        // same 1:1 chain (create request -> entity -> detail echo)
+        String token = fullPermToken();
+        long ts = System.currentTimeMillis();
+        int group = createGroup("CT", "ut组_设备描述_" + ts, 1);
+        int body = createBody(group, "CT", "ut_exb_设备部位_" + ts, null);
+
+        ResponseEntity<String> mapped = exchangeJson(HttpMethod.POST, ITEMS_URL,
+                body("{\"modality\":\"CT\",\"bodyId\":" + body + ",\"exam\":\"ut_exi_设备甲_"
+                        + ts + "\",\"code\":\"ut_exi_" + ts + "_d1\","
+                        + "\"deviceDesc\":\"CT HEAD PLAIN SCAN\","
+                        + "\"methodIds\":[],\"isCommon\":false,\"enable\":1}"), token);
+        assertEquals("200", parse(mapped).path("code").asText(),
+                "the device-desc create must succeed: " + mapped);
+        int withDesc = parse(mapped).path("data").asInt(-1);
+        assertTrue(withDesc > 0, "the create returns the id: " + mapped);
+
+        JsonNode detail = parse(exchangeJson(HttpMethod.GET, ITEMS_URL + "/" + withDesc,
+                null, token));
+        assertEquals("CT HEAD PLAIN SCAN", detail.path("data").path("deviceDesc").asText(),
+                "the detail must echo the device description verbatim: " + detail);
+
+        ResponseEntity<String> bare = exchangeJson(HttpMethod.POST, ITEMS_URL,
+                body("{\"modality\":\"CT\",\"bodyId\":" + body + ",\"exam\":\"ut_exi_设备乙_"
+                        + ts + "\",\"code\":\"ut_exi_" + ts + "_d2\","
+                        + "\"methodIds\":[],\"isCommon\":false,\"enable\":1}"), token);
+        assertEquals("200", parse(bare).path("code").asText(),
+                "the bare create must succeed: " + bare);
+        int withoutDesc = parse(bare).path("data").asInt(-1);
+        JsonNode bareDetail = parse(exchangeJson(HttpMethod.GET, ITEMS_URL + "/" + withoutDesc,
+                null, token));
+        assertTrue(bareDetail.path("data").path("deviceDesc").isNull()
+                        || bareDetail.path("data").path("deviceDesc").isMissingNode(),
+                "an item created without the device description must echo NULL: " + bareDetail);
+
+        // full-replace PUT swaps the device description
+        exchangeJson(HttpMethod.PUT, ITEMS_URL + "/" + withDesc,
+                body("{\"modality\":\"CT\",\"bodyId\":" + body + ",\"exam\":\"ut_exi_设备甲_"
+                        + ts + "\",\"code\":\"ut_exi_" + ts + "_d1\","
+                        + "\"deviceDesc\":\"CT HEAD ENHANCED SCAN\","
+                        + "\"methodIds\":[],\"isCommon\":false,\"enable\":1}"), token);
+        JsonNode replaced = parse(exchangeJson(HttpMethod.GET, ITEMS_URL + "/" + withDesc,
+                null, token));
+        assertEquals("CT HEAD ENHANCED SCAN", replaced.path("data").path("deviceDesc").asText(),
+                "the update must replace the device description: " + replaced);
+
+        hardDeleteItem(withDesc);
+        hardDeleteItem(withoutDesc);
+        hardDeleteBody(body);
+        hardDeleteGroup(group);
+    }
+
+    @Test
     void duplicateMappingCodesAreAcceptedAndKeywordHitsThem() throws Exception {
         String token = fullPermToken();
         long ts = System.currentTimeMillis();

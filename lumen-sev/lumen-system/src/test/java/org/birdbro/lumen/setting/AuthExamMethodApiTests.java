@@ -187,6 +187,63 @@ class AuthExamMethodApiTests extends SettingIntegrationTestBase {
 
     // ===================== fixture + call helpers =====================
 
+    @Test
+    void deviceDescEchoesReplacesAndStaysNullable() throws Exception {
+        // exam-catalog-device-fields: the Latin method text rides the 1:1 chain
+        String token = fullPermToken();
+        long ts = System.currentTimeMillis();
+
+        int withDesc = createMethodWithDeviceDesc("CT", "ut_exm_设备甲_" + ts,
+                "ut_exm_" + ts + "_d1", 1, "PLAIN SCAN");
+        int bare = createMethod("CT", "ut_exm_设备乙_" + ts, "ut_exm_" + ts + "_d2", 2);
+
+        JsonNode list = parse(exchangeJson(HttpMethod.GET,
+                METHODS_URL + "/list?modality=CT&keyword=" + ts, null, token));
+        JsonNode mappedRow = findMethodRow(list.path("data"), withDesc);
+        assertEquals("PLAIN SCAN", mappedRow.path("deviceDesc").asText(),
+                "the list row must echo the Latin method text verbatim: " + mappedRow);
+        JsonNode bareRow = findMethodRow(list.path("data"), bare);
+        assertTrue(bareRow.path("deviceDesc").isNull()
+                        || bareRow.path("deviceDesc").isMissingNode(),
+                "a method created without the device description must echo NULL: " + bareRow);
+
+        // full-replace PUT swaps the device description
+        exchangeJson(HttpMethod.PUT, METHODS_URL + "/" + withDesc,
+                body("{\"modality\":\"CT\",\"name\":\"ut_exm_设备甲_" + ts
+                        + "\",\"code\":\"ut_exm_" + ts + "_d1\",\"sort\":1,\"enable\":1,"
+                        + "\"deviceDesc\":\"ENHANCED SCAN\"}"), token);
+        JsonNode replaced = parse(exchangeJson(HttpMethod.GET,
+                METHODS_URL + "/list?modality=CT&keyword=" + ts, null, token));
+        JsonNode replacedRow = findMethodRow(replaced.path("data"), withDesc);
+        assertEquals("ENHANCED SCAN", replacedRow.path("deviceDesc").asText(),
+                "the update must replace the device description: " + replacedRow);
+
+        hardDeleteMethod(withDesc);
+        hardDeleteMethod(bare);
+    }
+
+    private int createMethodWithDeviceDesc(String modality, String name, String code,
+            int sort, String deviceDesc) throws Exception {
+        ResponseEntity<String> created = exchangeJson(HttpMethod.POST, METHODS_URL,
+                body("{\"modality\":\"" + modality + "\",\"name\":\"" + name
+                        + "\",\"code\":\"" + code + "\",\"sort\":" + sort
+                        + ",\"enable\":1,\"deviceDesc\":\"" + deviceDesc + "\"}"),
+                fullPermToken());
+        JsonNode createdBody = parse(created);
+        assertEquals("200", createdBody.path("code").asText(),
+                "the fixture method must create cleanly: " + created);
+        return createdBody.path("data").asInt(-1);
+    }
+
+    private JsonNode findMethodRow(JsonNode rows, int methodId) {
+        for (JsonNode row : rows) {
+            if (row.path("id").asInt(-1) == methodId) {
+                return row;
+            }
+        }
+        return rows.path(0).path("__missing__");
+    }
+
     private int createMethod(String modality, String name, String code, int sort)
             throws Exception {
         ResponseEntity<String> created = exchangeJson(HttpMethod.POST, METHODS_URL,
