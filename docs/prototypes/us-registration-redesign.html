@@ -116,8 +116,10 @@
   /* 宽表查询态：rail 接管全宽，表单让位 */
   .workbench.expanded .rail { flex: 1; width: auto; }
   .workbench.expanded .bench { display: none; }
-  .workbench.expanded table.rail-grid:not(.xtable) { display: none; }
   .workbench.expanded table.rail-grid.xtable { display: table; }
+  /* 紧凑态=卡片流（2026-11-26：窄带不横向滚动、不缩字号挤列——一单一面板纵铺信息）；
+     宽表态=恢复 xtable 表格形态 */
+  .workbench:not(.expanded) .rail-cards { display: flex; }
   .workbench.expanded .rail-xhead { display: flex; }
   /* 窄/宽头部操作分层：窄=按天翻看（datenav 主导）；宽=条件查询（申请时间主导，datenav 隐去避免双时间入口） */
   .workbench.expanded .datenav { display: none; }
@@ -203,6 +205,7 @@
   }
   .rp-tag.emg { background: var(--orange-weak); color: var(--orange); font-weight: 600; }
   .rp-tag.inp { border: 1px dashed var(--line-strong); color: var(--ink-3); background: #fff; }
+  .rp-tag.cat { background: var(--cyan-weak); color: var(--cyan); }
   .rp-line2 { font-size: 11.5px; color: var(--ink-2); margin-top: 2px; }
   .rp-line3 { font-size: 11px; color: var(--ink-3); margin-top: 1px; font-family: var(--mono); }
   .rchip {
@@ -223,6 +226,27 @@
   .ract.danger { color: var(--danger); }
   .ract.danger:hover { background: var(--danger-weak); }
   .ract svg { width: 13px; height: 13px; }
+  /* 紧凑态卡片流（2026-11-26）：一单一面板——首行 姓名标签+状态/类别+取消，
+     次行项目，三行 影像号·检查号，四行 检查/登记时间；宽态隐藏恢复表格 */
+  .rail-cards {
+    display: none; flex: 1; overflow-y: auto; min-height: 0;
+    flex-direction: column; gap: 8px; padding: 9px 10px;
+  }
+  .ocard {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+    padding: 8px 11px 9px; cursor: pointer; user-select: none;
+  }
+  .ocard:hover { background: #f7f9fd; }
+  .ocard.cur { border-color: var(--primary); background: var(--primary-weak); }
+  .ocard-hd { display: flex; align-items: center; gap: 5px; }
+  .ocard-hd .lead { display: flex; align-items: center; gap: 5px; min-width: 0; }
+  .ocard-hd .lead .rp-name { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ocard-hd .tail { display: flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
+  .ocard-items { font-size: 12.5px; color: var(--ink-2); margin-top: 4px; }
+  .ocard-ids { font-size: 12px; color: var(--ink-3); margin-top: 4px; font-family: var(--mono); }
+  .ocard-times { font-size: 12px; color: var(--ink-2); margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .ocard-times .tl { color: var(--ink-3); margin-right: 4px; }
+  .ocard-times .tv { font-family: var(--mono); }
   .rail-foot {
     margin-top: auto; display: flex; justify-content: space-between; align-items: center;
     padding: 7px 10px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--ink-2); background: #fbfcfe;
@@ -355,7 +379,6 @@
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
     padding: 9px 14px; border-top: 1px solid var(--line); background: #fbfcfe;
   }
-  .bench-foot .fh { font-size: 11.5px; color: var(--ink-3); }
   .bench-foot .fa { display: flex; gap: 8px; }
 
   /* ═══ 弹窗 mock ═══ */
@@ -433,6 +456,8 @@
     .dialog-zone { grid-template-columns: 1fr; }
     .notes { grid-template-columns: 1fr; }
     .fgrid { grid-template-columns: repeat(2, 1fr); }
+    #bkField, #pregField, #dxField { grid-column: auto; grid-row: auto; }
+    #dxField { grid-column: 1 / -1; }
   }
 </style>
 </head>
@@ -456,7 +481,7 @@
 
   <!-- ═══ 壹 · 整页工作台 ═══ -->
   <div class="section-eyebrow"><strong>壹 · 整页工作台全景</strong>左 rail 登记单 + 右登记表单（EIS register/check 形态）</div>
-  <p class="section-sub">左 rail = <b>今日登记单</b>（状态 chips 带计数 + 自动刷新 mini 开关 + 紧凑行：患者复合两行 + 状态 + 行操作）；右 = <b>登记工作台</b>（顶部单行解析条 → 1患者信息 → 2请检信息（急诊开关在标题行，占位=急诊单姓名留空）→ 3检查信息 → 重置/提交登记）。表单密度对齐 EIS：label 72px 右对齐、三列、行距 9px。</p>
+  <p class="section-sub">左 rail = <b>今日登记单</b>（状态 chips 带计数 + 自动刷新 mini 开关 + 紧凑卡片流：一单一面板（姓名标签+状态类别+取消 / 项目 / 影像号·检查号 / 检查·登记时间））；右 = <b>登记工作台</b>（顶部单行解析条 → 1患者信息 → 2请检信息（急诊开关在标题行，占位=急诊单姓名留空）→ 3检查信息 → 重置/提交登记）。表单密度对齐 EIS：label 72px 右对齐、三列、行距 9px。</p>
 
   <div class="workbench">
 
@@ -511,75 +536,64 @@
           <span class="xmore-link" id="xmoreLink">收起更多 ▴</span>
         </div>
       </div>
-      <table class="rail-grid">
-        <thead><tr><th>患者 / 项目</th><th style="width:62px">状态</th><th style="width:52px">操作</th></tr></thead>
-        <tbody>
-          <tr>
-            <td>
-              <div class="rp-line1"><span class="rp-name">张晓雯</span><span class="rp-tag">门诊</span></div>
-              <div class="rp-line2">产科超声（常规）、胎儿生物物理评分 <span style="color:var(--cyan)">· 中晚孕28周</span></div>
-              <div class="rp-line3">US2511200007 · 08:41</div>
-            </td>
-            <td><span class="rchip st-registered">已登记</span></td>
-            <td><div class="rops">
-              <span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span>
-            </div></td>
-          </tr>
-          <tr>
-            <td>
-              <div class="rp-line1"><span class="rp-name">李慕青</span><span class="rp-tag">住院</span></div>
-              <div class="rp-line2">妇科超声（常规）</div>
-              <div class="rp-line3">US2511200006 · 预登记 09:00–09:30</div>
-            </td>
-            <td><span class="rchip st-registered">已登记</span></td>
-            <td><div class="rops">
-              <span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span>
-            </div></td>
-          </tr>
-          <tr class="cur">
-            <td>
-              <div class="rp-line1"><span class="rp-name">王振海</span><span class="rp-tag">急诊</span><span class="rp-tag emg">急</span></div>
-              <div class="rp-line2">泌尿系超声（急诊床旁）</div>
-              <div class="rp-line3">US2511200005 · 08:12</div>
-            </td>
-            <td><span class="rchip st-booked">预登记</span></td>
-            <td><div class="rops">
-              <span class="ract" title="登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span>
-              <span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span>
-            </div></td>
-          </tr>
-          <tr>
-            <td>
-              <div class="rp-line1"><span class="rp-name" style="color:var(--ink-3)">无名氏</span><span class="rp-tag inp">占位</span><span class="rp-tag emg">急</span></div>
-              <div class="rp-line2">腹部超声（急诊）</div>
-              <div class="rp-line3">US2511200004 · 07:58</div>
-            </td>
-            <td><span class="rchip st-booked">预登记</span></td>
-            <td><div class="rops">
-              <span class="ract" title="登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span>
-              <span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span>
-            </div></td>
-          </tr>
-          <tr>
-            <td>
-              <div class="rp-line1"><span class="rp-name">陈思远</span><span class="rp-tag">门诊</span></div>
-              <div class="rp-line2">甲状腺超声</div>
-              <div class="rp-line3">US2511190021 · 昨天 15:07</div>
-            </td>
-            <td><span class="rchip st-done">已完成</span></td>
-            <td><div class="rops"><span style="color:var(--ink-3)">—</span></div></td>
-          </tr>
-          <tr>
-            <td>
-              <div class="rp-line1"><span class="rp-name">刘雨桐</span><span class="rp-tag">门诊</span></div>
-              <div class="rp-line2">产科超声（常规） <span style="color:var(--cyan)">· 早孕8周</span></div>
-              <div class="rp-line3">US2511190018 · 昨天 10:33</div>
-            </td>
-            <td><span class="rchip st-cancel reason-tip" title="取消原因：患者改期至明日">已取消</span></td>
-            <td><div class="rops"><span style="color:var(--ink-3)">—</span></div></td>
-          </tr>
-        </tbody>
-      </table>
+      <!-- 紧凑态：一单一面板卡片流（2026-11-26 裁决：窄带不横向滚动、不缩字号挤列——
+           影像号/检查号/检查/登记时间纵向入卡；宽态恢复 xtable 表格形态） -->
+      <div class="rail-cards">
+        <div class="ocard">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">张晓雯</span><span class="rp-tag">门诊</span></span>
+            <span class="tail"><span class="rchip st-registered">已登记</span><span class="rp-tag cat">现场</span><span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span></span>
+          </div>
+          <div class="ocard-items">产科超声（常规）、胎儿生物物理评分 <span style="color:var(--cyan)">· 中晚孕28周</span></div>
+          <div class="ocard-ids">P00000100 · US2511200007</div>
+          <div class="ocard-times"><span><span class="tl">检查</span><span class="tv">—</span></span><span><span class="tl">登记</span><span class="tv">08:41</span></span></div>
+        </div>
+        <div class="ocard">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">李慕青</span><span class="rp-tag">住院</span></span>
+            <span class="tail"><span class="rchip st-registered">已登记</span><span class="rp-tag cat">预约</span><span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span></span>
+          </div>
+          <div class="ocard-items">妇科超声（常规）</div>
+          <div class="ocard-ids">P00000121 · US2511200006</div>
+          <div class="ocard-times"><span><span class="tl">检查</span><span class="tv">09:00–09:30</span></span><span><span class="tl">登记</span><span class="tv">08:12</span></span></div>
+        </div>
+        <div class="ocard cur">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">王振海</span><span class="rp-tag">急诊</span><span class="rp-tag emg">急</span></span>
+            <span class="tail"><span class="rchip st-registered">已登记</span><span class="rp-tag cat">现场</span><span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span></span>
+          </div>
+          <div class="ocard-items">泌尿系超声（急诊床旁）</div>
+          <div class="ocard-ids">P00000205 · US2511200005</div>
+          <div class="ocard-times"><span><span class="tl">检查</span><span class="tv">—</span></span><span><span class="tl">登记</span><span class="tv">08:12</span></span></div>
+        </div>
+        <div class="ocard">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name" style="color:var(--ink-3)">无名氏</span><span class="rp-tag inp">占位</span><span class="rp-tag emg">急</span></span>
+            <span class="tail"><span class="rchip st-registered">已登记</span><span class="rp-tag cat">现场</span><span class="ract danger" title="取消登记"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0 1 14h8l1-14"/></svg></span></span>
+          </div>
+          <div class="ocard-items">腹部超声（急诊）</div>
+          <div class="ocard-ids">P00000206 · US2511200004</div>
+          <div class="ocard-times"><span><span class="tl">检查</span><span class="tv">—</span></span><span><span class="tl">登记</span><span class="tv">07:58</span></span></div>
+        </div>
+        <div class="ocard">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">陈思远</span><span class="rp-tag">门诊</span></span>
+            <span class="tail"><span class="rchip st-done">已完成</span><span class="rp-tag cat">现场</span></span>
+          </div>
+          <div class="ocard-items">甲状腺超声</div>
+          <div class="ocard-ids">P00000098 · US2511190021</div>
+          <div class="ocard-times"><span><span class="tl">检查</span><span class="tv">—</span></span><span><span class="tl">登记</span><span class="tv">昨天 15:07</span></span></div>
+        </div>
+        <div class="ocard">
+          <div class="ocard-hd">
+            <span class="lead"><span class="rp-name">刘雨桐</span><span class="rp-tag">门诊</span></span>
+            <span class="tail"><span class="rchip st-cancel reason-tip" title="取消原因：患者改期至明日">已取消</span><span class="rp-tag cat">预约</span></span>
+          </div>
+          <div class="ocard-items">产科超声（常规） <span style="color:var(--cyan)">· 早孕8周</span></div>
+          <div class="ocard-ids">P00000115 · US2511190018</div>
+          <div class="ocard-times"><span><span class="tl">检查</span><span class="tv">10:00</span></span><span><span class="tl">登记</span><span class="tv">昨天 10:33</span></span></div>
+        </div>
+      </div>
       <!-- 宽表查询态：全列（同一批演示数据） -->
       <table class="rail-grid xtable">
         <thead><tr><th style="min-width:150px">患者</th><th>检查项目</th><th style="width:72px">状态</th><th style="width:48px">急诊</th><th style="width:88px">孕检</th><th style="width:108px">检查号</th><th style="width:118px">创建时间</th><th>临床诊断</th><th style="width:64px"><div style="display:flex;align-items:center;justify-content:space-between">操作<span class="colset-wrap"><span class="colset" id="colsetBtn" title="列设置（显隐/排序，本地记忆）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></span><div class="pop clist" id="colsetPop" style="display:none">
@@ -728,20 +742,22 @@
           </span>
         </div>
         <div class="fgrid">
-          <div class="field"><span class="lb">检查类型</span><div class="ctl"><span class="modality-fixed">US 超声</span></div></div>
-          <div class="field" id="pregField"><span class="lb">妊娠</span><div class="ctl">
-            <div class="hw-row">
-              <div class="mini-sel" style="flex:1">中晚孕<span class="caret">▾</span></div>
-              <div class="input" style="flex:0 0 64px">28<span class="hw-unit">周</span></div>
-            </div>
-          </div></div>
-          <div class="field"><span class="lb">预登记时间</span><div class="ctl">
+          <div class="field"><span class="lb">申请时间</span><div class="ctl"><div class="input">11-25 09:12</div></div></div>
+          <div class="field"><span class="lb">申请科室</span><div class="ctl"><div class="input">产科门诊</div></div></div>
+          <div class="field"><span class="lb">申请医生</span><div class="ctl"><div class="input">李医生</div></div></div>
+          <div class="field" id="dxField" style="grid-column: 1 / 3; grid-row: 2 / 4"><span class="lb">临床诊断</span><div class="ctl"><div class="input" style="height:65px;align-items:flex-start;padding-top:5px"><span style="font-size:12.5px">宫内双胎妊娠（28周），重点观察宫颈</span></div></div></div>
+          <div class="field" id="bkField" style="grid-column: 3; grid-row: 2"><span class="lb">预约时间</span><div class="ctl">
             <div class="hw-row">
               <div class="input" style="flex:0 0 82px">11-20<span class="hw-unit">今天</span></div>
               <div class="mini-sel" style="flex:1">08:00–08:30<span class="caret">▾</span></div>
             </div>
           </div></div>
-          <div class="field" style="grid-column: 1 / -1"><span class="lb">临床诊断</span><div class="ctl"><div class="input" style="height:44px;align-items:flex-start;padding-top:5px"><span style="font-size:12.5px">宫内双胎妊娠（28周），重点观察宫颈</span></div></div></div>
+          <div class="field" id="pregField" style="grid-column: 3; grid-row: 3"><span class="lb">妊娠</span><div class="ctl">
+            <div class="hw-row">
+              <div class="mini-sel" style="flex:1">中晚孕<span class="caret">▾</span></div>
+              <div class="input" style="flex:0 0 64px">28<span class="hw-unit">周</span></div>
+            </div>
+          </div></div>
         </div>
 
         <!-- 3 检查信息 -->
@@ -760,7 +776,7 @@
           <span>合计：¥<span id="sum">300.00</span></span>
         </div>
         <table class="picked" id="pickTable">
-          <thead><tr><th>检查项目</th><th style="width:120px">检查部位</th><th style="width:88px;text-align:right">单价(元)</th><th style="width:48px">操作</th></tr></thead>
+          <thead><tr><th>检查项目</th><th style="width:220px">检查部位</th><th style="width:88px;text-align:right">单价(元)</th><th style="width:48px">操作</th></tr></thead>
           <tbody>
             <tr data-price="220" data-name="产科超声（常规）"><td>产科超声（常规）</td><td>产前</td><td class="price">220.00</td><td><span class="del">删除</span></td></tr>
             <tr data-price="80" data-name="胎儿生物物理评分"><td>胎儿生物物理评分</td><td>胎儿</td><td class="price">80.00</td><td><span class="del">删除</span></td></tr>
@@ -769,7 +785,6 @@
       </div>
 
       <div class="bench-foot">
-        <span class="fh" id="footHint">急诊单姓名可留空——留空即无名氏占位档，检查号照发 · 提交即登记：现场单直接落 已登记；选未来时段即 预登记（BOOKED），患者到检后在列表点 登记 确认</span>
         <div class="fa">
           <span class="btn danger-plain">重置</span>
           <span class="btn primary">提交登记</span>
@@ -844,8 +859,9 @@
     </div>
     <div class="note">
       <b>④ 列表压缩</b>：<span class="from">九列表格</span> →
-      <span class="to">rail 三列（患者/项目三行复合 + 状态 + 行操作）</span>，
-      检查号/时间并入患者格第三行；<b>状态筛选改 chips 带计数</b>（EIS ReportStatusCheckbox 同款——
+      <span class="to">紧凑态一单一面板卡片流（首行 姓名/来源标签+状态/类别+取消；次行项目；三行 影像号·检查号；四行 检查/登记时间）</span>，
+      2026-11-26 用户裁决：窄带不横向滚动、不缩字号挤列——信息纵向铺，宽态恢复全列表格；
+      <b>状态筛选改 chips 带计数</b>（EIS ReportStatusCheckbox 同款——
       多选切换，默认 预约+已登记=今日在册；不放 RCP 式下拉：计数是登记台的工作量仪表，下拉会藏掉它，
       且窄面板无查询行、状态筛选只能住头部）。
       取消原因 tooltip、状态色板、占位虚框 tag 照搬 v1。
@@ -865,7 +881,7 @@
     <div class="note">
       <b>⑩ rail 两态（紧凑登记态 / 宽表查询态）</b>：<b>宽表是需求本体</b>（护士要看更多列 + 更多查询条件），
       曾被误当手段修剪，恢复；「完全收缩」则确无意义而退役（表单不需全宽，收列表伤互证）。
-      紧凑态 = 登记主场（chips + 日期 nav + 复合行，<b>不铺查询行</b>——整行条件条浪费列表纵向空间，用户 2026-11-23 点名）；宽表态 = 查询主场：
+      紧凑态 = 登记主场（chips + 日期 nav + 卡片流，<b>不铺查询行</b>——整行条件条浪费列表纵向空间，用户 2026-11-23 点名）；宽表态 = 查询主场：
       rail 接管全宽，查询条件行（我的查询 + 申请时间/姓名/检查号 + 更多条件 + 查询/重置）+
       全列（患者复合/检查项目/状态/急诊/孕检/检查号/创建时间/临床诊断/操作），
       行操作照旧（登记/取消），同一组件宽度态切换非第二页面。切换 affordance 一枚：面板右缘中线圆钮 »/«。
@@ -1078,14 +1094,10 @@
     edgeToggle.title = expanded ? '返回紧凑登记台' : '展开完整列表（查询态）'
   })
 
-  // ── 开关与键型 Segmented（演示） ──
+  // ── 开关与键型 Segmented（演示；foot 提示文案已按 2026-11-24 裁决移除） ──
   const emgSw = document.getElementById('emgSw')
-  const footHint = document.getElementById('footHint')
   emgSw.addEventListener('click', () => {
     emgSw.classList.toggle('on')
-    const on = emgSw.classList.contains('on')
-    footHint.textContent = (on ? '急诊单姓名可留空——留空即无名氏占位档，检查号照发 · ' : '') +
-      '提交即登记：现场单直接落 已登记；选未来时段即 预登记（BOOKED），患者到检后在列表点 登记 确认'
   })
   const miniSw = document.getElementById('miniSw')
   miniSw.addEventListener('click', () => miniSw.classList.toggle('on'))
