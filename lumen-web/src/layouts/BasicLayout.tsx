@@ -11,7 +11,7 @@ import {
 import { Button, ConfigProvider, Layout, Menu, Popover, Spin, theme } from 'antd'
 import type { ThemeConfig } from 'antd'
 import type { ComponentType, CSSProperties } from 'react'
-import { Suspense, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { activeTopLevelNode, firstLeafRouteOf, resolveMenuRoute } from '@/routes/menu-paths'
 import {
@@ -19,6 +19,7 @@ import {
   ExamCatalogIcon,
   OrgBuildingIcon,
   RadiologyFilmIcon,
+  RegistrationFormIcon,
   ShieldCheckIcon,
   SystemToolIcon,
   TemplateBookIcon,
@@ -116,6 +117,10 @@ const MENU_ICON_BY_NAME: Record<string, IconComponent> = {
   radiology: RadiologyFilmIcon,
   us: UltrasoundProbeIcon,
   endo: EndoscopyCameraIcon,
+  // the US 登记 promoted C leaf (user ruling 2026-11-24): the EIS `dengji`
+  // pen-form glyph (RegistrationFormIcon) - the seed UPDATE sets icon='register'
+  // on the mid-1029 row (V53, backend side; the mapping rides the same name).
+  register: RegistrationFormIcon,
 }
 
 /**
@@ -200,6 +205,23 @@ export function BasicLayout() {
   // value only governs console views, where no station owns the route.
   const urlStation = useMemo(() => activeStationForPath(menus, pathname), [menus, pathname])
   const activeWsMid = urlStation?.mid ?? activeWorkstation
+  const setActiveWorkstation = useAuthStore((state) => state.setActiveWorkstation)
+  // URL-ownership WRITE-BACK (user report 2026-11-24): a station page also RECORDS
+  // itself in the store. Console views own no route and fall back to the store, so
+  // without this the chip resurrected the login-derived value (the pageless first W,
+  // 放射) on 设置/系统 pages after the user had been working in 超声 - the "automatic
+  // station switch" with no switch clicked. The write fires ONLY when the ROUTE'S
+  // owner changes (ref baseline), never on a store-driven re-render: an explicit
+  // chip switch batched with its navigation renders a STALE route first (old owner
+  // + new store), and a naive effect there would resurrect the old station and
+  // overwrite the explicit pick. Leaving a station page just resets the baseline.
+  const lastOwnedMid = useRef<number | null>(null)
+  useEffect(() => {
+    const owned = urlStation?.mid ?? null
+    if (owned === lastOwnedMid.current) return
+    lastOwnedMid.current = owned
+    if (owned !== null && owned !== activeWorkstation) setActiveWorkstation(owned)
+  }, [urlStation, activeWorkstation, setActiveWorkstation])
   const sidebarTree = useMemo(() => sidebarMenus(menus, activeWsMid), [menus, activeWsMid])
   const activeL1 = useMemo(() => activeTopLevelNode(sidebarTree, pathname), [sidebarTree, pathname])
 
@@ -278,7 +300,12 @@ export function BasicLayout() {
     <Layout
       style={
         {
-          minHeight: '100vh',
+          // VIEWPORT LOCK (the EIS shell recipe, user ruling 2026-11-25: the
+          // registration workbench must never page-scroll): the app shell is
+          // exactly the viewport and never grows - long pages scroll INSIDE
+          // the Content pane (el-main equivalent), not the document.
+          height: '100vh',
+          overflow: 'hidden',
           // CSS custom properties consumed by ./basic-layout.css - every value
           // comes from the token pipeline (the CSS file itself holds no colors).
           '--lumen-title-color': token.colorText,
@@ -296,6 +323,8 @@ export function BasicLayout() {
           // Console-table current-row chrome (OPS dict-page highlight-current-row).
           '--lumen-row-current-bar': token.colorPrimary,
           '--lumen-row-current-bg': token.colorBgContainer,
+          // The 急诊 flag switch's checked background (alarm red, not action blue).
+          '--lumen-switch-emg-bg': token.colorError,
           // Console-table zebra + row ruling (OPS parity, user review
           // 2026-11-09): the line var is the raw primary - basic-layout.css
           // color-mixes it to the 15% alpha of OPS --table-border so it
@@ -359,7 +388,7 @@ export function BasicLayout() {
         })}
       </Layout.Sider>
 
-      <Layout>
+      <Layout style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden' }}>
         {/* zone 2: 60px white header */}
         <Layout.Header
           style={{
@@ -391,7 +420,7 @@ export function BasicLayout() {
         </Layout.Header>
 
         {/* zone 3 + content */}
-        <Layout hasSider={!singlePageStation}>
+        <Layout hasSider={!singlePageStation} style={{ flex: '1 1 0%', minHeight: 0, overflow: 'hidden' }}>
           {!singlePageStation && (
           <Layout.Sider
             className="lumen-side"
@@ -539,7 +568,7 @@ export function BasicLayout() {
           {/* Gray page tint (the theme pins colorBgLayout to the OPS page
               tint): the query rows and white table cards float on non-white. */}
           <Layout.Content
-            style={{ padding: CONTENT_PADDING, minWidth: 0, background: token.colorBgLayout }}
+            style={{ padding: CONTENT_PADDING, minWidth: 0, flex: '1 1 0%', minHeight: 0, overflow: 'auto', background: token.colorBgLayout }}
           >
             <Suspense
               fallback={

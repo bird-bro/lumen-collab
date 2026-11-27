@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { ConfigProvider } from 'antd'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { BasicLayout } from '@/layouts/BasicLayout'
+import { BasicLayout, MenuIcon } from '@/layouts/BasicLayout'
 import { RequireAuth } from '@/components/RequireAuth'
 import { useAuthStore } from '@/stores/auth'
 import { themeConfig } from '@/theme'
@@ -140,6 +140,38 @@ function usStationMenus(): MenuNode[] {
   ]
 }
 
+/**
+ * The 设置 console tree (the V30 menu-settings-root L1 + the V51 预约设置 leaf,
+ * shape verbatim from the seeds): the L1 设置 (M, /setting) → the L2 检查配置
+ * group → the C leaves. Two leaves so the sider-leaf CLICK is exercised from a
+ * sibling page (the user-reported flow), not from the destination itself.
+ */
+function settingMenus(): MenuNode[] {
+  return [
+    menuNode({
+      mid: 50, title: '设置', upId: 0, type: 'M', path: '/setting', icon: 'sliders',
+      children: [
+        menuNode({
+          mid: 51, title: '检查配置', upId: 50, type: 'M', icon: 'sliders',
+          children: [
+            menuNode({ mid: 52, title: '检查项目', upId: 51, type: 'C', path: 'exam-item', component: 'setting/exam-item/index' }),
+            menuNode({ mid: 53, title: '预约设置', upId: 51, type: 'C', path: 'exam-slot', component: 'setting/exam-slot/index' }),
+          ],
+        }),
+      ],
+    }),
+  ]
+}
+
+function seedSettingSession() {
+  useAuthStore.getState().setSession({
+    token: 't-shell',
+    profile: ADMIN_PROFILE,
+    menus: settingMenus(),
+    perms: ['setting:slot:list'],
+  })
+}
+
 function renderShell(initialPath: string) {
   return render(
     <ConfigProvider theme={themeConfig}>
@@ -152,6 +184,9 @@ function renderShell(initialPath: string) {
             <Route path="/radiology/register" element={<div>REGISTER_MARKER</div>} />
             <Route path="/radiology/register" element={<div>REGISTER_MARKER</div>} />
             <Route path="/us/registration" element={<div>US_REG_MARKER</div>} />
+            {/* setting console pages (检查配置 family; the V51 预约设置 leaf) */}
+            <Route path="/setting/exam-items" element={<div>EXAM_ITEM_MARKER</div>} />
+            <Route path="/setting/exam-slots" element={<div>EXAM_SLOT_MARKER</div>} />
             {/* station HOME placeholders (design D8, mirrored from the real router) */}
             <Route path="/ultrasound" element={<div>ULTRASOUND_MARKER</div>} />
             <Route path="/endoscopy" element={<div>ENDOSCOPY_MARKER</div>} />
@@ -273,6 +308,21 @@ describe('three-zone shell metrics (web-foundation-auth-console 5.4)', () => {
     const railItems = document.querySelectorAll<HTMLElement>('.lumen-rail-item')
     const registerItem = [...railItems].find((el) => el.textContent?.includes('登记预约'))
     expect(registerItem).toHaveClass('lumen-rail-item-active')
+  })
+})
+
+describe('设置 sider leaf navigation (V51 预约设置, us-registration-redesign 拍板 06-A)', () => {
+  it('clicking the 预约设置 sider row navigates to its registered route (user report 2026-11-24: the click was a silent no-op)', async () => {
+    seedSettingSession()
+    renderShell('/setting/exam-items')
+
+    expect(screen.getByText('EXAM_ITEM_MARKER')).toBeInTheDocument()
+    // the sider leaf row (plain text label - the .ant-layout-sider query would
+    // hit the dark RAIL first, which carries no leaf rows)
+    await userEvent.click(screen.getByText('预约设置'))
+
+    expect(await screen.findByText('EXAM_SLOT_MARKER')).toBeInTheDocument()
+    expect(screen.queryByText('EXAM_ITEM_MARKER')).not.toBeInTheDocument()
   })
 })
 
@@ -503,5 +553,30 @@ describe('workstation chip + append sidebar (workstation-context-web 3.1/3.2)', 
     expect(within(rail).getAllByText('登记预约').length).toBeGreaterThan(0)
     // full-width leaf-L1 layout (ruling 2026-11-20): the C page renders WITHOUT the sider
     expect(container.querySelector('.lumen-side')).toBeNull()
+  })
+
+  it('a station page writes its owner back to the store (console fallback shows the working station, user report 2026-11-24)', () => {
+    useAuthStore.getState().setSession({
+      token: 't-shell', profile: ADMIN_PROFILE, menus: usStationMenus(), perms: ['system:user:list'],
+    })
+    // the ghost shape: the store holds the login-derived 放射 while the ROUTE serves 超声
+    useAuthStore.getState().setActiveWorkstation(30)
+    renderShell('/us/registration')
+    expect(screen.getByText('US_REG_MARKER')).toBeInTheDocument()
+    // no explicit switch happened - the route-owned station records itself
+    expect(useAuthStore.getState().activeWorkstation).toBe(40)
+  })
+})
+
+describe('menu icon mapping (MENU_ICON_BY_NAME)', () => {
+  it('the 登记 rail slot maps register -> the EIS dengji pen-form port, not the radar fallback', () => {
+    const { container } = render(<MenuIcon name="register" size={26} />)
+    const svg = container.querySelector('svg')!
+    // the ops-icon family contract: monochrome via the svg root currentColor
+    expect(svg.getAttribute('fill')).toBe('currentColor')
+    // the verbatim EIS `icon-dengji` pen-nib subpath (ops-icons RegistrationFormIcon)
+    expect(svg.querySelector('path')!.getAttribute('d')).toContain('M370.4832 849.7664')
+    // the radar fallback would carry no such path
+    expect(svg.querySelector('path')!.getAttribute('d')).not.toContain('RadarChart')
   })
 })

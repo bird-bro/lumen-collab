@@ -351,3 +351,10 @@
   width: 26px;
   height: 26px;
 }
+
+/* The 急诊 flag switch (user ruling 2026-11-25: emergency semantics ride the
+   alarm red, not the action blue) - the checked state's background comes from
+   the token pipeline via --lumen-switch-emg-bg (this file holds no colors). */
+.lumen-switch-emg.ant-switch-checked {
+  background: var(--lumen-switch-emg-bg);
+}

@@ -184,3 +184,22 @@ export function EndoscopyCameraIcon(props: OpsIconProps) {
     </OpsSvg>
   )
 }
+
+/**
+ * EIS `icon-dengji` (钢笔+表单行) - the 登记 workspace leaf glyph (user ruling
+ * 2026-11-24, eis-web src/assets/iconfont.js): the symbol the EIS reference
+ * binds to its 登记 menu via dict_menu icon -> route meta (the `dark-dengji`
+ * dark-skin sibling is the SAME drawing differing only in the source brand
+ * fills, which the port strips - the ink inherits currentColor via the svg
+ * root; verified monochrome-clean, no fill-rule blobbing). Ink
+ * ~84x67% of the viewBox - inside the sidebar family band (the V36 sisters
+ * run ~83.6 wide un-scaled), no optical scale needed.
+ */
+export function RegistrationFormIcon(props: OpsIconProps) {
+  return (
+    <OpsSvg {...props}>
+      <path d="M370.4832 849.7664l-271.9744 77.1584 77.2096-271.9744 194.7648 194.816z m533.504-533.5552l-65.4848 65.4848-194.816-194.816 65.536-65.4848s31.1808-31.1808 62.9248 0.5632l128.1536 128.1536c34.7648 34.7648 3.6864 66.048 3.6864 66.048z m-85.0944 85.0432l-429.0048 429.056-194.7648-194.816 429.056-429.0048 194.7136 194.7648z" />
+      <path d="M716.8 819.2a51.2 51.2 0 0 1 0 102.4h-204.8a51.2 51.2 0 0 1 0-102.4h204.8zM307.2 307.2a51.2 51.2 0 1 1 0 102.4H153.6a51.2 51.2 0 1 1 0-102.4h153.6z m204.8-204.8a51.2 51.2 0 0 1 0 102.4H153.6a51.2 51.2 0 1 1 0-102.4h358.4z" />
+    </OpsSvg>
+  )
+}
