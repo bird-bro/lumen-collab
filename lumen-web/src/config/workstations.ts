@@ -14,7 +14,7 @@
  * station.
  */
 import type { MenuNode } from '@/api/types';
-import { activeTopLevelNode } from '@/routes/menu-paths';
+import { activeTopLevelNode, stationHomeRoute } from '@/routes/menu-paths';
 
 /** The granted workstation nodes: the tree's L1 entries with `type = 'W'`. */
 export function stationNodes(menus: MenuNode[]): MenuNode[] {
@@ -49,5 +49,12 @@ export function sidebarMenus(menus: MenuNode[], activeWsMid: number | null): Men
  */
 export function activeStationForPath(menus: MenuNode[], pathname: string): MenuNode | null {
   const owner = activeTopLevelNode(menus, pathname);
-  return owner?.type === 'W' ? owner : null;
+  if (owner?.type === 'W') return owner;
+  // The station HOME placeholder (design D8 - e.g. childless 放射 lands on
+  // /radiology): the V22 seed's W paths are RELATIVE, so activeTopLevelNode's
+  // segment-safe prefix rule (absolute paths only) can never own them - match
+  // the mapped placeholder route explicitly, else the chip desyncs from the
+  // placeholder page the moment the store holds another station (user report
+  // 2026-11-24, the 放射-placeholder shape).
+  return menus.find((m) => m.type === 'W' && stationHomeRoute(m) === pathname) ?? null;
 }

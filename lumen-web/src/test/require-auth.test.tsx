@@ -176,4 +176,22 @@ describe('/system/** console routes (batch 6 replaces the 5.3 placeholders)', ()
     expect(urls).toContain('/api/v1/system/me')
     expect(urls.some((url) => url.startsWith('/api/v1/system/dicts/catal/list'))).toBe(true)
   })
+
+  it('serves the real 预约设置 page and issues its documented list request (us-registration-redesign 拍板 06-A)', async () => {
+    useAuthStore.getState().setSession({ token: 't-login', profile: null, menus: ADMIN_MENUS, perms: [] })
+    const fetchMock = stubFetch(async (input) => {
+      const url = String(input)
+      if (url.includes('/us/slot-configs')) return okEnvelope([])
+      if (url.includes('/dicts/detail/items-by-id')) {
+        return okEnvelope([{ id: 1101, code: 1, value: 'US', label: 'US' }])
+      }
+      return okEnvelope({ profile: null, menus: ADMIN_MENUS, perms: [] })
+    })
+    renderRoutes('/setting/exam-slots')
+
+    expect(await screen.findByRole('columnheader', { name: '检查类型' })).toBeInTheDocument()
+    const urls = fetchMock.mock.calls.map(([input]) => String(input))
+    expect(urls).toContain('/api/v1/system/me')
+    expect(urls.some((url) => url.startsWith('/api/v1/us/slot-configs'))).toBe(true)
+  })
 })

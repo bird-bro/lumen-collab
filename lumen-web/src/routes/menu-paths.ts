@@ -36,6 +36,8 @@ const CONSOLE_ROUTE_BY_COMPONENT: Record<string, string> = {
   'setting/exam-body/index': '/setting/exam-bodies',
   'setting/exam-method/index': '/setting/exam-methods',
   'setting/rep-template/index': '/setting/rep-templates',
+  // 预约设置 (us-registration-redesign 拍板 06-A - component key verbatim from the V51 seed).
+  'setting/exam-slot/index': '/setting/exam-slots',
   // 患者配置 (patient-domain task 5.1 - component key verbatim from the V2 seed).
   'system/number-rule/index': '/system/number-rules',
   // US 工作站 (us-station-registration-sev V3 seed / us-station-registration-web

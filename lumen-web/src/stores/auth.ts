@@ -13,6 +13,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { configureApiClient } from '@/api/client';
+import { firstLeafRouteOf } from '@/routes/menu-paths';
 import type { MenuNode, UserProfile } from '@/api/types';
 
 
@@ -65,7 +66,13 @@ export const useAuthStore = create<AuthState>()(
           !opts?.rederiveStation &&
           menus.some((m) => m.type === 'W' && m.mid === get().activeWorkstation);
         if (!keep) {
-          const firstW = menus.find((m) => m.type === 'W');
+          // Landing rule (user report 2026-11-24): the rederived station must be the
+          // station the landing route actually lands in. The landing (and the `/`
+          // redirect) walk firstGrantedRoute, which SKIPS pageless stations - so the
+          // bare first-W pick desynced the two at the source (放射 childless vs the
+          // 超声 landing). Degenerate all-pageless tree keeps the bare first-W.
+          const withPages = menus.find((m) => m.type === 'W' && firstLeafRouteOf(m));
+          const firstW = withPages ?? menus.find((m) => m.type === 'W');
           set({ activeWorkstation: firstW ? firstW.mid : null });
         }
       },

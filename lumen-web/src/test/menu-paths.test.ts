@@ -101,6 +101,14 @@ describe('resolveMenuRoute (web-foundation-auth-console 5.3)', () => {
     expect(resolveMenuRoute(node({ mid: 12, title: '日志查询', upId: 15, type: 'C', path: 'log', component: 'system/log/index' }))).toBe('/system/logs')
   })
 
+  it('maps the V51 预约设置 leaf to its registered route (us-registration-redesign 拍板 06-A)', () => {
+    expect(
+      resolveMenuRoute(
+        node({ mid: 20, title: '预约设置', upId: 21, type: 'C', path: 'exam-slot', component: 'setting/exam-slot/index' }),
+      ),
+    ).toBe('/setting/exam-slots')
+  })
+
   it('keeps an absolute department path as-is', () => {
     expect(resolveMenuRoute(node({ mid: 3, title: '放射科', upId: 0, type: 'C', path: '/radiology' }))).toBe('/radiology')
   })

@@ -122,6 +122,32 @@ describe('auth store activeWorkstation lifecycle (task 1.2; resume contract 2026
     expect(useAuthStore.getState().activeWorkstation).toBe(30) // first granted W
   })
 
+  it('re-derives the first station that CARRIES a page - the landing route owner (user report 2026-11-24)', () => {
+    // the REAL shape (放射 childless, 超声 carries 登记): the login landing walks
+    // firstGrantedRoute to /us/registration (超声), so the bare first-W rederive
+    // (放射) desynced the store from the landing - the ghost 放射 chip on console pages
+    const REAL_TREE: MenuNode[] = [
+      TREE[0],
+      menu({ mid: 30, title: '放射工作站', upId: 0, type: 'W', path: '/radiology' }),
+      menu({
+        mid: 40, title: '超声工作站', upId: 0, type: 'W', path: '/us',
+        children: [menu({ mid: 41, title: '登记', upId: 40, type: 'C', path: '/us/registration' })],
+      }),
+    ]
+    useAuthStore.getState().setSession({ token: 't', menus: REAL_TREE, perms: [] }, { rederiveStation: true })
+    expect(useAuthStore.getState().activeWorkstation).toBe(40)
+  })
+
+  it('an all-pageless station tree keeps the bare first-W fallback (degenerate)', () => {
+    const BARE_TREE: MenuNode[] = [
+      TREE[0],
+      menu({ mid: 30, title: '放射工作站', upId: 0, type: 'W', path: '/radiology' }),
+      menu({ mid: 40, title: '超声工作站', upId: 0, type: 'W', path: '/us' }),
+    ]
+    useAuthStore.getState().setSession({ token: 't', menus: BARE_TREE, perms: [] }, { rederiveStation: true })
+    expect(useAuthStore.getState().activeWorkstation).toBe(30)
+  })
+
   it('a no-longer-granted station falls back on resume (first W, null when none)', () => {
     useAuthStore.getState().setSession({ token: 't', menus: TREE, perms: [] })
     useAuthStore.getState().setActiveWorkstation(40)
